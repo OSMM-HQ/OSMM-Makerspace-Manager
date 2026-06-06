@@ -1480,7 +1480,10 @@ to `INSTALLED_APPS` and:
 ```python
 # Fernet key for encrypting ApiClient secrets at rest. Generate with:
 #   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-API_CLIENT_ENC_KEY = env("API_CLIENT_ENC_KEY")
+# default="" (review fix #5) so settings import never fails when encryption isn't used;
+# _fernet() raises ImproperlyConfigured only when a key is actually needed. Tests/CI get a
+# real key from .env / docker-compose (added below).
+API_CLIENT_ENC_KEY = env("API_CLIENT_ENC_KEY", default="")
 # When True, requests to HMAC_PROTECTED_PATH_PREFIXES must carry a valid signed client.
 API_CLIENT_AUTH_REQUIRED = env.bool("API_CLIENT_AUTH_REQUIRED", default=False)
 ```
@@ -1510,6 +1513,12 @@ from django.conf import settings
 
 
 def _fernet():
+    if not settings.API_CLIENT_ENC_KEY:
+        from django.core.exceptions import ImproperlyConfigured
+
+        raise ImproperlyConfigured(
+            "API_CLIENT_ENC_KEY must be set to encrypt/decrypt ApiClient secrets."
+        )
     return Fernet(settings.API_CLIENT_ENC_KEY.encode())
 
 
@@ -1596,6 +1605,15 @@ class ApiClient(models.Model):
 
     def get_secret(self):
         return decrypt_secret(self.secret_encrypted)
+
+    def clean(self):
+        # review fix #4: an HMAC client must restrict to at least one exact origin.
+        from django.core.exceptions import ValidationError
+
+        if not self.allowed_origins:
+            raise ValidationError(
+                {"allowed_origins": "At least one allowed origin is required."}
+            )
 
     @classmethod
     def issue(cls, *, label, makerspace=None, allowed_origins=None, created_by=None):
@@ -1701,17 +1719,27 @@ class ApiClientAdmin(ModelAdmin):
         "client_id", "created_by", "created_at", "updated_at",
     )
 
-    # Only superadmin + makerspace admins reach this admin at all.
+    # Only ACTIVE superadmin + makerspace admins reach this admin at all
+    # (review fixes #1 correct signatures, #2 access_status).
     def has_module_permission(self, request):
-        u = request.user
-        return bool(u.is_authenticated and u.is_active and (
-            u.is_superuser or u.role in MANAGER_ROLES
-        ))
+        u = getattr(request, "user", None)
+        return bool(
+            u and u.is_authenticated and u.is_active
+            and u.access_status == User.AccessStatus.ACTIVE
+            and (u.is_superuser or u.role in MANAGER_ROLES)
+        )
 
-    has_view_permission = has_module_permission
-    has_add_permission = has_module_permission
-    has_change_permission = has_module_permission
-    has_delete_permission = has_module_permission
+    def has_view_permission(self, request, obj=None):
+        return self.has_module_permission(request)
+
+    def has_add_permission(self, request):
+        return self.has_module_permission(request)
+
+    def has_change_permission(self, request, obj=None):
+        return self.has_module_permission(request)
+
+    def has_delete_permission(self, request, obj=None):
+        return self.has_module_permission(request)
 
     # Admins see/edit only clients in their assigned makerspaces (superadmin: all).
     def get_queryset(self, request):
@@ -1911,8 +1939,11 @@ class FrontendHMACMiddleware:
             return False
 
     def _origin_ok(self, request, client):
+        # Fail closed (review fix #4): a client with no configured origins is rejected,
+        # so the exact-origin check can never be skipped by omission. The model + admin
+        # also require at least one origin (ApiClient.clean).
         if not client.allowed_origins:
-            return True  # no origin restriction configured for this client
+            return False
         raw = request.headers.get("Origin") or request.headers.get("Referer", "")
         if not raw:
             return False
@@ -1946,13 +1977,14 @@ current `HMAC_SECRET` so the existing public frontend keeps signing successfully
 from django.conf import settings
 from apps.apiclients.models import ApiClient
 
+# review fix #3: do NOT use get_or_create — secret_encrypted is non-null with no default,
+# so a create() without it would crash. Fetch-or-instantiate, then set the secret.
 if settings.HMAC_CLIENT_ID and settings.HMAC_SECRET:
-    client, _ = ApiClient.objects.get_or_create(
-        client_id=settings.HMAC_CLIENT_ID,
-        defaults={"label": "Legacy frontend", "allowed_origins": list(settings.CORS_ALLOWED_ORIGINS)},
-    )
-    client.set_secret(settings.HMAC_SECRET)
+    client = ApiClient.objects.filter(client_id=settings.HMAC_CLIENT_ID).first()
+    if client is None:
+        client = ApiClient(client_id=settings.HMAC_CLIENT_ID, label="Legacy frontend")
     client.allowed_origins = list(settings.CORS_ALLOWED_ORIGINS)
+    client.set_secret(settings.HMAC_SECRET)
     client.save()
 ```
 
@@ -2197,7 +2229,9 @@ class AuditLogAdmin(ModelAdmin):
 
     def has_module_permission(self, request):
         u = getattr(request, "user", None)
-        if not (u and u.is_authenticated and u.is_active):
+        # review fix #2: also require active access_status.
+        if not (u and u.is_authenticated and u.is_active
+                and u.access_status == User.AccessStatus.ACTIVE):
             return False
         if u.is_superuser or u.role == User.Role.SUPERADMIN:
             return True
@@ -2313,11 +2347,12 @@ git commit -m "feat(audit): emit entries for login, logout, api-client creation"
 - [ ] **Step 2:** `docker compose exec backend python manage.py check` → no issues.
 - [ ] **Step 3 (HMAC regression, review fix #9):** confirm BOTH `GET /api/public/makerspaces/` and `GET /api/v1/public/makerspaces/` behave identically under the current HMAC config (both guarded when HMAC is enabled, both open when not). The existing public-inventory test plus a quick curl to each path is sufficient.
 - [ ] **Step 4:** Manual auth smoke: create an admin user in Django admin, assign a makerspace membership, `POST /api/v1/auth/login`, confirm access token in body + `refresh_token` cookie with a non-empty `Max-Age`, then `GET /api/v1/auth/me` with the Bearer token → profile with makerspace scope. Suspend the user in admin → next `/api/v1/auth/refresh` returns 403.
-- [ ] **Step 5:** Update `CLAUDE.md` (Project Status + conventions): `/api/v1/` versioning + deny-by-default DRF, the auth endpoints + CSRF model, the RBAC module (membership-role authority) as the scoping authority, the dev cookie strategy, and that the ApiClient/HMAC-registry is deferred to Phase 10.
+- [ ] **Step 5:** Confirm the new admin surfaces work: as superadmin, create an `ApiClient` (secret shown once) and confirm an `apiclient.created` audit entry appears; as a makerspace admin, confirm you see only your makerspace's clients and audit entries (and audit only after being granted `audit.view_auditlog`).
+- [ ] **Step 6:** Update `CLAUDE.md` (Project Status + conventions): `/api/v1/` versioning + deny-by-default DRF, the auth endpoints + CSRF model, the RBAC module (membership-role authority) as scoping authority, the dev cookie strategy, the **`apps/apiclients/` HMAC registry** (per-makerspace, admin-managed, encrypted secret) now powering `FrontendHMACMiddleware`, and the **`apps/audit/` append-only log** (superadmin sees all; admin scoped + permission-gated). Note the publishable-key/browser path + third-party onboarding remain Phase 10.
 
 ```bash
 git add CLAUDE.md
-git commit -m "docs: record Phase 2 auth/RBAC + /api/v1 conventions"
+git commit -m "docs: record Phase 2 auth/RBAC + apiclients + audit conventions"
 ```
 
 ---
@@ -2330,5 +2365,6 @@ git commit -m "docs: record Phase 2 auth/RBAC + /api/v1 conventions"
 - Spec §6 settings/CORS → Task 1. ✓
 - Spec §7 frontend shell → Tasks 11–13 (in-memory token, silent refresh, 401-retry, /me gate). ✓
 - Spec §9 tests (role matrix, cross-tenant denial, suspended, rotation, CSRF) → Tasks 3–9. ✓
-- Spec §10 docs → Task 14. ✓
-- ApiClient registry intentionally absent (deferred to Phase 10 per scope decision). ✓
+- ApiClient HMAC registry (model/admin/middleware/seed) → Tasks 14–17. ✓
+- Append-only audit log (model/service/admin/emission) → Tasks 18–20. ✓
+- Spec §10 docs + final verification → Task 21. ✓
