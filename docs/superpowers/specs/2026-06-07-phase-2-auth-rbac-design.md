@@ -18,12 +18,16 @@ browser-facing publishable-client gate that connects the existing public fronten
 1. Staff (superadmin / admin / guest-admin) can log into a separate-origin admin frontend.
 2. Every staff query is permission-checked and **scoped to assigned makerspaces**;
    superadmin sees all.
-3. The API becomes versioned (`/api/v1/`), CORS-allowlisted, and split into a public
-   surface and a staff surface, with a publishable `client_id` gate on the public surface.
+3. The API gains a versioned `/api/v1/` namespace (CORS-allowlisted) for the new auth and
+   future staff surface. Existing public routes keep working and are aliased under
+   `/api/v1/` (non-breaking).
 4. `restricted`/`suspended` accounts are blocked.
 
-Non-goals here: request workflow, evidence, QR, HMAC server-signing (schema only),
-user-management REST API (staff are managed in Django admin).
+Non-goals here (decided at plan time): the `ApiClient` registry / publishable keys / HMAC
+server-signing — **all deferred to Phase 10**. The existing single-client
+`FrontendHMACMiddleware` (`apps/inventory/middleware.py`) stays untouched and keeps
+guarding the public surface. Also out of scope: request workflow, evidence, QR, and a
+user-management REST API (staff are managed in the Django admin).
 
 ## 2. Decisions locked (from brainstorming)
 
@@ -40,9 +44,8 @@ user-management REST API (staff are managed in Django admin).
 
 ## 3. Data model
 
-No new domain tables for auth itself (Django `User` + `MakerspaceMembership` exist).
-Add the **`ApiClient`** registry (fields per architecture §2.1). Phase 2 uses only the
-publishable path; `hmac_secret_hash` stays null until Phase 10.
+No new domain tables. Django `User` + `MakerspaceMembership` already exist and are
+sufficient. The `ApiClient` registry is **not** built here (Phase 10).
 
 Add `simplejwt`'s token blacklist app (its migrations) for refresh rotation/revocation.
 
@@ -50,7 +53,7 @@ Add `simplejwt`'s token blacklist app (its migrations) for refresh rotation/revo
 
 | Method/Path | Auth | Behavior |
 |---|---|---|
-| `POST /api/v1/auth/login` | publishable client | username/email + password → `{access, user, role, makerspaces}` in body; sets refresh cookie |
+| `POST /api/v1/auth/login` | open (CORS-gated) | username/email + password → `{access, user, role, makerspaces}` in body; sets refresh cookie |
 | `POST /api/v1/auth/refresh` | refresh cookie + CSRF header | new access token; rotates refresh cookie |
 | `POST /api/v1/auth/logout` | refresh cookie | blacklists refresh token; clears cookie |
 | `GET  /api/v1/auth/me` | JWT | current user + role + scoped makerspaces |
@@ -58,8 +61,9 @@ Add `simplejwt`'s token blacklist app (its migrations) for refresh rotation/revo
 Built as thin subclasses of `TokenObtainPairView` / `TokenRefreshView` that relocate the
 refresh token from the body into the cookie and enforce the CSRF header on refresh.
 
-The existing public inventory list is **re-mounted at** `/api/v1/public/:slug/inventory`
-behind the publishable-client gate (kept backward-compatible via the versioned path).
+The existing public routes (`/api/public/...`) keep working unchanged and are **also
+aliased** under `/api/v1/` (so `/api/v1/public/:slug/inventory/` resolves too). The
+`FrontendHMACMiddleware` prefix list is widened to cover both. No frontend change required.
 
 ## 5. RBAC module — `apps/accounts/rbac.py`
 
@@ -117,7 +121,6 @@ Consistent typed JSON errors:
 - `401` + `token_not_valid` on refresh → frontend logs out.
 - `403` forbidden action (role) / wrong makerspace (scope).
 - `403` suspended/restricted staff at login.
-- `403` publishable client unknown/inactive or `Origin` not allowed.
 
 ## 9. Testing (PRD §17 — external behavior)
 
@@ -127,7 +130,6 @@ Consistent typed JSON errors:
 - Suspended/restricted staff cannot log in.
 - Refresh rotation: old refresh token rejected after use; logout invalidates refresh.
 - CSRF: refresh without the custom header is rejected.
-- Publishable gate: unknown `client_id` / disallowed origin rejected on public route.
 
 ## 10. CLAUDE.md / docs updates after build
 

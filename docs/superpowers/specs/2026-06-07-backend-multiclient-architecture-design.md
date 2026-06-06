@@ -91,10 +91,12 @@ permission classes), and CORS is credentialed per registered origin — never `*
 10. API hardening: HMAC server-client signing, rate limits, third-party onboarding
 ```
 
-MVP core = phases 2–7. **HMAC server-signing verification is deferred to Phase 10**
-(no server clients exist yet); the `ApiClient` schema carries the fields from Phase 2 so
-nothing needs migrating later. The publishable-key browser path ships in Phase 2 to
-connect the existing public frontend.
+MVP core = phases 2–7. **The entire multi-client `ApiClient` registry — both the
+publishable-key browser path and HMAC server-signing — is deferred to Phase 10**
+(decided at plan time). A working single-client `FrontendHMACMiddleware` already guards
+the public surface (`backend/apps/inventory/middleware.py`); it stays as-is until Phase 10
+replaces it with the registry. Phase 2 therefore does **not** build `ApiClient`; it builds
+staff JWT auth + RBAC + scoping + the `/api/v1/` versioning skeleton.
 
 ## 6. Open questions (resolved at the owning phase, not now)
 
