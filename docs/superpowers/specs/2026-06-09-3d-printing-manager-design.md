@@ -93,9 +93,13 @@ Each transition function (`accept`, `reject`, `start`, `complete`, `fail`):
    `InvalidTransition` error → API returns **409**.
 2. Updates `status`, `handled_by`, and the relevant timestamp inside a
    `transaction.atomic()` block.
-3. Writes an audit entry via `apps.audit.record(actor, action, makerspace, target=request)`
-   with actions `print.accepted`, `print.rejected`, `print.started`,
-   `print.completed`, `print.failed`.
+3. Writes an audit entry via
+   `apps.audit.record(actor, action, makerspace=request.bucket.makerspace, target=request)`
+   (keyword args — the real signature is
+   `record(actor, action, *, makerspace=None, target=None, ...)`) with actions
+   `print.accepted`, `print.rejected`, `print.started`, `print.completed`,
+   `print.failed`. Transitions re-fetch with `select_for_update()` under the lock
+   to prevent concurrent double-writes.
 4. Queues the relevant email via `transaction.on_commit(...)` (see Email).
 
 No view or admin mutates `status` directly.
@@ -142,24 +146,45 @@ the API surface tight; a manager-facing bucket-CRUD API can come later if needed
 All list endpoints use the standing `PageNumberPagination` (page size 24) and
 `{ count, next, previous, results }` shape. Cross-tenant access returns 404.
 
+## Requester scoping model (intentional)
+
+This is a public-request system ("public users browse and request"). There is no
+requester↔makerspace membership, so **an active requester may create a print
+request against any *active* bucket in any makerspace — by design.** Buckets and
+makerspaces are treated as public-facing, non-sensitive (bucket names/descriptions
+and makerspace IDs are not secrets). To avoid a global listing, the bucket list
+endpoint **requires** an explicit `?makerspace=<id>`.
+
 ## Error handling
 
 - Invalid transition → **409** with a typed error body.
-- Creating against an inactive/other-makerspace bucket → **400/404**.
+- Creating against an **inactive** bucket → **400** (other-makerspace active
+  buckets are allowed per the model above).
+- Bucket list without `?makerspace=`, or an invalid/non-numeric value → **400**.
 - Restricted/suspended requester → **403**.
+- Cross-tenant manager detail/action (request outside actor's MANAGE_PRINTING
+  scope) → **404**.
 - Unauthenticated → **401**; authenticated-but-unauthorized → **403**.
 
 ## Testing (behavior, not implementation)
 
 - Create / list / view own request; pagination + scoping.
-- Each transition: audit row written, email captured via Django `locmem`
-  backend, correct timestamps/status.
+- Each transition: audit row written, email captured — `locmem` backend +
+  `captureOnCommitCallbacks(execute=True)` so the `on_commit` dispatch runs;
+  correct timestamps/status.
 - Invalid transition returns 409 and writes no audit/email.
+- Concurrent-transition safety: a second `accept` on an already-accepted request
+  returns 409 and does not duplicate audit/email.
 - RBAC matrix: requester cannot manage; print_manager can but only in their
   makerspace; admin/superadmin scope; cross-tenant 404.
+- **guest_admin** (membership without `MANAGE_PRINTING`): manager list with
+  `?makerspace=` omitted returns empty; with their own `?makerspace=` returns 403.
+- Requester creating against another makerspace's **active** bucket is allowed;
+  against an **inactive** bucket is rejected (400); invalid/non-numeric
+  `?makerspace=` returns 400 (not 500).
 - Restricted/suspended requester blocked from creating (403).
 - Email templates render (subject + HTML header present) for each event.
-- `printed/` returns only completed jobs, scoped.
+- `printed/` returns only completed jobs, action-scoped.
 
 ## Out of scope (v1)
 
