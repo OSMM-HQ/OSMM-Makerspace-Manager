@@ -11,11 +11,7 @@ def resolve_scope(actor):
         return set()
     if actor.is_superuser or actor.role == User.Role.SUPERADMIN:
         return ALL
-    if actor.role in (User.Role.ADMIN, User.Role.GUEST_ADMIN):
-        return set(
-            actor.makerspace_memberships.values_list("makerspace_id", flat=True)
-        )
-    return set()
+    return set(actor.makerspace_memberships.values_list("makerspace_id", flat=True))
 
 
 def scope_by_makerspace(actor, queryset, makerspace_field="makerspace_id"):
@@ -38,6 +34,7 @@ class Action:
     RETURN_REQUEST = "return_request"
     UPLOAD_EVIDENCE = "upload_evidence"
     MANAGE_QR = "manage_qr"
+    MANAGE_PRINTING = "manage_printing"
     TRANSFER_STOCK = "transfer_stock"        # superadmin only
     MANAGE_STAFF = "manage_staff"            # superadmin only
     MANAGE_MAKERSPACE = "manage_makerspace"  # superadmin only
@@ -47,10 +44,14 @@ _ADMIN_ACTIONS = {
     Action.VIEW_INVENTORY, Action.EDIT_INVENTORY, Action.ACCEPT_REQUEST,
     Action.REJECT_REQUEST, Action.ASSIGN_BOX, Action.ISSUE_REQUEST,
     Action.RETURN_REQUEST, Action.UPLOAD_EVIDENCE, Action.MANAGE_QR,
+    Action.MANAGE_PRINTING,
 }
 _GUEST_ADMIN_ACTIONS = {
     Action.VIEW_INVENTORY, Action.ASSIGN_BOX, Action.ISSUE_REQUEST,
     Action.UPLOAD_EVIDENCE,
+}
+_PRINT_MANAGER_ACTIONS = {
+    Action.MANAGE_PRINTING,
 }
 # Authority for non-superadmins is keyed on the PER-MAKERSPACE membership role,
 # NOT the global User.role (review fix #3). A user who is globally `admin` but only a
@@ -58,7 +59,38 @@ _GUEST_ADMIN_ACTIONS = {
 _MEMBERSHIP_ROLE_ACTIONS = {
     MakerspaceMembership.Role.ADMIN: _ADMIN_ACTIONS,
     MakerspaceMembership.Role.GUEST_ADMIN: _GUEST_ADMIN_ACTIONS,
+    MakerspaceMembership.Role.PRINT_MANAGER: _PRINT_MANAGER_ACTIONS,
 }
+
+
+def makerspaces_for_action(actor, action):
+    """Return makerspace ids where actor's membership role grants action, or ALL."""
+    if actor is None or not getattr(actor, "is_authenticated", False):
+        return set()
+    if actor.is_superuser or actor.role == User.Role.SUPERADMIN:
+        return ALL
+    roles = [
+        role
+        for role, actions in _MEMBERSHIP_ROLE_ACTIONS.items()
+        if action in actions
+    ]
+    if not roles:
+        return set()
+    return set(
+        actor.makerspace_memberships.filter(role__in=roles).values_list(
+            "makerspace_id", flat=True
+        )
+    )
+
+
+def scope_by_action(actor, action, queryset, field="makerspace_id"):
+    """Filter queryset to makerspaces where actor's membership grants action."""
+    scope = makerspaces_for_action(actor, action)
+    if scope is ALL:
+        return queryset
+    if not scope:
+        return queryset.none()
+    return queryset.filter(**{f"{field}__in": scope})
 
 
 def membership_role(actor, makerspace_id):

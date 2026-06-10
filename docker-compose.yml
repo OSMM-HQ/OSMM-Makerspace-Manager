@@ -74,6 +74,13 @@ services:
       HMAC_SECRET: ${HMAC_SECRET:-}
       HMAC_MAX_CLOCK_SKEW_SECONDS: ${HMAC_MAX_CLOCK_SKEW_SECONDS:-300}
       HMAC_PROTECTED_PATH_PREFIXES: ${HMAC_PROTECTED_PATH_PREFIXES:-/api/public/,/api/v1/public/}
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.console.EmailBackend}
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-TinkerSpace <noreply@tinkerspace.local>}
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&

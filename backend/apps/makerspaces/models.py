@@ -30,6 +30,7 @@ class MakerspaceMembership(models.Model):
     class Role(models.TextChoices):
         ADMIN = "admin", "Admin"
         GUEST_ADMIN = "guest_admin", "Guest Admin"
+        PRINT_MANAGER = "print_manager", "Print Manager"
 
     makerspace = models.ForeignKey(
         Makerspace,

@@ -5,9 +5,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project Status
 
 **Implementation has started.** Public inventory browse, staff auth/RBAC foundations,
-API-client HMAC support, QR/box foundations, and Phase 3 audit/evidence
-infrastructure are in place. Request submission, workflow state transitions,
-Check-In API, Telegram, and full issue/return flows are still later phases.
+API-client HMAC support, QR/box foundations, Phase 3 audit/evidence
+infrastructure, and the 3D Printing Manager (request lifecycle + email
+notifications) are in place. Hardware request submission, workflow state
+transitions, Check-In API, Telegram, and full issue/return flows are still
+later phases.
 
 Stack (in use):
 
@@ -49,13 +51,14 @@ cd backend && pytest
 ### Current source map (real paths)
 
 - `backend/config/` — Django project (`settings.py`, `urls.py`, wsgi/asgi). All API routes mounted under `/api/`.
-- `backend/apps/accounts/` — custom `User` model (`AUTH_USER_MODEL`); role + access_status only, no RBAC services yet.
+- `backend/apps/accounts/` — custom `User` model (`AUTH_USER_MODEL`), JWT auth views, and `rbac.py` (the Auth & RBAC module: `can(...)`, action-scoped `makerspaces_for_action`/`scope_by_action`, makerspace scoping).
 - `backend/apps/makerspaces/` — `Makerspace` model (tenant root; unique `slug`).
 - `backend/apps/audit/` - append-only `AuditLog` plus `audit.record(...)`.
 - `backend/apps/evidence/` - immutable evidence photo rows, S3-compatible storage
   helpers, and signed upload/view URL endpoints.
 - `backend/apps/inventory/` — `InventoryProduct` model, `public_availability.py` (availability service — seeds the Inventory Availability Module), `serializers.py` (allowlist-only public serializer), `views.py` (`PublicInventoryListView`), `urls.py`, `management/commands/seed_demo.py`.
-- `backend/tests/` — pytest behavior tests for the public endpoint.
+- `backend/apps/printing/` — 3D Printing Manager: `PrintBucket`/`PrintRequest` models, `workflow.py` (single source of truth for status transitions, row-locked + audited), `permissions.py` (`CanManagePrinting`, action-aware 403/404), `emails.py` (fail-safe branded SMTP notifications), `serializers.py`, `views.py`, `urls.py`, `admin.py`. Templates in `backend/templates/email/`.
+- `backend/tests/` — pytest behavior tests (public endpoint, auth/RBAC, audit/evidence, printing).
 - `frontend/src/features/inventory/` — `PublicInventoryPage`, `ProductCard`, `AvailabilityBadge`, query hook + API client.
 - `frontend/src/lib/`, `frontend/src/components/ui/`, `frontend/src/types/` — query client, fetch wrapper, themed primitives, shared types.
 
