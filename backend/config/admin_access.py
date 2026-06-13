@@ -35,6 +35,9 @@ class AdminSuperuserOnlyMiddleware:
             user.is_active
             and user.is_superuser
             and getattr(user, "access_status", None) == User.AccessStatus.ACTIVE
+            # The default super123 seed must rotate before reaching the admin too,
+            # otherwise it could bypass the API/staff-console forced-change gate.
+            and not getattr(user, "must_change_password", False)
         )
 
 
@@ -71,6 +74,7 @@ class SuperuserOnlyModelAdmin:
             and user.is_active
             and user.is_superuser
             and getattr(user, "access_status", None) == User.AccessStatus.ACTIVE
+            and not getattr(user, "must_change_password", False)
         )
 
     def has_view_permission(self, request, obj=None):

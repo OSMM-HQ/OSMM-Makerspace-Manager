@@ -223,5 +223,19 @@ class ChangePasswordView(APIView):
         user.set_password(new_password)
         user.must_change_password = False
         user.save(update_fields=["password", "must_change_password"])
+        _blacklist_outstanding_tokens(user)
         audit.record(user, "user.password_changed", target=user)
         return Response({"detail": "Password updated."})
+
+
+def _blacklist_outstanding_tokens(user):
+    # Invalidate every refresh token issued before the rotation so a session that
+    # authenticated with the old (e.g. default super123) password can't persist —
+    # the rotating user simply logs in again with the new password.
+    from rest_framework_simplejwt.token_blacklist.models import (
+        BlacklistedToken,
+        OutstandingToken,
+    )
+
+    for token in OutstandingToken.objects.filter(user=user):
+        BlacklistedToken.objects.get_or_create(token=token)

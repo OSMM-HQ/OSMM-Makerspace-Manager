@@ -1,6 +1,7 @@
 import pytest
 from django.contrib.auth import authenticate, get_user_model
 from django.core.management import call_command
+from django.test import Client
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
@@ -73,6 +74,61 @@ def test_setup_instance_explicit_password_does_not_force_change(monkeypatch):
     user = get_user_model().objects.get(username="explicit-superadmin")
     assert user.must_change_password is False
     assert user.check_password("Explicit-Strong-123")
+
+
+def test_must_change_password_blocks_django_admin():
+    """The default super123 seed must not reach /admin/ before rotating, or it would
+    bypass the API/staff-console forced-change gate."""
+    user = get_user_model().objects.create_user(
+        username="admin-gated-super",
+        email="admin-gated@example.com",
+        password="Current-Strong-123",
+        role=User.Role.SUPERADMIN,
+        access_status=User.AccessStatus.ACTIVE,
+        is_staff=True,
+        is_superuser=True,
+        must_change_password=True,
+    )
+    client = Client()
+    client.force_login(user)
+
+    blocked = client.get("/admin/")
+    assert blocked.status_code == 403
+
+    user.must_change_password = False
+    user.save(update_fields=["must_change_password"])
+    client.force_login(user)
+    assert client.get("/admin/").status_code == 200
+
+
+def test_change_password_blacklists_outstanding_refresh_tokens():
+    from rest_framework_simplejwt.token_blacklist.models import BlacklistedToken
+
+    get_user_model().objects.create_user(
+        username="rotate-blacklist",
+        email="rotate-blacklist@example.com",
+        password="Current-Strong-123",
+        role=User.Role.SPACE_MANAGER,
+        access_status=User.AccessStatus.ACTIVE,
+        must_change_password=True,
+    )
+    client = APIClient()
+    login = client.post(
+        LOGIN,
+        {"username": "rotate-blacklist", "password": "Current-Strong-123"},
+        format="json",
+    )
+    client.credentials(HTTP_AUTHORIZATION=f"Bearer {login.data['access']}")
+
+    before = BlacklistedToken.objects.count()
+    changed = client.post(
+        CHANGE_PASSWORD,
+        {"current_password": "Current-Strong-123", "new_password": "New-Strong-123"},
+        format="json",
+    )
+
+    assert changed.status_code == 200
+    assert BlacklistedToken.objects.count() > before  # pre-rotation session revoked
 
 
 def test_login_and_me_include_must_change_password():
