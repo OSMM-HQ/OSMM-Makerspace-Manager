@@ -17,7 +17,7 @@ from apps.hardware_requests.self_checkout_workflow import (
     qr_has_active_loan,
 )
 from apps.hardware_requests.workflow_errors import InvalidTransition, RequestValidationError
-from apps.inventory.models import InventoryAsset, InventoryProduct
+from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 
 
 def issue_direct_loan(makerspace, actor, identifier, *, qr_payloads, items, due_at=None):
@@ -117,6 +117,10 @@ def _manual_product(makerspace, product_id):
     ).first()
     if product is None:
         raise RequestValidationError("Manual product is not enabled for direct handout.")
+    if product.tracking_mode == TrackingMode.INDIVIDUAL:
+        raise RequestValidationError(
+            "Individual-tracked products require scanned asset QR codes for handout."
+        )
     return product
 
 

@@ -20,7 +20,7 @@ from tests.return_helpers import (
 pytestmark = pytest.mark.django_db
 
 
-def test_guest_admin_cannot_return_and_cross_tenant_returns_404(monkeypatch):
+def test_guest_admin_can_return_and_cross_tenant_returns_404(monkeypatch):
     makerspace = make_space("return-perms")
     other_space = make_space("return-perms-other")
     guest_admin = make_member(
@@ -48,9 +48,9 @@ def test_guest_admin_cannot_return_and_cross_tenant_returns_404(monkeypatch):
         format="json",
     )
 
-    assert guest.status_code == 403
+    assert guest.status_code == 200
     assert cross_tenant.status_code == 404
-    object_exists.assert_not_called()
+    assert object_exists.call_count == 1
 
 
 def test_superadmin_can_return_without_membership(monkeypatch):

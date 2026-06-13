@@ -1,0 +1,34 @@
+from django.urls import path
+
+from apps.operations import views
+
+urlpatterns = [
+    path("health/", views.HealthView.as_view(), name="health"),
+    path("health/readiness/", views.ReadinessView.as_view(), name="readiness"),
+    path("admin/makerspace/<int:makerspace_id>/containers", views.ContainerListCreateView.as_view(), name="containers"),
+    path("admin/containers/<int:pk>", views.ContainerDetailView.as_view(), name="container-detail"),
+    path("admin/containers/<int:pk>/move", views.ContainerMoveView.as_view(), name="container-move"),
+    path("admin/containers/<int:pk>/contents", views.ContainerContentsView.as_view(), name="container-contents"),
+    path("admin/containers/<int:pk>/history", views.ContainerHistoryView.as_view(), name="container-history"),
+    path("admin/products/<int:pk>/assets/generate", views.AssetGenerateView.as_view(), name="asset-generate"),
+    path("admin/assets/<int:pk>/qr", views.AssetQrView.as_view(), name="asset-qr"),
+    path("admin/makerspace/<int:makerspace_id>/stock-transfers", views.StockTransferListCreateView.as_view(), name="stock-transfers"),
+    path("admin/stock-transfers/<int:pk>", views.StockTransferDetailView.as_view(), name="stock-transfer-detail"),
+    path("admin/makerspace/<int:makerspace_id>/stocktakes", views.StocktakeListCreateView.as_view(), name="stocktakes"),
+    path("admin/stocktakes/<int:pk>", views.StocktakeDetailView.as_view(), name="stocktake-detail"),
+    path("admin/stocktakes/<int:pk>/count-lines", views.StocktakeCountLineView.as_view(), name="stocktake-count-lines"),
+    path("admin/stocktakes/<int:pk>/complete", views.StocktakeCompleteView.as_view(), name="stocktake-complete"),
+    path("admin/stocktakes/<int:pk>/approve", views.StocktakeApproveView.as_view(), name="stocktake-approve"),
+    path("admin/stocktakes/<int:pk>/apply-adjustments", views.StocktakeApplyAdjustmentsView.as_view(), name="stocktake-apply-adjustments"),
+    path("admin/makerspace/<int:makerspace_id>/analytics/summary", views.AnalyticsView.as_view(), {"report_key": "summary"}, name="analytics-summary"),
+    path("admin/makerspace/<int:makerspace_id>/analytics/taken-items", views.AnalyticsView.as_view(), {"report_key": "taken-items"}, name="analytics-taken-items"),
+    path("admin/makerspace/<int:makerspace_id>/analytics/active-loans", views.AnalyticsView.as_view(), {"report_key": "active-loans"}, name="analytics-active-loans"),
+    path("admin/makerspace/<int:makerspace_id>/analytics/returns", views.AnalyticsView.as_view(), {"report_key": "returns"}, name="analytics-returns"),
+    path("admin/makerspace/<int:makerspace_id>/analytics/damaged-missing", views.AnalyticsView.as_view(), {"report_key": "damaged-missing"}, name="analytics-damaged-missing"),
+    path("admin/makerspace/<int:makerspace_id>/reports/<slug:report_key>/export", views.ReportExportView.as_view(), name="report-export"),
+    path("admin/makerspace/<int:makerspace_id>/qr-print-batches", views.QrPrintBatchListCreateView.as_view(), name="qr-print-batches"),
+    path("admin/qr-print-batches/<int:pk>", views.QrPrintBatchDetailView.as_view(), name="qr-print-batch-detail"),
+    path("admin/qr-print-batches/<int:pk>/items", views.QrPrintBatchItemView.as_view(), name="qr-print-batch-items"),
+    path("admin/qr-print-batches/<int:pk>/print", views.QrPrintBatchPrintView.as_view(), name="qr-print-batch-print"),
+    path("admin/qr-print-batches/<int:pk>/export", views.QrPrintBatchPrintView.as_view(), name="qr-print-batch-export"),
+]

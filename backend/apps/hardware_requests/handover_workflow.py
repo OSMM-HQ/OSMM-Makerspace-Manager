@@ -1,5 +1,6 @@
 from django.db import IntegrityError, transaction
 from django.utils import timezone
+from datetime import timedelta
 
 from apps.audit import services as audit
 from apps.boxes.models import Box, BoxScan
@@ -99,6 +100,10 @@ def issue_request(actor, request, evidence_id, remark=""):
         locked.issue_remark = remark
         locked.issued_by = actor
         locked.issued_at = timezone.now()
+        if locked.return_due_at is None:
+            locked.return_due_at = locked.issued_at + timedelta(
+                days=locked.makerspace.default_loan_days or 7
+            )
         locked.status = HardwareRequest.Status.ISSUED
         try:
             locked.save(
@@ -107,6 +112,7 @@ def issue_request(actor, request, evidence_id, remark=""):
                     "issue_remark",
                     "issued_by",
                     "issued_at",
+                    "return_due_at",
                     "status",
                     "updated_at",
                 ]
@@ -129,6 +135,32 @@ def issue_request(actor, request, evidence_id, remark=""):
             meta={"box_id": locked.assigned_box_id, "evidence_id": evidence.pk},
         )
         transaction.on_commit(lambda request_id=locked.pk: _notify_issued(request_id))
+        return locked
+
+
+def set_return_due(actor, request, return_due_at):
+    with transaction.atomic():
+        locked = locked_request(request)
+        if locked.status not in {
+            HardwareRequest.Status.ACCEPTED,
+            HardwareRequest.Status.ISSUED,
+            HardwareRequest.Status.PARTIALLY_RETURNED,
+        }:
+            raise InvalidTransition(
+                f"Cannot set return due time for hardware request with status {locked.status}."
+            )
+        locked.return_due_at = return_due_at
+        locked.return_reminder_sent_at = None
+        locked.save(
+            update_fields=["return_due_at", "return_reminder_sent_at", "updated_at"]
+        )
+        audit.record(
+            actor,
+            "request.return_due_updated",
+            makerspace=locked.makerspace,
+            target=locked,
+            meta={"return_due_at": return_due_at.isoformat() if return_due_at else None},
+        )
         return locked
 
 

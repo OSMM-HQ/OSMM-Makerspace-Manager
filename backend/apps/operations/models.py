@@ -1,0 +1,120 @@
+from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.db import models
+
+from apps.boxes.models import Box, QrCode
+from apps.inventory.models import InventoryAsset, InventoryProduct
+from apps.makerspaces.models import Makerspace
+
+
+class StockTransfer(models.Model):
+    class Status(models.TextChoices):
+        APPLIED = "applied", "Applied"
+        CANCELLED = "cancelled", "Cancelled"
+
+    makerspace = models.ForeignKey(Makerspace, on_delete=models.CASCADE, related_name="stock_transfers")
+    source_container = models.ForeignKey(Box, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    destination_container = models.ForeignKey(Box, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    source_makerspace = models.ForeignKey(Makerspace, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    destination_makerspace = models.ForeignKey(Makerspace, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
+    reason = models.TextField()
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.APPLIED)
+    created_at = models.DateTimeField(auto_now_add=True)
+    applied_at = models.DateTimeField(null=True, blank=True)
+
+
+class StockTransferLine(models.Model):
+    transfer = models.ForeignKey(StockTransfer, on_delete=models.CASCADE, related_name="lines")
+    product = models.ForeignKey(InventoryProduct, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    asset = models.ForeignKey(InventoryAsset, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    quantity = models.PositiveIntegerField(default=1)
+    from_status = models.CharField(max_length=32, blank=True)
+    to_status = models.CharField(max_length=32, blank=True)
+    notes = models.TextField(blank=True)
+
+    def clean(self):
+        if bool(self.product_id) == bool(self.asset_id):
+            raise ValidationError("Provide exactly one of product or asset.")
+
+
+class StocktakeSession(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        COUNTING = "counting", "Counting"
+        COMPLETED = "completed", "Completed"
+        APPROVED = "approved", "Approved"
+        APPLIED = "applied", "Applied"
+        CANCELLED = "cancelled", "Cancelled"
+
+    makerspace = models.ForeignKey(Makerspace, on_delete=models.CASCADE, related_name="stocktakes")
+    container = models.ForeignKey(Box, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.COUNTING)
+    started_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
+    approved_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    started_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+
+
+class StocktakeLine(models.Model):
+    class Condition(models.TextChoices):
+        AVAILABLE = "available", "Available"
+        DAMAGED = "damaged", "Damaged"
+        LOST = "lost", "Lost"
+        UNKNOWN = "unknown", "Unknown"
+
+    stocktake = models.ForeignKey(StocktakeSession, on_delete=models.CASCADE, related_name="lines")
+    product = models.ForeignKey(InventoryProduct, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    asset = models.ForeignKey(InventoryAsset, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    container = models.ForeignKey(Box, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    expected_quantity = models.IntegerField(default=0)
+    counted_quantity = models.IntegerField(default=0)
+    variance_quantity = models.IntegerField(default=0)
+    condition = models.CharField(max_length=20, choices=Condition.choices, default=Condition.AVAILABLE)
+    notes = models.TextField(blank=True)
+
+    def clean(self):
+        if bool(self.product_id) == bool(self.asset_id):
+            raise ValidationError("Provide exactly one of product or asset.")
+
+
+class InventoryAdjustment(models.Model):
+    makerspace = models.ForeignKey(Makerspace, on_delete=models.CASCADE, related_name="inventory_adjustments")
+    stocktake = models.ForeignKey(StocktakeSession, null=True, blank=True, on_delete=models.SET_NULL, related_name="adjustments")
+    transfer = models.ForeignKey(StockTransfer, null=True, blank=True, on_delete=models.SET_NULL, related_name="adjustments")
+    product = models.ForeignKey(InventoryProduct, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    asset = models.ForeignKey(InventoryAsset, null=True, blank=True, on_delete=models.PROTECT, related_name="+")
+    delta_available = models.IntegerField(default=0)
+    delta_damaged = models.IntegerField(default=0)
+    delta_lost = models.IntegerField(default=0)
+    reason = models.TextField()
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class QrPrintBatch(models.Model):
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        PRINTED = "printed", "Printed"
+        ARCHIVED = "archived", "Archived"
+
+    makerspace = models.ForeignKey(Makerspace, on_delete=models.CASCADE, related_name="qr_print_batches")
+    title = models.CharField(max_length=200)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    printed_at = models.DateTimeField(null=True, blank=True)
+
+
+class QrPrintBatchItem(models.Model):
+    batch = models.ForeignKey(QrPrintBatch, on_delete=models.CASCADE, related_name="items")
+    qr_code = models.ForeignKey(QrCode, on_delete=models.PROTECT, related_name="print_items")
+    label_text = models.CharField(max_length=255)
+    target_type = models.CharField(max_length=20)
+    target_id = models.PositiveIntegerField()
+    sort_order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["sort_order", "id"]

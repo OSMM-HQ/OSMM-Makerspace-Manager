@@ -1,5 +1,6 @@
 import uuid
 from collections.abc import Mapping
+from datetime import timedelta
 from unittest.mock import Mock
 
 import pytest
@@ -7,6 +8,7 @@ from django.conf import settings as django_settings
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.test import override_settings
+from django.utils import timezone
 from rest_framework.test import APIClient
 from rest_framework.throttling import ScopedRateThrottle
 
@@ -14,7 +16,11 @@ from apps.accounts.models import User
 from apps.audit.models import AuditLog
 from apps.boxes.models import Box
 from apps.checkin.client import CheckinDenied, CheckinResult, CheckinUnavailable
-from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
+from apps.hardware_requests.models import (
+    HardwareEmailTemplate,
+    HardwareRequest,
+    HardwareRequestItem,
+)
 from apps.inventory.models import InventoryProduct
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 
@@ -128,6 +134,14 @@ def accept_url(hardware_request):
 
 def reject_url(hardware_request):
     return f"/api/v1/admin/requests/{hardware_request.id}/reject"
+
+
+def return_due_url(hardware_request):
+    return f"/api/v1/admin/requests/{hardware_request.id}/return-due"
+
+
+def return_policy_url(makerspace):
+    return f"/api/v1/admin/makerspace/{makerspace.id}/return-policy"
 
 
 def submit_payload(identifier, product, quantity=1):
@@ -612,6 +626,77 @@ def test_accept_and_reject_send_contact_email(django_capture_on_commit_callbacks
     assert "approved" in mailoutbox[0].subject
     assert "rejected" in mailoutbox[1].subject
     assert "Not available today." in mailoutbox[1].body
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+def test_accept_email_uses_admin_configured_template(
+    django_capture_on_commit_callbacks,
+    mailoutbox,
+):
+    makerspace = make_space("request-template-email")
+    product = make_product(makerspace)
+    HardwareEmailTemplate.objects.create(
+        makerspace=makerspace,
+        key=HardwareEmailTemplate.Key.REQUEST_ACCEPTED,
+        subject="Custom approval {{ request.id }}",
+        text_body="Hi {{ request.requester_username }}, approved by {{ makerspace.name }}.",
+    )
+    hardware_request = make_hardware_request(
+        makerspace,
+        product,
+        contact_email="templated@example.com",
+    )
+    admin = make_member("template-email-admin", makerspace)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        response = authenticated_client(admin).post(
+            accept_url(hardware_request),
+            format="json",
+        )
+
+    assert response.status_code == 200
+    assert len(mailoutbox) == 1
+    assert mailoutbox[0].subject == f"Custom approval {hardware_request.id}"
+    assert f"Hi {hardware_request.requester_username}" in mailoutbox[0].body
+
+
+def test_inventory_manager_can_set_return_policy_and_request_due_time():
+    makerspace = make_space("return-policy")
+    product = make_product(makerspace)
+    hardware_request = make_hardware_request(
+        makerspace,
+        product,
+        status=HardwareRequest.Status.ACCEPTED,
+    )
+    inventory_manager = make_member(
+        "return-policy-inventory",
+        makerspace,
+        membership_role=MakerspaceMembership.Role.INVENTORY_MANAGER,
+        role=User.Role.REQUESTER,
+    )
+    client = authenticated_client(inventory_manager)
+
+    response = client.patch(
+        return_policy_url(makerspace),
+        {"default_loan_days": 10},
+        format="json",
+    )
+    assert response.status_code == 200
+    assert response.data["default_loan_days"] == 10
+    makerspace.refresh_from_db()
+    assert makerspace.default_loan_days == 10
+
+    due_at = timezone.now() + timedelta(days=4)
+    response = client.post(
+        return_due_url(hardware_request),
+        {"return_due_at": due_at.isoformat()},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    hardware_request.refresh_from_db()
+    assert hardware_request.return_due_at == due_at
+    assert hardware_request.return_reminder_sent_at is None
 
 
 def test_accept_with_insufficient_stock_rolls_back_and_returns_409():

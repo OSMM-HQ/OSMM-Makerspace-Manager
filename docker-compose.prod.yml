@@ -1,0 +1,59 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-tinker}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-tinkerspace}
+    volumes:
+      - tinkerspace_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tinker} -d ${POSTGRES_DB:-tinkerspace}"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  backend:
+    image: ${TINKERSPACE_BACKEND_IMAGE:-ghcr.io/tinkerspace/inventory-manager-backend}:${TINKERSPACE_IMAGE_TAG:-latest}
+    environment:
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY}
+      DEBUG: "False"
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:?set ALLOWED_HOSTS}
+      DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-tinker}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-tinkerspace}}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+      API_CLIENT_ENC_KEY: ${API_CLIENT_ENC_KEY:-}
+      EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.smtp.EmailBackend}
+      EMAIL_HOST: ${EMAIL_HOST:-}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-Makerspace <noreply@example.com>}
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/readiness/', timeout=3).read()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    image: ${TINKERSPACE_FRONTEND_IMAGE:-ghcr.io/tinkerspace/inventory-manager-frontend}:${TINKERSPACE_IMAGE_TAG:-latest}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  tinkerspace_pgdata:

@@ -1,9 +1,11 @@
 import uuid
+from datetime import timedelta
 from unittest.mock import Mock
 
 import pytest
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
@@ -326,6 +328,8 @@ def test_issue_with_cross_tenant_or_wrong_type_evidence_returns_400_without_stor
 
 def test_issue_happy_path(monkeypatch, django_capture_on_commit_callbacks):
     makerspace = make_space("issue-happy")
+    makerspace.default_loan_days = 7
+    makerspace.save(update_fields=["default_loan_days"])
     admin = make_member("issue-happy-admin", makerspace)
     product = make_product(makerspace, total_quantity=5, available_quantity=5)
     hardware_request = make_accepted_request(makerspace, product, 2)
@@ -352,6 +356,9 @@ def test_issue_happy_path(monkeypatch, django_capture_on_commit_callbacks):
     assert hardware_request.status == HardwareRequest.Status.ISSUED
     assert hardware_request.issued_by == admin
     assert hardware_request.issued_at is not None
+    assert hardware_request.return_due_at is not None
+    delta = hardware_request.return_due_at - hardware_request.issued_at
+    assert 6 <= delta.days <= 7
     assert hardware_request.issue_evidence == evidence
     product.refresh_from_db()
     assert product.reserved_quantity == 0
@@ -366,6 +373,30 @@ def test_issue_happy_path(monkeypatch, django_capture_on_commit_callbacks):
     loans = authenticated_client(admin).get(active_loans_url(makerspace))
     assert loans.status_code == 200
     assert [item["id"] for item in loans.data["results"]] == [hardware_request.id]
+
+
+def test_issue_preserves_manager_set_due_time(monkeypatch):
+    makerspace = make_space("issue-custom-due")
+    admin = make_member("issue-custom-due-admin", makerspace)
+    product = make_product(makerspace)
+    hardware_request = make_accepted_request(makerspace, product, 1)
+    custom_due = timezone.now() + timedelta(days=3)
+    hardware_request.return_due_at = custom_due
+    hardware_request.save(update_fields=["return_due_at", "updated_at"])
+    box = make_box(makerspace)
+    assign_scanned_box(hardware_request, box, admin)
+    evidence = make_issue_evidence(makerspace, admin)
+    monkeypatch.setattr("apps.evidence.storage.object_exists", Mock(return_value=True))
+
+    response = authenticated_client(admin).post(
+        issue_url(hardware_request),
+        issue_payload(evidence),
+        format="json",
+    )
+
+    assert response.status_code == 200
+    hardware_request.refresh_from_db()
+    assert hardware_request.return_due_at == custom_due
 
 
 def test_guest_admin_can_issue_accepted(monkeypatch):

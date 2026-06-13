@@ -115,6 +115,16 @@ export function ApiClientsPanel({ makerspace }: { makerspace: Makerspace }) {
       queryClient.invalidateQueries({ queryKey: ["api-settings", makerspace.id] });
     },
   });
+  const testTelegram = useMutation({
+    mutationFn: () =>
+      staffRequest<{ delivered: boolean }>("/integrations/telegram/test-alert", {
+        method: "POST",
+        body: JSON.stringify({
+          makerspace_id: makerspace.id,
+          message: `Test alert from ${makerspace.name}`,
+        }),
+      }),
+  });
 
   return (
     <Panel title="API clients">
@@ -204,8 +214,23 @@ export function ApiClientsPanel({ makerspace }: { makerspace: Makerspace }) {
             >
               {saveSettings.isPending ? "Saving..." : "Save integration settings"}
             </button>
+            <button
+              className="desk-button mt-2 w-full"
+              disabled={testTelegram.isPending}
+              onClick={() => testTelegram.mutate()}
+            >
+              {testTelegram.isPending ? "Sending..." : "Send Telegram test alert"}
+            </button>
             {saveSettings.error ? (
               <p className="mt-2 text-sm text-danger">{saveSettings.error.message}</p>
+            ) : null}
+            {testTelegram.data ? (
+              <p className="mt-2 text-sm text-muted">
+                Telegram delivered: {testTelegram.data.delivered ? "yes" : "no"}
+              </p>
+            ) : null}
+            {testTelegram.error ? (
+              <p className="mt-2 text-sm text-danger">{testTelegram.error.message}</p>
             ) : null}
           </div>
 

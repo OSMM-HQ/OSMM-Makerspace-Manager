@@ -20,6 +20,9 @@ class ApiClientSerializer(serializers.ModelSerializer):
             "label",
             "client_id",
             "client_secret",
+            "client_type",
+            "scopes",
+            "rate_limit_tier",
             "makerspace",
             "public_makerspace_code",
             "allowed_origins",
@@ -48,6 +51,17 @@ class ApiClientSerializer(serializers.ModelSerializer):
             if not isinstance(origin, str) or not origin.startswith(("http://", "https://")):
                 raise serializers.ValidationError("Origins must be exact http(s) URLs.")
         return value
+
+    def validate(self, attrs):
+        client_type = attrs.get("client_type") or getattr(self.instance, "client_type", "server")
+        scopes = attrs.get("scopes", getattr(self.instance, "scopes", []))
+        if client_type == "browser":
+            forbidden = {"inventory:write", "requests:review", "admin:write", "qr:manage"}
+            if forbidden.intersection(set(scopes or [])):
+                raise serializers.ValidationError(
+                    {"scopes": "Browser clients may only use public/read scopes."}
+                )
+        return attrs
 
     def get_backend_base_url(self, _obj) -> str:
         request = self.context.get("request")
@@ -96,6 +110,7 @@ class ApiIntegrationSettingsSerializer(serializers.ModelSerializer):
             "smtp_password_set",
             "smtp_use_tls",
             "smtp_from_email",
+            "default_loan_days",
         ]
         read_only_fields = [
             "public_code",
@@ -110,3 +125,20 @@ class ApiIntegrationSettingsSerializer(serializers.ModelSerializer):
 
     def get_smtp_password_set(self, obj) -> bool:
         return bool(obj.smtp_password)
+
+    def validate_default_loan_days(self, value):
+        if value < 1:
+            raise serializers.ValidationError("Default loan days must be at least 1.")
+        return value
+
+    def update(self, instance, validated_data):
+        telegram_bot_token = validated_data.pop("telegram_bot_token", None)
+        smtp_password = validated_data.pop("smtp_password", None)
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        if telegram_bot_token:
+            instance.set_telegram_bot_token(telegram_bot_token)
+        if smtp_password:
+            instance.set_smtp_password(smtp_password)
+        instance.save()
+        return instance

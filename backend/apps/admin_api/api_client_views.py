@@ -40,6 +40,9 @@ class ApiClientListCreateView(generics.ListCreateAPIView):
             makerspace=makerspace,
             allowed_origins=serializer.validated_data["allowed_origins"],
             created_by=request.user,
+            client_type=serializer.validated_data.get("client_type", "server"),
+            scopes=serializer.validated_data.get("scopes") or [],
+            rate_limit_tier=serializer.validated_data.get("rate_limit_tier", "standard"),
         )
         client.is_active = serializer.validated_data.get("is_active", True)
         client.save(update_fields=["is_active", "updated_at"])

@@ -2,6 +2,7 @@ from django.db.models import Q
 from django.http import Http404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.generics import ListAPIView
+from rest_framework.generics import RetrieveAPIView
 from rest_framework.permissions import AllowAny
 from rest_framework.throttling import ScopedRateThrottle
 
@@ -11,6 +12,7 @@ from apps.inventory.serializers import (
 )
 from apps.makerspaces.models import Makerspace
 from apps.makerspaces.lookup import get_public_makerspace
+from apps.makerspaces.platform import module_enabled
 from apps.openapi import PUBLISHABLE_KEY_PARAMETER
 
 
@@ -63,7 +65,7 @@ class PublicInventoryListView(ListAPIView):
 
     def get_queryset(self):
         makerspace = get_public_makerspace(self.kwargs["makerspace_slug"])
-        if not makerspace.public_inventory_enabled:
+        if not makerspace.public_inventory_enabled or not module_enabled(makerspace, "public_inventory"):
             raise Http404
 
         queryset = makerspace.products.filter(
@@ -77,3 +79,22 @@ class PublicInventoryListView(ListAPIView):
             )
 
         return queryset.order_by("name")
+
+
+@extend_schema(
+    tags=["Public inventory"],
+    summary="Get public inventory product detail",
+    parameters=[PUBLISHABLE_KEY_PARAMETER],
+    responses=PublicProductSerializer,
+)
+class PublicInventoryDetailView(RetrieveAPIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "public_read"
+    serializer_class = PublicProductSerializer
+
+    def get_queryset(self):
+        makerspace = get_public_makerspace(self.kwargs["makerspace_slug"])
+        if not makerspace.public_inventory_enabled or not module_enabled(makerspace, "public_inventory"):
+            raise Http404
+        return makerspace.products.filter(is_public=True, is_archived=False).order_by("name")

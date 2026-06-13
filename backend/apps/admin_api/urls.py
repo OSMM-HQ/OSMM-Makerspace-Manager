@@ -7,6 +7,21 @@ urlpatterns = [
     path("makerspaces", views.MakerspaceListCreateView.as_view(), name="admin-makerspaces"),
     path("makerspaces/<int:pk>", views.MakerspaceDetailView.as_view(), name="admin-makerspace"),
     path(
+        "makerspace/<int:makerspace_id>/return-policy",
+        views.ReturnPolicyView.as_view(),
+        name="admin-return-policy",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/frontends",
+        views.TenantFrontendListCreateView.as_view(),
+        name="admin-tenant-frontends",
+    ),
+    path(
+        "frontends/<int:pk>",
+        views.TenantFrontendDetailView.as_view(),
+        name="admin-tenant-frontend",
+    ),
+    path(
         "makerspace/<int:makerspace_id>/inventory",
         views.InventoryListCreateView.as_view(),
         name="admin-inventory",

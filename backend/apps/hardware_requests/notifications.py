@@ -1,9 +1,56 @@
 import logging
 
+from django.template import Context, Template
+from django.utils import timezone
+
 from apps.integrations.email import send_makerspace_email
 from apps.integrations.telegram import TelegramDeliveryError, send_message
+from apps.hardware_requests.models import HardwareEmailTemplate
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_TEMPLATES = {
+    HardwareEmailTemplate.Key.REQUEST_RECEIVED: {
+        "subject": "{{ makerspace.name }} request received",
+        "text_body": (
+            "Your makerspace request #{{ request.id }} was received.\n\n"
+            "Status: {{ request.status }}\n"
+            "Use your email or phone on the public request page to check status."
+        ),
+    },
+    HardwareEmailTemplate.Key.REQUEST_ACCEPTED: {
+        "subject": "{{ makerspace.name }} request approved",
+        "text_body": (
+            "Your makerspace request #{{ request.id }} has been approved."
+            "{% if request.return_due_at %}\n\nReturn by: {{ request.return_due_at }}{% endif %}"
+        ),
+    },
+    HardwareEmailTemplate.Key.REQUEST_REJECTED: {
+        "subject": "{{ makerspace.name }} request rejected",
+        "text_body": (
+            "Your makerspace request #{{ request.id }} was rejected."
+            "{% if request.rejection_reason %}\n\nReason: {{ request.rejection_reason }}{% endif %}"
+        ),
+    },
+    HardwareEmailTemplate.Key.REQUEST_ISSUED: {
+        "subject": "{{ makerspace.name }} request issued",
+        "text_body": (
+            "Your approved makerspace request #{{ request.id }} has been handed out."
+            "{% if request.return_due_at %}\n\nReturn by: {{ request.return_due_at }}{% endif %}"
+        ),
+    },
+    HardwareEmailTemplate.Key.REQUEST_RETURNED: {
+        "subject": "{{ makerspace.name }} request returned",
+        "text_body": "Your makerspace request #{{ request.id }} has been returned and closed.",
+    },
+    HardwareEmailTemplate.Key.RETURN_REMINDER: {
+        "subject": "{{ makerspace.name }} return reminder",
+        "text_body": (
+            "Your makerspace request #{{ request.id }} is due for return."
+            "{% if request.return_due_at %}\n\nReturn due: {{ request.return_due_at }}{% endif %}"
+        ),
+    },
+}
 
 
 def notify_request_submitted(request):
@@ -20,7 +67,7 @@ def notify_request_submitted(request):
         request,
         f"New hardware request #{request.pk} from {request.requester_username}.",
     )
-    _send_request_confirmation(request)
+    _send_templated_email(request, HardwareEmailTemplate.Key.REQUEST_RECEIVED)
 
 
 def notify_request_accepted(request):
@@ -32,11 +79,7 @@ def notify_request_accepted(request):
             "status": request.status,
         },
     )
-    _send_status_email(
-        request,
-        "request approved",
-        "Your makerspace request has been approved.",
-    )
+    _send_templated_email(request, HardwareEmailTemplate.Key.REQUEST_ACCEPTED)
 
 
 def notify_request_rejected(request):
@@ -48,10 +91,7 @@ def notify_request_rejected(request):
             "status": request.status,
         },
     )
-    body = "Your makerspace request was rejected."
-    if request.rejection_reason:
-        body = f"{body}\n\nReason: {request.rejection_reason}"
-    _send_status_email(request, "request rejected", body)
+    _send_templated_email(request, HardwareEmailTemplate.Key.REQUEST_REJECTED)
 
 
 def notify_request_issued(request):
@@ -65,11 +105,7 @@ def notify_request_issued(request):
         },
     )
     _send_request_message(request, f"Hardware request #{request.pk} has been issued.")
-    _send_status_email(
-        request,
-        "request issued",
-        "Your approved makerspace request has been handed out.",
-    )
+    _send_templated_email(request, HardwareEmailTemplate.Key.REQUEST_ISSUED)
 
 
 def notify_request_returned(request):
@@ -83,11 +119,19 @@ def notify_request_returned(request):
         },
     )
     _send_request_message(request, f"Hardware request #{request.pk} has been returned.")
-    _send_status_email(
-        request,
-        "request returned",
-        "Your makerspace request has been returned and closed.",
+    _send_templated_email(request, HardwareEmailTemplate.Key.REQUEST_RETURNED)
+
+
+def notify_return_due(request):
+    logger.info(
+        "Hardware request return reminder due.",
+        extra={
+            "request_id": request.pk,
+            "makerspace_id": request.makerspace_id,
+            "status": request.status,
+        },
     )
+    return _send_templated_email(request, HardwareEmailTemplate.Key.RETURN_REMINDER)
 
 
 def _send_request_message(request, text):
@@ -113,26 +157,51 @@ def _send_request_message(request, text):
         )
 
 
-def _send_request_confirmation(request):
-    body = (
-        f"Your makerspace request #{request.pk} was received.\n\n"
-        f"Status: {request.status}\n"
-        "Use your email or phone on the public request page to check status."
-    )
-    _send_status_email(request, "request received", body)
-
-
-def _send_status_email(request, subject_suffix, body):
+def _send_templated_email(request, key):
     recipient = request.requester_contact_email
     if not recipient:
-        return
+        return False
 
-    subject = f"{request.makerspace.name} {subject_suffix}"
+    rendered = render_email(request, key)
     try:
-        send_makerspace_email(request.makerspace, subject, body, [recipient])
+        sent = send_makerspace_email(
+            request.makerspace,
+            rendered["subject"],
+            rendered["text_body"],
+            [recipient],
+            html_body=rendered["html_body"],
+        )
+        return bool(sent)
     except Exception:
         logger.warning(
             "request_status_email_failed",
-            extra={"request_id": request.pk, "recipient": recipient},
+            extra={"request_id": request.pk, "recipient": recipient, "template": key},
             exc_info=True,
         )
+        return False
+
+
+def render_email(request, key):
+    template = HardwareEmailTemplate.objects.filter(
+        makerspace=request.makerspace,
+        key=key,
+        is_active=True,
+    ).first()
+    defaults = DEFAULT_TEMPLATES[key]
+    subject = template.subject if template else defaults["subject"]
+    text_body = template.text_body if template else defaults["text_body"]
+    html_body = template.html_body if template else defaults.get("html_body", "")
+    context = Context(
+        {
+            "request": request,
+            "makerspace": request.makerspace,
+            "items": request.items.select_related("product").all(),
+            "now": timezone.now(),
+        },
+        autoescape=True,
+    )
+    return {
+        "subject": Template(subject).render(context).strip(),
+        "text_body": Template(text_body).render(context),
+        "html_body": Template(html_body).render(context) if html_body else "",
+    }

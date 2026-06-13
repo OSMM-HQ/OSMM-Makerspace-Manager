@@ -1,4 +1,8 @@
-from apps.hardware_requests.handover_workflow import assign_box, issue_request
+from apps.hardware_requests.handover_workflow import (
+    assign_box,
+    issue_request,
+    set_return_due,
+)
 from apps.hardware_requests.request_workflow import (
     accept_request,
     reject_request,
@@ -28,5 +32,6 @@ __all__ = [
     "issue_request",
     "reject_request",
     "return_items",
+    "set_return_due",
     "submit_request",
 ]

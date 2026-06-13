@@ -4,8 +4,31 @@ export const API_URL =
 const API_V1_URL = API_URL.replace(/\/api$/, "/api/v1");
 const PUBLIC_API_KEY = import.meta.env.VITE_PUBLIC_API_KEY ?? "";
 const PUBLIC_CLIENT_ID = import.meta.env.VITE_PUBLIC_CLIENT_ID ?? "";
-const PUBLIC_CLIENT_SECRET = import.meta.env.VITE_PUBLIC_CLIENT_SECRET ?? "";
 const ACCESS_TOKEN_KEY = "makerspace.access";
+
+export type TenantBootstrap = {
+  makerspace: {
+    id: number;
+    name: string;
+    slug: string;
+    public_code: string;
+    location: string;
+  };
+  frontend: {
+    type: string;
+    hostname: string;
+    allowed_origins: string[];
+  };
+  modules: string[];
+  workflows: string[];
+  theme: Record<string, string>;
+  branding: Record<string, string>;
+  public_api: {
+    base_url: string;
+    publishable_key: string;
+    inventory_path: string;
+  };
+};
 
 function messageForStatus(status: number): string {
   if (status === 401) {
@@ -23,39 +46,11 @@ function messageForStatus(status: number): string {
   return "Unable to load inventory";
 }
 
-async function publicHeaders(
-  method: string,
-  requestPath: string,
-  body = "",
-): Promise<HeadersInit> {
-  if (PUBLIC_CLIENT_ID && PUBLIC_CLIENT_SECRET) {
-    const timestamp = String(Math.floor(Date.now() / 1000));
-    const message = [method.toUpperCase(), requestPath, timestamp, body].join("\n");
-    return {
-      "X-Client-Id": PUBLIC_CLIENT_ID,
-      "X-Timestamp": timestamp,
-      "X-Signature": await hmacSha256(PUBLIC_CLIENT_SECRET, message),
-    };
-  }
+async function publicHeaders(): Promise<HeadersInit> {
   if (PUBLIC_CLIENT_ID) {
     return { "X-Client-Id": PUBLIC_CLIENT_ID };
   }
   return PUBLIC_API_KEY ? { "X-Publishable-Key": PUBLIC_API_KEY } : {};
-}
-
-async function hmacSha256(secret: string, message: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey(
-    "raw",
-    encoder.encode(secret),
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"],
-  );
-  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(message));
-  return Array.from(new Uint8Array(signature))
-    .map((byte) => byte.toString(16).padStart(2, "0"))
-    .join("");
 }
 
 function authHeaders(): HeadersInit {
@@ -63,9 +58,9 @@ function authHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-export async function fetchJson<T>(url: string, requestPath: string): Promise<T> {
+export async function fetchJson<T>(url: string): Promise<T> {
   const response = await fetch(url, {
-    headers: await publicHeaders("GET", requestPath),
+    headers: await publicHeaders(),
   });
 
   if (!response.ok) {
@@ -76,20 +71,18 @@ export async function fetchJson<T>(url: string, requestPath: string): Promise<T>
 }
 
 export async function apiGet<T>(path: string): Promise<T> {
-  return fetchJson<T>(`${API_URL}${path}`, `/api${path}`);
+  return fetchJson<T>(`${API_URL}${path}`);
 }
 
 export async function publicV1Request<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const method = options.method ?? "GET";
-  const body = typeof options.body === "string" ? options.body : "";
   const response = await fetch(`${API_V1_URL}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      ...(await publicHeaders(method, `/api/v1${path}`, body)),
+      ...(await publicHeaders()),
       ...(options.headers ?? {}),
     },
   });
@@ -104,6 +97,13 @@ export async function publicV1Request<T>(
   }
 
   return (await response.json()) as T;
+}
+
+export async function bootstrapTenant(params: { tenant?: string; slug?: string }) {
+  const search = new URLSearchParams();
+  if (params.tenant) search.set("tenant", params.tenant);
+  if (params.slug) search.set("slug", params.slug);
+  return publicV1Request<TenantBootstrap>(`/bootstrap?${search.toString()}`);
 }
 
 export function setAccessToken(token: string) {
@@ -132,4 +132,20 @@ export async function staffRequest<T>(
     throw new Error(body.detail ?? `Request failed (${response.status})`);
   }
   return (await response.json()) as T;
+}
+
+export async function downloadStaffFile(path: string, filename: string) {
+  const response = await fetch(`${API_V1_URL}${path}`, {
+    headers: authHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(`Download failed (${response.status})`);
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }

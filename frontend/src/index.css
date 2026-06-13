@@ -3,6 +3,32 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-accent: 37 99 235;
+    --color-ink: 17 24 39;
+    --color-bg: 248 250 252;
+    --color-surface: 241 245 249;
+    --color-panel: 255 255 255;
+    --color-muted: 100 116 139;
+    --color-line: 203 213 225;
+    --color-success: 22 163 74;
+    --color-danger: 220 38 38;
+    --color-warn: 217 119 6;
+  }
+
+  :root.dark {
+    --color-accent: 251 185 5;
+    --color-ink: 229 231 235;
+    --color-bg: 9 9 11;
+    --color-surface: 17 24 39;
+    --color-panel: 24 24 27;
+    --color-muted: 156 163 175;
+    --color-line: 39 39 42;
+    --color-success: 34 197 94;
+    --color-danger: 248 113 113;
+    --color-warn: 245 158 11;
+  }
+
   body {
     @apply bg-bg text-ink antialiased;
     font-family:
@@ -35,13 +61,11 @@
 @layer components {
   .desk-shell {
     @apply min-h-screen bg-bg text-ink;
-    background:
-      radial-gradient(circle at top left, rgb(251 185 5 / 0.06), transparent 28rem),
-      #09090b;
+    background: rgb(var(--color-bg));
   }
 
   .desk-panel {
-    @apply rounded-md border border-line bg-panel shadow-lg shadow-black/20;
+    @apply rounded-md border border-line bg-panel shadow-sm;
   }
 
   .desk-input {

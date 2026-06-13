@@ -17,6 +17,7 @@ from apps.integrations.serializers import (
 )
 from apps.integrations.telegram import send_message
 from apps.makerspaces.models import Makerspace
+from apps.makerspaces.guards import require_module
 
 
 class TelegramWebhookView(APIView):
@@ -41,6 +42,7 @@ class TelegramWebhookView(APIView):
         actor = _telegram_actor(callback)
         action, request_id, reason = _parse_callback(callback.get("data", ""))
         hardware_request = get_object_or_404(HardwareRequest, pk=request_id)
+        require_module(hardware_request.makerspace, "telegram")
         if action == "accept":
             if not rbac.can(actor, rbac.Action.ACCEPT_REQUEST, hardware_request.makerspace_id):
                 return Response({"detail": "Permission denied."}, status=403)
@@ -68,6 +70,7 @@ class TelegramTestAlertView(APIView):
             Makerspace,
             pk=serializer.validated_data["makerspace_id"],
         )
+        require_module(makerspace, "telegram")
         from rest_framework.exceptions import PermissionDenied
 
         # rbac.can checks membership/action only; gate access_status too so a

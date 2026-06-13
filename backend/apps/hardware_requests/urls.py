@@ -81,8 +81,23 @@ urlpatterns = [
         name="request-issue",
     ),
     path(
+        "admin/requests/<int:pk>/return-due",
+        views.SetReturnDueView.as_view(),
+        name="request-return-due",
+    ),
+    path(
         "admin/requests/<int:pk>/return",
         views.ReturnRequestView.as_view(),
         name="request-return",
+    ),
+    path(
+        "guest-admin/makerspace/<int:makerspace_id>/active-loans",
+        views.ActiveLoansView.as_view(),
+        name="guest-admin-active-loans",
+    ),
+    path(
+        "guest-admin/requests/<int:pk>/return",
+        views.ReturnRequestView.as_view(),
+        name="guest-admin-request-return",
     ),
 ]

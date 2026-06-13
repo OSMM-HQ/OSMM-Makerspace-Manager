@@ -242,11 +242,13 @@ def test_admin_can_manage_api_integration_settings_from_api_clients_area():
     assert response.data["smtp_password_set"] is True
     makerspace.refresh_from_db()
     assert makerspace.telegram_group_chat_id == "-100123"
-    assert makerspace.telegram_bot_token == "bot-token"
+    assert makerspace.telegram_bot_token != "bot-token"
+    assert makerspace.get_telegram_bot_token() == "bot-token"
     assert makerspace.smtp_host == "smtp.example.com"
     assert makerspace.smtp_port == 2525
     assert makerspace.smtp_username == "mailer"
-    assert makerspace.smtp_password == "smtp-secret"
+    assert makerspace.smtp_password != "smtp-secret"
+    assert makerspace.get_smtp_password() == "smtp-secret"
     assert makerspace.smtp_use_tls is False
     assert makerspace.smtp_from_email == "makerspace@example.com"
 

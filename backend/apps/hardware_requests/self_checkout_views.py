@@ -12,7 +12,9 @@ from apps.hardware_requests.self_checkout_serializers import (
 )
 from apps.hardware_requests.view_helpers import PUBLIC_ERROR_RESPONSES
 from apps.makerspaces.lookup import get_public_makerspace
+from apps.makerspaces.platform import module_enabled
 from apps.openapi import PUBLIC_TOOL_SCAN_EXAMPLE, PUBLISHABLE_KEY_PARAMETER
+from rest_framework.exceptions import ValidationError
 
 
 class PublicToolCheckoutView(APIView):
@@ -31,6 +33,7 @@ class PublicToolCheckoutView(APIView):
     )
     def post(self, request, makerspace_slug, *args, **kwargs):
         makerspace = get_public_makerspace(makerspace_slug)
+        _require_module(makerspace, "self_checkout")
         serializer = PublicToolScanSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         loan = self_checkout_workflow.checkout_tool(
@@ -57,6 +60,7 @@ class PublicToolReturnView(APIView):
     )
     def post(self, request, makerspace_slug, *args, **kwargs):
         makerspace = get_public_makerspace(makerspace_slug)
+        _require_module(makerspace, "self_checkout")
         serializer = PublicToolScanSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         loan = self_checkout_workflow.return_tool(
@@ -65,3 +69,8 @@ class PublicToolReturnView(APIView):
             serializer.validated_data["payload"],
         )
         return Response(PublicToolLoanSerializer(loan).data)
+
+
+def _require_module(makerspace, module_key):
+    if not module_enabled(makerspace, module_key):
+        raise ValidationError({"module": f"{module_key} is disabled for this makerspace."})

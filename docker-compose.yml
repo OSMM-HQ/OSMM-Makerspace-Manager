@@ -85,6 +85,11 @@ services:
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
              gunicorn config.wsgi:application --bind 0.0.0.0:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/', timeout=3).read()\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
     ports:
       - "8001:8000"
     depends_on:
@@ -98,12 +103,17 @@ services:
         VITE_API_URL: ${VITE_API_URL:-/api}
         VITE_PUBLIC_API_KEY: ${VITE_PUBLIC_API_KEY:-}
         VITE_PUBLIC_CLIENT_ID: ${VITE_PUBLIC_CLIENT_ID:-}
-        VITE_PUBLIC_CLIENT_SECRET: ${VITE_PUBLIC_CLIENT_SECRET:-}
     container_name: tinkerspace-frontend
     ports:
       - "80:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost/ >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
 
 volumes:
   tinkerspace_pgdata:

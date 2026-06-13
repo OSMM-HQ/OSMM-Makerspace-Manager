@@ -3,6 +3,10 @@ from django.urls import path
 from apps.printing.views import (
     ManagedPrintRequestDetailView,
     ManagedPrintRequestListView,
+    ManagedFilamentSpoolDetailView,
+    ManagedFilamentSpoolListCreateView,
+    ManagedPrinterDetailView,
+    ManagedPrinterListCreateView,
     PrintBucketListView,
     PrintRequestAcceptView,
     PrintRequestCompleteView,
@@ -24,6 +28,26 @@ urlpatterns = [
         "manage/requests/",
         ManagedPrintRequestListView.as_view(),
         name="managed-request-list",
+    ),
+    path(
+        "manage/printers/",
+        ManagedPrinterListCreateView.as_view(),
+        name="managed-printer-list",
+    ),
+    path(
+        "manage/printers/<int:pk>/",
+        ManagedPrinterDetailView.as_view(),
+        name="managed-printer-detail",
+    ),
+    path(
+        "manage/spools/",
+        ManagedFilamentSpoolListCreateView.as_view(),
+        name="managed-spool-list",
+    ),
+    path(
+        "manage/spools/<int:pk>/",
+        ManagedFilamentSpoolDetailView.as_view(),
+        name="managed-spool-detail",
     ),
     path(
         "manage/requests/<int:pk>/",

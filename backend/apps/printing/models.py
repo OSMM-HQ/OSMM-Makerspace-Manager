@@ -29,6 +29,83 @@ class PrintBucket(models.Model):
         return f"{self.makerspace}: {self.name}"
 
 
+class PrintPrinter(models.Model):
+    class Status(models.TextChoices):
+        ACTIVE = "active", "Active"
+        MAINTENANCE = "maintenance", "Maintenance"
+        OFFLINE = "offline", "Offline"
+
+    makerspace = models.ForeignKey(
+        "makerspaces.Makerspace",
+        on_delete=models.CASCADE,
+        related_name="print_printers",
+    )
+    name = models.CharField(max_length=200)
+    model = models.CharField(max_length=200, blank=True)
+    status = models.CharField(
+        max_length=32,
+        choices=Status.choices,
+        default=Status.ACTIVE,
+        db_index=True,
+    )
+    notes = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["makerspace", "name"],
+                name="uniq_print_printer_makerspace_name",
+            ),
+        ]
+        ordering = ["makerspace__name", "name"]
+
+    def __str__(self):
+        return f"{self.makerspace}: {self.name}"
+
+
+class FilamentSpool(models.Model):
+    makerspace = models.ForeignKey(
+        "makerspaces.Makerspace",
+        on_delete=models.CASCADE,
+        related_name="filament_spools",
+    )
+    printer = models.ForeignKey(
+        PrintPrinter,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="filament_spools",
+    )
+    material = models.CharField(max_length=100)
+    color = models.CharField(max_length=100, blank=True)
+    brand = models.CharField(max_length=100, blank=True)
+    lot_code = models.CharField(max_length=100, blank=True)
+    initial_weight_grams = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+    )
+    remaining_weight_grams = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+    )
+    is_active = models.BooleanField(default=True)
+    opened_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["makerspace__name", "printer__name", "material", "color"]
+
+    def __str__(self):
+        color = f" {self.color}" if self.color else ""
+        return f"{self.material}{color} ({self.remaining_weight_grams}g left)"
+
+
 class PrintRequest(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
@@ -84,8 +161,30 @@ class PrintRequest(models.Model):
         on_delete=models.SET_NULL,
         related_name="handled_print_requests",
     )
+    printer = models.ForeignKey(
+        PrintPrinter,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="print_requests",
+    )
+    filament_spool = models.ForeignKey(
+        FilamentSpool,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="print_requests",
+    )
+    estimated_minutes = models.PositiveIntegerField(default=0)
+    estimated_filament_grams = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     accepted_at = models.DateTimeField(null=True, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
 

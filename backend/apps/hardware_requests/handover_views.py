@@ -9,12 +9,14 @@ from apps.hardware_requests import workflow
 from apps.hardware_requests.permissions import (
     CanAssignBox,
     CanIssueRequest,
+    CanReviewRequest,
     CanReturnRequest,
 )
 from apps.hardware_requests.serializers import (
     AdminRequestSerializer,
     AssignBoxSerializer,
     IssueRequestSerializer,
+    ReturnDueSerializer,
     ReturnRequestSerializer,
 )
 from apps.hardware_requests.view_helpers import (
@@ -22,6 +24,7 @@ from apps.hardware_requests.view_helpers import (
     ERROR_503,
     request_queryset,
 )
+from apps.makerspaces.guards import require_module
 
 
 class AssignBoxView(APIView):
@@ -103,9 +106,40 @@ class ReturnRequestView(APIView):
         return Response(AdminRequestSerializer(updated).data)
 
 
+class SetReturnDueView(APIView):
+    permission_classes = [CanReviewRequest]
+
+    @extend_schema(
+        tags=["Admin requests"],
+        summary="Set request return due time",
+        request=ReturnDueSerializer,
+        responses={200: AdminRequestSerializer, **ACTION_ERROR_RESPONSES},
+    )
+    def post(self, request, pk, *args, **kwargs):
+        hardware_request = _scoped_action_request(
+            request.user,
+            pk,
+            rbac.Action.ACCEPT_REQUEST,
+        )
+        serializer = ReturnDueSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        updated = workflow.set_return_due(
+            request.user,
+            hardware_request,
+            serializer.validated_data["return_due_at"],
+        )
+        return Response(AdminRequestSerializer(updated).data)
+
+
 def _scoped_action_request(user, pk, action):
     scoped = rbac.scope_by_makerspace(user, request_queryset())
     hardware_request = get_object_or_404(scoped, pk=pk)
     if not rbac.can(user, action, hardware_request.makerspace_id):
         raise PermissionDenied()
+    module = "guest_handover" if action in {
+        rbac.Action.ASSIGN_BOX,
+        rbac.Action.ISSUE_REQUEST,
+        rbac.Action.RETURN_REQUEST,
+    } else "request_workflow"
+    require_module(hardware_request.makerspace, module)
     return hardware_request

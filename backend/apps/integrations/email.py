@@ -14,7 +14,7 @@ def makerspace_mail_connection(makerspace):
             host=makerspace.smtp_host,
             port=makerspace.smtp_port,
             username=makerspace.smtp_username or None,
-            password=makerspace.smtp_password or None,
+            password=makerspace.get_smtp_password() or None,
             use_tls=makerspace.smtp_use_tls,
         ),
         makerspace.smtp_from_email or settings.DEFAULT_FROM_EMAIL,

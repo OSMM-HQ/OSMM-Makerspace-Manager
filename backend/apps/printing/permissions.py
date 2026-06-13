@@ -36,8 +36,11 @@ class CanManagePrinting(BasePermission):
         return rbac.can(user, rbac.Action.MANAGE_PRINTING, makerspace_id)
 
     def has_object_permission(self, request, view, obj):
+        makerspace_id = getattr(obj, "makerspace_id", None)
+        if makerspace_id is None and hasattr(obj, "bucket"):
+            makerspace_id = obj.bucket.makerspace_id
         return rbac.can(
             request.user,
             rbac.Action.MANAGE_PRINTING,
-            obj.bucket.makerspace_id,
+            makerspace_id,
         )

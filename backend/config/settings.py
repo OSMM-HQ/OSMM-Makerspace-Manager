@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "apps.evidence",
     "apps.admin_api",
     "apps.integrations",
+    "apps.operations",
 ]
 
 MIDDLEWARE = [
@@ -202,6 +203,7 @@ REST_FRAMEWORK = {
         "request_status": env("THROTTLE_REQUEST_STATUS", default="60/min"),
         "public_read": env("THROTTLE_PUBLIC_READ", default="120/min"),
     },
+    "URL_FORMAT_OVERRIDE": None,
 }
 
 SIMPLE_JWT = {
@@ -259,5 +261,13 @@ SPECTACULAR_SETTINGS = {
         {"name": "QR assets", "description": "QR-coded boxes, tools, scans, print, revoke."},
         {"name": "Telegram", "description": "Telegram webhook and alert integration."},
         {"name": "Printing", "description": "3D printing request and management APIs."},
+        {"name": "Containers", "description": "Container hierarchy, movement, contents, and scan history."},
+        {"name": "Stock transfers", "description": "Administrative stock movement between containers and makerspaces."},
+        {"name": "Stocktake", "description": "Stocktake sessions, line counts, approvals, and adjustments."},
+        {"name": "Analytics", "description": "Operational inventory analytics and report summaries."},
+        {"name": "Reports", "description": "CSV and XLSX operational report exports."},
+        {"name": "QR print batches", "description": "QR label batch creation, item management, and print HTML."},
+        {"name": "Asset units", "description": "Individual asset unit generation and QR assignment."},
+        {"name": "Health", "description": "Health and readiness probes."},
     ],
 }

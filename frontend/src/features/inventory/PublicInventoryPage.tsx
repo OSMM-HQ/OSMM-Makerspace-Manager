@@ -2,12 +2,13 @@ import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 
+import { ThemeToggle } from "../../components/ThemeToggle";
 import { Card } from "../../components/ui/Card";
 import { Spinner } from "../../components/ui/Spinner";
 import type { Product, RequestCartItem } from "../../types/inventory";
 import { ProductCard } from "./ProductCard";
 import { PublicRequestPanel } from "./PublicRequestPanel";
-import { usePublicInventory } from "./usePublicInventory";
+import { usePublicInventory, useTenantBootstrap } from "./usePublicInventory";
 
 const PAGE_SIZE = 24;
 
@@ -60,8 +61,16 @@ export function PublicInventoryPage() {
   const [searchInput, setSearchInput] = useState("");
   const [query, setQuery] = useState("");
   const [cart, setCart] = useState<Record<number, RequestCartItem>>({});
+  const bootstrapQuery = useTenantBootstrap(makerspaceSlug);
   const inventoryQuery = usePublicInventory(makerspaceSlug, page, query);
-  const title = `${formatSlug(makerspaceSlug) || "Makerspace"} Inventory`;
+  const displayName =
+    bootstrapQuery.data?.branding.display_name ||
+    bootstrapQuery.data?.makerspace.name ||
+    formatSlug(makerspaceSlug) ||
+    "Makerspace";
+  const title = `${displayName} Inventory`;
+  const modules = new Set(bootstrapQuery.data?.modules ?? []);
+  const requestEnabled = modules.has("request_workflow");
   const products = inventoryQuery.data?.results ?? [];
   const pageCount = Math.max(
     1,
@@ -142,6 +151,7 @@ export function PublicInventoryPage() {
               <div className="rounded-md border border-line bg-surface px-3 py-2 text-sm text-muted">
                 {inventoryQuery.data?.count ?? "-"} listed items
               </div>
+              <ThemeToggle />
               <Link className="desk-button" to="/admin">
                 Staff login
               </Link>
@@ -198,6 +208,7 @@ export function PublicInventoryPage() {
                 {products.map((product) => (
                   <ProductCard
                     key={product.id}
+                    makerspaceSlug={makerspaceSlug}
                     product={product}
                     quantity={cart[product.id]?.quantity ?? 0}
                     onDecrement={() => decrementItem(product)}
@@ -239,6 +250,7 @@ export function PublicInventoryPage() {
           items={selectedItems}
           makerspaceSlug={makerspaceSlug}
           onClear={() => setCart({})}
+          disabled={!requestEnabled}
         />
       </section>
     </main>

@@ -16,12 +16,14 @@ type PublicRequestPanelProps = {
   items: RequestCartItem[];
   makerspaceSlug: string;
   onClear: () => void;
+  disabled?: boolean;
 };
 
 export function PublicRequestPanel({
   items,
   makerspaceSlug,
   onClear,
+  disabled = false,
 }: PublicRequestPanelProps) {
   const lookupStorageKey = `makerspace.request.lookup.${makerspaceSlug}`;
   const [identifier, setIdentifier] = useState("");
@@ -81,33 +83,47 @@ export function PublicRequestPanel({
 
   return (
     <aside className="space-y-4">
-      <BorrowRequestCard
-        canSubmit={canSubmit}
-        contactEmail={contactEmail}
-        contactPhone={contactPhone}
-        identifier={identifier}
-        items={items}
-        requestedFor={requestedFor}
-        submitError={submitMutation.error?.message}
-        submitPending={submitMutation.isPending}
-        submitted={submitted}
-        totalItems={totalItems}
-        verifyError={verifyMutation.error?.message}
-        verifyPending={verifyMutation.isPending}
-        verifySuccess={verifyMutation.isSuccess}
-        onClear={onClear}
-        onContactEmailChange={setContactEmail}
-        onContactPhoneChange={setContactPhone}
-        onIdentifierChange={setIdentifier}
-        onRequestedForChange={setRequestedFor}
-        onSubmit={() => submitMutation.mutate()}
-        onVerify={() => verifyMutation.mutate()}
-      />
+      {disabled ? (
+        <Card>
+          <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+            Requests
+          </p>
+          <h2 className="mt-2 text-xl font-semibold text-ink">Unavailable</h2>
+          <p className="mt-2 text-sm text-muted">
+            This makerspace is publishing inventory without public requests.
+          </p>
+        </Card>
+      ) : (
+        <BorrowRequestCard
+          canSubmit={canSubmit}
+          contactEmail={contactEmail}
+          contactPhone={contactPhone}
+          identifier={identifier}
+          items={items}
+          requestedFor={requestedFor}
+          submitError={submitMutation.error?.message}
+          submitPending={submitMutation.isPending}
+          submitted={submitted}
+          totalItems={totalItems}
+          verifyError={verifyMutation.error?.message}
+          verifyPending={verifyMutation.isPending}
+          verifySuccess={verifyMutation.isSuccess}
+          onClear={onClear}
+          onContactEmailChange={setContactEmail}
+          onContactPhoneChange={setContactPhone}
+          onIdentifierChange={setIdentifier}
+          onRequestedForChange={setRequestedFor}
+          onSubmit={() => submitMutation.mutate()}
+          onVerify={() => verifyMutation.mutate()}
+        />
+      )}
 
-      <PublicToolScanPanel
-        identifier={identifier}
-        makerspaceSlug={makerspaceSlug}
-      />
+      {disabled ? null : (
+        <PublicToolScanPanel
+          identifier={identifier}
+          makerspaceSlug={makerspaceSlug}
+        />
+      )}
 
       <Card>
         <div className="flex items-start justify-between gap-3">

@@ -70,6 +70,16 @@ class QrScanResultSerializer(serializers.Serializer):
     scan_id = serializers.IntegerField()
 
 
+class QrResolveSerializer(serializers.Serializer):
+    payload = serializers.CharField()
+
+
+class QrResolveResultSerializer(serializers.Serializer):
+    qr = QrCodeSerializer()
+    target = serializers.DictField()
+    allowed_actions = serializers.ListField(child=serializers.CharField())
+
+
 def qr_target_payload(qr):
     if qr.target_type == QrCode.TargetType.BOX:
         box = Box.objects.get(pk=qr.target_id)
@@ -85,4 +95,3 @@ def qr_target_payload(qr):
         }
     product = InventoryProduct.objects.get(pk=qr.target_id)
     return {"type": "product", "id": product.id, "name": product.name}
-

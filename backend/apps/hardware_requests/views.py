@@ -2,6 +2,7 @@ from apps.hardware_requests.handover_views import (
     AssignBoxView,
     IssueRequestView,
     ReturnRequestView,
+    SetReturnDueView,
 )
 from apps.hardware_requests.direct_loan_views import (
     DirectLoanListCreateView,
@@ -41,4 +42,5 @@ __all__ = [
     "RequestStatusView",
     "RequestSubmitView",
     "ReturnRequestView",
+    "SetReturnDueView",
 ]

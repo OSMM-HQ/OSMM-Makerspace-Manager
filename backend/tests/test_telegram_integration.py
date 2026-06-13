@@ -1,10 +1,13 @@
 from unittest.mock import Mock
+from contextlib import nullcontext
+import json
 
 import pytest
 from django.test import override_settings
 
 from apps.accounts.models import User
 from apps.hardware_requests.models import HardwareRequest
+from apps.integrations.telegram import send_message
 from tests.return_helpers import authenticated_client, make_accepted_request, make_member, make_product, make_space
 
 pytestmark = pytest.mark.django_db
@@ -116,6 +119,29 @@ def test_suspended_user_cannot_send_telegram_test_alert():
     )
 
     assert response.status_code == 403
+
+
+def test_telegram_delivery_uses_decrypted_makerspace_bot_token(monkeypatch, settings):
+    settings.TELEGRAM_API_URL = "https://telegram.test"
+    makerspace = make_space("telegram-encrypted-token")
+    makerspace.telegram_group_chat_id = "-100123"
+    makerspace.set_telegram_bot_token("bot-token")
+    makerspace.save(update_fields=["telegram_group_chat_id", "telegram_bot_token"])
+    posted = Mock()
+    posted.return_value = nullcontext(type("Response", (), {"status": 200})())
+    monkeypatch.setattr("urllib.request.urlopen", posted)
+
+    delivered = send_message(makerspace, "hello")
+
+    assert delivered is True
+    posted.assert_called_once()
+    request = posted.call_args.args[0]
+    assert request.full_url == "https://telegram.test/botbot-token/sendMessage"
+    assert json.loads(request.data.decode()) == {
+        "chat_id": "-100123",
+        "text": "hello",
+    }
+    assert makerspace.telegram_bot_token != "bot-token"
 
 
 @override_settings(TELEGRAM_WEBHOOK_SECRET="")

@@ -2,15 +2,20 @@ import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { clearAccessToken, setAccessToken, staffRequest } from "../../lib/api";
+import { ThemeToggle } from "../../components/ThemeToggle";
 import { ApiClientsPanel } from "./ApiClientsPanel";
 import { DirectLoans } from "./DirectLoans";
 import {
   AuditLog,
   BulkImport,
   Inventory,
+  OperationsReports,
   Panel,
+  PrintingPanel,
   QrTools,
   Queues,
+  StocktakePanel,
+  StockTransferPanel,
   Users,
   type Makerspace,
   useStaffGet,
@@ -85,7 +90,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
             ))}
           </select>
           <nav className="mt-4 grid gap-1">
-            {["queues", "direct", "inventory", "bulk", "qr", "api", "users", "audit"].map((item) => (
+            {["queues", "direct", "inventory", "printing", "transfers", "stocktake", "reports", "bulk", "qr", "api", "users", "audit"].map((item) => (
               <button
                 key={item}
                 className={`rounded-md px-3 py-2 text-left text-sm font-medium transition ${
@@ -95,7 +100,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
                 }`}
                 onClick={() => setTab(item)}
               >
-                {item === "qr" ? "QR Tools" : item === "direct" ? "Direct handout" : item === "api" ? "API clients" : item[0].toUpperCase() + item.slice(1)}
+                  {item === "qr" ? "QR Tools" : item === "direct" ? "Direct handout" : item === "api" ? "API clients" : item === "stocktake" ? "Stocktake" : item === "printing" ? "3D Printing" : item[0].toUpperCase() + item.slice(1)}
               </button>
             ))}
           </nav>
@@ -117,6 +122,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
               <span className="rounded-md border border-line bg-surface px-3 py-2 text-sm text-muted">
                 {user.username}
               </span>
+              <ThemeToggle />
               <button
                 className="desk-button"
                 onClick={() => {
@@ -138,6 +144,18 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
           ) : null}
           {activeMakerspace && tab === "inventory" ? (
             <Inventory makerspace={activeMakerspace} />
+          ) : null}
+          {activeMakerspace && tab === "printing" ? (
+            <PrintingPanel makerspace={activeMakerspace} />
+          ) : null}
+          {activeMakerspace && tab === "transfers" ? (
+            <StockTransferPanel makerspace={activeMakerspace} />
+          ) : null}
+          {activeMakerspace && tab === "stocktake" ? (
+            <StocktakePanel makerspace={activeMakerspace} />
+          ) : null}
+          {activeMakerspace && tab === "reports" ? (
+            <OperationsReports makerspace={activeMakerspace} />
           ) : null}
           {activeMakerspace && tab === "direct" ? (
             <DirectLoans makerspace={activeMakerspace} />

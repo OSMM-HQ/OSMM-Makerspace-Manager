@@ -13,6 +13,8 @@ export const publicMakerspacesKey = ["public-makerspaces"] as const;
 
 export const publicInventoryKey = (slug: string, page: number, query: string) =>
   ["public-inventory", slug, page, query] as const;
+export const publicInventoryDetailKey = (slug: string, id: number) =>
+  ["public-inventory-detail", slug, id] as const;
 
 export async function fetchPublicMakerspaces(): Promise<Makerspace[]> {
   return apiGet<Makerspace[]>("/public/makerspaces/");
@@ -35,6 +37,13 @@ export async function fetchPublicInventory(
   return apiGet<PaginatedResponse<Product>>(
     `/public/${slug}/inventory/${suffix}`,
   );
+}
+
+export async function fetchPublicInventoryDetail(
+  slug: string,
+  id: number,
+): Promise<Product> {
+  return apiGet<Product>(`/public/${slug}/inventory/${id}/`);
 }
 
 export async function verifyCheckin(

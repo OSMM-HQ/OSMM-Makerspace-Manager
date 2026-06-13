@@ -165,6 +165,7 @@ class QrScanEvent(models.Model):
         RETURN = "return", "Return"
         INVENTORY_CHECK = "inventory_check", "Inventory Check"
         REASSIGNMENT = "reassignment", "Reassignment"
+        SCANNER_LOOKUP = "scanner_lookup", "Scanner Lookup"
 
     makerspace = models.ForeignKey(
         Makerspace,

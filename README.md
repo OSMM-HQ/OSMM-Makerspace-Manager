@@ -143,20 +143,20 @@ CORS_ALLOWED_ORIGINS=https://your-domain.com
 VITE_API_URL=/api
 ```
 
-If enabling HMAC in Docker, set both backend and frontend values:
+For production self-hosting from published images, see [docs/self-hosting.md](docs/self-hosting.md).
+
+If enabling HMAC for server-to-server clients, set backend values only:
 
 ```env
 HMAC_CLIENT_ID=web-client
 HMAC_SECRET=replace-with-a-long-random-shared-secret
-VITE_HMAC_CLIENT_ID=web-client
-VITE_HMAC_SECRET=replace-with-the-same-shared-secret
 ```
 
 For a hosted domain, point traffic to the frontend container on port `80`. Nginx serves the frontend and forwards `/api/` to the backend container.
 
-## Frontend To Backend HMAC Link
+## Server-To-Server HMAC Link
 
-The backend supports optional HMAC request validation for public API paths. It is disabled unless both `HMAC_CLIENT_ID` and `HMAC_SECRET` are set.
+The backend supports optional HMAC request validation for server-side API clients. It is disabled unless both `HMAC_CLIENT_ID` and `HMAC_SECRET` are set.
 
 Backend `backend\.env`:
 
@@ -167,14 +167,7 @@ HMAC_MAX_CLOCK_SKEW_SECONDS=300
 HMAC_PROTECTED_PATH_PREFIXES=/api/public/
 ```
 
-Frontend `frontend\.env`:
-
-```env
-VITE_HMAC_CLIENT_ID=web-client
-VITE_HMAC_SECRET=replace-with-the-same-shared-secret
-```
-
-The frontend signs each GET request with:
+Server clients sign each GET request with:
 
 ```text
 GET
@@ -185,28 +178,25 @@ GET
 
 The backend checks `X-Client-Id`, `X-Timestamp`, and `X-Signature`.
 
-Important: because this frontend runs in the browser, `VITE_HMAC_SECRET` is visible to users in the built JavaScript. Use this as a lightweight client-link check, not as strong authentication for private data. For private user actions, add proper server-side auth such as sessions, JWT, or Supabase Auth.
+Important: browser frontends must use publishable keys and `/api/v1/bootstrap`, not HMAC secrets. Any value compiled into JavaScript is public.
 
 ## Telegram Setup
 
-Telegram is not currently wired into the codebase. Use this setup when adding Telegram alerts or bot commands.
-
 1. Open Telegram and start a chat with `@BotFather`.
 2. Run `/newbot`, follow the prompts, and copy the generated bot token.
-3. Add the token to your deployment environment as `TELEGRAM_BOT_TOKEN`.
-4. Choose where messages should go:
-   - For a direct chat, message the bot first, then fetch updates from `https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/getUpdates` and copy the chat `id`.
-   - For a group, add the bot to the group, send a test message, call `getUpdates`, and copy the group chat `id`.
-5. Store the chat ID as `TELEGRAM_CHAT_ID`.
-6. If you use webhooks, create a random `TELEGRAM_WEBHOOK_SECRET`, configure the webhook URL from your hosted backend, and validate Telegram's secret header before processing updates.
+3. Add the bot to the target Telegram group.
+4. Send any message in the group.
+5. Call `https://api.telegram.org/bot<token>/getUpdates` and copy the group `chat.id` value. Supergroups usually start with `-100`.
+6. In the staff `/admin` UI, open `API clients` -> `Integration settings`.
+7. Enter the Telegram group chat ID and bot token, save, then click `Send Telegram test alert`.
 
-Suggested environment names:
+The group chat ID is configuration, not a secret. The bot token is sensitive and is encrypted at rest with `API_CLIENT_ENC_KEY`, the same Fernet key used for API client secrets and makerspace SMTP passwords. Generate it with:
 
 ```env
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_CHAT_ID=
-TELEGRAM_WEBHOOK_SECRET=
+python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
 ```
+
+For Telegram accept/reject webhook callbacks, also set `TELEGRAM_WEBHOOK_SECRET` in the backend environment and configure Telegram's webhook secret token to the same value.
 
 ## Supabase Setup
 

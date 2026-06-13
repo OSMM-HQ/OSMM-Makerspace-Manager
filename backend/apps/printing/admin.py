@@ -4,7 +4,7 @@ from unfold.admin import ModelAdmin
 from apps.accounts import rbac
 from apps.accounts.models import User
 from apps.makerspaces.models import Makerspace
-from apps.printing.models import PrintBucket, PrintRequest
+from apps.printing.models import FilamentSpool, PrintBucket, PrintPrinter, PrintRequest
 
 MANAGER_ROLES = (User.Role.SUPERADMIN, User.Role.SPACE_MANAGER)
 
@@ -21,7 +21,11 @@ class PrintingAdminMixin:
             and u.is_authenticated
             and u.is_active
             and u.access_status == User.AccessStatus.ACTIVE
-            and (u.is_superuser or u.role in MANAGER_ROLES)
+            and (
+                u.is_superuser
+                or u.role in MANAGER_ROLES
+                or bool(rbac.makerspaces_for_action(u, rbac.Action.MANAGE_PRINTING))
+            )
         )
 
     def has_view_permission(self, request, obj=None):
@@ -76,8 +80,8 @@ class PrintBucketAdmin(PrintingAdminMixin, ModelAdmin):
 
 @admin.register(PrintRequest)
 class PrintRequestAdmin(PrintingAdminMixin, ModelAdmin):
-    list_display = ("status", "bucket", "requester", "created_at")
-    list_filter = ("status", "bucket__makerspace", "bucket")
+    list_display = ("status", "bucket", "printer", "requester", "created_at")
+    list_filter = ("status", "bucket__makerspace", "bucket", "printer")
     search_fields = (
         "title",
         "description",
@@ -89,8 +93,13 @@ class PrintRequestAdmin(PrintingAdminMixin, ModelAdmin):
         "status",
         "reason",
         "handled_by",
+        "printer",
+        "filament_spool",
+        "estimated_minutes",
+        "estimated_filament_grams",
         "created_at",
         "accepted_at",
+        "started_at",
         "completed_at",
         "updated_at",
     )
@@ -110,8 +119,13 @@ class PrintRequestAdmin(PrintingAdminMixin, ModelAdmin):
         "status",
         "reason",
         "handled_by",
+        "printer",
+        "filament_spool",
+        "estimated_minutes",
+        "estimated_filament_grams",
         "created_at",
         "accepted_at",
+        "started_at",
         "completed_at",
         "updated_at",
     )
@@ -134,4 +148,109 @@ class PrintRequestAdmin(PrintingAdminMixin, ModelAdmin):
             ids = [] if scope is rbac.ALL else scope
             kwargs["queryset"] = PrintBucket.objects.filter(makerspace_id__in=ids)
             kwargs["required"] = True
+        if db_field.name == "printer" and not _is_superadmin(request.user):
+            scope = rbac.makerspaces_for_action(
+                request.user, rbac.Action.MANAGE_PRINTING
+            )
+            ids = [] if scope is rbac.ALL else scope
+            kwargs["queryset"] = PrintPrinter.objects.filter(makerspace_id__in=ids)
+        if db_field.name == "filament_spool" and not _is_superadmin(request.user):
+            scope = rbac.makerspaces_for_action(
+                request.user, rbac.Action.MANAGE_PRINTING
+            )
+            ids = [] if scope is rbac.ALL else scope
+            kwargs["queryset"] = FilamentSpool.objects.filter(makerspace_id__in=ids)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+@admin.register(PrintPrinter)
+class PrintPrinterAdmin(PrintingAdminMixin, ModelAdmin):
+    list_display = ("name", "makerspace", "status", "is_active", "updated_at")
+    list_filter = ("status", "is_active", "makerspace")
+    search_fields = ("name", "model", "notes", "makerspace__name", "makerspace__slug")
+    readonly_fields = ("created_at", "updated_at")
+    fields = (
+        "makerspace",
+        "name",
+        "model",
+        "status",
+        "notes",
+        "is_active",
+        "created_at",
+        "updated_at",
+    )
+
+    def get_queryset(self, request):
+        return rbac.scope_by_action(
+            request.user,
+            rbac.Action.MANAGE_PRINTING,
+            super().get_queryset(request),
+            "makerspace_id",
+        )
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "makerspace" and not _is_superadmin(request.user):
+            scope = rbac.makerspaces_for_action(
+                request.user, rbac.Action.MANAGE_PRINTING
+            )
+            ids = [] if scope is rbac.ALL else scope
+            kwargs["queryset"] = Makerspace.objects.filter(id__in=ids)
+            kwargs["required"] = True
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+@admin.register(FilamentSpool)
+class FilamentSpoolAdmin(PrintingAdminMixin, ModelAdmin):
+    list_display = (
+        "material",
+        "color",
+        "printer",
+        "makerspace",
+        "remaining_weight_grams",
+        "is_active",
+    )
+    list_filter = ("material", "is_active", "makerspace", "printer")
+    search_fields = (
+        "material",
+        "color",
+        "brand",
+        "lot_code",
+        "printer__name",
+        "makerspace__name",
+    )
+    readonly_fields = ("created_at", "updated_at")
+    fields = (
+        "makerspace",
+        "printer",
+        "material",
+        "color",
+        "brand",
+        "lot_code",
+        "initial_weight_grams",
+        "remaining_weight_grams",
+        "is_active",
+        "opened_at",
+        "created_at",
+        "updated_at",
+    )
+
+    def get_queryset(self, request):
+        return rbac.scope_by_action(
+            request.user,
+            rbac.Action.MANAGE_PRINTING,
+            super().get_queryset(request).select_related("printer", "makerspace"),
+            "makerspace_id",
+        )
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if not _is_superadmin(request.user):
+            scope = rbac.makerspaces_for_action(
+                request.user, rbac.Action.MANAGE_PRINTING
+            )
+            ids = [] if scope is rbac.ALL else scope
+            if db_field.name == "makerspace":
+                kwargs["queryset"] = Makerspace.objects.filter(id__in=ids)
+                kwargs["required"] = True
+            if db_field.name == "printer":
+                kwargs["queryset"] = PrintPrinter.objects.filter(makerspace_id__in=ids)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)

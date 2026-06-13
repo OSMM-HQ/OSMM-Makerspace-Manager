@@ -1,9 +1,12 @@
 import { Link, Navigate, Route, Routes } from "react-router-dom";
 
+import { ThemeToggle } from "./components/ThemeToggle";
 import { Card } from "./components/ui/Card";
 import { Spinner } from "./components/ui/Spinner";
 import { PublicInventoryPage } from "./features/inventory/PublicInventoryPage";
+import { PublicItemDetailPage } from "./features/inventory/PublicItemDetailPage";
 import { usePublicMakerspaces } from "./features/inventory/usePublicInventory";
+import { KioskPage, ScannerPage, SuperadminPage } from "./features/staff/PlatformApps";
 import { StaffApp } from "./features/staff/StaffApp";
 
 function LandingPage() {
@@ -27,9 +30,12 @@ function LandingPage() {
               <p className="text-xs text-muted">Shared equipment portal</p>
             </div>
           </div>
-          <Link className="desk-button" to="/admin">
-            Staff login
-          </Link>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Link className="desk-button" to="/admin">
+              Staff login
+            </Link>
+          </div>
         </div>
       </header>
 
@@ -142,8 +148,12 @@ export default function App() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/m/:slug" element={<PublicInventoryPage />} />
+      <Route path="/m/:slug/items/:id" element={<PublicItemDetailPage />} />
+      <Route path="/kiosk/:slug" element={<KioskPage />} />
       <Route path="/admin" element={<StaffApp />} />
       <Route path="/guest-admin" element={<StaffApp guestOnly />} />
+      <Route path="/scanner" element={<ScannerPage />} />
+      <Route path="/superadmin" element={<SuperadminPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );

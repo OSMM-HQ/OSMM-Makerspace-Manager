@@ -7,6 +7,10 @@ import App from "./App";
 import "./index.css";
 import { queryClient } from "./lib/queryClient";
 
+if (localStorage.getItem("makerspace.theme") === "dark") {
+  document.documentElement.classList.add("dark");
+}
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>

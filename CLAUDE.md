@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-**Implementation has started.** Public inventory browse, staff auth/RBAC foundations,
+**Implementation is in progress.** Public inventory browse, staff auth/RBAC foundations,
 API-client HMAC support, QR/box foundations, Phase 3 audit/evidence
 infrastructure, the 3D Printing Manager (request lifecycle + email
 notifications), and the Hardware Request Workflow (public submission + admin
@@ -14,6 +14,69 @@ through reserved/issued/returned/damaged/lost buckets) are in place. The QR/asse
 module, admin REST surface, access-restriction endpoints, Telegram webhook/test
 alert integration, publishable-key public API hardening, and first-pass Space
 Manager (`/admin`) / Guest Admin frontend are also in place.
+Hardware request emails are template-backed through Django admin
+(`HardwareEmailTemplate`), accepted/issued/returned/rejected/request-received
+emails use those templates with safe defaults, and return reminders are sent by
+the `send_return_reminders` management command for overdue active loans.
+
+The multi-frontend platform and open-source operations/reporting PRDs now have
+their in-scope requirements implemented end-to-end. Items the PRDs explicitly
+exclude or defer, such as procurement, maintenance, direct Google Sheets OAuth
+publishing, native apps, and physical label-printer control, remain future work
+rather than current implementation gaps.
+
+Implemented from `docs/prd-multifrontend-platform.md`:
+
+- `TenantFrontend` registry with explicit frontend types, active/primary flags,
+  hostnames, allowed origins, module overrides, theme config, and branding config.
+- Anonymous-safe `GET /api/v1/bootstrap` that resolves by tenant token, public
+  code, slug, hostname, or registered origin and returns only frontend-safe
+  makerspace/client configuration.
+- Per-makerspace module flags, theme settings, and branding fields on
+  `Makerspace`.
+- Dynamic CORS signal that allows registered makerspace/frontend origins in
+  addition to static settings.
+- Admin REST endpoints for listing/creating/updating registered tenant frontends.
+- Module guards across public, staff, guest-admin, printing, integrations,
+  QR/scanner, reporting, stocktake, transfer, container, and setup workflows.
+- Frontend public catalog bootstraps tenant branding/modules at runtime.
+- Browser HMAC secret usage was removed from the frontend contract; browser
+  clients use publishable/bootstrap configuration only.
+- API-client browser/server type, scope metadata, rate-limit tier metadata, and
+  scope enforcement for protected API traffic.
+- Generated TypeScript API client from OpenAPI
+  (`frontend/scripts/generate-api-client.mjs`, `frontend/src/generated/api.ts`).
+- Dedicated frontend routes for public catalog, public item detail, kiosk,
+  scanner, staff admin, guest admin, and superadmin surfaces.
+- Scanner QR resolve endpoint with immutable scan events and allowed-action
+  responses for box/product/asset/request QR payloads.
+
+Implemented from `docs/prd-open-source-ops-and-reporting.md`:
+
+- `GET /api/v1/health/` and `GET /api/v1/health/readiness/`.
+- `setup_instance` management command for first superadmin and first makerspace.
+- Production-image Compose file (`docker-compose.prod.yml`), root `.env.example`,
+  Docker health checks, and `docs/self-hosting.md`.
+- Staff refresh lifetime is 7 days in SimpleJWT settings.
+- Telegram request notifications include requester contact fields,
+  `requested_for`, and requested item lines.
+- Guest admins can process returns for scoped makerspaces through the same
+  audited return workflow as staff.
+- `apps.operations` with stock transfers, stocktake sessions/lines,
+  inventory adjustments, analytics summaries, CSV/XLSX exports, QR print
+  batches, print-ready batch HTML, container APIs, and bulk asset QR generation.
+- First-pass admin frontend panels for transfers, stocktake, reports, QR batches,
+  compact operations navigation, saved local inventory views, inline details,
+  and bulk public QR enable/disable actions.
+- Light theme is now default with a persistent dark theme toggle.
+- Docker image publishing workflow for GHCR
+  (`.github/workflows/docker-images.yml`).
+- Public item detail pages backed by a safe public detail API.
+- Serialized direct handout enforcement: individual-mode products require a
+  scanned asset QR payload; quantity-mode direct handout remains supported.
+- Direct Google Sheets publishing, procurement, maintenance, native apps, and
+  direct label-printer integrations remain out of scope or future work per the
+  PRDs.
 
 Stack (in use):
 
@@ -21,10 +84,12 @@ Stack (in use):
 - **Frontend:** React 18 + Vite 5 + TypeScript (`frontend/`)
 - **Server-state management:** TanStack Query v5
 - **Database:** PostgreSQL 16 (via `docker-compose.yml`)
-- **Styling:** Tailwind CSS 3, themed to TinkerSpace (`tinker` `#FBB905`, `ink` `#111111`, `bg` `#FFFFFF`, `surface` `#F5F5F4`, `line` `#E5E5E5`, `success` `#16A34A`, `danger` `#DC2626`)
+- **Styling:** Tailwind CSS 3 with CSS-variable light/dark theme tokens. Light
+  is the default; the frontend persists the user's dark-theme toggle locally.
 - **API documentation:** drf-spectacular / OpenAPI
 - **Admin theme:** Django admin themed with django-unfold (dark + purple, forced dark); site name configurable via `ADMIN_SITE_NAME` (default "Makerspace Inventory")
-- **Telegram integration:** not yet implemented
+- **Telegram integration:** implemented for request alerts, test alerts, and
+  authenticated webhook accept/reject callbacks.
 
 ### Local development
 
@@ -56,23 +121,33 @@ cd backend && pytest
 
 - `backend/config/` — Django project (`settings.py`, `urls.py`, wsgi/asgi). All API routes mounted under `/api/`.
 - `backend/apps/accounts/` - custom `User` model (`AUTH_USER_MODEL`), JWT auth views, and `rbac.py` (the Auth & RBAC module: `can(...)`, action-scoped `makerspaces_for_action`/`scope_by_action`, makerspace scoping).
-- `backend/apps/makerspaces/` — `Makerspace` model (tenant root; unique `slug`).
+- `backend/apps/makerspaces/` — `Makerspace` model (tenant root; unique `slug`),
+  `TenantFrontend` registry, tenant bootstrap views, dynamic CORS registration,
+  module flags, module guards, and frontend-safe platform helpers.
 - `backend/apps/audit/` - append-only `AuditLog` plus `audit.record(...)`.
 - `backend/apps/evidence/` - immutable evidence photo rows, S3-compatible storage
   helpers, and signed upload/view URL endpoints gated by per-makerspace
   `UPLOAD_EVIDENCE` permission plus active account status.
 - `backend/apps/boxes/` - Box QR payloads plus immutable `BoxScan` records for
   issue/return scan history, generalized `QrCode`, and immutable `QrScanEvent`
-  records for box/product/asset scans.
+  records for box/product/asset/scanner lookup scans.
 - `backend/apps/admin_api/` - staff REST surface for makerspaces, inventory CRUD,
   bulk inventory import preview/apply, staff membership management
   (`users/space-managers`, `users/inventory-managers`, `users/guest-admins`,
-  `users/print-managers`), user restrict/restore, and audit-log reads.
+  `users/print-managers`), tenant frontend registry management, user
+  restrict/restore, scoped API-client issuance, and audit-log reads.
+- `backend/apps/operations/` - open-source ops/reporting slice: health checks,
+  stock transfers, stocktake, inventory adjustments, analytics, CSV/XLSX report
+  exports, container/location APIs, QR print batches, print-ready QR batch HTML,
+  and serialized asset QR generation.
 - `backend/apps/integrations/` - Telegram message delivery, webhook callback
   routing through the hardware request workflow, and test-alert endpoint. The
   webhook authenticates Telegram's `X-Telegram-Bot-Api-Secret-Token` header
   against `TELEGRAM_WEBHOOK_SECRET` (fail-closed when unset) before trusting the
   attacker-controllable `from.id`; only then does it route accept/reject.
+  Telegram group chat IDs are configuration, not secrets; makerspace Telegram
+  bot tokens and SMTP passwords are encrypted at rest with `API_CLIENT_ENC_KEY`
+  and are only decrypted inside delivery code.
 - `backend/apps/hardware_requests/workflow.py` now also owns `assign_box` and
   `issue_request`/`return_items`; `views.py` exposes admin active-loans,
   assign-box, issue, and return endpoints with 404-before-403 scoping.
@@ -81,16 +156,35 @@ cd backend && pytest
   no-reservation available↔issued path used by public self-checkout and admin
   direct handout); it is the only place
   available/reserved/issued/damaged/lost counts change.
-- `backend/apps/inventory/` — `InventoryProduct` and `InventoryAsset` models, `public_availability.py` (availability service — seeds the Inventory Availability Module), `serializers.py` (allowlist-only public serializer), `views.py` (`PublicInventoryListView`), `urls.py`, `management/commands/seed_demo.py`.
-- `backend/apps/printing/` — 3D Printing Manager: `PrintBucket`/`PrintRequest` models, `workflow.py` (single source of truth for status transitions, row-locked + audited), `permissions.py` (`CanManagePrinting`, action-aware 403/404), `emails.py` (fail-safe branded SMTP notifications), `serializers.py`, `views.py`, `urls.py`, `admin.py`. Templates in `backend/templates/email/`.
+- `backend/apps/inventory/` — `InventoryProduct` and `InventoryAsset` models, `public_availability.py` (availability service — seeds the Inventory Availability Module), `serializers.py` (allowlist-only public serializer), `views.py` (`PublicInventoryListView`, `PublicInventoryDetailView`), `urls.py`, `management/commands/seed_demo.py`.
+- `backend/apps/printing/` — 3D Printing Manager: `PrintBucket`/`PrintRequest`,
+  `PrintPrinter`, and `FilamentSpool` models; print managers can add scoped
+  printers/spools, assign printer + spool + slicer estimates when a request
+  starts, and see free/busy printer state, pending estimated minutes, and
+  estimated spool remaining after the queued work. `workflow.py` remains the
+  single source of truth for request transitions (row-locked + audited);
+  `permissions.py` provides `CanManagePrinting` action-aware 403/404; `emails.py`
+  sends fail-safe branded SMTP notifications. Templates in
+  `backend/templates/email/`.
 - `backend/apps/hardware_requests/` — Hardware Request Workflow (submit + accept/reject + issue + return): `HardwareRequest`/`HardwareRequestItem`, immutable `ReturnEvent`, and immutable `RequesterAccountability` models; `workflow.py` (single source of truth: `submit_request`/`accept_request`/`reject_request`/`assign_box`/`issue_request`/`return_items`, atomic + row-locked + audited; reserve-at-acceptance); `permissions.py` (`CanReviewRequest`, `CanViewHandoverQueue`, `CanReturnRequest`); `serializers.py` (strict public-status allowlist plus return item resolutions); `views.py` (public submit/verify/status under HMAC-protected `public/`; admin queues + accept/reject/assign-box/issue/return with 404-before-403 scoping); `exceptions.py` (workflow→HTTP exception handler + `ErrorSerializer`); `notifications.py` (Telegram seam); `urls.py`, `admin.py`.
+- `backend/apps/hardware_requests/management/commands/send_return_reminders.py`
+  — scheduled email reminder job. Run from cron/Task Scheduler; it only sends
+  for issued/partially-returned requests whose `return_due_at` is past and whose
+  reminder has not already been sent.
 - `backend/apps/checkin/` — fail-closed Check-In API client (`client.py`: `verify()`, `CheckinUnavailable`→503 / `CheckinDenied`→403; `stub` vs `http` backend via `CHECKIN_MODE`, http-mode config validated at boot).
 - `backend/apps/inventory/availability.py` — Inventory Availability quantity math (`reserve_for_request`, `issue_items`, `return_items`, plus the no-reservation `issue_available`/`return_to_available` helpers; row-locked, never-below-zero, `InsufficientStock`). The only place reserve/available/issued/damaged/lost counts change — the self-checkout and direct-loan workflows delegate their stock mutations here rather than open-coding them.
 - `backend/tests/` — pytest behavior tests (public endpoint, auth/RBAC, audit/evidence, printing).
-- `frontend/src/features/inventory/` — `PublicInventoryPage`, `ProductCard`, `AvailabilityBadge`, query hook + API client.
+- `frontend/openapi-schema.json`, `frontend/scripts/generate-api-client.mjs`, and
+  `frontend/src/generated/api.ts` - checked-in OpenAPI snapshot and generated
+  TypeScript API path/client metadata.
+- `frontend/src/features/inventory/` — `PublicInventoryPage`,
+  `PublicItemDetailPage`, `ProductCard`, `AvailabilityBadge`, query hook + API
+  client.
 - `frontend/src/features/staff/` - first-pass Space Manager and Guest Admin panels:
-  login, request queues, handover/return actions, inventory table, bulk import
-  preview/apply, QR tools, users, and audit logs.
+  login, request queues, handover/return actions, inventory table, stock
+  transfers, stocktake, reports/exports, bulk import preview/apply, QR tools,
+  API clients, users, audit logs, scanner/kiosk/superadmin route surfaces, saved
+  local inventory views, inline details, and bulk inventory actions.
 - `frontend/src/lib/`, `frontend/src/components/ui/`, `frontend/src/types/` — query client, fetch wrapper, themed primitives, shared types.
 
 ### Public availability rule (resolves PRD §5's two overlapping fields)
@@ -192,7 +286,11 @@ Every domain entity is scoped to a `makerspace_id`. A makerspace owns its invent
 - Hardware **cannot be issued** without both a box QR scan and an issue photo.
 - Hardware **cannot be returned** without a return photo and a return remark.
 - Issued quantity cannot exceed accepted quantity without authorized workflow permission.
-- Guest Admins can issue accepted requests but **cannot** accept/reject, edit inventory, manage QR, return, or create direct handouts. Direct handouts (a loan with no reviewed request) require the dedicated `ISSUE_DIRECT_LOAN` action, granted only to Space Manager + Inventory Manager.
+- Guest Admins can issue accepted requests and process scoped returns through the
+  same evidence/QR/remark/audit workflow as staff. They **cannot** accept/reject,
+  edit inventory, manage QR, or create direct handouts. Direct handouts (a loan
+  with no reviewed request) require the dedicated `ISSUE_DIRECT_LOAN` action,
+  granted only to Space Manager + Inventory Manager.
 - Public request lookup verifies the identifier through Check-In and scopes results to that verified identity — it never matches free-text contact fields (no enumeration by known email/phone).
 - Inventory Managers can run the full hardware lifecycle but **cannot** manage printing, staff, or makerspace settings.
 - Evidence endpoints require per-makerspace `UPLOAD_EVIDENCE` plus active status; QR management also checks active status.

@@ -12,6 +12,7 @@ from apps.hardware_requests.view_helpers import (
     request_queryset,
 )
 from apps.makerspaces.models import Makerspace
+from apps.makerspaces.guards import require_module
 
 
 class PendingRequestsView(generics.ListAPIView):
@@ -20,6 +21,7 @@ class PendingRequestsView(generics.ListAPIView):
 
     def get_queryset(self):
         makerspace_id = self.kwargs["makerspace_id"]
+        require_module(makerspace_id, "request_workflow")
         _require_action(self.request.user, rbac.Action.ACCEPT_REQUEST, makerspace_id)
         return (
             request_queryset()
@@ -45,6 +47,7 @@ class AcceptedRequestsView(generics.ListAPIView):
 
     def get_queryset(self):
         makerspace_id = self.kwargs["makerspace_id"]
+        require_module(makerspace_id, "guest_handover")
         _require_action(self.request.user, rbac.Action.ISSUE_REQUEST, makerspace_id)
         return (
             request_queryset()
@@ -70,6 +73,7 @@ class ActiveLoansView(generics.ListAPIView):
 
     def get_queryset(self):
         makerspace_id = self.kwargs["makerspace_id"]
+        require_module(makerspace_id, "guest_handover")
         _require_action(self.request.user, rbac.Action.ISSUE_REQUEST, makerspace_id)
         return (
             request_queryset()

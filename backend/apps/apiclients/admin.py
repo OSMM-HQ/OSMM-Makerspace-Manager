@@ -29,7 +29,7 @@ class ApiClientAdminForm(forms.ModelForm):
         required=False, widget=UnfoldAdminTextInputWidget
     )
     telegram_bot_token = forms.CharField(
-        required=False, widget=UnfoldAdminPasswordWidget(render_value=True)
+        required=False, widget=UnfoldAdminPasswordWidget(render_value=False)
     )
     smtp_host = forms.CharField(required=False, widget=UnfoldAdminTextInputWidget)
     smtp_port = forms.IntegerField(
@@ -37,7 +37,7 @@ class ApiClientAdminForm(forms.ModelForm):
     )
     smtp_username = forms.CharField(required=False, widget=UnfoldAdminTextInputWidget)
     smtp_password = forms.CharField(
-        required=False, widget=UnfoldAdminPasswordWidget(render_value=True)
+        required=False, widget=UnfoldAdminPasswordWidget(render_value=False)
     )
     smtp_use_tls = forms.BooleanField(
         required=False, widget=UnfoldBooleanSwitchWidget
@@ -56,15 +56,23 @@ class ApiClientAdminForm(forms.ModelForm):
         if makerspace:
             for field in (
                 "telegram_group_chat_id",
-                "telegram_bot_token",
                 "smtp_host",
                 "smtp_port",
                 "smtp_username",
-                "smtp_password",
                 "smtp_use_tls",
                 "smtp_from_email",
             ):
                 self.fields[field].initial = getattr(makerspace, field)
+            self.fields["telegram_bot_token"].help_text = (
+                "Token is already set. Leave blank to keep it."
+                if makerspace.telegram_bot_token
+                else "Enter bot token."
+            )
+            self.fields["smtp_password"].help_text = (
+                "SMTP password is already set. Leave blank to keep it."
+                if makerspace.smtp_password
+                else "Enter SMTP password."
+            )
 
 
 @admin.register(ApiClient)
@@ -178,19 +186,23 @@ class ApiClientAdmin(ModelAdmin):
         makerspace = obj.makerspace
         text_fields = [
             "telegram_group_chat_id",
-            "telegram_bot_token",
             "smtp_host",
             "smtp_username",
-            "smtp_password",
             "smtp_from_email",
         ]
         for field in text_fields:
             setattr(makerspace, field, form.cleaned_data.get(field) or "")
+        if form.cleaned_data.get("telegram_bot_token"):
+            makerspace.set_telegram_bot_token(form.cleaned_data["telegram_bot_token"])
+        if form.cleaned_data.get("smtp_password"):
+            makerspace.set_smtp_password(form.cleaned_data["smtp_password"])
         makerspace.smtp_port = form.cleaned_data.get("smtp_port") or 587
         makerspace.smtp_use_tls = bool(form.cleaned_data.get("smtp_use_tls"))
         makerspace.save(
             update_fields=[
                 *text_fields,
+                "telegram_bot_token",
+                "smtp_password",
                 "smtp_port",
                 "smtp_use_tls",
                 "updated_at",

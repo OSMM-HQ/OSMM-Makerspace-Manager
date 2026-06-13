@@ -1,4 +1,6 @@
 import logging
+import json
+from urllib import request as urllib_request
 
 from django.conf import settings
 
@@ -10,7 +12,11 @@ class TelegramDeliveryError(Exception):
 
 
 def send_message(makerspace, text, reply_markup=None):
-    token = getattr(makerspace, "telegram_bot_token", "") or getattr(
+    token = (
+        makerspace.get_telegram_bot_token()
+        if hasattr(makerspace, "get_telegram_bot_token")
+        else getattr(makerspace, "telegram_bot_token", "")
+    ) or getattr(
         settings,
         "TELEGRAM_BOT_TOKEN",
         "",
@@ -28,14 +34,16 @@ def send_message(makerspace, text, reply_markup=None):
     if reply_markup:
         payload["reply_markup"] = reply_markup
     try:
-        import requests
-
-        response = requests.post(
+        body = json.dumps(payload).encode()
+        req = urllib_request.Request(
             f"{base_url}/bot{token}/sendMessage",
-            json=payload,
-            timeout=5,
+            data=body,
+            headers={"Content-Type": "application/json"},
+            method="POST",
         )
-        response.raise_for_status()
+        with urllib_request.urlopen(req, timeout=5) as response:
+            if response.status >= 400:
+                raise TelegramDeliveryError("Telegram delivery failed.")
     except Exception as exc:
         logger.warning(
             "Telegram delivery failed.",

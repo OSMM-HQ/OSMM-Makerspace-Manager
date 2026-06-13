@@ -3,6 +3,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "generate:api": "node scripts/generate-api-client.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview"
   },

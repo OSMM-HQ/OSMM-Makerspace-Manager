@@ -22,6 +22,24 @@ class ApiClient(models.Model):
         max_length=64, unique=True, default=generate_client_id, editable=False
     )
     secret_encrypted = models.BinaryField(editable=False)
+    client_type = models.CharField(
+        max_length=20,
+        choices=[
+            ("browser", "Browser"),
+            ("server", "Server"),
+        ],
+        default="server",
+    )
+    scopes = models.JSONField(default=list, blank=True)
+    rate_limit_tier = models.CharField(
+        max_length=20,
+        choices=[
+            ("public", "Public"),
+            ("standard", "Standard"),
+            ("trusted", "Trusted"),
+        ],
+        default="standard",
+    )
     makerspace = models.ForeignKey(
         Makerspace, null=True, blank=True, on_delete=models.CASCADE,
         related_name="api_clients",
@@ -51,11 +69,26 @@ class ApiClient(models.Model):
             )
 
     @classmethod
-    def issue(cls, *, label, makerspace=None, allowed_origins=None, created_by=None):
+    def issue(
+        cls,
+        *,
+        label,
+        makerspace=None,
+        allowed_origins=None,
+        created_by=None,
+        client_type="browser",
+        scopes=None,
+        rate_limit_tier="standard",
+    ):
         raw = secrets.token_urlsafe(32)
         obj = cls(
-            label=label, makerspace=makerspace,
-            allowed_origins=allowed_origins or [], created_by=created_by,
+            label=label,
+            makerspace=makerspace,
+            allowed_origins=allowed_origins or [],
+            created_by=created_by,
+            client_type=client_type,
+            scopes=scopes or [],
+            rate_limit_tier=rate_limit_tier,
         )
         obj.set_secret(raw)
         obj.save()

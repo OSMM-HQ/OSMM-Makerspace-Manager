@@ -4,6 +4,8 @@ from django.core.validators import RegexValidator
 from django.db import models
 from django.utils.crypto import get_random_string
 
+from apps.makerspaces.secrets import decrypt_value, encrypt_value
+
 
 def generate_publishable_key():
     return f"pk_{get_random_string(32)}"
@@ -11,6 +13,48 @@ def generate_publishable_key():
 
 def generate_public_code():
     return get_random_string(4, allowed_chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
+
+
+DEFAULT_ENABLED_MODULES = [
+    "public_inventory",
+    "request_workflow",
+    "self_checkout",
+    "staff_admin",
+    "guest_handover",
+    "scanner",
+    "printing",
+    "telegram",
+    "evidence_uploads",
+    "qr_management",
+    "bulk_import",
+    "containers",
+    "stock_transfers",
+    "stocktake",
+    "reports",
+    "qr_print_batches",
+    "asset_units",
+]
+
+
+def default_enabled_modules():
+    return list(DEFAULT_ENABLED_MODULES)
+
+
+def default_theme_config():
+    return {
+        "mode": "light",
+        "primary_color": "#2563eb",
+        "accent_color": "#16a34a",
+        "logo_url": "",
+    }
+
+
+def default_branding_config():
+    return {
+        "display_name": "",
+        "support_email": "",
+        "support_url": "",
+    }
 
 
 class Makerspace(models.Model):
@@ -36,6 +80,9 @@ class Makerspace(models.Model):
         default=generate_publishable_key,
     )
     cors_allowed_origins = models.JSONField(default=list, blank=True)
+    enabled_modules = models.JSONField(default=default_enabled_modules, blank=True)
+    theme_config = models.JSONField(default=default_theme_config, blank=True)
+    branding_config = models.JSONField(default=default_branding_config, blank=True)
     telegram_group_chat_id = models.CharField(max_length=64, blank=True)
     telegram_bot_token = models.CharField(max_length=200, blank=True)
     smtp_host = models.CharField(max_length=200, blank=True)
@@ -44,6 +91,7 @@ class Makerspace(models.Model):
     smtp_password = models.CharField(max_length=200, blank=True)
     smtp_use_tls = models.BooleanField(default=True)
     smtp_from_email = models.EmailField(blank=True)
+    default_loan_days = models.PositiveIntegerField(default=7)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -68,6 +116,70 @@ class Makerspace(models.Model):
     def save(self, *args, **kwargs):
         self.public_code = (self.public_code or "").upper()
         super().save(*args, **kwargs)
+
+    def set_telegram_bot_token(self, raw):
+        self.telegram_bot_token = encrypt_value(raw)
+
+    def get_telegram_bot_token(self):
+        return decrypt_value(self.telegram_bot_token)
+
+    def set_smtp_password(self, raw):
+        self.smtp_password = encrypt_value(raw)
+
+    def get_smtp_password(self):
+        return decrypt_value(self.smtp_password)
+
+
+class TenantFrontend(models.Model):
+    class FrontendType(models.TextChoices):
+        PUBLIC_PORTAL = "public_portal", "Public Portal"
+        STAFF_ADMIN = "staff_admin", "Staff Admin"
+        GUEST_HANDOVER = "guest_handover", "Guest Handover"
+        SCANNER = "scanner", "Scanner"
+        KIOSK = "kiosk", "Kiosk"
+        SUPERADMIN_CONSOLE = "superadmin_console", "Superadmin Console"
+        THIRD_PARTY = "third_party", "Third Party"
+
+    makerspace = models.ForeignKey(
+        Makerspace,
+        on_delete=models.CASCADE,
+        related_name="frontends",
+    )
+    token = models.CharField(max_length=64, unique=True, db_index=True, default=generate_publishable_key)
+    hostname = models.CharField(max_length=255, blank=True, null=True, unique=True)
+    frontend_type = models.CharField(
+        max_length=32,
+        choices=FrontendType.choices,
+        default=FrontendType.PUBLIC_PORTAL,
+    )
+    allowed_origins = models.JSONField(default=list, blank=True)
+    enabled_modules = models.JSONField(default=list, blank=True)
+    theme_config = models.JSONField(default=dict, blank=True)
+    branding_config = models.JSONField(default=dict, blank=True)
+    is_primary = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="created_tenant_frontends",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["makerspace", "frontend_type", "is_active"]),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.hostname = ((self.hostname or "").lower().strip()) or None
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        label = self.hostname or self.token
+        return f"{label} ({self.frontend_type})"
 
 
 class MakerspaceMembership(models.Model):

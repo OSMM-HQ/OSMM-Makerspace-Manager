@@ -15,6 +15,7 @@ from apps.hardware_requests.view_helpers import (
     ACTION_ERROR_RESPONSES,
     request_queryset,
 )
+from apps.makerspaces.guards import require_module
 
 
 class AcceptRequestView(APIView):
@@ -69,4 +70,6 @@ class RejectRequestView(APIView):
 
 def _scoped_request(user, pk):
     scoped = rbac.scope_by_makerspace(user, request_queryset())
-    return get_object_or_404(scoped, pk=pk)
+    hardware_request = get_object_or_404(scoped, pk=pk)
+    require_module(hardware_request.makerspace, "request_workflow")
+    return hardware_request

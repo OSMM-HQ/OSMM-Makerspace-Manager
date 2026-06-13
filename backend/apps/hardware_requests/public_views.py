@@ -24,6 +24,7 @@ from apps.hardware_requests.view_helpers import (
 )
 from apps.inventory.models import InventoryProduct
 from apps.makerspaces.lookup import get_public_makerspace
+from apps.makerspaces.platform import module_enabled
 from apps.openapi import (
     PUBLIC_REQUEST_LOOKUP_EXAMPLE,
     PUBLIC_REQUEST_STATUS_EXAMPLE,
@@ -48,6 +49,7 @@ class CheckinVerifyView(APIView):
     )
     def post(self, request, makerspace_slug, *args, **kwargs):
         makerspace = get_public_makerspace(makerspace_slug)
+        _require_module(makerspace, "request_workflow")
         serializer = CheckinVerifyRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -71,6 +73,7 @@ class RequestSubmitView(APIView):
     )
     def post(self, request, makerspace_slug, *args, **kwargs):
         makerspace = get_public_makerspace(makerspace_slug)
+        _require_module(makerspace, "request_workflow")
         serializer = RequestSubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -142,6 +145,7 @@ class RequestLookupView(APIView):
     )
     def post(self, request, makerspace_slug, *args, **kwargs):
         makerspace = get_public_makerspace(makerspace_slug)
+        _require_module(makerspace, "request_workflow")
         serializer = PublicRequestLookupSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -174,3 +178,8 @@ def _requestable_products(product_ids, makerspace):
             is_archived=False,
         )
     }
+
+
+def _require_module(makerspace, module_key):
+    if not module_enabled(makerspace, module_key):
+        raise ValidationError({"module": f"{module_key} is disabled for this makerspace."})

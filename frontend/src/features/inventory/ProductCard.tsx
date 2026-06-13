@@ -1,9 +1,11 @@
 import { Card } from "../../components/ui/Card";
 import type { Product } from "../../types/inventory";
 import { AvailabilityBadge } from "./AvailabilityBadge";
+import { Link } from "react-router-dom";
 
 type ProductCardProps = {
   product: Product;
+  makerspaceSlug: string;
   quantity: number;
   onDecrement: () => void;
   onIncrement: () => void;
@@ -15,6 +17,7 @@ function isUnavailable(product: Product): boolean {
 
 export function ProductCard({
   product,
+  makerspaceSlug,
   quantity,
   onDecrement,
   onIncrement,
@@ -62,6 +65,9 @@ export function ProductCard({
           {disabled ? "Not requestable" : quantity > 0 ? "Selected" : "Add to request"}
         </span>
       </div>
+      <Link className="text-sm font-semibold text-accent" to={`/m/${makerspaceSlug}/items/${product.id}`}>
+        Details
+      </Link>
     </Card>
   );
 }

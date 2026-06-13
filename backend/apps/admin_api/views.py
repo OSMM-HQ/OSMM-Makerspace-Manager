@@ -18,14 +18,17 @@ from apps.admin_api.serializers import (
     InventoryProductAdminSerializer,
     MakerspaceSerializer,
     RestrictUserSerializer,
+    ReturnPolicySerializer,
     StaffCreateSerializer,
     StaffMembershipSerializer,
+    TenantFrontendSerializer,
     UserSerializer,
 )
 from apps.audit import services as audit
 from apps.audit.models import AuditLog
 from apps.inventory.models import InventoryProduct
-from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.makerspaces.models import Makerspace, MakerspaceMembership, TenantFrontend
+from apps.makerspaces.guards import require_module
 from apps.openapi import BULK_IMPORT_ROWS_EXAMPLE, RESTRICT_USER_EXAMPLE
 
 
@@ -74,6 +77,75 @@ class MakerspaceDetailView(generics.RetrieveUpdateAPIView):
         )
 
 
+@extend_schema(tags=["Admin makerspaces"], summary="Retrieve or update return policy")
+class ReturnPolicyView(generics.RetrieveUpdateAPIView):
+    serializer_class = ReturnPolicySerializer
+    permission_classes = [IsActiveStaff]
+    http_method_names = ["get", "patch", "head", "options"]
+
+    def get_object(self):
+        makerspace_id = self.kwargs["makerspace_id"]
+        require_action(self.request.user, rbac.Action.ACCEPT_REQUEST, makerspace_id)
+        return get_object_or_404(Makerspace, pk=makerspace_id)
+
+    def perform_update(self, serializer):
+        instance = serializer.save()
+        audit.record(
+            self.request.user,
+            "makerspace.return_policy_updated",
+            makerspace=instance,
+            target=instance,
+            meta={"default_loan_days": instance.default_loan_days},
+        )
+
+
+@extend_schema(tags=["Tenant bootstrap"], summary="List or create registered tenant frontends")
+class TenantFrontendListCreateView(generics.ListCreateAPIView):
+    serializer_class = TenantFrontendSerializer
+    permission_classes = [IsActiveStaff]
+
+    def get_queryset(self):
+        makerspace_id = self.kwargs["makerspace_id"]
+        require_module(makerspace_id, "staff_admin")
+        require_action(self.request.user, rbac.Action.MANAGE_MAKERSPACE, makerspace_id)
+        return TenantFrontend.objects.filter(makerspace_id=makerspace_id).order_by("frontend_type", "hostname")
+
+    def perform_create(self, serializer):
+        makerspace_id = self.kwargs["makerspace_id"]
+        require_module(makerspace_id, "staff_admin")
+        require_action(self.request.user, rbac.Action.MANAGE_MAKERSPACE, makerspace_id)
+        frontend = serializer.save(makerspace_id=makerspace_id, created_by=self.request.user)
+        audit.record(
+            self.request.user,
+            "tenant_frontend.created",
+            makerspace=frontend.makerspace,
+            target=frontend,
+        )
+
+
+@extend_schema(tags=["Tenant bootstrap"], summary="Retrieve or update registered tenant frontend")
+class TenantFrontendDetailView(generics.RetrieveUpdateAPIView):
+    serializer_class = TenantFrontendSerializer
+    permission_classes = [IsActiveStaff]
+    http_method_names = ["get", "patch", "head", "options"]
+
+    def get_queryset(self):
+        return rbac.scope_by_action(
+            self.request.user,
+            rbac.Action.MANAGE_MAKERSPACE,
+            TenantFrontend.objects.select_related("makerspace"),
+        )
+
+    def perform_update(self, serializer):
+        frontend = serializer.save()
+        audit.record(
+            self.request.user,
+            "tenant_frontend.updated",
+            makerspace=frontend.makerspace,
+            target=frontend,
+        )
+
+
 @extend_schema(tags=["Admin inventory"], summary="List or create inventory products")
 class InventoryListCreateView(generics.ListCreateAPIView):
     serializer_class = InventoryProductAdminSerializer
@@ -81,11 +153,13 @@ class InventoryListCreateView(generics.ListCreateAPIView):
 
     def get_queryset(self):
         makerspace_id = self.kwargs["makerspace_id"]
+        require_module(makerspace_id, "staff_admin")
         require_action(self.request.user, rbac.Action.VIEW_INVENTORY, makerspace_id)
         return InventoryProduct.objects.filter(makerspace_id=makerspace_id).order_by("name")
 
     def perform_create(self, serializer):
         makerspace_id = self.kwargs["makerspace_id"]
+        require_module(makerspace_id, "staff_admin")
         require_action(self.request.user, rbac.Action.EDIT_INVENTORY, makerspace_id)
         _assert_box_in_makerspace(serializer.validated_data.get("box"), makerspace_id)
         instance = serializer.save(makerspace_id=makerspace_id)
@@ -154,6 +228,7 @@ class BulkImportPreviewView(APIView):
     )
     def post(self, request, makerspace_id, *args, **kwargs):
         makerspace = get_object_or_404(Makerspace, pk=makerspace_id)
+        require_module(makerspace, "bulk_import")
         require_action(request.user, rbac.Action.EDIT_INVENTORY, makerspace_id)
         serializer = BulkImportPreviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -181,6 +256,7 @@ class BulkImportApplyView(APIView):
     )
     def post(self, request, makerspace_id, *args, **kwargs):
         makerspace = get_object_or_404(Makerspace, pk=makerspace_id)
+        require_module(makerspace, "bulk_import")
         require_action(request.user, rbac.Action.EDIT_INVENTORY, makerspace_id)
         serializer = BulkImportPreviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

@@ -52,6 +52,8 @@ class FrontendHMACMiddleware:
                 return False
             if not self._client_scope_ok(request, client):
                 return False
+            if not self._request_scope_ok(request, client):
+                return False
 
             try:
                 skew = abs(int(time.time()) - int(timestamp))
@@ -133,9 +135,11 @@ class FrontendHMACMiddleware:
             ).first()
             if client is None:
                 return False
-            return self._origin_ok(request, client) and self._client_scope_ok(
-                request,
-                client,
+            return (
+                client.client_type == "browser"
+                and self._origin_ok(request, client)
+                and self._client_scope_ok(request, client)
+                and self._request_scope_ok(request, client)
             )
         except Exception:
             logger.exception("Frontend ApiClient validation failed")
@@ -150,6 +154,22 @@ class FrontendHMACMiddleware:
     def _makerspace_scope_ok(self, request, makerspace):
         target = self._path_makerspace(request)
         return target is None or target.pk == makerspace.pk
+
+    def _request_scope_ok(self, request, client):
+        scopes = set(client.scopes or [])
+        if not scopes:
+            return True
+        path = request.path
+        method = request.method.upper()
+        if "/public/" in path:
+            required = "public:write" if method not in {"GET", "HEAD", "OPTIONS"} else "public:read"
+            return required in scopes or "public:*" in scopes
+        if "/admin/" in path:
+            if "/reports/" in path or "/analytics/" in path:
+                return "reports:read" in scopes or "admin:read" in scopes or "admin:*" in scopes
+            required = "admin:write" if method not in {"GET", "HEAD", "OPTIONS"} else "admin:read"
+            return required in scopes or "admin:*" in scopes
+        return True
 
     def _path_makerspace(self, request):
         marker = "/public/"

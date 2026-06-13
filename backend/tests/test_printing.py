@@ -10,7 +10,7 @@ from apps.accounts.models import User
 from apps.audit.models import AuditLog
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 from apps.printing.emails import send_print_email
-from apps.printing.models import PrintBucket, PrintRequest
+from apps.printing.models import FilamentSpool, PrintBucket, PrintPrinter, PrintRequest
 
 pytestmark = pytest.mark.django_db
 
@@ -110,6 +110,18 @@ def action_url(print_request, action):
 
 def printed_list_url():
     return reverse("printing:printed-list")
+
+
+def printer_list_url():
+    return reverse("printing:managed-printer-list")
+
+
+def printer_detail_url(printer):
+    return reverse("printing:managed-printer-detail", kwargs={"pk": printer.id})
+
+
+def spool_list_url():
+    return reverse("printing:managed-spool-list")
 
 
 def test_requester_creates_lists_and_retrieves_only_own_requests():
@@ -338,6 +350,159 @@ def test_print_manager_accepts_starts_and_completes_with_audit_and_emails(
     assert print_request.status == PrintRequest.Status.COMPLETED
     assert print_request.completed_at is not None
     assert AuditLog.objects.filter(action="print.completed").count() == 1
+
+
+def test_print_manager_creates_printer_and_spool_in_action_scope():
+    makerspace = make_space("printer-scope")
+    other_space = make_space("printer-other")
+    manager = make_print_manager("printer-manager", makerspace)
+    guest = make_member(
+        "printer-guest",
+        makerspace,
+        membership_role=MakerspaceMembership.Role.GUEST_ADMIN,
+        role=User.Role.GUEST_ADMIN,
+    )
+    client = authenticated_client(manager)
+
+    response = client.post(
+        printer_list_url(),
+        {
+            "makerspace": makerspace.id,
+            "name": "Bambu A1",
+            "model": "A1 Combo",
+            "status": "active",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    printer = PrintPrinter.objects.get(pk=response.data["id"])
+    assert printer.makerspace == makerspace
+
+    response = client.post(
+        spool_list_url(),
+        {
+            "makerspace": makerspace.id,
+            "printer": printer.id,
+            "material": "PLA",
+            "color": "black",
+            "brand": "Generic",
+            "initial_weight_grams": "1000.00",
+            "remaining_weight_grams": "850.00",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    spool = FilamentSpool.objects.get(pk=response.data["id"])
+    assert spool.printer == printer
+    assert spool.remaining_weight_grams == 850
+
+    response = client.post(
+        printer_list_url(),
+        {"makerspace": other_space.id, "name": "Other printer"},
+        format="json",
+    )
+    assert response.status_code == 400
+
+    response = authenticated_client(guest).post(
+        printer_list_url(),
+        {"makerspace": makerspace.id, "name": "Guest printer"},
+        format="json",
+    )
+    assert response.status_code == 403
+
+
+def test_printer_list_shows_free_state_pending_minutes_and_spool_leftover_estimate():
+    makerspace = make_space("printer-estimates")
+    bucket = make_bucket(makerspace)
+    requester = make_user("printer-estimate-requester", access_status=User.AccessStatus.ACTIVE)
+    manager = make_print_manager("printer-estimate-manager", makerspace)
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Prusa MK4")
+    spool = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        printer=printer,
+        material="PETG",
+        color="orange",
+        initial_weight_grams=1000,
+        remaining_weight_grams=640,
+    )
+    first = make_request(bucket, requester, title="Active", status=PrintRequest.Status.ACCEPTED)
+    second = make_request(bucket, requester, title="Queued", status=PrintRequest.Status.ACCEPTED)
+    second.printer = printer
+    second.filament_spool = spool
+    second.estimated_minutes = 45
+    second.estimated_filament_grams = 80
+    second.save(
+        update_fields=[
+            "printer",
+            "filament_spool",
+            "estimated_minutes",
+            "estimated_filament_grams",
+            "updated_at",
+        ]
+    )
+
+    response = authenticated_client(manager).post(
+        action_url(first, "start"),
+        {
+            "printer_id": printer.id,
+            "filament_spool_id": spool.id,
+            "estimated_minutes": 120,
+            "estimated_filament_grams": "150.00",
+        },
+        format="json",
+    )
+    assert response.status_code == 200
+
+    response = authenticated_client(manager).get(
+        printer_list_url(), {"makerspace": makerspace.id}
+    )
+
+    assert response.status_code == 200
+    row = response.data["results"][0]
+    assert row["is_free"] is False
+    assert row["current_request"]["id"] == first.id
+    assert row["pending_estimated_minutes"] == 165
+    assert row["active_spool"]["id"] == spool.id
+    assert row["active_spool"]["remaining_weight_grams"] == "640.00"
+    assert row["estimated_spool_remaining_after_queue_grams"] == "410.00"
+
+
+def test_start_rejects_busy_printer_and_cross_space_spool():
+    makerspace = make_space("printer-busy")
+    other_space = make_space("printer-busy-other")
+    bucket = make_bucket(makerspace)
+    other_printer = PrintPrinter.objects.create(makerspace=other_space, name="Other")
+    requester = make_user("busy-requester", access_status=User.AccessStatus.ACTIVE)
+    manager = make_print_manager("busy-manager", makerspace)
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Busy")
+    spool = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        printer=printer,
+        material="PLA",
+        initial_weight_grams=1000,
+        remaining_weight_grams=100,
+    )
+    active = make_request(bucket, requester, title="Running", status=PrintRequest.Status.PRINTING)
+    active.printer = printer
+    active.filament_spool = spool
+    active.save(update_fields=["printer", "filament_spool", "updated_at"])
+    next_request = make_request(bucket, requester, title="Next", status=PrintRequest.Status.ACCEPTED)
+
+    response = authenticated_client(manager).post(
+        action_url(next_request, "start"),
+        {"printer_id": printer.id},
+        format="json",
+    )
+    assert response.status_code == 409
+
+    response = authenticated_client(manager).post(
+        action_url(next_request, "start"),
+        {"printer_id": other_printer.id},
+        format="json",
+    )
+    assert response.status_code == 409
 
 
 def test_print_manager_rejects_pending_request_with_reason_audit_and_email(

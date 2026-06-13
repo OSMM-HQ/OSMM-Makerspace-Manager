@@ -15,17 +15,22 @@ from apps.boxes.serializers import (
     CreateBoxQrSerializer,
     CreateToolQrSerializer,
     QrCodeSerializer,
+    QrResolveResultSerializer,
+    QrResolveSerializer,
     QrScanResultSerializer,
     QrScanSerializer,
     qr_target_payload,
 )
 from apps.inventory.models import InventoryAsset, InventoryProduct
+from apps.makerspaces.guards import require_module
+from apps.makerspaces.platform import module_enabled
 from apps.makerspaces.models import Makerspace
 from apps.openapi import QR_BOX_EXAMPLE, QR_SCAN_EXAMPLE
 
 
 class QrPermissionMixin:
     def _require_qr(self, user, makerspace_id):
+        require_module(makerspace_id, "qr_management")
         if (
             user.access_status != User.AccessStatus.ACTIVE
             or not rbac.can(user, rbac.Action.MANAGE_QR, makerspace_id)
@@ -157,6 +162,39 @@ class QrScanView(QrPermissionMixin, APIView):
         )
 
 
+class QrResolveView(QrPermissionMixin, APIView):
+    @extend_schema(
+        tags=["QR assets"],
+        summary="Resolve QR target and scanner allowed actions",
+        request=QrResolveSerializer,
+        responses={200: QrResolveResultSerializer},
+    )
+    def post(self, request, *args, **kwargs):
+        serializer = QrResolveSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        qr = get_object_or_404(
+            QrCode,
+            payload=serializer.validated_data["payload"],
+            status=QrCode.Status.ACTIVE,
+        )
+        require_module(qr.makerspace, "scanner")
+        if not rbac.can(request.user, rbac.Action.VIEW_INVENTORY, qr.makerspace_id):
+            raise PermissionDenied()
+        QrScanEvent.objects.create(
+            makerspace=qr.makerspace,
+            qr_code=qr,
+            actor=request.user,
+            context=QrScanEvent.Context.SCANNER_LOOKUP,
+        )
+        return Response(
+            {
+                "qr": QrCodeSerializer(qr).data,
+                "target": qr_target_payload(qr),
+                "allowed_actions": _allowed_scanner_actions(request.user, qr),
+            }
+        )
+
+
 class QrPrintView(QrPermissionMixin, APIView):
     @extend_schema(
         tags=["QR assets"],
@@ -200,3 +238,30 @@ class QrRevokeView(QrPermissionMixin, APIView):
         qr.save(update_fields=["status", "revoked_at", "updated_at"])
         audit.record(request.user, "qr.revoked", makerspace=qr.makerspace, target=qr)
         return Response(QrCodeSerializer(qr).data)
+
+
+def _allowed_scanner_actions(user, qr):
+    actions = ["view"]
+    if module_enabled(qr.makerspace, "scanner") and rbac.can(
+        user,
+        rbac.Action.MANAGE_QR,
+        qr.makerspace_id,
+    ):
+        actions.append("record_scan")
+    if qr.target_type in {QrCode.TargetType.PRODUCT, QrCode.TargetType.ASSET}:
+        if module_enabled(qr.makerspace, "self_checkout"):
+            from apps.hardware_requests.self_checkout_workflow import qr_has_active_loan
+
+            if qr_has_active_loan(qr.makerspace, qr):
+                actions.append("return")
+            else:
+                actions.append("checkout")
+        if rbac.can(user, rbac.Action.ISSUE_DIRECT_LOAN, qr.makerspace_id):
+            actions.append("direct_handout")
+    if qr.target_type == QrCode.TargetType.BOX:
+        actions.append("contents")
+        if rbac.can(user, rbac.Action.MANAGE_QR, qr.makerspace_id):
+            actions.append("move_container")
+    if rbac.can(user, rbac.Action.MANAGE_QR, qr.makerspace_id):
+        actions.append("revoke")
+    return sorted(set(actions))

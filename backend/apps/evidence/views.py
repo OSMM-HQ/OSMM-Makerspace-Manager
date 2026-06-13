@@ -29,6 +29,7 @@ from apps.evidence.storage import (
     presigned_upload,
 )
 from apps.makerspaces.models import Makerspace
+from apps.makerspaces.guards import require_module
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,7 @@ class EvidenceUploadUrlView(StaffAPIView):
     )
     def post(self, request, *args, **kwargs):
         makerspace_id = self.kwargs["makerspace_id"]
+        require_module(makerspace_id, "evidence_uploads")
         serializer = EvidenceUrlRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         evidence_type = serializer.validated_data["evidence_type"]
@@ -128,6 +130,7 @@ class EvidenceDetailView(generics.RetrieveAPIView):
     )
     def retrieve(self, request, *args, **kwargs):
         photo = self.get_object()
+        require_module(photo.makerspace, "evidence_uploads")
 
         try:
             exists = object_exists(photo.object_key)
