@@ -25,6 +25,7 @@ services:
       # Security hardening. Keep ENABLE_HTTPS=false for this HTTP-behind-nginx stack;
       # set it true only when a TLS proxy forwards X-Forwarded-Proto: https.
       ENABLE_HTTPS: ${ENABLE_HTTPS:-false}
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
       AXES_FAILURE_LIMIT: ${AXES_FAILURE_LIMIT:-5}
       EMAIL_BACKEND: ${EMAIL_BACKEND:-django.core.mail.backends.smtp.EmailBackend}
       EMAIL_HOST: ${EMAIL_HOST:-}

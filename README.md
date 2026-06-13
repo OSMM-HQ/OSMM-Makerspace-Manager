@@ -13,6 +13,15 @@ staff, Telegram group, QR namespace, and audit scope.
   and run every operation (requests, transfers, stocktake, QR, printing) as audited admin actions.
 - **All other staff** → the **React staff console** (JWT login). They have **no Django admin access**.
 
+## Why this exists
+
+The goal is to make it **easy for makerspaces to log and track their stuff**, and to give the
+whole **community transparent access** to what's available to borrow — without spreadsheets or
+guesswork. It's open source and built to be run by the community, for the community. If you care
+about makerspaces and want to help, **volunteers and contributors are very welcome** — whether
+you write code, docs, translations, or just run it at your space and report what's rough. See
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
 ---
 
 ## Roles & permissions
@@ -28,6 +37,11 @@ per-makerspace membership.
 | **Guest Admin** | React staff console | Issue accepted requests + process returns (evidence/QR/remark/audit) | Accept/reject, edit inventory, manage QR, direct handouts; Django admin |
 | **Print Manager** | React staff console | 3D-printing request lifecycle (accept/start/complete/fail), printers & spools | Hardware lifecycle, inventory, staff; Django admin |
 | **Public** | React catalog | Browse public inventory, submit borrow requests | Anything authenticated |
+
+> **These roles are defined by the system, not by any user.** A Space Manager (or anyone else)
+> cannot invent new roles or grant themselves extra powers — they can only assign people to the
+> existing roles within their own makerspace. What each role can and cannot do is fixed in the
+> platform's permission rules, which keeps every makerspace consistent and accountable.
 
 Two architectural rules are load-bearing:
 
@@ -50,10 +64,27 @@ Postgres (Supabase) instead and host the app anywhere.
 
 ### Option A — Self-host locally (recommended)
 
-Run the whole stack with Docker on a machine in the makerspace:
+**Not a developer?** Follow the plain-language, step-by-step guide:
+**[docs/setup-for-makerspaces.md](docs/setup-for-makerspaces.md)**. After installing Docker
+Desktop and downloading this project, you run **one** setup script that asks a few questions and
+does the rest:
 
 ```bash
-docker compose up --build
+# macOS / Linux
+bash setup.sh
+```
+```powershell
+# Windows (right-click setup.ps1 → Run with PowerShell, or:)
+powershell -ExecutionPolicy Bypass -File setup.ps1
+```
+
+It generates all secrets, writes your `.env`, builds and starts everything, and creates your first
+admin + makerspace. When it finishes it prints your URL and login.
+
+**Prefer to drive Docker yourself?** The same production stack, built from source:
+
+```bash
+docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
 ```
 
 | Surface | URL |
@@ -79,7 +110,15 @@ For production from published images (env vars, TLS, reverse proxy), see
 Set `ENABLE_HTTPS=true` only when a reverse proxy terminates real TLS and forwards
 `X-Forwarded-Proto: https`; otherwise the default HTTP-behind-nginx setup is correct.
 
-### Option B — No local server → Supabase Postgres
+### Option B — No local server? Partner with another makerspace first
+
+This app is **multi-tenant**: one backend can host many makerspaces, each with its own public URL,
+branding, and frontend. So if you don't have a server, **reach out to a nearby makerspace that
+does** — they can host your makerspace as an additional tenant on their instance. Most makers are
+happy to help a fellow space, and it's a natural way for them to contribute to the project. You get
+your own catalog and admin; they run one shared backend.
+
+### Option C — Still not possible? Supabase Postgres
 
 The backend is plain Django + Postgres, so any managed Postgres works. Point `DATABASE_URL` at a
 Supabase connection string and host the app on any platform.

@@ -5,6 +5,8 @@ __pycache__/
 venv/
 *.sqlite3
 backend/.env
+# Root deployment env written by setup.sh / setup.ps1 (holds generated secrets).
+/.env
 staticfiles/
 
 # Node / Vite
@@ -19,6 +21,17 @@ frontend/vite.config.d.ts
 
 # Codex scratch prompts
 .codex-prompt-*.txt
+
+# Internal planning + design docs — kept local, not published to the repo.
+# Only curated user/ops docs are committed (e.g. docs/setup-for-makerspaces.md,
+# docs/self-hosting.md).
+docs/prd-*.md
+docs/PLAN-prd-*.md
+docs/superpowers/
+docs/design/
+docs/plans/
+docs/HANDOVER.md
+docs/roadmap.md
 
 # OS / editor
 .DS_Store

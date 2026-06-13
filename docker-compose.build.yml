@@ -1,0 +1,20 @@
+# Build-from-source overlay for self-hosting without pulling published images.
+#
+# Use it together with the production compose file:
+#   docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
+#
+# This adds `build:` contexts so the backend and frontend images are built locally from
+# this repository instead of pulled from a registry. Once the GHCR images are published
+# publicly you can drop this overlay and use docker-compose.prod.yml on its own.
+services:
+  backend:
+    build:
+      context: ./backend
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
+        VITE_PUBLIC_API_KEY: ${VITE_PUBLIC_API_KEY:-}
+        VITE_PUBLIC_CLIENT_ID: ${VITE_PUBLIC_CLIENT_ID:-}

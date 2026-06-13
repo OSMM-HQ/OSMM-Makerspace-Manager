@@ -245,6 +245,10 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SECURE_SSL_REDIRECT = env.bool("SECURE_SSL_REDIRECT", default=ENABLE_HTTPS)
 SESSION_COOKIE_SECURE = env.bool("SESSION_COOKIE_SECURE", default=ENABLE_HTTPS)
 CSRF_COOKIE_SECURE = env.bool("CSRF_COOKIE_SECURE", default=ENABLE_HTTPS)
+# Needed for admin/login POST when reached over HTTPS via a custom domain behind a
+# proxy. Same-origin HTTP needs nothing here; set to the public https origin(s) when
+# ENABLE_HTTPS is on, e.g. CSRF_TRUSTED_ORIGINS=https://makerspace.example.org
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
 SECURE_HSTS_SECONDS = env.int(
     "SECURE_HSTS_SECONDS", default=31536000 if ENABLE_HTTPS else 0
 )

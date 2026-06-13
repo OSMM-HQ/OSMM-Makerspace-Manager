@@ -29,6 +29,25 @@ always-on CSP via django-csp 4 (`CONTENT_SECURITY_POLICY`), and a `pip-audit` CI
 (`.github/workflows/security-audit.yml`). Design spec:
 `docs/superpowers/specs/2026-06-13-superadmin-admin-control-plane-design.md`.
 
+**Admin reachability + self-host tooling.** The production stack does not publish the backend
+port, so `frontend/nginx.conf` proxies `/admin/`, `/static/`, and the docs routes
+(`/docs/`,`/redoc/`,`/schema/`) to the backend — without this the superadmin control plane would be
+unreachable on port 80. Non-technical install path: `setup.sh` / `setup.ps1` (first-run wizard:
+Docker check → generate secrets incl. a Fernet `API_CLIENT_ENC_KEY` → write root `.env` → build via
+`docker-compose.prod.yml` + `docker-compose.build.yml` → wait for readiness → `setup_instance` →
+print URL/creds), `docker-compose.build.yml` (build-from-source overlay; GHCR images are not yet
+public), and `docs/setup-for-makerspaces.md`. TLS settings are env-gated (`ENABLE_HTTPS`, default
+off) so the default HTTP-behind-nginx stack works; `CSRF_TRUSTED_ORIGINS` is env-driven for HTTPS.
+
+**Per-makerspace integrations are backend-only and never leak.** `Makerspace` holds per-tenant
+`telegram_bot_token` and `smtp_*` fields; the secrets (`telegram_bot_token`, `smtp_password`) are
+encrypted at rest with `API_CLIENT_ENC_KEY` via `apps/makerspaces/secrets.py` and decrypted only in
+delivery code (`integrations/email.py`, `integrations/telegram.py`). The admin/staff integration
+serializer (`admin_api/api_client_serializers.py`) exposes them **write-only** + a `*_set` boolean —
+never returning the value. Bootstrap returns only frontend-safe config (module flags, not secrets).
+Two or three makerspaces sharing one SMTP/Telegram = enter the same credentials per makerspace
+(stored/encrypted independently; rotation updates each). No shared-integration entity exists.
+
 **Implementation is in progress.** Public inventory browse, staff auth/RBAC foundations,
 API-client HMAC support, QR/box foundations, Phase 3 audit/evidence
 infrastructure, the 3D Printing Manager (request lifecycle + email
@@ -50,7 +69,11 @@ exclude or defer, such as procurement, maintenance, direct Google Sheets OAuth
 publishing, native apps, and physical label-printer control, remain future work
 rather than current implementation gaps.
 
-Implemented from `docs/prd-multifrontend-platform.md`:
+> The detailed PRDs (`docs/prd-*.md`) are **internal planning docs kept local only** — they are
+> intentionally not committed to the public repo (gitignored). References to "the PRD §N" below
+> point to those local documents.
+
+Implemented (multi-frontend platform):
 
 - `TenantFrontend` registry with explicit frontend types, active/primary flags,
   hostnames, allowed origins, module overrides, theme config, and branding config.
@@ -83,7 +106,7 @@ Implemented from `docs/prd-multifrontend-platform.md`:
 - Scanner QR resolve endpoint with immutable scan events and allowed-action
   responses for box/product/asset/request QR payloads.
 
-Implemented from `docs/prd-open-source-ops-and-reporting.md`:
+Implemented (open-source ops and reporting):
 
 - `GET /api/v1/health/` and `GET /api/v1/health/readiness/`.
 - `setup_instance` management command for first superadmin and first makerspace.
