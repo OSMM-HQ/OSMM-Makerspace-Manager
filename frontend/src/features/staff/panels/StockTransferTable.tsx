@@ -1,0 +1,63 @@
+import type { Transfer } from "./StockTransferPanel";
+
+export function ErrorText({ text }: { text: string }) {
+  return <p className="mt-2 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{text}</p>;
+}
+
+export function TransferTable({
+  transfers,
+  loading,
+  error,
+  makerspaceNames,
+  sourceContainerNames,
+  destinationContainerNames,
+}: {
+  transfers: Transfer[];
+  loading: boolean;
+  error?: string;
+  makerspaceNames: Map<number, string>;
+  sourceContainerNames: Map<number, string>;
+  destinationContainerNames: Map<number, string>;
+}) {
+  if (loading) return <p className="text-sm text-muted">Loading transfers...</p>;
+  if (error) return <ErrorText text={error} />;
+  if (!transfers.length) return <p className="text-sm text-muted">No stock transfers recorded.</p>;
+  return (
+    <div className="overflow-x-auto rounded-md border border-line">
+      <table className="min-w-full divide-y divide-line text-left text-sm">
+        <thead className="bg-surface text-xs uppercase tracking-wide text-muted">
+          <tr>
+            <th className="px-3 py-2">ID</th>
+            <th className="px-3 py-2">Source</th>
+            <th className="px-3 py-2">Destination</th>
+            <th className="px-3 py-2">Reason</th>
+            <th className="px-3 py-2">Created</th>
+            <th className="px-3 py-2">Lines</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line bg-bg text-ink">
+          {transfers.map((transfer) => (
+            <tr key={transfer.id}>
+              <td className="whitespace-nowrap px-3 py-2 font-medium">#{transfer.id}</td>
+              <td className="px-3 py-2">{endpointLabel(transfer.source_makerspace ?? transfer.makerspace, transfer.source_container, makerspaceNames, sourceContainerNames)}</td>
+              <td className="px-3 py-2">{endpointLabel(transfer.destination_makerspace ?? transfer.makerspace, transfer.destination_container, makerspaceNames, destinationContainerNames)}</td>
+              <td className="min-w-48 px-3 py-2 text-muted">{transfer.reason}</td>
+              <td className="whitespace-nowrap px-3 py-2 text-muted">{formatDate(transfer.created_at)}</td>
+              <td className="whitespace-nowrap px-3 py-2">{transfer.lines.length}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function endpointLabel(spaceId: number, containerId: number | null, spaceNames: Map<number, string>, containerNames: Map<number, string>) {
+  const space = spaceNames.get(spaceId) ?? `Makerspace #${spaceId}`;
+  return containerId ? `${space} / ${containerNames.get(containerId) ?? `Container #${containerId}`}` : space;
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}

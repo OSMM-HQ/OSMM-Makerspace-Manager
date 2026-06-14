@@ -5,19 +5,17 @@ import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 import {
   ErrorText,
-  FailPrintDialog,
   type FilamentSpool,
   PrintRows,
   type PrintPrinter,
   type PrintRequest,
   PrinterCard,
-  PrinterEditDialog,
   type PrinterPayload,
   printingRequest,
-  SpoolEditDialog,
   type SpoolPayload,
   SpoolRow,
 } from "./PrintingPanelParts";
+import { FailPrintDialog, PrinterEditDialog, SpoolEditDialog } from "./PrintingPanelDialogs";
 
 type DeactivateTarget =
   | { kind: "printer"; id: number; label: string }
