@@ -1,3 +1,6 @@
+import io
+import zipfile
+
 import pytest
 
 from apps.accounts.models import User
@@ -224,7 +227,7 @@ def test_asset_generation_adds_50_unique_sequential_unit_qrs_to_existing_batch()
     ]
 
 
-def test_qr_batch_accepts_box_and_product_items_and_prints_name_captions():
+def test_qr_batch_accepts_box_and_product_items_and_downloads_name_captions():
     makerspace = make_space("ops-qr-batch")
     manager = make_member("ops-qr-batch-manager", makerspace)
     box = make_box(makerspace, "Soldering Bin")
@@ -260,15 +263,18 @@ def test_qr_batch_accepts_box_and_product_items_and_prints_name_captions():
         {"qr_code_id": product_qr.id, "label_text": product.name},
         format="json",
     )
-    printed = client.get(f"/api/v1/admin/qr-print-batches/{batch_id}/print")
+    downloaded = client.get(f"/api/v1/admin/qr-print-batches/{batch_id}/download")
 
     assert batch_response.status_code == 201
     assert box_item.status_code == 201
     assert product_item.status_code == 201
-    assert b"Soldering Bin" in printed.content
-    assert b"Multimeter" in printed.content
-    assert b"<svg" in printed.content
-    assert b"grid-template-columns:repeat(4,45mm)" in printed.content
+    assert downloaded.status_code == 200
+    assert downloaded["Content-Type"] == "application/zip"
+    with zipfile.ZipFile(io.BytesIO(downloaded.content)) as archive:
+        assert len(archive.namelist()) == 2
+        svg_contents = "".join(archive.read(name).decode("utf-8") for name in archive.namelist())
+    assert "Soldering Bin" in svg_contents
+    assert "Multimeter" in svg_contents
 
 
 def test_qr_batch_items_enforce_manage_qr_rbac_and_makerspace_scope():

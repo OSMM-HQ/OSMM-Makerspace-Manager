@@ -3,7 +3,6 @@ from io import BytesIO, StringIO
 
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
-from django.utils.html import escape
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from openpyxl import Workbook
@@ -21,7 +20,7 @@ from apps.boxes.serializers import BoxSerializer, QrCodeSerializer
 from apps.inventory.models import InventoryAsset, InventoryProduct
 from apps.makerspaces.models import Makerspace
 from apps.makerspaces.guards import require_module
-from apps.operations import ledger, reports
+from apps.operations import ledger, qr_zip, reports
 from apps.operations import services
 from apps.operations.models import QrPrintBatch, StockTransfer, StocktakeSession
 from apps.operations.serializers import (
@@ -471,16 +470,23 @@ class QrPrintBatchItemView(APIView):
         return Response({"id": item.id}, status=status.HTTP_201_CREATED)
 
 
-class QrPrintBatchPrintView(APIView):
+class QrPrintBatchDownloadView(APIView):
     permission_classes = [IsActiveStaff]
     serializer_class = EmptySerializer
 
-    @extend_schema(tags=["QR print batches"], summary="Render QR print batch HTML", request=None, responses={(200, "text/html"): OpenApiTypes.STR})
+    @extend_schema(
+        tags=["QR print batches"],
+        summary="Download QR print batch as a ZIP of captioned SVGs",
+        request=None,
+        responses={(200, "application/zip"): OpenApiTypes.BINARY},
+    )
     def get(self, request, pk, *args, **kwargs):
         batch = get_object_or_404(rbac.scope_by_action(request.user, rbac.Action.MANAGE_QR, QrPrintBatch.objects.prefetch_related("items__qr_code")), pk=pk)
         require_module(batch.makerspace, "qr_print_batches")
-        html = _batch_html(batch)
-        return HttpResponse(html, content_type="text/html")
+        data = qr_zip.build_batch_zip(batch)
+        response = HttpResponse(data, content_type="application/zip")
+        response["Content-Disposition"] = f'attachment; filename="qr-batch-{batch.id}.zip"'
+        return response
 
 
 class AssetGenerateView(APIView):
@@ -583,27 +589,3 @@ def _xlsx_cell(value):
     if isinstance(value, _dt) and value.tzinfo is not None:
         return value.replace(tzinfo=None)
     return value
-
-
-def _batch_html(batch):
-    import segno
-
-    items = []
-    for item in batch.items.select_related("qr_code"):
-        svg = segno.make(item.qr_code.payload).svg_inline(scale=5)
-        items.append(
-            f'<article class="label"><div class="qr">{svg}</div>'
-            f'<strong>{escape(item.label_text)}</strong></article>'
-        )
-    return f"""<!doctype html>
-<html><head><meta charset="utf-8"><title>{escape(batch.title)}</title>
-<style>
-@page{{size:A4;margin:10mm}}
-body{{font-family:Arial,sans-serif;margin:0;color:#111827}}
-h1{{font-size:16px;margin:0 0 6mm}}
-.sheet{{box-sizing:border-box;display:grid;grid-template-columns:repeat(4,45mm);grid-auto-rows:55mm;gap:4mm;align-content:start;width:190mm;padding:10mm}}
-.label{{box-sizing:border-box;border:1px solid #d1d5db;padding:4mm;text-align:center;break-inside:avoid;page-break-inside:avoid}}
-.qr svg{{height:32mm;width:32mm}}
-strong{{display:block;margin-top:2mm;font-size:10px;line-height:1.2;word-break:break-word}}
-@media print{{h1{{display:none}}.sheet{{padding:0;width:190mm}}}}
-</style></head><body><h1>{escape(batch.title)}</h1><section class="sheet">{''.join(items)}</section></body></html>"""

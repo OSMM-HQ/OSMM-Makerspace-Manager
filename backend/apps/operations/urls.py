@@ -38,6 +38,5 @@ urlpatterns = [
     path("admin/makerspace/<int:makerspace_id>/qr-print-batches", views.QrPrintBatchListCreateView.as_view(), name="qr-print-batches"),
     path("admin/qr-print-batches/<int:pk>", views.QrPrintBatchDetailView.as_view(), name="qr-print-batch-detail"),
     path("admin/qr-print-batches/<int:pk>/items", views.QrPrintBatchItemView.as_view(), name="qr-print-batch-items"),
-    path("admin/qr-print-batches/<int:pk>/print", views.QrPrintBatchPrintView.as_view(), name="qr-print-batch-print"),
-    path("admin/qr-print-batches/<int:pk>/export", views.QrPrintBatchPrintView.as_view(), name="qr-print-batch-export"),
+    path("admin/qr-print-batches/<int:pk>/download", views.QrPrintBatchDownloadView.as_view(), name="qr-print-batch-download"),
 ]

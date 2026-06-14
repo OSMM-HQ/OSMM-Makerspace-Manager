@@ -3495,10 +3495,10 @@
                 }
             }
         },
-        "/api/v1/admin/qr-print-batches/{id}/export": {
+        "/api/v1/admin/qr-print-batches/{id}/download": {
             "get": {
-                "operationId": "api_v1_admin_qr_print_batches_export_retrieve",
-                "summary": "Render QR print batch HTML",
+                "operationId": "api_v1_admin_qr_print_batches_download_retrieve",
+                "summary": "Download QR print batch as a ZIP of captioned SVGs",
                 "parameters": [
                     {
                         "in": "path",
@@ -3520,9 +3520,10 @@
                 "responses": {
                     "200": {
                         "content": {
-                            "text/html": {
+                            "application/zip": {
                                 "schema": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "format": "binary"
                                 }
                             }
                         },
@@ -3579,42 +3580,6 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/QrPrintBatchItemResult"
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            }
-        },
-        "/api/v1/admin/qr-print-batches/{id}/print": {
-            "get": {
-                "operationId": "api_v1_admin_qr_print_batches_print_retrieve",
-                "summary": "Render QR print batch HTML",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "id",
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "QR print batches"
-                ],
-                "security": [
-                    {
-                        "jwtAuth": []
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "text/html": {
-                                "schema": {
-                                    "type": "string"
                                 }
                             }
                         },

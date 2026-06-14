@@ -2,9 +2,8 @@ import type React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
 import { Modal } from "../../../components/ui/Modal";
-import { API_URL, staffRequest } from "../../../lib/api";
+import { downloadStaffFile, staffRequest } from "../../../lib/api";
 import { Panel, type Makerspace, type Product, useStaffGet } from "./shared";
 import { QrImage } from "./QrImage";
 
@@ -27,7 +26,6 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
   const [assetPrefix, setAssetPrefix] = useState("");
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [boxModalOpen, setBoxModalOpen] = useState(false);
-  const [printConfirmOpen, setPrintConfirmOpen] = useState(false);
   const batches = useStaffGet<ListResponse<Batch>>(["qr-batches", makerspace.id], `/admin/makerspace/${makerspace.id}/qr-print-batches`);
   const products = useStaffGet<ListResponse<Product>>(["inventory", makerspace.id], `/admin/makerspace/${makerspace.id}/inventory`);
   const containers = useStaffGet<ListResponse<Container>>(["containers", makerspace.id], `/admin/makerspace/${makerspace.id}/containers`);
@@ -118,15 +116,12 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
       refreshBatch();
     },
   });
-  const printBatch = useMutation({
-    mutationFn: async () => {
-      const html = await staffText(`/admin/qr-print-batches/${activeBatchId}/print`);
-      const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
-      const opened = window.open(url, "_blank");
-      window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
-      if (!opened) throw new Error("Allow popups to open the print sheet.");
-    },
-    onSuccess: () => setPrintConfirmOpen(false),
+  const downloadZip = useMutation({
+    mutationFn: () =>
+      downloadStaffFile(
+        `/admin/qr-print-batches/${activeBatchId}/download`,
+        `qr-batch-${activeBatchId}.zip`,
+      ),
   });
   const hasBatch = Boolean(activeBatchId);
   const batchItems = batch.data?.items ?? [];
@@ -207,8 +202,8 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
               <h3 className="font-semibold text-ink">{batch.data?.title ?? "Working batch"}</h3>
               <p className="text-sm text-muted">{batchItems.length} QR labels accumulated</p>
             </div>
-            <button className="desk-button-primary" type="button" disabled={!batchItems.length || printBatch.isPending} onClick={() => setPrintConfirmOpen(true)}>
-              {printBatch.isPending ? "Opening..." : "Print batch (A4)"}
+            <button className="desk-button-primary" type="button" disabled={!batchItems.length || downloadZip.isPending} onClick={() => downloadZip.mutate()}>
+              {downloadZip.isPending ? "Preparing..." : "Download all (ZIP)"}
             </button>
           </div>
           {batch.isLoading ? <p className="mt-3 text-sm text-muted">Loading batch...</p> : null}
@@ -223,7 +218,7 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
               </article>
             ))}
           </div>
-          {printBatch.isError ? <ErrorText text={printBatch.error.message} /> : null}
+          {downloadZip.isError ? <ErrorText text={(downloadZip.error as Error).message} /> : null}
         </div>
       </div>
 
@@ -240,15 +235,6 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
         {createBox.isError ? <ErrorText text={createBox.error.message} /> : null}
       </Modal>
 
-      <ConfirmDialog
-        open={printConfirmOpen}
-        title="Print QR batch"
-        message="Open the A4 print sheet for this batch in a new tab?"
-        confirmLabel="Open print sheet"
-        pending={printBatch.isPending}
-        onCancel={() => setPrintConfirmOpen(false)}
-        onConfirm={() => printBatch.mutate()}
-      />
     </Panel>
   );
 }
@@ -272,12 +258,3 @@ function ModalActions(props: { pending: boolean; disabled: boolean; submitLabel:
   );
 }
 
-async function staffText(path: string) {
-  const token = localStorage.getItem("makerspace.access");
-  const apiV1Url = API_URL.replace(/\/api$/, "/api/v1");
-  const response = await fetch(`${apiV1Url}${path}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!response.ok) throw new Error(`Print sheet failed (${response.status})`);
-  return response.text();
-}
