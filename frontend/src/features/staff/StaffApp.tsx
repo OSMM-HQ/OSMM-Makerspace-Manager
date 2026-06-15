@@ -20,6 +20,7 @@ import {
   AuditLog,
   BulkImport,
   Categories,
+  ContainersPanel,
   Inventory,
   Ledger,
   NeedsFixShelf,
@@ -38,7 +39,7 @@ import {
 
 const ALL_TABS = [
   "requests", "direct", "inventory", "needsfix", "categories", "printing", "tobuy", "transfers",
-  "stocktake", "ledger", "reports", "bulk", "qr", "api", "users", "audit",
+  "stocktake", "containers", "ledger", "reports", "bulk", "qr", "api", "users", "audit",
 ] as const;
 // Membership roles that get the full staff console. Anything else (print_manager,
 // or an unknown role) is failed closed to the 3D-printing surfaces only.
@@ -205,6 +206,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   const allowedTabs: readonly string[] = (fullAccess ? ALL_TABS : PRINTING_TABS).filter((tabName) => {
     if (tabName === "tobuy") return canUseToBuy;
     if (tabName === "needsfix") return canEditInventory;
+    if (tabName === "containers") return canEditInventory; // MANAGE_QR roles (space/inventory mgr + superadmin)
     if (tabName === "printing") return canSeePrinting; // hide printer/spool mgmt from inventory managers
     if (tabName === "requests") return canSeeHardware || canSeePrinting;
     return true;
@@ -251,7 +253,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
                 }`}
                 onClick={() => setTab(item)}
               >
-                  {item === "qr" ? "QR Tools" : item === "direct" ? "Direct handout" : item === "api" ? "API access" : item === "stocktake" ? "Stocktake" : item === "printing" ? "3D Printing" : item === "tobuy" ? "To Buy" : item === "needsfix" ? "To-be-fixed" : item[0].toUpperCase() + item.slice(1)}
+                  {item === "qr" ? "QR Tools" : item === "direct" ? "Direct handout" : item === "api" ? "API access" : item === "stocktake" ? "Stocktake" : item === "printing" ? "3D Printing" : item === "tobuy" ? "To Buy" : item === "needsfix" ? "To-be-fixed" : item === "containers" ? "Containers" : item[0].toUpperCase() + item.slice(1)}
               </button>
             ))}
           </nav>
@@ -321,6 +323,9 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
           ) : null}
           {activeMakerspace && activeTab === "stocktake" ? (
             <StocktakePanel makerspace={activeMakerspace} />
+          ) : null}
+          {activeMakerspace && activeTab === "containers" ? (
+            <ContainersPanel makerspace={activeMakerspace} />
           ) : null}
           {activeMakerspace && activeTab === "ledger" ? (
             <Ledger makerspace={activeMakerspace} isSuperadmin={isSuperadmin} />

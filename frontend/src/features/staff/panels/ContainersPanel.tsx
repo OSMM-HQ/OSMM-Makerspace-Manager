@@ -1,0 +1,130 @@
+import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+import { staffRequest } from "../../../lib/api";
+import { Panel, type Makerspace, useStaffGet } from "./shared";
+import { QrImage } from "./QrImage";
+
+type Container = { id: number; code?: string; label: string; location?: string; is_active?: boolean };
+type Contents = {
+  products: { id: number; name: string; available_quantity: number; tracking_mode: string }[];
+  assets: { id: number; asset_tag: string; product: string; status: string }[];
+  children: Container[];
+};
+type History = { scans: { id: number; context: string; actor: number | null; created_at: string }[] };
+
+// Containers had list + create (in QR tools) but no edit/move/contents/history surface in
+// React — they were only manageable in the Django admin. This panel wires the operations
+// container endpoints (MANAGE_QR for edit/move, VIEW_INVENTORY for contents/history).
+export function ContainersPanel({ makerspace }: { makerspace: Makerspace }) {
+  const containers = useStaffGet<{ results: Container[] }>(["containers", makerspace.id], `/admin/makerspace/${makerspace.id}/containers`);
+  return (
+    <Panel title="Containers">
+      {containers.isLoading ? <p className="text-sm text-muted">Loading containers...</p> : null}
+      {containers.error instanceof Error ? <p className="text-sm text-danger">{containers.error.message}</p> : null}
+      <div className="grid gap-2">
+        {containers.data?.results?.map((container) => (
+          <ContainerRow key={container.id} container={container} makerspaceId={makerspace.id} />
+        ))}
+        {!containers.isLoading && !containers.data?.results?.length ? (
+          <p className="text-sm text-muted">No containers yet. Create one in QR tools.</p>
+        ) : null}
+      </div>
+    </Panel>
+  );
+}
+
+function ContainerRow({ container, makerspaceId }: { container: Container; makerspaceId: number }) {
+  const queryClient = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [panel, setPanel] = useState<"contents" | "history" | null>(null);
+  const [label, setLabel] = useState(container.label);
+  const [location, setLocation] = useState(container.location ?? "");
+  const [isActive, setIsActive] = useState(container.is_active ?? true);
+
+  const contents = useStaffGet<Contents>(["container-contents", container.id], `/admin/containers/${container.id}/contents`, panel === "contents");
+  const history = useStaffGet<History>(["container-history", container.id], `/admin/containers/${container.id}/history`, panel === "history");
+
+  const save = useMutation({
+    mutationFn: () =>
+      staffRequest(`/admin/containers/${container.id}/move`, {
+        method: "POST",
+        body: JSON.stringify({ label: label.trim(), location: location.trim(), is_active: isActive }),
+      }),
+    onSuccess: () => {
+      setEditing(false);
+      queryClient.invalidateQueries({ queryKey: ["containers", makerspaceId] });
+    },
+  });
+  const saveError = save.error instanceof Error ? save.error.message : undefined;
+  const togglePanel = (next: "contents" | "history") => setPanel((current) => (current === next ? null : next));
+
+  return (
+    <div className="rounded-md border border-line bg-surface p-3 text-sm">
+      <div className="flex flex-wrap items-center gap-2">
+        <strong className="text-ink">{container.label}</strong>
+        {container.location ? <span className="text-xs text-muted">{container.location}</span> : null}
+        {container.is_active === false ? <span className="rounded-md bg-warn/15 px-2 py-0.5 text-xs text-warn">Inactive</span> : null}
+        <div className="desk-actions ml-auto flex flex-wrap gap-2">
+          <button type="button" onClick={() => setEditing((value) => !value)}>{editing ? "Cancel" : "Edit"}</button>
+          <button type="button" onClick={() => togglePanel("contents")}>{panel === "contents" ? "Hide contents" : "Contents"}</button>
+          <button type="button" onClick={() => togglePanel("history")}>{panel === "history" ? "Hide history" : "History"}</button>
+        </div>
+      </div>
+
+      {editing ? (
+        <div className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_auto_auto] md:items-end">
+          <label className="grid gap-1 text-xs text-muted"><span>Label</span><input className="desk-input" value={label} onChange={(event) => setLabel(event.target.value)} /></label>
+          <label className="grid gap-1 text-xs text-muted"><span>Location</span><input className="desk-input" value={location} onChange={(event) => setLocation(event.target.value)} /></label>
+          <label className="flex items-center gap-2 text-xs text-muted"><input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} /> Active</label>
+          <button disabled={!label.trim() || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Saving..." : "Save"}</button>
+        </div>
+      ) : null}
+      {saveError ? <p className="mt-2 text-danger">{saveError}</p> : null}
+
+      {panel === "contents" ? (
+        <div className="mt-3 grid gap-2 rounded-md border border-line bg-bg p-2">
+          {contents.isLoading ? <p className="text-xs text-muted">Loading...</p> : null}
+          <p className="text-xs font-semibold text-ink">Products</p>
+          {contents.data?.products.length ? contents.data.products.map((product) => (
+            <p key={product.id} className="text-xs text-muted">{product.name} — {product.available_quantity} available</p>
+          )) : <p className="text-xs text-muted">None</p>}
+          <p className="mt-1 text-xs font-semibold text-ink">Asset units</p>
+          {contents.data?.assets.length ? contents.data.assets.map((asset) => (
+            <AssetQrRow key={asset.id} asset={asset} />
+          )) : <p className="text-xs text-muted">None</p>}
+          {contents.data?.children.length ? (
+            <p className="mt-1 text-xs text-muted">Sub-containers: {contents.data.children.map((child) => child.label).join(", ")}</p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {panel === "history" ? (
+        <div className="mt-3 rounded-md border border-line bg-bg p-2">
+          {history.isLoading ? <p className="text-xs text-muted">Loading...</p> : null}
+          {history.data?.scans.length ? history.data.scans.map((scan) => (
+            <p key={scan.id} className="text-xs text-muted">{new Date(scan.created_at).toLocaleString()} — {scan.context || "scan"}</p>
+          )) : <p className="text-xs text-muted">No scan history.</p>}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+// Reprint a single unit's QR without rebuilding a whole batch: POST asset/<id>/qr is a
+// get_or_create, so it returns the existing active QR (or makes one) and we render it.
+function AssetQrRow({ asset }: { asset: { id: number; asset_tag: string; product: string; status: string } }) {
+  const [qrId, setQrId] = useState<number | null>(null);
+  const show = useMutation({
+    mutationFn: () => staffRequest<{ id: number }>(`/admin/assets/${asset.id}/qr`, { method: "POST", body: JSON.stringify({}) }),
+    onSuccess: (qr) => setQrId(qr.id),
+  });
+  return (
+    <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+      <span>{asset.asset_tag} ({asset.status})</span>
+      <button type="button" className="text-accent" disabled={show.isPending} onClick={() => show.mutate()}>{qrId ? "QR shown" : "Show QR"}</button>
+      {qrId ? <QrImage qrId={qrId} label={asset.asset_tag} /> : null}
+      {show.error instanceof Error ? <span className="text-danger">{show.error.message}</span> : null}
+    </div>
+  );
+}
