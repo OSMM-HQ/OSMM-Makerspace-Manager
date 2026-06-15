@@ -1,7 +1,18 @@
 import type React from "react";
 
 import { StatusStepper, statusStageLabel } from "../../../components/ui/StatusStepper";
+import { staffRequest } from "../../../lib/api";
 import type { HardwareRequest } from "./Queues";
+
+// Evidence object keys are never exposed; fetch a short-lived signed URL on click and open it.
+async function openEvidence(id: number) {
+  try {
+    const res = await staffRequest<{ url: string }>(`/admin/evidence/${id}`);
+    window.open(res.url, "_blank", "noopener");
+  } catch (error) {
+    window.alert(error instanceof Error ? error.message : "Could not load evidence photo.");
+  }
+}
 
 export function RequestList({ rows, actions }: { rows: HardwareRequest[]; actions: (row: HardwareRequest) => React.ReactNode }) {
   if (!rows.length) return <p className="text-sm text-ink/60">No requests.</p>;
@@ -40,6 +51,18 @@ export function RequestList({ rows, actions }: { rows: HardwareRequest[]; action
           <p className="mt-2 text-xs text-ink/60">
             {row.items.map((item) => `${item.product_name} x${item.requested_quantity}`).join(", ")}
           </p>
+          {row.issue_evidence_id || (row.return_evidence_ids?.length ?? 0) > 0 ? (
+            <div className="desk-actions mt-2 flex flex-wrap gap-2 text-xs">
+              {row.issue_evidence_id ? (
+                <button type="button" onClick={() => openEvidence(row.issue_evidence_id as number)}>View issue photo</button>
+              ) : null}
+              {(row.return_evidence_ids ?? []).map((id, index) => (
+                <button key={id} type="button" onClick={() => openEvidence(id)}>
+                  View return photo{(row.return_evidence_ids?.length ?? 0) > 1 ? ` ${index + 1}` : ""}
+                </button>
+              ))}
+            </div>
+          ) : null}
           {row.items.some((item) => item.damaged_quantity || item.missing_quantity || item.needs_fix_quantity) ? (
             <ul className="mt-1 text-xs text-danger">
               {row.items

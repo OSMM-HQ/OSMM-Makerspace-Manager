@@ -122,7 +122,16 @@ class AdminRequestSerializer(serializers.Serializer):
     closed_at = serializers.DateTimeField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
+    # Evidence-photo ids so the staff console can fetch signed view URLs (GET /admin/evidence/<id>)
+    # and SHOW the issue/return photos — without these ids React had no way to view captured
+    # evidence (only the Django admin could). issue_evidence is a direct FK; return photos hang
+    # off the immutable ReturnEvent rows for this request.
+    issue_evidence_id = serializers.IntegerField(read_only=True, allow_null=True)
+    return_evidence_ids = serializers.SerializerMethodField()
     items = AdminRequestItemSerializer(many=True, read_only=True)
+
+    def get_return_evidence_ids(self, obj) -> list:
+        return [event.evidence_id for event in obj.returnevent_set.all() if event.evidence_id]
 
 
 class RejectRequestSerializer(serializers.Serializer):

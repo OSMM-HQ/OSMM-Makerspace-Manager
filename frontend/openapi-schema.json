@@ -9202,6 +9202,16 @@
                         "format": "date-time",
                         "readOnly": true
                     },
+                    "issue_evidence_id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "return_evidence_ids": {
+                        "type": "array",
+                        "items": {},
+                        "readOnly": true
+                    },
                     "items": {
                         "type": "array",
                         "items": {
@@ -9216,6 +9226,7 @@
                     "closed_at",
                     "created_at",
                     "id",
+                    "issue_evidence_id",
                     "issued_at",
                     "items",
                     "makerspace_id",
@@ -9225,6 +9236,7 @@
                     "requester_contact_phone",
                     "requester_username",
                     "return_due_at",
+                    "return_evidence_ids",
                     "return_reminder_sent_at",
                     "status",
                     "updated_at"

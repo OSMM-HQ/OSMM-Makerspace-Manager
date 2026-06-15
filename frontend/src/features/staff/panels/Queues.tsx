@@ -37,6 +37,8 @@ export type HardwareRequest = {
   requester_contact_email?: string;
   requester_contact_phone?: string;
   rejection_reason?: string;
+  issue_evidence_id?: number | null;
+  return_evidence_ids?: number[];
   requested_for: string;
   return_due_at: string | null;
   return_reminder_sent_at: string | null;

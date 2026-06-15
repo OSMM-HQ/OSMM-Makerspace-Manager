@@ -971,3 +971,35 @@ def test_request_history_is_tenant_scoped():
 
     assert response.status_code == 200
     assert response.data["results"] == []
+
+
+def test_admin_request_serializer_exposes_issue_and_return_evidence_ids():
+    from apps.boxes.models import Box
+    from apps.evidence.models import EvidencePhoto
+    from apps.hardware_requests.return_models import ReturnEvent
+    from apps.hardware_requests.serializers import AdminRequestSerializer
+
+    makerspace = make_space("evidence-serializer")
+    product = make_product(makerspace)
+    actor = make_member("evidence-actor", makerspace)
+    issue_photo = EvidencePhoto.objects.create(
+        makerspace=makerspace, evidence_type=EvidencePhoto.EvidenceType.ISSUE,
+        object_key="evidence/issue", uploaded_by=actor,
+    )
+    return_photo = EvidencePhoto.objects.create(
+        makerspace=makerspace, evidence_type=EvidencePhoto.EvidenceType.RETURN,
+        object_key="evidence/return", uploaded_by=actor,
+    )
+    request = make_hardware_request(makerspace, product, status=HardwareRequest.Status.RETURNED)
+    request.issue_evidence = issue_photo
+    request.save(update_fields=["issue_evidence"])
+    box = Box.objects.create(makerspace=makerspace, label="EV-1")
+    ReturnEvent.objects.create(
+        request=request, makerspace=makerspace, box=box, evidence=return_photo,
+        remark="returned", actor=actor,
+    )
+
+    data = AdminRequestSerializer(request).data
+
+    assert data["issue_evidence_id"] == issue_photo.id
+    assert data["return_evidence_ids"] == [return_photo.id]
