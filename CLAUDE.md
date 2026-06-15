@@ -2,6 +2,57 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — console parity: surfacing orphaned backend lifecycles (2026-06-16)
+
+Audit-driven fix of a systemic class of flaw — backend lifecycle capabilities reachable in the
+Django `/control/` admin but with **no React staff-console surface**, so features were dead/broken
+for normal staff. Ten commit-per-phase fixes:
+
+- **3D-print lifecycle parity.** `PrintQueueSection` now has a **Pending review** section
+  (`status=pending`) with **Accept** / **Reject** (reason dialog) → `/printing/manage/requests/<id>/{accept,reject}`,
+  plus a collapsible read-only **history** (completed/rejected/failed via `?status=` filters, lazy-loaded)
+  surfacing the `reason`. The start-printer dropdown now filters to `is_active && status==='active'`
+  (matching the backend `_assign_print_job` guard). `FailPrintDialog` was parametrized (title/label/placeholder)
+  to double as the reject dialog. Before this, public print requests landed as PENDING with no React way to
+  accept them (only the Django admin).
+- **Telegram test-alert error handling.** `TelegramTestAlertView` now catches `TelegramDeliveryError` and
+  returns `{delivered:false, detail}` (HTTP 200) instead of an uncaught 500; the unconfigured case returns a
+  distinct "not configured" detail. `ApiClientsPanel` renders the detail. (A real delivery failure previously
+  surfaced as a generic 500, indistinguishable from "not configured".)
+- **Hardware: individual-tracked issue (was a blocker).** `AssignIssueModal` now collects `asset_qr_payloads`
+  via the camera `QrScanner` (one AVAILABLE asset QR per accepted unit, aggregate across individual items) and
+  sends them in the issue body. New `AdminRequestItemSerializer.tracking_mode` + `requires_asset_qr` drive which
+  items need scans; individual items are shown read-only in the broken-reject list (backend blocks broken-reject
+  on them). Before this, issuing **any** individual-tracked reviewed request failed with `INDIVIDUAL_HANDOUT_ERROR`.
+- **Hardware: terminal history.** New `RequestHistoryView` at
+  `GET /admin/makerspace/<id>/request-history` (ISSUE_REQUEST-gated) lists returned/rejected/closed_with_issue
+  requests; `Queues` shows a lazy read-only History panel. `QueuesList` now renders requester contact email/phone,
+  rejection reason, and per-item damaged/missing/needs_fix.
+- **Evidence viewing.** `AdminRequestSerializer` exposes `issue_evidence_id` (direct FK) + `return_evidence_ids`
+  (via the request's `ReturnEvent` rows; prefetched). `QueuesList` adds "View issue/return photo" buttons that
+  fetch a short-lived signed URL from `GET /admin/evidence/<id>` and open it. Staff could upload but not view
+  evidence before (only the Django admin could).
+- **Stocktake count step (was a blocker).** `StocktakePanel` gained a per-stocktake **count-entry** UI POSTing
+  to `/admin/stocktakes/<pk>/count-lines` plus a variance table from the detail. Without it a stocktake had zero
+  lines and Apply was a no-op.
+- **Intra-makerspace transfers for managers.** `StockTransferListCreateView.create` now validates the payload,
+  computes `is_cross`, and requires only `EDIT_INVENTORY` for **intra**-makerspace moves (cross-makerspace stays
+  superadmin-only, rejected before any service side effects). `StockTransferPanel` takes `canEditInventory` and
+  shows the intra-space form to managers (makerspace selectors stay superadmin-only). Negative tenant-scope tests added.
+- **Containers management.** New `ContainersPanel` (tab, EDIT_INVENTORY/MANAGE_QR roles) wires the existing
+  container endpoints: edit/move (`/admin/containers/<pk>/move`), contents drawer (`/contents`), scan history
+  (`/history`), and per-asset QR reprint (`POST /admin/assets/<pk>/qr` → `QrImage`).
+- **Staff Scanner tab.** New `ScannerPanel` (tab) resolves a QR via camera or paste (`/admin/qr/resolve`) and
+  wires the staff-reachable allowed_actions: **Revoke** (`/admin/qr/<pk>/revoke`, MANAGE_QR) and box **contents**;
+  checkout/return/direct_handout are pointed to the Direct-handout flow (they need a borrower identity). The old
+  orphan `/scanner` route had dead action badges and no nav link.
+- **Tenant-frontend registry.** New `TenantFrontendsPanel` (tab, MANAGE_MAKERSPACE = Space Manager + superadmin)
+  lists/creates/edits `TenantFrontend` rows via `/admin/makerspace/<id>/frontends` + `/admin/frontends/<pk>`.
+
+Tests: `test_request_workflow.py` (request-history scope + requires_asset_qr + evidence ids),
+`test_operations_api.py` (intra-transfer allowed for managers, cross-makerspace + cross-tenant denied with no
+side effects), `test_telegram_integration.py` (test-alert delivered:false + detail). Full suite green (408).
+
 ## Recent batch — broken-at-handover, to-be-fixed shelf, email status (2026-06-16)
 
 - **Reject-broken at handover + needs-fix shelf.** New `InventoryProduct.needs_fix_quantity` and
