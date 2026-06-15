@@ -176,7 +176,7 @@ export function Queues({ makerspace, guestOnly }: { makerspace: Makerspace; gues
           />
         </Panel>
       ) : null}
-      <Panel title="Handover queue">
+      <Panel title="Ready for handover">
         <RequestList
           rows={accepted.data?.results ?? []}
           actions={(row) => (

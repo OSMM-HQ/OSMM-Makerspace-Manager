@@ -33,7 +33,6 @@ export function PublicPrintRequestPage() {
   const [screenshotFiles, setScreenshotFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState("");
   const [submittedToken, setSubmittedToken] = useState("");
-  const [statusToken, setStatusToken] = useState("");
   const statusLinkHandledRef = useRef(false);
   // Anti-spam honeypot: hidden from real users; a bot that autofills it triggers the
   // backend decoy-success (no request created).
@@ -55,7 +54,6 @@ export function PublicPrintRequestPage() {
     statusLinkHandledRef.current = true;
     const token = new URLSearchParams(window.location.search).get("token")?.trim();
     if (token) {
-      setStatusToken(token);
       statusMutation.mutate(token);
     }
   }, [statusMutation]);
@@ -98,6 +96,11 @@ export function PublicPrintRequestPage() {
       }
 
       setUploadProgress(files.length ? "Submitting request..." : "");
+      // Material/color are no longer free-text fields; the chosen spool is the single
+      // source, so derive them from it for staff display (empty when "No preference").
+      const chosenSpool = spoolsQuery.data?.find(
+        (spool) => String(spool.id) === form.filamentSpoolId,
+      );
       return submitPrintRequest(makerspaceSlug, {
         website,
         identifier: identifier.trim(),
@@ -105,8 +108,8 @@ export function PublicPrintRequestPage() {
         title: form.title.trim(),
         project_brief: optional(form.projectBrief),
         preferred_settings: optional(form.preferredSettings),
-        material: optional(form.material),
-        color: optional(form.color),
+        material: chosenSpool?.material || undefined,
+        color: chosenSpool?.color || undefined,
         filament_spool_id: form.filamentSpoolId
           ? Number(form.filamentSpoolId)
           : null,
@@ -120,7 +123,6 @@ export function PublicPrintRequestPage() {
     onSuccess: (response) => {
       setUploadProgress("");
       setSubmittedToken(response.public_token);
-      setStatusToken(response.public_token);
       statusMutation.mutate(response.public_token);
     },
     onError: () => setUploadProgress(""),
@@ -137,13 +139,6 @@ export function PublicPrintRequestPage() {
     }
   }
 
-  function checkStatus(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (statusToken.trim()) {
-      statusMutation.mutate(statusToken.trim());
-    }
-  }
-
   return (
     <main className="desk-shell">
       <header className="border-b border-line bg-panel">
@@ -157,7 +152,7 @@ export function PublicPrintRequestPage() {
                 {displayName}
               </h1>
               <p className="mt-2 text-sm text-muted">
-                Submit print files and track the request with your public token.
+                Submit print files — we'll email you status updates at every step.
               </p>
             </div>
             <Link className="desk-button" to={`/m/${makerspaceSlug}`}>
@@ -228,21 +223,11 @@ export function PublicPrintRequestPage() {
             <p className="text-xs font-semibold uppercase tracking-wide text-accent">
               Status Tracker
             </p>
-            <form className="mt-3 flex flex-col gap-2" onSubmit={checkStatus}>
-              <input
-                className="desk-input w-full"
-                placeholder="Public token"
-                value={statusToken}
-                onChange={(event) => setStatusToken(event.target.value)}
-              />
-              <button
-                className="desk-button"
-                disabled={!statusToken.trim() || statusMutation.isPending}
-                type="submit"
-              >
-                {statusMutation.isPending ? "Checking..." : "Check status"}
-              </button>
-            </form>
+            <p className="mt-3 text-sm text-muted">
+              We email status updates to your contact email at every step
+              (received → accepted → printing → ready to collect). Open the link in
+              those emails to see the live status here — no token to copy.
+            </p>
             <div className="mt-4">
               <StatusResult
                 error={statusMutation.error}

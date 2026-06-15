@@ -27,7 +27,7 @@ import {
   PrintingPanel,
   ProcurementPanel,
   QrTools,
-  Queues,
+  RequestsPanel,
   StocktakePanel,
   StockTransferPanel,
   Users,
@@ -36,20 +36,21 @@ import {
 } from "./StaffPanels";
 
 const ALL_TABS = [
-  "queues", "direct", "inventory", "categories", "printing", "tobuy", "transfers",
+  "requests", "direct", "inventory", "categories", "printing", "tobuy", "transfers",
   "stocktake", "ledger", "reports", "bulk", "qr", "api", "users", "audit",
 ] as const;
 // Membership roles that get the full staff console. Anything else (print_manager,
 // or an unknown role) is failed closed to the 3D-printing surfaces only.
 const FULL_ACCESS_ROLES = ["space_manager", "inventory_manager", "guest_admin"];
 // Print managers also get a To-Buy list (their items are auto-tagged "printing").
-const PRINTING_TABS = ["printing", "tobuy", "reports", "api"];
+// "requests" is included so they reach the (printing-only) unified Requests tab.
+const PRINTING_TABS = ["requests", "printing", "tobuy", "reports", "api"];
 
 export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   const queryClient = useQueryClient();
   const [user, setUser] = useState<StaffAuthUser | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
-  const [tab, setTab] = useState("queues");
+  const [tab, setTab] = useState("requests");
   const [restoring, setRestoring] = useState(true);
   const hydrateUser = useCallback((nextUser: StaffAuthUser) => {
     setUser(nextUser);
@@ -188,13 +189,22 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   const activeRole = user.makerspaces.find((item) => item.id === selected)?.role;
   const fullAccess = isSuperadmin || (!!activeRole && FULL_ACCESS_ROLES.includes(activeRole));
   const printingOnly = !fullAccess;
+  // Request-stream visibility mirrors the backend RBAC matrix exactly:
+  //   hardware (accept/reject/issue/return) -> space/inventory/guest admins + superadmin
+  //   3D printing (MANAGE_PRINTING)         -> space + print managers + superadmin
+  // Inventory Manager has no MANAGE_PRINTING, so it must NOT see the printing tab/section.
+  const canSeeHardware = isSuperadmin || ["space_manager", "inventory_manager", "guest_admin"].includes(activeRole ?? "");
+  const canSeePrinting = isSuperadmin || ["space_manager", "print_manager"].includes(activeRole ?? "");
   // To-Buy access mirrors the backend matrix: superadmin + space/inventory/print
   // managers. Guest admins (and unknown roles) have none, so hide the tab for them
   // rather than render an empty list whose actions 403.
   const canUseToBuy = isSuperadmin || ["space_manager", "inventory_manager", "print_manager"].includes(activeRole ?? "");
-  const allowedTabs: readonly string[] = (fullAccess ? ALL_TABS : PRINTING_TABS).filter(
-    (tabName) => tabName !== "tobuy" || canUseToBuy,
-  );
+  const allowedTabs: readonly string[] = (fullAccess ? ALL_TABS : PRINTING_TABS).filter((tabName) => {
+    if (tabName === "tobuy") return canUseToBuy;
+    if (tabName === "printing") return canSeePrinting; // hide printer/spool mgmt from inventory managers
+    if (tabName === "requests") return canSeeHardware || canSeePrinting;
+    return true;
+  });
   // Only the makerspace admin (Space Manager) + superadmin may pick which stream
   // (hardware/printing) a To-Buy item goes to; other roles are auto-tagged.
   const canChooseToBuyKind = isSuperadmin || activeRole === "space_manager";
@@ -274,8 +284,13 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
 
         <div className="min-w-0 p-5">
           {!activeMakerspace ? <Panel title="No makerspace">Assign a makerspace to this account.</Panel> : null}
-          {activeMakerspace && activeTab === "queues" ? (
-            <Queues makerspace={activeMakerspace} guestOnly={guestOnly} />
+          {activeMakerspace && activeTab === "requests" ? (
+            <RequestsPanel
+              makerspace={activeMakerspace}
+              guestOnly={guestOnly}
+              canSeeHardware={canSeeHardware}
+              canSeePrinting={canSeePrinting}
+            />
           ) : null}
           {activeMakerspace && activeTab === "inventory" ? (
             <Inventory makerspace={activeMakerspace} />

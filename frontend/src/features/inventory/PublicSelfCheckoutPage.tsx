@@ -126,10 +126,6 @@ export function PublicSelfCheckoutPage() {
 
         {!bootstrapQuery.isLoading && enabled ? (
           <Card>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
-              Scan Tool
-            </p>
-
             <div
               aria-label="Checkout mode"
               className="desk-panel mt-4 flex gap-1 p-1"
@@ -177,7 +173,7 @@ export function PublicSelfCheckoutPage() {
               type="button"
               onClick={() => setScannerOpen(true)}
             >
-              {loanMutation.isPending ? "Submitting..." : "Scan tool QR"}
+              {loanMutation.isPending ? "Submitting..." : "Scan QR"}
             </button>
 
             {loanMutation.isError ? (

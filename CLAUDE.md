@@ -2,6 +2,40 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — printing/login/upload polish + unified Requests (2026-06-15)
+
+QA-driven fixes across printing, login, uploads, and the staff console:
+
+- **Printer hard-delete.** `ManagedPrinterDetailView.destroy` no longer blocks on historical
+  references — `PrintRequest.printer`/`FilamentSpool.printer` are `SET_NULL`, so history survives with
+  the printer cleared. It returns **409 only when an *in-progress* job references the printer** (a
+  `PRINTING` request via `printer` **or** its `filament_spool__printer`), so a running print keeps
+  attribution. The frontend delete invalidates printers+spools+requests queries.
+- **Filament spool visibility.** The public `/printing/public/<slug>/spools` endpoint already filters
+  `is_active=True`; the staff spool rows now show an **Active·public / Inactive·hidden** badge plus an
+  **Activate** action (the fix for "my spool isn't showing publicly" — it was inactive). Staff spool
+  colour is a **visible dropdown** (`SpoolColorInput`, `SPOOL_COLORS`; preserves custom values).
+- **Unified Requests tab.** The staff "Queues" tab is renamed **Requests** (`StaffApp` tab key
+  `requests`) and split into a `RequestsPanel` with **Hardware** + **3D Printing** headings. Role
+  gating: `canSeeHardware` (space/inventory/guest + superadmin) and `canSeePrinting` (space/print +
+  superadmin); Inventory Manager is hardware-only (the printing *management* tab is now hidden for it
+  too, since it lacks `MANAGE_PRINTING`). The print queue moved out of `PrintingPanel` into the
+  reusable `PrintQueueSection` (printer/spool management stays on the 3D Printing tab).
+- **Public print form.** Removed the redundant free-text **Material**/**Color** fields — the filament
+  **spool dropdown is the single source** (grouped by material via `<optgroup>`, options show colour +
+  grams). Material/colour are derived from the chosen spool on submit. The **status tracker is now
+  email-only**: the manual public-token box was removed (no enumeration); per-step status emails carry
+  the `?token=` deep-link that auto-opens live status on the page.
+- **Dev login persistence.** `docker-compose.yml` backend sets `AUTH_COOKIE_SECURE=False` +
+  `AUTH_COOKIE_SAMESITE=Lax` so the 7-day refresh cookie survives over `http://localhost` (prod keeps
+  the secure `None`/`True` defaults via its own env).
+- **Public upload 403 fixed.** The dev backend was previously **not wired to MinIO** (empty S3 creds →
+  every presigned POST 403'd at MinIO). `docker-compose.yml` now gives the backend
+  `AWS_ACCESS_KEY_ID/SECRET=minioadmin`, internal `AWS_S3_ENDPOINT_URL=http://minio:9000`, and
+  browser-facing `AWS_S3_PUBLIC_ENDPOINT_URL=http://localhost:9000`; MinIO CORS adds `http://localhost`.
+  **MinIO is the self-hosted, free, S3-compatible object store running in the local Docker stack — no
+  external/AWS service is used; the `AWS_*` names are just the S3 protocol.**
+
 ## Recent batch — public UX, login, API-key requests, admin parity (2026-06-15)
 
 A multi-feature batch (8 phases) refined public flows, login, API-key governance, and Django-admin

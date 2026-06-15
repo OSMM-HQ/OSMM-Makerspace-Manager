@@ -1,3 +1,4 @@
+from django.db.models import Q
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
@@ -6,7 +7,7 @@ from rest_framework.response import Response
 from apps.accounts import rbac
 from apps.audit import services as audit
 from apps.makerspaces.guards import require_module
-from apps.printing.models import FilamentSpool, PrintPrinter, PrintRequest
+from apps.printing.models import PrintPrinter, PrintRequest
 from apps.printing.permissions import CanManagePrinting
 from apps.printing.serializers import PrintPrinterSerializer
 from apps.printing.views_common import ERROR_RESPONSES, _int_query_param
@@ -81,17 +82,22 @@ class ManagedPrinterDetailView(ManagedPrinterMixin, generics.RetrieveUpdateDestr
         serializer.save()
 
     def destroy(self, request, *args, **kwargs):
+        # Hard-delete is allowed even when the printer is referenced by HISTORY: the
+        # FKs on PrintRequest.printer / FilamentSpool.printer are SET_NULL, so past
+        # rows survive (their printer field just clears) and history is never lost.
+        # The one exception is an IN-PROGRESS job: deleting a printer mid-print would
+        # strip attribution from a running request, so block that with a 409.
         printer = self.get_object()
         self.assert_can_manage_makerspace(printer.makerspace_id)
-        if (
-            PrintRequest.objects.filter(printer=printer).exists()
-            or FilamentSpool.objects.filter(printer=printer).exists()
-        ):
+        if PrintRequest.objects.filter(
+            Q(printer=printer) | Q(filament_spool__printer=printer),
+            status=PrintRequest.Status.PRINTING,
+        ).exists():
             return Response(
                 {
                     "detail": (
-                        "This printer is linked to print requests or spools; deactivate it "
-                        "instead to preserve history."
+                        "This printer has a print job in progress. Wait for it to "
+                        "finish (or mark it failed) before deleting the printer."
                     )
                 },
                 status=status.HTTP_409_CONFLICT,

@@ -6,6 +6,7 @@ import {
   type FilamentSpool,
   type PrintPrinter,
   type PrinterPayload,
+  SpoolColorInput,
   type SpoolPayload,
 } from "./PrintingPanelParts";
 
@@ -94,7 +95,7 @@ function SpoolFields({ form, printers, onChange }: { form: SpoolPayload; printer
         {printers.map((printer) => <option key={printer.id} value={printer.id}>{printer.name}</option>)}
       </select>
       <input className="desk-input" placeholder="Material" value={form.material} onChange={(event) => onChange({ ...form, material: event.target.value })} />
-      <input className="desk-input" placeholder="Color" value={form.color} onChange={(event) => onChange({ ...form, color: event.target.value })} />
+      <SpoolColorInput value={form.color} onChange={(value) => onChange({ ...form, color: value })} />
       <input className="desk-input" placeholder="Brand" value={form.brand} onChange={(event) => onChange({ ...form, brand: event.target.value })} />
       <input className="desk-input" type="number" min="0" placeholder="Initial weight g" value={form.initial_weight_grams} onChange={(event) => onChange({ ...form, initial_weight_grams: event.target.value })} />
       <input className="desk-input" type="number" min="0" placeholder="Remaining weight g" value={form.remaining_weight_grams} onChange={(event) => onChange({ ...form, remaining_weight_grams: event.target.value })} />

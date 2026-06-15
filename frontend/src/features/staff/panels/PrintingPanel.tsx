@@ -6,16 +6,15 @@ import { Panel, type Makerspace, useStaffGet } from "./shared";
 import {
   ErrorText,
   type FilamentSpool,
-  PrintRows,
   type PrintPrinter,
-  type PrintRequest,
   PrinterCard,
   type PrinterPayload,
   printingRequest,
+  SpoolColorInput,
   type SpoolPayload,
   SpoolRow,
 } from "./PrintingPanelParts";
-import { FailPrintDialog, PrinterEditDialog, SpoolEditDialog } from "./PrintingPanelDialogs";
+import { PrinterEditDialog, SpoolEditDialog } from "./PrintingPanelDialogs";
 
 type DeactivateTarget =
   | { kind: "printer"; id: number; label: string }
@@ -31,14 +30,6 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
     ["print-spools", makerspace.id],
     `/printing/manage/spools/?makerspace=${makerspace.id}`,
   );
-  const accepted = useStaffGet<{ results: PrintRequest[] }>(
-    ["print-requests", makerspace.id, "accepted"],
-    `/printing/manage/requests/?makerspace=${makerspace.id}&status=accepted`,
-  );
-  const printing = useStaffGet<{ results: PrintRequest[] }>(
-    ["print-requests", makerspace.id, "printing"],
-    `/printing/manage/requests/?makerspace=${makerspace.id}&status=printing`,
-  );
 
   const [printerName, setPrinterName] = useState("");
   const [printerModel, setPrinterModel] = useState("");
@@ -47,16 +38,11 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
   const [spoolColor, setSpoolColor] = useState("");
   const [spoolBrand, setSpoolBrand] = useState("");
   const [spoolWeight, setSpoolWeight] = useState("1000");
-  const [selectedPrinter, setSelectedPrinter] = useState("");
-  const [selectedSpool, setSelectedSpool] = useState("");
-  const [estimatedMinutes, setEstimatedMinutes] = useState("60");
-  const [estimatedGrams, setEstimatedGrams] = useState("100");
   const [editingPrinter, setEditingPrinter] = useState<PrintPrinter | null>(null);
   const [editingSpool, setEditingSpool] = useState<FilamentSpool | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<DeactivateTarget | null>(null);
   const [deletePrinterTarget, setDeletePrinterTarget] = useState<{ id: number; label: string } | null>(null);
   const [deleteSpoolTarget, setDeleteSpoolTarget] = useState<{ id: number; label: string } | null>(null);
-  const [failingRequest, setFailingRequest] = useState<PrintRequest | null>(null);
 
   const invalidatePrinting = () => {
     queryClient.invalidateQueries({ queryKey: ["print-printers", makerspace.id] });
@@ -140,6 +126,18 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
     },
   });
 
+  // Re-activating a spool puts it back on the public print-request form (the public
+  // /spools endpoint only lists is_active spools), which is the fix for "the spool I
+  // added isn't showing publicly" — it was inactive.
+  const activateSpool = useMutation({
+    mutationFn: (id: number) =>
+      printingRequest(`/printing/manage/spools/${id}/`, {
+        method: "PATCH",
+        body: JSON.stringify({ is_active: true }),
+      }),
+    onSuccess: () => invalidatePrinting(),
+  });
+
   const deleteSpool = useMutation({
     mutationFn: (id: number) => printingRequest(`/printing/manage/spools/${id}/`, { method: "DELETE" }),
     onSuccess: () => { setDeleteSpoolTarget(null); invalidatePrinting(); },
@@ -149,38 +147,14 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
     mutationFn: (id: number) => printingRequest(`/printing/manage/printers/${id}/`, { method: "DELETE" }),
     onSuccess: () => {
       setDeletePrinterTarget(null);
-      queryClient.invalidateQueries({ queryKey: ["print-printers", makerspace.id] });
-    },
-  });
-
-  const action = useMutation({
-    mutationFn: ({ request, name, reason }: { request: PrintRequest; name: "start" | "complete" | "fail"; reason?: string }) => {
-      const body =
-        name === "start"
-          ? {
-              printer_id: selectedPrinter ? Number(selectedPrinter) : undefined,
-              filament_spool_id: selectedSpool ? Number(selectedSpool) : undefined,
-              estimated_minutes: Number(estimatedMinutes),
-              estimated_filament_grams: estimatedGrams,
-            }
-          : name === "fail"
-            ? { reason }
-            : {};
-      return printingRequest(`/printing/manage/requests/${request.id}/${name}`, {
-        method: "POST",
-        body: JSON.stringify(body),
-      });
-    },
-    onSuccess: () => {
-      setFailingRequest(null);
+      // Deleting a printer SET_NULLs its spools' + requests' printer FK, so refresh
+      // those panels too (not just the printers list) to avoid showing a stale printer.
       invalidatePrinting();
     },
   });
 
   const printerRows = printers.data?.results ?? [];
   const spoolRows = spools.data?.results ?? [];
-  const anyQueueLoading = accepted.isLoading || printing.isLoading;
-  const actionError = action.error instanceof Error ? action.error.message : undefined;
 
   return (
     <div className="grid gap-4">
@@ -218,7 +192,7 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
             {printerRows.map((printer) => <option key={printer.id} value={printer.id}>{printer.name}</option>)}
           </select>
           <input className="desk-input" placeholder="Material" value={spoolMaterial} onChange={(event) => setSpoolMaterial(event.target.value)} />
-          <input className="desk-input" placeholder="Color" value={spoolColor} onChange={(event) => setSpoolColor(event.target.value)} />
+          <SpoolColorInput value={spoolColor} onChange={setSpoolColor} />
           <input className="desk-input" placeholder="Brand" value={spoolBrand} onChange={(event) => setSpoolBrand(event.target.value)} />
           <input className="desk-input" placeholder="Weight g (1000 = 1kg)" type="number" min="0" value={spoolWeight} onChange={(event) => setSpoolWeight(event.target.value)} />
           <button disabled={!spoolMaterial.trim() || !spoolWeight || createSpool.isPending} onClick={() => createSpool.mutate()}>
@@ -231,6 +205,7 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
               key={spool.id}
               spool={spool}
               onEdit={() => setEditingSpool(spool)}
+              onActivate={() => activateSpool.mutate(spool.id)}
               onDeactivate={() => setDeactivateTarget({ kind: "spool", id: spool.id, label: `${spool.material} ${spool.color}`.trim() })}
               onDelete={() => setDeleteSpoolTarget({ id: spool.id, label: `${spool.material} ${spool.color}`.trim() })}
             />
@@ -240,40 +215,7 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
         <ErrorText message={spools.error instanceof Error ? spools.error.message : undefined} />
         <ErrorText message={createSpool.error instanceof Error ? createSpool.error.message : undefined} />
         <ErrorText message={deleteSpool.error instanceof Error ? deleteSpool.error.message : undefined} />
-      </Panel>
-
-      <Panel title="Print queue">
-        {anyQueueLoading ? <p className="mb-3 text-sm text-muted">Loading queue...</p> : null}
-        <div className="mb-3 grid gap-2 md:grid-cols-4">
-          <select className="desk-input" value={selectedPrinter} onChange={(event) => setSelectedPrinter(event.target.value)}>
-            <option value="">Printer</option>
-            {printerRows.filter((printer) => printer.is_active).map((printer) => <option key={printer.id} value={printer.id}>{printer.name}</option>)}
-          </select>
-          <select className="desk-input" value={selectedSpool} onChange={(event) => setSelectedSpool(event.target.value)}>
-            <option value="">Spool</option>
-            {spoolRows
-              .filter((spool) => spool.is_active && (!selectedPrinter || spool.printer === Number(selectedPrinter) || spool.printer === null))
-              .map((spool) => <option key={spool.id} value={spool.id}>{spool.material} {spool.color} ({spool.remaining_weight_grams}g)</option>)}
-          </select>
-          <input className="desk-input" type="number" min="0" value={estimatedMinutes} onChange={(event) => setEstimatedMinutes(event.target.value)} />
-          <input className="desk-input" type="number" min="0" value={estimatedGrams} onChange={(event) => setEstimatedGrams(event.target.value)} />
-        </div>
-        <div className="grid gap-3 lg:grid-cols-2">
-          <PrintRows title="Accepted" rows={accepted.data?.results ?? []} action={(row) => (
-            <button disabled={!selectedPrinter || action.isPending} onClick={() => action.mutate({ request: row, name: "start" })}>
-              {action.isPending ? "Starting..." : "Start on printer"}
-            </button>
-          )} />
-          <PrintRows title="Printing" rows={printing.data?.results ?? []} action={(row) => (
-            <>
-              <button disabled={action.isPending} onClick={() => action.mutate({ request: row, name: "complete" })}>Complete</button>
-              <button disabled={action.isPending} onClick={() => setFailingRequest(row)}>Fail</button>
-            </>
-          )} />
-        </div>
-        <ErrorText message={accepted.error instanceof Error ? accepted.error.message : undefined} />
-        <ErrorText message={printing.error instanceof Error ? printing.error.message : undefined} />
-        <ErrorText message={!failingRequest ? actionError : undefined} />
+        <ErrorText message={activateSpool.error instanceof Error ? activateSpool.error.message : undefined} />
       </Panel>
 
       <PrinterEditDialog
@@ -291,15 +233,8 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
         onClose={() => setEditingSpool(null)}
         onSubmit={(payload) => editingSpool && updateSpool.mutate({ id: editingSpool.id, payload })}
       />
-      <FailPrintDialog
-        open={Boolean(failingRequest)}
-        pending={action.isPending}
-        error={failingRequest ? actionError : undefined}
-        onClose={() => setFailingRequest(null)}
-        onSubmit={(reason) => failingRequest && action.mutate({ request: failingRequest, name: "fail", reason })}
-      />
       <ConfirmDialog open={Boolean(deactivateTarget)} title="Deactivate item" message={deactivateTarget ? `Deactivate ${deactivateTarget.label}? It will stay in history but no longer be available for new print work.` : ""} confirmLabel="Deactivate" tone="danger" pending={deactivate.isPending} onCancel={() => setDeactivateTarget(null)} onConfirm={() => deactivateTarget && deactivate.mutate(deactivateTarget)} />
-      <ConfirmDialog open={Boolean(deletePrinterTarget)} title="Delete printer" message={deletePrinterTarget ? `Permanently delete ${deletePrinterTarget.label}? This cannot be undone. Printers linked to print requests or spools cannot be deleted - deactivate them instead.` : ""} confirmLabel="Delete" tone="danger" pending={deletePrinter.isPending} onCancel={() => setDeletePrinterTarget(null)} onConfirm={() => deletePrinterTarget && deletePrinter.mutate(deletePrinterTarget.id)} />
+      <ConfirmDialog open={Boolean(deletePrinterTarget)} title="Delete printer" message={deletePrinterTarget ? `Permanently delete ${deletePrinterTarget.label}? Past print requests and spools keep their history but will no longer show this printer. This cannot be undone.` : ""} confirmLabel="Delete" tone="danger" pending={deletePrinter.isPending} onCancel={() => setDeletePrinterTarget(null)} onConfirm={() => deletePrinterTarget && deletePrinter.mutate(deletePrinterTarget.id)} />
       <ConfirmDialog open={Boolean(deleteSpoolTarget)} title="Delete spool" message={deleteSpoolTarget ? `Permanently delete ${deleteSpoolTarget.label}? This cannot be undone. Spools linked to print requests cannot be deleted — deactivate them instead.` : ""} confirmLabel="Delete" tone="danger" pending={deleteSpool.isPending} onCancel={() => setDeleteSpoolTarget(null)} onConfirm={() => deleteSpoolTarget && deleteSpool.mutate(deleteSpoolTarget.id)} />
       <ErrorText message={deactivate.error instanceof Error ? deactivate.error.message : undefined} />
     </div>

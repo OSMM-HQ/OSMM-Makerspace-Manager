@@ -38,6 +38,21 @@ export function optional(value: string) {
   return trimmed || undefined;
 }
 
+// Group active spools by material so same-material filaments are listed together and
+// distinguished by color (the public /spools endpoint already orders by material,color).
+export function groupSpoolsByMaterial(
+  spools: PublicFilamentSpool[],
+): [string, PublicFilamentSpool[]][] {
+  const groups = new Map<string, PublicFilamentSpool[]>();
+  for (const spool of spools) {
+    const key = spool.material || "Other";
+    const bucket = groups.get(key);
+    if (bucket) bucket.push(spool);
+    else groups.set(key, [spool]);
+  }
+  return [...groups.entries()];
+}
+
 type PrintDetailsFormProps = {
   form: FormState;
   updateField: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
@@ -124,10 +139,14 @@ export function PrintDetailsForm({
                 }
               >
                 <option value="">No preference</option>
-                {spoolsQuery.data?.map((spool) => (
-                  <option key={spool.id} value={spool.id}>
-                    {`${spool.material} ${spool.color} (${spool.remaining_weight_grams}g left)`}
-                  </option>
+                {groupSpoolsByMaterial(spoolsQuery.data ?? []).map(([material, spools]) => (
+                  <optgroup key={material} label={material}>
+                    {spools.map((spool) => (
+                      <option key={spool.id} value={spool.id}>
+                        {`${spool.color || "Default color"} — ${spool.remaining_weight_grams}g left`}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
               {spoolsQuery.isLoading ? (
@@ -139,8 +158,6 @@ export function PrintDetailsForm({
                 </p>
               ) : null}
             </label>
-            <TextInput label="Material" value={form.material} onChange={(value) => updateField("material", value)} />
-            <TextInput label="Color" value={form.color} onChange={(value) => updateField("color", value)} />
             <label className="block">
               <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
                 Quantity

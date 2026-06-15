@@ -230,7 +230,7 @@ def test_managed_printer_delete_removes_unreferenced_printer():
     assert not PrintPrinter.objects.filter(pk=printer.id).exists()
 
 
-def test_managed_printer_delete_blocks_referenced_printer_with_409():
+def test_managed_printer_delete_clears_request_reference_keeps_history():
     makerspace = make_space("manage-printer-del-ref")
     bucket = make_bucket(makerspace)
     requester = make_user("manage-printer-del-requester", access_status=User.AccessStatus.ACTIVE)
@@ -242,19 +242,36 @@ def test_managed_printer_delete_blocks_referenced_printer_with_409():
 
     response = authenticated_client(manager).delete(printer_detail_url(printer))
 
+    # Hard-delete succeeds; the request row survives with its printer FK cleared
+    # (on_delete=SET_NULL), so print history is preserved.
+    assert response.status_code == 204
+    assert not PrintPrinter.objects.filter(pk=printer.id).exists()
+    print_request.refresh_from_db()
+    assert print_request.printer_id is None
+
+
+def test_managed_printer_delete_blocks_in_progress_job_with_409():
+    makerspace = make_space("manage-printer-del-active")
+    bucket = make_bucket(makerspace)
+    requester = make_user("manage-printer-del-active-requester", access_status=User.AccessStatus.ACTIVE)
+    manager = make_print_manager("manage-printer-del-active-manager", makerspace)
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Prusa MK4")
+    print_request = make_request(bucket, requester, status=PrintRequest.Status.PRINTING)
+    print_request.printer = printer
+    print_request.save(update_fields=["printer"])
+
+    response = authenticated_client(manager).delete(printer_detail_url(printer))
+
+    # A printer running a job keeps attribution: delete is refused until the job ends.
     assert response.status_code == 409
-    assert response.data["detail"] == (
-        "This printer is linked to print requests or spools; deactivate it instead "
-        "to preserve history."
-    )
     assert PrintPrinter.objects.filter(pk=printer.id).exists()
 
 
-def test_managed_printer_delete_blocks_printer_with_spools_with_409():
+def test_managed_printer_delete_clears_spool_reference_keeps_history():
     makerspace = make_space("manage-printer-del-spool")
     manager = make_print_manager("manage-printer-del-spool-manager", makerspace)
     printer = PrintPrinter.objects.create(makerspace=makerspace, name="Prusa MK4")
-    FilamentSpool.objects.create(
+    spool = FilamentSpool.objects.create(
         makerspace=makerspace,
         printer=printer,
         material="PETG",
@@ -264,8 +281,10 @@ def test_managed_printer_delete_blocks_printer_with_spools_with_409():
 
     response = authenticated_client(manager).delete(printer_detail_url(printer))
 
-    assert response.status_code == 409
-    assert PrintPrinter.objects.filter(pk=printer.id).exists()
+    assert response.status_code == 204
+    assert not PrintPrinter.objects.filter(pk=printer.id).exists()
+    spool.refresh_from_db()
+    assert spool.printer_id is None
 
 
 def test_managed_spool_delete_blocks_referenced_spool_with_409():

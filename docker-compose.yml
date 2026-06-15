@@ -48,7 +48,7 @@ services:
       cat > /tmp/cors.json <<EOF
       [
         {
-          "AllowedOrigins": ["http://localhost:5000", "http://localhost:5173"],
+          "AllowedOrigins": ["http://localhost", "http://localhost:5000", "http://localhost:5173"],
           "AllowedMethods": ["PUT", "POST", "GET", "HEAD"],
           "AllowedHeaders": ["*"],
           "ExposeHeaders": ["ETag"],
@@ -59,7 +59,10 @@ services:
       mc cors set local/evidence /tmp/cors.json;
       '
 
-  # Signed-URL dev is host-only this phase; backend is intentionally not wired to MinIO.
+  # Backend is wired to MinIO for dev: it SIGNS presigned upload/view URLs with the
+  # public endpoint (browser-reachable localhost:9000) and talks to MinIO server-side
+  # over the internal endpoint (minio:9000). Empty creds would make every presigned
+  # POST 403 at MinIO, so the root creds are supplied here.
   backend:
     build:
       context: ./backend
@@ -70,6 +73,19 @@ services:
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
       DATABASE_URL: ${DATABASE_URL:-postgres://makerspace:makerspace@db:5432/makerspace_manager}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost,http://localhost:5173}
+      # Dev serves the frontend same-origin behind nginx over plain http://localhost, where a
+      # SameSite=None/Secure=True cookie (the prod default) is silently dropped by browsers,
+      # so the 7-day refresh session never persists. Lax + non-secure makes it stick in dev.
+      # Production (HTTPS, separate origins) keeps the secure defaults via its own env.
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-False}
+      AUTH_COOKIE_SAMESITE: ${AUTH_COOKIE_SAMESITE:-Lax}
+      # S3/MinIO: internal endpoint for server-side calls, public endpoint for the
+      # presigned URLs the browser uses. Creds must match the minio service root user.
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-minioadmin}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-minioadmin}
+      AWS_STORAGE_BUCKET_NAME: ${AWS_STORAGE_BUCKET_NAME:-evidence}
+      AWS_S3_ENDPOINT_URL: ${AWS_S3_ENDPOINT_URL:-http://minio:9000}
+      AWS_S3_PUBLIC_ENDPOINT_URL: ${AWS_S3_PUBLIC_ENDPOINT_URL:-http://localhost:9000}
       HMAC_CLIENT_ID: ${HMAC_CLIENT_ID:-}
       HMAC_SECRET: ${HMAC_SECRET:-}
       HMAC_MAX_CLOCK_SKEW_SECONDS: ${HMAC_MAX_CLOCK_SKEW_SECONDS:-300}

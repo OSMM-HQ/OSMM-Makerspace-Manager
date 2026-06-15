@@ -119,6 +119,37 @@ export function ErrorText({ message }: { message?: string }) {
   return message ? <p className="mt-2 text-sm text-danger">{message}</p> : null;
 }
 
+// Common filament colors offered as a pick-list. Backed by a <datalist> so staff can
+// pick a standard color OR type a custom one (the model stores free text).
+export const SPOOL_COLORS = [
+  "Black", "White", "Gray", "Silver", "Red", "Orange", "Yellow", "Green",
+  "Blue", "Purple", "Pink", "Brown", "Gold", "Transparent", "Natural",
+];
+
+export function SpoolColorInput({
+  value,
+  onChange,
+  className = "desk-input",
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  className?: string;
+}) {
+  // Visible dropdown of the available colours. Any existing custom value not in the
+  // palette is preserved as its own option so editing an old spool never loses data.
+  const options = SPOOL_COLORS.includes(value) || !value ? SPOOL_COLORS : [value, ...SPOOL_COLORS];
+  return (
+    <select className={className} value={value} onChange={(event) => onChange(event.target.value)}>
+      <option value="">Select colour</option>
+      {options.map((color) => (
+        <option key={color} value={color}>
+          {color}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export function PrinterCard({
   printer,
   onEdit,
@@ -164,11 +195,13 @@ function Row({ label, value }: { label: string; value: string }) {
 export function SpoolRow({
   spool,
   onEdit,
+  onActivate,
   onDeactivate,
   onDelete,
 }: {
   spool: FilamentSpool;
   onEdit: () => void;
+  onActivate: () => void;
   onDeactivate: () => void;
   onDelete: () => void;
 }) {
@@ -185,11 +218,22 @@ export function SpoolRow({
         </span>
         <span className="text-muted">{spool.printer_name ?? "Unassigned"}</span>
         <span className="text-muted">{usedLabel} · {spool.remaining_weight_grams}g left of {spool.initial_weight_grams}g</span>
-        <span className={spool.is_active ? "text-success" : "text-muted"}>{spool.is_active ? "Active" : "Inactive"}</span>
+        <span
+          className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
+            spool.is_active ? "bg-success/15 text-success" : "bg-warn/15 text-warn"
+          }`}
+          title={spool.is_active ? "Shown to the public request form" : "Hidden from the public request form — activate to show"}
+        >
+          {spool.is_active ? "Active · public" : "Inactive · hidden"}
+        </span>
       </div>
       <div className="desk-actions mt-2 flex flex-wrap gap-2">
         <button type="button" onClick={onEdit}>Edit</button>
-        <button type="button" disabled={!spool.is_active} onClick={onDeactivate}>Deactivate</button>
+        {spool.is_active ? (
+          <button type="button" onClick={onDeactivate}>Deactivate</button>
+        ) : (
+          <button type="button" onClick={onActivate}>Activate</button>
+        )}
         <button type="button" className="text-danger" onClick={onDelete}>Delete</button>
       </div>
     </div>
