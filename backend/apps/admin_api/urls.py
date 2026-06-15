@@ -68,6 +68,11 @@ urlpatterns = [
         name="admin-api-client",
     ),
     path(
+        "api-key-requests",
+        api_client_views.ApiKeyRequestListCreateView.as_view(),
+        name="admin-api-key-requests",
+    ),
+    path(
         "users/space-managers",
         views.StaffListCreateView.as_view(),
         {"role": MakerspaceMembership.Role.SPACE_MANAGER},

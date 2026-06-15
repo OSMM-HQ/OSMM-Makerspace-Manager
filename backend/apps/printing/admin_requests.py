@@ -28,15 +28,17 @@ class PrintRequestAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     )
     readonly_fields = (
         "status", "reason", "handled_by", "printer", "filament_spool",
+        "requested_filament_spool", "requester_name",
         "estimated_minutes", "estimated_filament_grams", "created_at", "accepted_at",
         "started_at", "completed_at", "updated_at", "files_preview",
     )
     fields = (
-        "bucket", "requester", "title", "description", "material", "color", "quantity",
-        "source_link", "model_file", "preferred_settings", "estimate_screenshot",
-        "preview_screenshot", "status", "reason", "handled_by", "printer",
-        "filament_spool", "estimated_minutes", "estimated_filament_grams", "created_at",
-        "accepted_at", "started_at", "completed_at", "updated_at", "files_preview",
+        "bucket", "requester", "requester_name", "title", "description", "material",
+        "color", "quantity", "source_link", "model_file", "preferred_settings",
+        "estimate_screenshot", "preview_screenshot", "status", "reason", "handled_by",
+        "printer", "filament_spool", "requested_filament_spool", "estimated_minutes",
+        "estimated_filament_grams", "created_at", "accepted_at", "started_at",
+        "completed_at", "updated_at", "files_preview",
     )
 
     def files_preview(self, obj):

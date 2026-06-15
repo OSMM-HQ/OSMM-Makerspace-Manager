@@ -3,13 +3,14 @@ import type { UseQueryResult } from "@tanstack/react-query";
 
 import { Card } from "../../components/ui/Card";
 import { FilePicker, TextArea, TextInput } from "./PublicPrintRequestParts";
-import type { PrintBucket } from "./publicApi";
+import type { PublicFilamentSpool } from "./publicApi";
 
 export type FormState = {
-  bucketId: string;
+  requesterName: string;
   title: string;
   projectBrief: string;
   preferredSettings: string;
+  filamentSpoolId: string;
   material: string;
   color: string;
   quantity: number;
@@ -19,10 +20,11 @@ export type FormState = {
 };
 
 export const initialForm: FormState = {
-  bucketId: "",
+  requesterName: "",
   title: "",
   projectBrief: "",
   preferredSettings: "",
+  filamentSpoolId: "",
   material: "",
   color: "",
   quantity: 1,
@@ -39,8 +41,7 @@ export function optional(value: string) {
 type PrintDetailsFormProps = {
   form: FormState;
   updateField: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
-  bucketsQuery: UseQueryResult<PrintBucket[], Error>;
-  selectedBucket?: PrintBucket;
+  spoolsQuery: UseQueryResult<PublicFilamentSpool[], Error>;
   modelFiles: File[];
   setModelFiles: Dispatch<SetStateAction<File[]>>;
   screenshotFiles: File[];
@@ -57,8 +58,7 @@ type PrintDetailsFormProps = {
 export function PrintDetailsForm({
   form,
   updateField,
-  bucketsQuery,
-  selectedBucket,
+  spoolsQuery,
   modelFiles,
   setModelFiles,
   screenshotFiles,
@@ -89,38 +89,16 @@ export function PrintDetailsForm({
         />
         <fieldset className="space-y-4" disabled={!verified || submitPending}>
           <div className="grid gap-4 md:grid-cols-2">
-            <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
-                Bucket
-              </span>
-              <select
-                className="desk-input w-full"
-                required
-                value={form.bucketId}
-                onChange={(event) => updateField("bucketId", event.target.value)}
-              >
-                <option value="">Select a queue</option>
-                {bucketsQuery.data?.map((bucket) => (
-                  <option key={bucket.id} value={bucket.id}>
-                    {bucket.name}
-                  </option>
-                ))}
-              </select>
-              {selectedBucket?.description ? (
-                <p className="mt-1 text-xs text-muted">{selectedBucket.description}</p>
-              ) : null}
-              {bucketsQuery.isLoading ? (
-                <p className="mt-1 text-xs text-muted">Loading queues...</p>
-              ) : null}
-              {bucketsQuery.isError ? (
-                <p className="mt-1 text-xs text-danger">{bucketsQuery.error.message}</p>
-              ) : null}
-            </label>
             <TextInput
               label="Title"
               required
               value={form.title}
               onChange={(value) => updateField("title", value)}
+            />
+            <TextInput
+              label="Your name"
+              value={form.requesterName}
+              onChange={(value) => updateField("requesterName", value)}
             />
           </div>
           <TextArea
@@ -134,6 +112,33 @@ export function PrintDetailsForm({
             onChange={(value) => updateField("preferredSettings", value)}
           />
           <div className="grid gap-4 md:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+                Filament / material
+              </span>
+              <select
+                className="desk-input w-full"
+                value={form.filamentSpoolId}
+                onChange={(event) =>
+                  updateField("filamentSpoolId", event.target.value)
+                }
+              >
+                <option value="">No preference</option>
+                {spoolsQuery.data?.map((spool) => (
+                  <option key={spool.id} value={spool.id}>
+                    {`${spool.material} ${spool.color} (${spool.remaining_weight_grams}g left)`}
+                  </option>
+                ))}
+              </select>
+              {spoolsQuery.isLoading ? (
+                <p className="mt-1 text-xs text-muted">Loading filament...</p>
+              ) : null}
+              {spoolsQuery.isError ? (
+                <p className="mt-1 text-xs text-danger">
+                  {spoolsQuery.error.message}
+                </p>
+              ) : null}
+            </label>
             <TextInput label="Material" value={form.material} onChange={(value) => updateField("material", value)} />
             <TextInput label="Color" value={form.color} onChange={(value) => updateField("color", value)} />
             <label className="block">
@@ -150,7 +155,7 @@ export function PrintDetailsForm({
                 }
               />
             </label>
-            <TextInput label="Source link" value={form.sourceLink} onChange={(value) => updateField("sourceLink", value)} />
+            <TextInput label="Source link (optional)" value={form.sourceLink} onChange={(value) => updateField("sourceLink", value)} />
             <TextInput label="Contact email" type="email" value={form.contactEmail} onChange={(value) => updateField("contactEmail", value)} />
             <TextInput label="Contact phone" value={form.contactPhone} onChange={(value) => updateField("contactPhone", value)} />
           </div>
@@ -183,7 +188,7 @@ export function PrintDetailsForm({
         ) : null}
         <button
           className="desk-button-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={!verified || !form.bucketId || !form.title.trim() || submitPending}
+          disabled={!verified || !form.title.trim() || submitPending}
           type="submit"
         >
           {submitPending ? "Submitting..." : "Submit print request"}

@@ -6,4 +6,8 @@
   <p>Reason: {{ print_request.reason }}</p>
   <p>Bucket: {{ print_request.bucket.name }}<br>
   Makerspace: {{ print_request.bucket.makerspace.name }}</p>
+  {% if status_url %}
+    <p>Track your request: <a href="{{ status_url }}">{{ status_url }}</a></p>
+  {% endif %}
+  <p>Tracking token: <strong>{{ public_token }}</strong></p>
 {% endblock %}

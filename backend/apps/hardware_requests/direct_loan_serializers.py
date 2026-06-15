@@ -10,7 +10,6 @@ class DirectLoanItemSerializer(serializers.Serializer):
 
 class DirectLoanIssueSerializer(serializers.Serializer):
     identifier = serializers.CharField()
-    due_at = serializers.DateTimeField(required=False, allow_null=True)
     qr_payloads = serializers.ListField(
         child=serializers.CharField(),
         required=False,

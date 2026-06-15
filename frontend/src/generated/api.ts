@@ -8,6 +8,7 @@ export const openApiInfo = {
 
 export const openApiTags = [
   "API clients",
+  "API key requests",
   "Admin inventory",
   "Admin makerspaces",
   "Admin requests",
@@ -42,6 +43,7 @@ export const openApiPaths = [
   "/api/public/{makerspace_slug}/inventory/{id}/",
   "/api/v1/admin/analytics/{report_key}",
   "/api/v1/admin/api-clients/{id}",
+  "/api/v1/admin/api-key-requests",
   "/api/v1/admin/assets/{id}/qr",
   "/api/v1/admin/audit-logs",
   "/api/v1/admin/categories/{id}",
@@ -148,6 +150,7 @@ export const openApiPaths = [
   "/api/v1/printing/public/{makerspace_slug}/buckets",
   "/api/v1/printing/public/{makerspace_slug}/checkin/verify",
   "/api/v1/printing/public/{makerspace_slug}/requests",
+  "/api/v1/printing/public/{makerspace_slug}/spools",
   "/api/v1/printing/public/{makerspace_slug}/uploads",
   "/api/v1/printing/requests/",
   "/api/v1/printing/requests/{id}/",

@@ -177,6 +177,13 @@ class PrintRequest(models.Model):
         on_delete=models.SET_NULL,
         related_name="print_requests",
     )
+    requested_filament_spool = models.ForeignKey(
+        "printing.FilamentSpool",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="requested_for_print_requests",
+    )
     estimated_minutes = models.PositiveIntegerField(default=0)
     estimated_filament_grams = models.DecimalField(
         max_digits=8,
@@ -196,6 +203,7 @@ class PrintRequest(models.Model):
         db_index=True,
     )
     project_brief = models.TextField(blank=True)
+    requester_name = models.CharField(max_length=120, blank=True)
     contact_email = models.EmailField(blank=True)
     contact_phone = models.CharField(max_length=40, blank=True)
 

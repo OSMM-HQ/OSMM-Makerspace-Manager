@@ -5,7 +5,7 @@ from django.core import mail
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from apps.printing.models import PrintRequest, PrintRequestFile
+from apps.printing.models import FilamentSpool, PrintBucket, PrintRequest, PrintRequestFile
 from tests.test_printing import make_bucket, make_space
 
 pytestmark = pytest.mark.django_db
@@ -54,6 +54,13 @@ def mock_upload(monkeypatch):
 def buckets_url(makerspace):
     return reverse(
         "printing:public-buckets",
+        kwargs={"makerspace_slug": makerspace.slug},
+    )
+
+
+def spools_url(makerspace):
+    return reverse(
+        "printing:public-spools",
         kwargs={"makerspace_slug": makerspace.slug},
     )
 
@@ -135,6 +142,156 @@ def test_public_submit_creates_pending_request():
     assert response.data["status"] == PrintRequest.Status.PENDING
     created = PrintRequest.objects.get()
     assert created.requester.external_checkin_user_id == "u@e.com"
+
+
+def test_public_submit_without_bucket_uses_public_requests_bucket():
+    makerspace = make_space("public-print-default-bucket")
+    enable_printing(makerspace)
+
+    response = public_client().post(
+        submit_url(makerspace),
+        {"identifier": "u@e.com", "title": "Bracket"},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    bucket = PrintBucket.objects.get(makerspace=makerspace, name="Public Requests")
+    created = PrintRequest.objects.get()
+    assert created.bucket == bucket
+
+
+def test_public_submit_with_requested_spool_preserves_operational_spool():
+    makerspace = make_space("public-print-requested-spool")
+    enable_printing(makerspace)
+    bucket = make_bucket(makerspace)
+    spool = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        material="PETG",
+        color="orange",
+        brand="Internal Brand",
+        lot_code="LOT-1",
+        initial_weight_grams=1000,
+        remaining_weight_grams=750,
+    )
+
+    response = public_client().post(
+        submit_url(makerspace),
+        {
+            "identifier": "u@e.com",
+            "bucket_id": bucket.id,
+            "title": "Spool request",
+            "filament_spool_id": spool.id,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    created = PrintRequest.objects.get()
+    assert created.requested_filament_spool == spool
+    assert created.filament_spool is None
+    assert created.material == "PETG"
+    assert created.color == "orange"
+
+
+@pytest.mark.parametrize("spool_case", ["foreign", "inactive"])
+def test_public_submit_rejects_foreign_or_inactive_requested_spool(spool_case):
+    makerspace = make_space(f"public-print-bad-spool-{spool_case}")
+    other_space = make_space(f"public-print-bad-spool-{spool_case}-other")
+    enable_printing(makerspace)
+    enable_printing(other_space)
+    bucket = make_bucket(makerspace)
+    spool_space = other_space if spool_case == "foreign" else makerspace
+    spool = FilamentSpool.objects.create(
+        makerspace=spool_space,
+        material="PLA",
+        color="black",
+        initial_weight_grams=1000,
+        remaining_weight_grams=500,
+        is_active=spool_case != "inactive",
+    )
+
+    response = public_client().post(
+        submit_url(makerspace),
+        {
+            "identifier": "u@e.com",
+            "bucket_id": bucket.id,
+            "title": "Bad spool request",
+            "filament_spool_id": spool.id,
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert not PrintRequest.objects.exists()
+
+
+def test_public_submit_persists_requester_name():
+    makerspace = make_space("public-print-requester-name")
+    enable_printing(makerspace)
+    bucket = make_bucket(makerspace)
+
+    response = public_client().post(
+        submit_url(makerspace),
+        {
+            "identifier": "u@e.com",
+            "bucket_id": bucket.id,
+            "requester_name": "Uma Example",
+            "title": "Named request",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert PrintRequest.objects.get().requester_name == "Uma Example"
+
+
+def test_public_spools_lists_active_same_space_safe_fields_only():
+    makerspace = make_space("public-print-spools")
+    other_space = make_space("public-print-spools-other")
+    enable_printing(makerspace)
+    enable_printing(other_space)
+    active = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        material="PLA",
+        color="white",
+        brand="Hidden Brand",
+        lot_code="HIDDEN-LOT",
+        initial_weight_grams=1000,
+        remaining_weight_grams=640,
+    )
+    FilamentSpool.objects.create(
+        makerspace=makerspace,
+        material="PETG",
+        color="blue",
+        initial_weight_grams=1000,
+        remaining_weight_grams=100,
+        is_active=False,
+    )
+    FilamentSpool.objects.create(
+        makerspace=other_space,
+        material="ABS",
+        color="red",
+        initial_weight_grams=1000,
+        remaining_weight_grams=200,
+    )
+
+    response = public_client().get(spools_url(makerspace))
+
+    assert response.status_code == 200
+    assert response.data == [
+        {
+            "id": active.id,
+            "material": "PLA",
+            "color": "white",
+            "remaining_weight_grams": "640.00",
+        }
+    ]
+    assert set(response.data[0].keys()) == {
+        "id",
+        "material",
+        "color",
+        "remaining_weight_grams",
+    }
 
 
 def test_honeypot_returns_decoy_and_creates_nothing():

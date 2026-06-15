@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import admin
 from django.contrib import messages
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
@@ -16,10 +17,18 @@ from unfold.contrib.filters.admin import (
 
 from apps.boxes.models import QrCode
 from apps.boxes.qr_render import render_qr_label_svg
+from apps.inventory import availability
 from apps.inventory.models import Category, InventoryAsset, InventoryProduct
 from apps.operations import services as operations_services
 from apps.operations.serializers import AssetGenerateSerializer
 from config.admin_access import SuperuserOnlyModelAdmin
+
+
+class InventoryQuantityAdjustmentForm(forms.Form):
+    delta_available = forms.IntegerField(required=True)
+    delta_damaged = forms.IntegerField(required=True)
+    delta_lost = forms.IntegerField(required=True)
+    reason = forms.CharField(required=True, widget=forms.Textarea)
 
 
 @admin.register(Category)
@@ -34,7 +43,7 @@ class CategoryAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
 
 @admin.register(InventoryProduct)
 class InventoryProductAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
-    actions = ["generate_qr_assets"]
+    actions = ["generate_qr_assets", "adjust_quantities"]
     list_display = (
         "name",
         "category",
@@ -122,6 +131,62 @@ class InventoryProductAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
             self.message_user(
                 request,
                 f"Generated {asset_count} QR asset(s) for {success_count} product(s).",
+                level=messages.SUCCESS,
+            )
+        return None
+
+    @admin.action(description="Adjust selected inventory quantities")
+    def adjust_quantities(self, request, queryset):
+        if queryset.count() != 1:
+            self.message_user(
+                request,
+                "Select exactly one inventory product to adjust quantities.",
+                level=messages.ERROR,
+            )
+            return None
+
+        product = queryset.first()
+        if "apply" not in request.POST:
+            context = {
+                **self.admin_site.each_context(request),
+                "title": "Adjust inventory quantities",
+                "queryset": queryset,
+                "opts": self.model._meta,
+                "action_name": "adjust_quantities",
+                "action_checkbox_name": ACTION_CHECKBOX_NAME,
+                "product": product,
+            }
+            return TemplateResponse(
+                request,
+                "admin/inventory/adjust_quantities.html",
+                context,
+            )
+
+        form = InventoryQuantityAdjustmentForm(request.POST)
+        if not form.is_valid():
+            self.message_user(request, form.errors, level=messages.ERROR)
+            return None
+
+        data = form.cleaned_data
+        try:
+            locked = availability.adjust_quantities(
+                product,
+                delta_available=data["delta_available"],
+                delta_damaged=data["delta_damaged"],
+                delta_lost=data["delta_lost"],
+                reason=data["reason"],
+                actor=request.user,
+            )
+        except availability.InsufficientStock as exc:
+            self.message_user(request, str(exc), level=messages.ERROR)
+        else:
+            self.message_user(
+                request,
+                (
+                    f"Updated quantities for {locked}: available="
+                    f"{locked.available_quantity}, damaged={locked.damaged_quantity}, "
+                    f"lost={locked.lost_quantity}."
+                ),
                 level=messages.SUCCESS,
             )
         return None

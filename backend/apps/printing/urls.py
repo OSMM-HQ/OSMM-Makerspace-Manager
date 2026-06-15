@@ -5,6 +5,7 @@ from apps.printing.public_views import (
     PrintRequestSubmitView,
     PrintUploadPresignView,
     PublicPrintBucketsView,
+    PublicPrintSpoolsView,
     PublicPrintStatusView,
 )
 from apps.printing.reports_views import (
@@ -37,6 +38,11 @@ urlpatterns = [
         "public/<slug:makerspace_slug>/buckets",
         PublicPrintBucketsView.as_view(),
         name="public-buckets",
+    ),
+    path(
+        "public/<slug:makerspace_slug>/spools",
+        PublicPrintSpoolsView.as_view(),
+        name="public-spools",
     ),
     path(
         "public/<slug:makerspace_slug>/checkin/verify",

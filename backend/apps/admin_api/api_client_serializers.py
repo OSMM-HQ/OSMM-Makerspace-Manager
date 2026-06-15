@@ -1,6 +1,8 @@
+from urllib.parse import urlsplit
+
 from rest_framework import serializers
 
-from apps.apiclients.models import ApiClient
+from apps.apiclients.models import ApiClient, ApiKeyRequest
 from apps.makerspaces.models import Makerspace
 
 
@@ -73,6 +75,59 @@ class ApiClientSerializer(serializers.ModelSerializer):
             return ""
         code = obj.makerspace.public_code if obj.makerspace_id else ""
         return request.build_absolute_uri(f"/api/v1/public/{code}/").rstrip("/")
+
+
+class ApiKeyRequestSerializer(serializers.ModelSerializer):
+    # Declared explicitly + required so validate_allowed_origins always runs (the model field
+    # is blank/default=list, which would otherwise let DRF skip it when omitted and approve an
+    # origin-less request into an unusable client).
+    allowed_origins = serializers.ListField(
+        child=serializers.CharField(), allow_empty=False
+    )
+
+    class Meta:
+        model = ApiKeyRequest
+        fields = [
+            "id",
+            "makerspace",
+            "label",
+            "reason",
+            "allowed_origins",
+            "status",
+            "resolution_note",
+            "created_at",
+            "resolved_at",
+        ]
+        read_only_fields = [
+            "id",
+            "status",
+            "resolution_note",
+            "created_at",
+            "resolved_at",
+        ]
+
+    def validate_allowed_origins(self, value):
+        # Must be a non-empty list of EXACT scheme://host[:port] origins. CORS and the
+        # API-client middleware compare against the browser Origin (no path/trailing slash),
+        # so anything with a path/query/fragment would be stored but never match after
+        # approval. Reject those and normalize to scheme://netloc so the issued key works.
+        if not value:
+            raise serializers.ValidationError("At least one frontend origin is required.")
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Origins must be a list of http(s) URLs.")
+        normalized = []
+        for origin in value:
+            if not isinstance(origin, str):
+                raise serializers.ValidationError("Origins must be exact http(s) URLs.")
+            parts = urlsplit(origin.strip())
+            if parts.scheme not in ("http", "https") or not parts.netloc:
+                raise serializers.ValidationError("Origins must be exact http(s) URLs.")
+            if parts.path not in ("", "/") or parts.query or parts.fragment:
+                raise serializers.ValidationError(
+                    "Origins must be a bare scheme://host[:port] with no path."
+                )
+            normalized.append(f"{parts.scheme}://{parts.netloc}")
+        return normalized
 
 
 class ApiIntegrationSettingsSerializer(serializers.ModelSerializer):

@@ -48,6 +48,9 @@ class PrintRequestSerializer(serializers.ModelSerializer):
     bucket = PrintBucketSerializer(read_only=True)
     printer = PrintPrinterSerializer(read_only=True)
     filament_spool = FilamentSpoolSummarySerializer(read_only=True)
+    # Requester's filament preference from public submit (distinct from the operational
+    # filament_spool staff assign at start) — surfaced so staff can honor the exact spool.
+    requested_filament_spool = FilamentSpoolSummarySerializer(read_only=True)
     makerspace = serializers.IntegerField(source="bucket.makerspace_id", read_only=True)
     requester = serializers.IntegerField(source="requester_id", read_only=True)
     requester_email = serializers.EmailField(source="requester.email", read_only=True)
@@ -77,6 +80,7 @@ class PrintRequestSerializer(serializers.ModelSerializer):
             "requester",
             "requester_email",
             "requester_username",
+            "requester_name",
             "title",
             "description",
             "material",
@@ -96,6 +100,7 @@ class PrintRequestSerializer(serializers.ModelSerializer):
             "handled_by",
             "printer",
             "filament_spool",
+            "requested_filament_spool",
             "estimated_minutes",
             "estimated_filament_grams",
             "created_at",

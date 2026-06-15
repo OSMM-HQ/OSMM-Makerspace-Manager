@@ -1,0 +1,203 @@
+import { useMemo, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import { useMutation } from "@tanstack/react-query";
+
+import { Card } from "../../components/ui/Card";
+import QrScanner from "../../components/ui/QrScanner";
+import { formatSlug } from "./PublicInventoryParts";
+import { checkoutTool, returnTool } from "./selfCheckoutApi";
+import type { PublicToolLoanResult } from "./selfCheckoutApi";
+import { useTenantBootstrap } from "./usePublicInventory";
+
+type Mode = "checkout" | "return";
+
+type MutationInput = {
+  identifier: string;
+  payload: string;
+};
+
+function formatStatus(status: string) {
+  const normalized = status.replace(/_/g, " ");
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+}
+
+function ResultCard({ result }: { result: PublicToolLoanResult }) {
+  return (
+    <div className="rounded-md border border-success/40 bg-success/10 px-3 py-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-success">
+        {formatStatus(result.status)}
+      </p>
+      <h2 className="mt-1 text-lg font-semibold text-ink">
+        {result.target_label}
+      </h2>
+      <div className="mt-3 space-y-2">
+        {result.items.map((item) => (
+          <div
+            className="flex items-center justify-between gap-3 rounded-md border border-success/20 bg-panel px-3 py-2 text-sm text-ink"
+            key={item.product_name}
+          >
+            <span>{item.product_name}</span>
+            <span className="font-semibold">x{item.quantity}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export function PublicSelfCheckoutPage() {
+  const { slug } = useParams();
+  const makerspaceSlug = slug ?? "";
+  const [mode, setMode] = useState<Mode>("checkout");
+  const [identifier, setIdentifier] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
+
+  const bootstrapQuery = useTenantBootstrap(makerspaceSlug);
+  const modules = useMemo(
+    () => new Set(bootstrapQuery.data?.modules ?? []),
+    [bootstrapQuery.data?.modules],
+  );
+  const displayName =
+    bootstrapQuery.data?.branding.display_name ||
+    bootstrapQuery.data?.makerspace.name ||
+    formatSlug(makerspaceSlug) ||
+    "Makerspace";
+  const enabled = modules.has("self_checkout");
+
+  const loanMutation = useMutation({
+    mutationFn: ({ identifier: scanIdentifier, payload }: MutationInput) =>
+      mode === "checkout"
+        ? checkoutTool(makerspaceSlug, scanIdentifier, payload)
+        : returnTool(makerspaceSlug, scanIdentifier, payload),
+  });
+
+  function scanTool(payload: string) {
+    const scanIdentifier = identifier.trim();
+    if (!scanIdentifier) {
+      return;
+    }
+    setScannerOpen(false);
+    loanMutation.mutate({ identifier: scanIdentifier, payload });
+  }
+
+  return (
+    <main className="desk-shell">
+      <header className="border-b border-line bg-panel">
+        <div className="mx-auto flex max-w-screen-xl flex-col gap-4 px-5 py-6 sm:px-8">
+          <p className="text-sm font-semibold uppercase tracking-wide text-accent">
+            Public Tool Checkout
+          </p>
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h1 className="text-3xl font-bold text-ink sm:text-4xl">
+                {displayName}
+              </h1>
+              <p className="mt-2 text-sm text-muted">
+                Scan a physical tool label to check it out or return it.
+              </p>
+            </div>
+            <Link className="desk-button" to={`/m/${makerspaceSlug}`}>
+              Back to inventory
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      <section className="mx-auto max-w-screen-sm px-5 py-6 sm:px-8">
+        {bootstrapQuery.isLoading ? (
+          <Card>
+            <p className="text-sm text-muted">Loading checkout access...</p>
+          </Card>
+        ) : null}
+
+        {!bootstrapQuery.isLoading && !enabled ? (
+          <Card>
+            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+              Self-checkout
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-ink">
+              Self-checkout is not enabled for this makerspace.
+            </h2>
+            <Link className="desk-button mt-4" to={`/m/${makerspaceSlug}`}>
+              Back to inventory
+            </Link>
+          </Card>
+        ) : null}
+
+        {!bootstrapQuery.isLoading && enabled ? (
+          <Card>
+            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+              Scan Tool
+            </p>
+
+            <div
+              aria-label="Checkout mode"
+              className="desk-panel mt-4 flex gap-1 p-1"
+              role="tablist"
+            >
+              <button
+                aria-selected={mode === "checkout"}
+                className={
+                  mode === "checkout" ? "desk-tab desk-tab-active" : "desk-tab"
+                }
+                role="tab"
+                type="button"
+                onClick={() => setMode("checkout")}
+              >
+                Use (check out)
+              </button>
+              <button
+                aria-selected={mode === "return"}
+                className={
+                  mode === "return" ? "desk-tab desk-tab-active" : "desk-tab"
+                }
+                role="tab"
+                type="button"
+                onClick={() => setMode("return")}
+              >
+                Return
+              </button>
+            </div>
+
+            <label className="mt-4 block">
+              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+                Check-In ID
+              </span>
+              <input
+                className="desk-input w-full"
+                required
+                value={identifier}
+                onChange={(event) => setIdentifier(event.target.value)}
+              />
+            </label>
+
+            <button
+              className="desk-button-primary mt-4 w-full disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!identifier.trim() || loanMutation.isPending}
+              type="button"
+              onClick={() => setScannerOpen(true)}
+            >
+              {loanMutation.isPending ? "Submitting..." : "Scan tool QR"}
+            </button>
+
+            {loanMutation.isError ? (
+              <p className="mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+                {loanMutation.error.message}
+              </p>
+            ) : null}
+
+            {loanMutation.isSuccess ? (
+              <div className="mt-4">
+                <ResultCard result={loanMutation.data} />
+              </div>
+            ) : null}
+          </Card>
+        ) : null}
+      </section>
+
+      {scannerOpen ? (
+        <QrScanner onClose={() => setScannerOpen(false)} onScan={scanTool} />
+      ) : null}
+    </main>
+  );
+}

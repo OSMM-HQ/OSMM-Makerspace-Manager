@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -14,7 +14,7 @@ import {
   type FormState,
 } from "./PublicPrintRequestForm";
 import {
-  fetchPrintBuckets,
+  fetchPublicSpools,
   fetchPrintStatus,
   presignPrintUpload,
   submitPrintRequest,
@@ -34,19 +34,31 @@ export function PublicPrintRequestPage() {
   const [uploadProgress, setUploadProgress] = useState("");
   const [submittedToken, setSubmittedToken] = useState("");
   const [statusToken, setStatusToken] = useState("");
+  const statusLinkHandledRef = useRef(false);
   // Anti-spam honeypot: hidden from real users; a bot that autofills it triggers the
   // backend decoy-success (no request created).
   const [website, setWebsite] = useState("");
 
   const bootstrapQuery = useTenantBootstrap(makerspaceSlug);
-  const bucketsQuery = useQuery({
-    queryKey: ["public-print-buckets", makerspaceSlug],
-    queryFn: () => fetchPrintBuckets(makerspaceSlug),
+  const spoolsQuery = useQuery({
+    queryKey: ["public-print-spools", makerspaceSlug],
+    queryFn: () => fetchPublicSpools(makerspaceSlug),
     enabled: Boolean(makerspaceSlug),
   });
   const statusMutation = useMutation({
     mutationFn: (token: string) => fetchPrintStatus(token.trim()),
   });
+  useEffect(() => {
+    if (statusLinkHandledRef.current) {
+      return;
+    }
+    statusLinkHandledRef.current = true;
+    const token = new URLSearchParams(window.location.search).get("token")?.trim();
+    if (token) {
+      setStatusToken(token);
+      statusMutation.mutate(token);
+    }
+  }, [statusMutation]);
   const verifyMutation = useMutation({
     mutationFn: (id: string) => verifyPrintCheckin(makerspaceSlug, id),
     onSuccess: (data, id) => {
@@ -61,9 +73,6 @@ export function PublicPrintRequestPage() {
     bootstrapQuery.data?.makerspace.name ||
     formatSlug(makerspaceSlug) ||
     "Makerspace";
-  const selectedBucket = bucketsQuery.data?.find(
-    (bucket) => bucket.id === Number(form.bucketId),
-  );
 
   const submitMutation = useMutation({
     mutationFn: async () => {
@@ -92,12 +101,15 @@ export function PublicPrintRequestPage() {
       return submitPrintRequest(makerspaceSlug, {
         website,
         identifier: identifier.trim(),
-        bucket_id: Number(form.bucketId),
+        requester_name: optional(form.requesterName),
         title: form.title.trim(),
         project_brief: optional(form.projectBrief),
         preferred_settings: optional(form.preferredSettings),
         material: optional(form.material),
         color: optional(form.color),
+        filament_spool_id: form.filamentSpoolId
+          ? Number(form.filamentSpoolId)
+          : null,
         quantity: form.quantity,
         source_link: optional(form.sourceLink),
         contact_email: optional(form.contactEmail),
@@ -120,7 +132,7 @@ export function PublicPrintRequestPage() {
 
   function submitForm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (verified && form.bucketId && form.title.trim()) {
+    if (verified && form.title.trim()) {
       submitMutation.mutate();
     }
   }
@@ -195,8 +207,7 @@ export function PublicPrintRequestPage() {
           <PrintDetailsForm
             form={form}
             updateField={updateField}
-            bucketsQuery={bucketsQuery}
-            selectedBucket={selectedBucket}
+            spoolsQuery={spoolsQuery}
             modelFiles={modelFiles}
             setModelFiles={setModelFiles}
             screenshotFiles={screenshotFiles}

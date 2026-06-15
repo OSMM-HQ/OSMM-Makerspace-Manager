@@ -43,6 +43,8 @@ export type PrintRequest = {
   estimated_filament_grams: string;
   printer: PrintPrinter | null;
   filament_spool: FilamentSpool | null;
+  requested_filament_spool?: FilamentSpool | null;
+  requester_name?: string;
   project_brief?: string;
   contact_email?: string;
   contact_phone?: string;
@@ -121,10 +123,12 @@ export function PrinterCard({
   printer,
   onEdit,
   onDeactivate,
+  onDelete,
 }: {
   printer: PrintPrinter;
   onEdit: () => void;
   onDeactivate: () => void;
+  onDelete: () => void;
 }) {
   return (
     <div className="rounded-md border border-line bg-surface p-3">
@@ -147,6 +151,7 @@ export function PrinterCard({
       <div className="desk-actions mt-3 flex flex-wrap gap-2">
         <button type="button" onClick={onEdit}>Edit</button>
         <button type="button" disabled={!printer.is_active} onClick={onDeactivate}>Deactivate</button>
+        <button type="button" className="text-danger" onClick={onDelete}>Delete</button>
       </div>
     </div>
   );
@@ -217,8 +222,15 @@ export function PrintRows({
               <div className="desk-actions ml-auto flex flex-wrap gap-2 text-sm">{action(row)}</div>
             </div>
             <p className="mt-2 text-xs text-muted">
-              {row.requester_username} - {row.material || "material n/a"} {row.color || ""} - {row.estimated_minutes || 0} min - {row.estimated_filament_grams || "0.00"}g
+              {row.requester_name || row.requester_username} - {row.material || "material n/a"} {row.color || ""} - {row.estimated_minutes || 0} min - {row.estimated_filament_grams || "0.00"}g
             </p>
+            {row.requested_filament_spool ? (
+              <p className="mt-1 text-xs text-accent">
+                <span className="font-medium">Requested spool: </span>
+                {`#${row.requested_filament_spool.id} ${row.requested_filament_spool.material} ${row.requested_filament_spool.color}`.trim()}
+                {` (${row.requested_filament_spool.remaining_weight_grams}g)`}
+              </p>
+            ) : null}
             {row.project_brief ? (
               <p className="mt-1 text-xs text-muted">
                 <span className="font-medium text-ink">Brief: </span>{row.project_brief}

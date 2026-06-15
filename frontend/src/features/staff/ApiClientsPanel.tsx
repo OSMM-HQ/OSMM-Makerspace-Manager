@@ -1,23 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { staffRequest } from "../../lib/api";
 import { Panel, type Makerspace, useStaffGet } from "./StaffPanels";
 
-type ApiClient = {
+type ApiKeyRequest = {
   id: number;
   label: string;
-  client_id: string;
-  client_secret?: string;
-  public_makerspace_code: string;
+  reason: string;
+  status: "pending" | "approved" | "rejected";
+  resolution_note: string;
   allowed_origins: string[];
-  backend_base_url: string;
-  public_api_base_url: string;
-  is_active: boolean;
+  created_at: string;
+  resolved_at: string | null;
 };
 type ApiSettings = {
   public_code: string;
-  public_api_key: string;
   cors_allowed_origins: string[];
   telegram_group_chat_id: string;
   telegram_bot_token_set: boolean;
@@ -41,13 +39,18 @@ type ApiSettingsForm = {
   smtp_from_email: string;
 };
 
-export function ApiClientsPanel({ makerspace }: { makerspace: Makerspace }) {
+export function ApiClientsPanel({
+  makerspace,
+  isSuperadmin,
+}: {
+  makerspace: Makerspace;
+  isSuperadmin: boolean;
+}) {
   const queryClient = useQueryClient();
   const [label, setLabel] = useState("");
+  const [reason, setReason] = useState("");
   const [origins, setOrigins] = useState("");
-  const [issuedSecret, setIssuedSecret] = useState("");
-  const [secretCopied, setSecretCopied] = useState(false);
-  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [submitted, setSubmitted] = useState(false);
   const [settingsForm, setSettingsForm] = useState<ApiSettingsForm>({
     telegram_group_chat_id: "",
     telegram_bot_token: "",
@@ -59,13 +62,14 @@ export function ApiClientsPanel({ makerspace }: { makerspace: Makerspace }) {
     smtp_use_ssl: false,
     smtp_from_email: "",
   });
-  const clients = useStaffGet<{ results: ApiClient[] }>(
-    ["api-clients", makerspace.id],
-    `/admin/makerspace/${makerspace.id}/api-clients`,
+  const requests = useStaffGet<{ results: ApiKeyRequest[] }>(
+    ["api-key-requests", makerspace.id],
+    `/admin/api-key-requests?makerspace=${makerspace.id}`,
   );
   const settings = useStaffGet<ApiSettings>(
     ["api-settings", makerspace.id],
     `/admin/makerspace/${makerspace.id}/api-settings`,
+    isSuperadmin,
   );
   useEffect(() => {
     if (!settings.data) return;
@@ -81,36 +85,25 @@ export function ApiClientsPanel({ makerspace }: { makerspace: Makerspace }) {
       smtp_from_email: settings.data.smtp_from_email ?? "",
     });
   }, [settings.data]);
-  useEffect(() => {
-    return () => {
-      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-    };
-  }, []);
-  const create = useMutation({
+
+  const requestKey = useMutation({
     mutationFn: () =>
-      staffRequest<ApiClient>(`/admin/makerspace/${makerspace.id}/api-clients`, {
+      staffRequest<ApiKeyRequest>("/admin/api-key-requests", {
         method: "POST",
         body: JSON.stringify({
+          makerspace: makerspace.id,
           label,
+          reason,
           allowed_origins: splitOrigins(origins),
-          is_active: true,
         }),
       }),
-    onSuccess: (client) => {
-      setIssuedSecret(client.client_secret ?? "");
-      setSecretCopied(false);
+    onSuccess: () => {
       setLabel("");
-      queryClient.invalidateQueries({ queryKey: ["api-clients", makerspace.id] });
+      setReason("");
+      setOrigins("");
+      setSubmitted(true);
+      queryClient.invalidateQueries({ queryKey: ["api-key-requests", makerspace.id] });
     },
-  });
-  const toggle = useMutation({
-    mutationFn: (client: ApiClient) =>
-      staffRequest<ApiClient>(`/admin/api-clients/${client.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ is_active: !client.is_active }),
-      }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["api-clients", makerspace.id] }),
   });
   const saveSettings = useMutation({
     mutationFn: () =>
@@ -137,127 +130,134 @@ export function ApiClientsPanel({ makerspace }: { makerspace: Makerspace }) {
         }),
       }),
   });
-  const copyIssuedSecret = async () => {
-    await navigator.clipboard.writeText(issuedSecret);
-    setSecretCopied(true);
-    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-    copyTimeoutRef.current = setTimeout(() => setSecretCopied(false), 2000);
-  };
-  const dismissIssuedSecret = () => {
-    setIssuedSecret("");
-    setSecretCopied(false);
-    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
-  };
 
   return (
-    <Panel title="API clients">
+    <Panel title="API access">
       <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <div className="space-y-3">
-          <div className="rounded-md border border-line bg-surface p-3">
-            <h3 className="font-semibold text-ink">Integration settings</h3>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2">
-              <input className="desk-input" placeholder="Telegram group chat ID" value={settingsForm.telegram_group_chat_id} onChange={(event) => setSettingsForm({ ...settingsForm, telegram_group_chat_id: event.target.value })} />
-              <input className="desk-input" placeholder={settings.data?.telegram_bot_token_set ? "Telegram bot token set" : "Telegram bot token"} type="password" value={settingsForm.telegram_bot_token} onChange={(event) => setSettingsForm({ ...settingsForm, telegram_bot_token: event.target.value })} />
-              <input className="desk-input" placeholder="SMTP host" value={settingsForm.smtp_host} onChange={(event) => setSettingsForm({ ...settingsForm, smtp_host: event.target.value })} />
-              <input className="desk-input" inputMode="numeric" placeholder="SMTP port" value={settingsForm.smtp_port} onChange={(event) => setSettingsForm({ ...settingsForm, smtp_port: event.target.value })} />
-              <input className="desk-input" placeholder="SMTP username" value={settingsForm.smtp_username} onChange={(event) => setSettingsForm({ ...settingsForm, smtp_username: event.target.value })} />
-              <input className="desk-input" placeholder={settings.data?.smtp_password_set ? "SMTP password set" : "SMTP password"} type="password" value={settingsForm.smtp_password} onChange={(event) => setSettingsForm({ ...settingsForm, smtp_password: event.target.value })} />
-              <input className="desk-input sm:col-span-2" placeholder="SMTP from email" value={settingsForm.smtp_from_email} onChange={(event) => setSettingsForm({ ...settingsForm, smtp_from_email: event.target.value })} />
+          <article className="rounded-md border border-line bg-surface p-3">
+            <h3 className="font-semibold text-ink">Request API access</h3>
+            <div className="mt-3 grid gap-2">
+              <input
+                className="desk-input w-full"
+                placeholder="Request label"
+                value={label}
+                onChange={(event) => {
+                  setLabel(event.target.value);
+                  setSubmitted(false);
+                }}
+              />
+              <textarea
+                className="desk-input min-h-24 w-full"
+                placeholder="Reason for API access"
+                value={reason}
+                onChange={(event) => {
+                  setReason(event.target.value);
+                  setSubmitted(false);
+                }}
+              />
+              <textarea
+                className="desk-input min-h-24 w-full"
+                placeholder="Allowed browser origins, one per line. Example: https://lab.example.com"
+                value={origins}
+                onChange={(event) => {
+                  setOrigins(event.target.value);
+                  setSubmitted(false);
+                }}
+              />
             </div>
-            <div className="mt-3 flex flex-wrap gap-4">
-              <label className="flex items-center gap-2 text-sm text-muted">
-                <input type="checkbox" checked={settingsForm.smtp_use_tls} onChange={(event) => setSettingsForm({ ...settingsForm, smtp_use_tls: event.target.checked })} />
-                Use STARTTLS (587)
-              </label>
-              <label className="flex items-center gap-2 text-sm text-muted">
-                <input type="checkbox" checked={settingsForm.smtp_use_ssl} onChange={(event) => setSettingsForm({ ...settingsForm, smtp_use_ssl: event.target.checked })} />
-                Use implicit SSL (465)
-              </label>
-            </div>
-            <button className="desk-button-primary mt-3 w-full" disabled={saveSettings.isPending} onClick={() => saveSettings.mutate()}>
-              {saveSettings.isPending ? "Saving..." : "Save integration settings"}
+            <button
+              className="desk-button-primary mt-3 w-full"
+              disabled={!label.trim() || !reason.trim() || !splitOrigins(origins).length || requestKey.isPending}
+              onClick={() => requestKey.mutate()}
+            >
+              {requestKey.isPending ? "Submitting..." : "Submit API access request"}
             </button>
-            <button className="desk-button mt-2 w-full" disabled={testTelegram.isPending} onClick={() => testTelegram.mutate()}>
-              {testTelegram.isPending ? "Sending..." : "Send Telegram test alert"}
-            </button>
-            {saveSettings.error ? <p className="mt-2 text-sm text-danger">{saveSettings.error.message}</p> : null}
-            {testTelegram.data ? (
+            {submitted ? (
               <p className="mt-2 text-sm text-muted">
-                Telegram delivered: {testTelegram.data.delivered ? "yes" : "no"}
+                Request submitted. A superadmin will review and share the key with you securely.
               </p>
             ) : null}
-            {testTelegram.error ? <p className="mt-2 text-sm text-danger">{testTelegram.error.message}</p> : null}
-          </div>
+            {requestKey.error ? <p className="mt-2 text-sm text-danger">{requestKey.error.message}</p> : null}
+          </article>
 
-          <input
-            className="desk-input w-full"
-            placeholder="Client label"
-            value={label}
-            onChange={(event) => setLabel(event.target.value)}
-          />
-          <textarea
-            className="desk-input min-h-24 w-full"
-            placeholder="Frontend origins, one per line. Example: https://lab.example.com"
-            value={origins}
-            onChange={(event) => setOrigins(event.target.value)}
-          />
-          <button
-            className="desk-button-primary w-full"
-            disabled={!label.trim() || !splitOrigins(origins).length || create.isPending}
-            onClick={() => create.mutate()}
-          >
-            {create.isPending ? "Creating..." : "Create API client"}
-          </button>
-          {create.error ? <p className="text-sm text-danger">{create.error.message}</p> : null}
-          {issuedSecret ? (
-            <div className="rounded-md border border-warn/40 bg-warn/10 p-3">
-              <p className="text-sm font-semibold text-warn">Server secret shown once</p>
-              <p className="mt-1 text-sm text-ink">
-                Copy this secret now{" \u2014 "}it is shown only once and cannot be retrieved later.
-              </p>
-              <p className="mt-2 break-all font-mono text-xs text-ink">{issuedSecret}</p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button className="desk-button" onClick={copyIssuedSecret}>
-                  {secretCopied ? "Copied!" : "Copy"}
-                </button>
-                <button className="desk-button" onClick={dismissIssuedSecret}>
-                  Dismiss
-                </button>
+          {isSuperadmin ? (
+            <div className="rounded-md border border-line bg-surface p-3">
+              <h3 className="font-semibold text-ink">Integration settings</h3>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <input className="desk-input" placeholder="Telegram group chat ID" value={settingsForm.telegram_group_chat_id} onChange={(event) => setSettingsForm({ ...settingsForm, telegram_group_chat_id: event.target.value })} />
+                <input className="desk-input" placeholder={settings.data?.telegram_bot_token_set ? "Telegram bot token set" : "Telegram bot token"} type="password" value={settingsForm.telegram_bot_token} onChange={(event) => setSettingsForm({ ...settingsForm, telegram_bot_token: event.target.value })} />
+                <input className="desk-input" placeholder="SMTP host" value={settingsForm.smtp_host} onChange={(event) => setSettingsForm({ ...settingsForm, smtp_host: event.target.value })} />
+                <input className="desk-input" inputMode="numeric" placeholder="SMTP port" value={settingsForm.smtp_port} onChange={(event) => setSettingsForm({ ...settingsForm, smtp_port: event.target.value })} />
+                <input className="desk-input" placeholder="SMTP username" value={settingsForm.smtp_username} onChange={(event) => setSettingsForm({ ...settingsForm, smtp_username: event.target.value })} />
+                <input className="desk-input" placeholder={settings.data?.smtp_password_set ? "SMTP password set" : "SMTP password"} type="password" value={settingsForm.smtp_password} onChange={(event) => setSettingsForm({ ...settingsForm, smtp_password: event.target.value })} />
+                <input className="desk-input sm:col-span-2" placeholder="SMTP from email" value={settingsForm.smtp_from_email} onChange={(event) => setSettingsForm({ ...settingsForm, smtp_from_email: event.target.value })} />
               </div>
+              <div className="mt-3 flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 text-sm text-muted">
+                  <input type="checkbox" checked={settingsForm.smtp_use_tls} onChange={(event) => setSettingsForm({ ...settingsForm, smtp_use_tls: event.target.checked })} />
+                  Use STARTTLS (587)
+                </label>
+                <label className="flex items-center gap-2 text-sm text-muted">
+                  <input type="checkbox" checked={settingsForm.smtp_use_ssl} onChange={(event) => setSettingsForm({ ...settingsForm, smtp_use_ssl: event.target.checked })} />
+                  Use implicit SSL (465)
+                </label>
+              </div>
+              <button className="desk-button-primary mt-3 w-full" disabled={saveSettings.isPending} onClick={() => saveSettings.mutate()}>
+                {saveSettings.isPending ? "Saving..." : "Save integration settings"}
+              </button>
+              <button className="desk-button mt-2 w-full" disabled={testTelegram.isPending} onClick={() => testTelegram.mutate()}>
+                {testTelegram.isPending ? "Sending..." : "Send Telegram test alert"}
+              </button>
+              {saveSettings.error ? <p className="mt-2 text-sm text-danger">{saveSettings.error.message}</p> : null}
+              {testTelegram.data ? (
+                <p className="mt-2 text-sm text-muted">
+                  Telegram delivered: {testTelegram.data.delivered ? "yes" : "no"}
+                </p>
+              ) : null}
+              {testTelegram.error ? <p className="mt-2 text-sm text-danger">{testTelegram.error.message}</p> : null}
             </div>
           ) : null}
         </div>
 
         <div className="space-y-3">
           <article className="rounded-md border border-line bg-surface p-3">
-            <h3 className="font-semibold text-ink">Makerspace API keys</h3>
+            <h3 className="font-semibold text-ink">Makerspace API access</h3>
             <Config label="Makerspace code" value={settings.data?.public_code ?? makerspace.public_code} />
-            <Config label="Legacy public API key" value={settings.data?.public_api_key ?? ""} />
             <Config
               label="Allowed browser origins"
-              value={(settings.data?.cors_allowed_origins ?? []).join(", ") || "No active client origins"}
+              value={
+                isSuperadmin
+                  ? (settings.data?.cors_allowed_origins ?? []).join(", ") || "No active client origins"
+                  : "Managed by superadmin"
+              }
             />
           </article>
-          {clients.data?.results?.map((client) => (
-            <article key={client.id} className="rounded-md border border-line bg-surface p-3">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-semibold text-ink">{client.label}</h3>
-                  <p className="mt-1 break-all font-mono text-xs text-muted">{client.client_id}</p>
+
+          <article className="rounded-md border border-line bg-surface p-3">
+            <h3 className="font-semibold text-ink">Your requests</h3>
+            <div className="mt-3 space-y-2">
+              {requests.data?.results?.map((request) => (
+                <div key={request.id} className="rounded-md border border-line bg-bg p-3">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-ink">{request.label}</p>
+                      <p className="mt-1 text-xs text-muted">{formatDate(request.created_at)}</p>
+                    </div>
+                    <span className="rounded-md border border-line bg-surface px-2 py-1 text-xs font-semibold uppercase text-muted">
+                      {request.status}
+                    </span>
+                  </div>
+                  {request.resolution_note ? (
+                    <p className="mt-2 text-sm text-muted">{request.resolution_note}</p>
+                  ) : null}
                 </div>
-                <button className="desk-button" onClick={() => toggle.mutate(client)}>
-                  {client.is_active ? "Disable" : "Enable"}
-                </button>
-              </div>
-              <Config label="Makerspace code" value={client.public_makerspace_code} />
-              <Config label="Public API" value={client.public_api_base_url} />
-              <Config label="Frontend env" value={`VITE_PUBLIC_CLIENT_ID=${client.client_id}`} />
-              <Config label="Origins" value={client.allowed_origins.join(", ")} />
-            </article>
-          ))}
-          {clients.data?.results?.length === 0 ? (
+              ))}
+            </div>
+          </article>
+          {requests.data?.results?.length === 0 ? (
             <p className="rounded-md border border-line bg-surface p-3 text-sm text-muted">
-              No API clients yet.
+              No API access requests yet.
             </p>
           ) : null}
         </div>
@@ -280,6 +280,10 @@ function splitOrigins(value: string) {
     .split(/\r?\n|,/)
     .map((origin) => origin.trim())
     .filter(Boolean);
+}
+
+function formatDate(value: string) {
+  return new Date(value).toLocaleString();
 }
 
 function settingsPayload(form: ApiSettingsForm) {

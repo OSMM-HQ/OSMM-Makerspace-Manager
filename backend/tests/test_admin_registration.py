@@ -19,7 +19,7 @@ def test_unfold_sidebar_links_all_resolve():
     assert broken == []
 
 from apps.accounts.models import User
-from apps.apiclients.models import ApiClient
+from apps.apiclients.models import ApiClient, ApiKeyRequest
 from apps.audit.models import AuditLog
 from apps.boxes.models import Box, BoxScan, QrCode, QrScanEvent
 from apps.evidence.models import EvidencePhoto
@@ -75,6 +75,7 @@ def test_core_models_are_registered_in_django_admin():
         PrintPrinter,
         FilamentSpool,
         ApiClient,
+        ApiKeyRequest,
         AuditLog,
         EvidencePhoto,
         ToBuyItem,

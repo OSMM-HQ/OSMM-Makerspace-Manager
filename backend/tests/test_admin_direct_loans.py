@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import pytest
 from django.test import override_settings
 from rest_framework.test import APIClient
@@ -56,6 +58,8 @@ def direct_url(makerspace):
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_admin_direct_manual_handout_and_return_logs_product():
     makerspace = make_space()
+    makerspace.default_loan_days = 10
+    makerspace.save(update_fields=["default_loan_days"])
     admin = make_admin(makerspace)
     product = make_product(makerspace)
     client = authed(admin)
@@ -79,6 +83,10 @@ def test_admin_direct_manual_handout_and_return_logs_product():
     assert request.issued_by == admin
     loan = PublicToolLoan.objects.get()
     assert loan.qr_code_id is None
+    assert loan.due_at is not None
+    assert abs((loan.due_at - loan.checked_out_at) - timedelta(days=10)) < timedelta(
+        seconds=2
+    )
     assert AuditLog.objects.filter(
         action="admin_direct.checked_out",
         target_type="inventory.inventoryproduct",

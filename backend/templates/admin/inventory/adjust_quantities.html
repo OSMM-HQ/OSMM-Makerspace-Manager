@@ -1,0 +1,38 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<form method="post" action="{{ request.path }}">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="{{ action_name }}">
+  {% for obj in queryset %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+  {% endfor %}
+
+  <fieldset class="module aligned">
+    <div class="form-row">
+      <label>Product:</label>
+      <div class="readonly">{{ product }}</div>
+    </div>
+    <div class="form-row">
+      <label for="id_delta_available">Available delta:</label>
+      <input id="id_delta_available" type="number" name="delta_available" value="0" required>
+    </div>
+    <div class="form-row">
+      <label for="id_delta_damaged">Damaged delta:</label>
+      <input id="id_delta_damaged" type="number" name="delta_damaged" value="0" required>
+    </div>
+    <div class="form-row">
+      <label for="id_delta_lost">Lost delta:</label>
+      <input id="id_delta_lost" type="number" name="delta_lost" value="0" required>
+    </div>
+    <div class="form-row">
+      <label for="id_reason">Reason:</label>
+      <textarea id="id_reason" name="reason" rows="5" required></textarea>
+    </div>
+  </fieldset>
+
+  <div class="submit-row">
+    <input type="submit" name="apply" value="Adjust quantities">
+  </div>
+</form>
+{% endblock %}

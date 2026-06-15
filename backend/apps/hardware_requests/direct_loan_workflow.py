@@ -1,4 +1,5 @@
 from collections import Counter
+from datetime import timedelta
 
 from django.db import transaction
 from django.utils import timezone
@@ -20,8 +21,9 @@ from apps.hardware_requests.workflow_errors import InvalidTransition, RequestVal
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 
 
-def issue_direct_loan(makerspace, actor, identifier, *, qr_payloads, items, due_at=None):
+def issue_direct_loan(makerspace, actor, identifier, *, qr_payloads, items):
     result = checkin.verify(makerspace, identifier)
+    due_at = timezone.now() + timedelta(days=(makerspace.default_loan_days or 7))
     with transaction.atomic():
         requester = _requester(result.external_id)
         product_quantities = Counter()

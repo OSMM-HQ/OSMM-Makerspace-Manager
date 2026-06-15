@@ -1,28 +1,30 @@
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, status
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from apps.accounts import rbac
+from apps.accounts.models import User
 from apps.admin_api.api_client_serializers import (
     ApiClientSerializer,
+    ApiKeyRequestSerializer,
     ApiIntegrationSettingsSerializer,
 )
-from apps.admin_api.permissions import IsActiveStaff, require_action
-from apps.apiclients.models import ApiClient
+from apps.admin_api.permissions import IsActiveStaff, IsActiveSuperAdmin, require_action
+from apps.apiclients.models import ApiClient, ApiKeyRequest
 from apps.apiclients.services import sync_makerspace_origins
 from apps.audit import services as audit
-from apps.makerspaces.models import Makerspace
+from apps.makerspaces.models import Makerspace, MakerspaceMembership
 
 
 @extend_schema(tags=["API clients"], summary="List or create makerspace API clients")
 class ApiClientListCreateView(generics.ListCreateAPIView):
     serializer_class = ApiClientSerializer
-    permission_classes = [IsActiveStaff]
+    permission_classes = [IsActiveSuperAdmin]
 
     def get_queryset(self):
         makerspace_id = self.kwargs["makerspace_id"]
-        require_action(self.request.user, rbac.Action.MANAGE_MAKERSPACE, makerspace_id)
         return (
             ApiClient.objects.select_related("makerspace")
             .filter(makerspace_id=makerspace_id)
@@ -31,7 +33,6 @@ class ApiClientListCreateView(generics.ListCreateAPIView):
 
     def create(self, request, *args, **kwargs):
         makerspace_id = self.kwargs["makerspace_id"]
-        require_action(request.user, rbac.Action.MANAGE_MAKERSPACE, makerspace_id)
         makerspace = get_object_or_404(Makerspace, pk=makerspace_id)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -62,15 +63,11 @@ class ApiClientListCreateView(generics.ListCreateAPIView):
 @extend_schema(tags=["API clients"], summary="Retrieve, update, or delete API client")
 class ApiClientDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ApiClientSerializer
-    permission_classes = [IsActiveStaff]
+    permission_classes = [IsActiveSuperAdmin]
     http_method_names = ["get", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
-        return rbac.scope_by_action(
-            self.request.user,
-            rbac.Action.MANAGE_MAKERSPACE,
-            ApiClient.objects.select_related("makerspace"),
-        )
+        return ApiClient.objects.select_related("makerspace")
 
     def perform_update(self, serializer):
         instance = serializer.save()
@@ -92,6 +89,52 @@ class ApiClientDetailView(generics.RetrieveUpdateDestroyAPIView):
         )
         instance.delete()
         sync_makerspace_origins(makerspace)
+
+
+@extend_schema(
+    tags=["API key requests"],
+    summary="List or create API key requests",
+    parameters=[OpenApiParameter("makerspace", int, OpenApiParameter.QUERY)],
+)
+class ApiKeyRequestListCreateView(generics.ListCreateAPIView):
+    serializer_class = ApiKeyRequestSerializer
+    permission_classes = [IsActiveStaff]
+
+    def get_queryset(self):
+        queryset = (
+            ApiKeyRequest.objects.select_related("makerspace", "requester")
+            .filter(requester=self.request.user)
+            .order_by("-created_at")
+        )
+        makerspace_id = self.request.query_params.get("makerspace")
+        if makerspace_id:
+            queryset = queryset.filter(makerspace_id=makerspace_id)
+        return queryset
+
+    def perform_create(self, serializer):
+        makerspace = serializer.validated_data["makerspace"]
+        # Any active staff MEMBER of the makerspace may file a request (incl. print/guest
+        # admins who lack VIEW_INVENTORY) — issuance still happens only in the superadmin
+        # /control/ admin. Gate on membership existence, not a specific action.
+        user = self.request.user
+        is_superadmin = user.is_superuser or user.role == User.Role.SUPERADMIN
+        is_member = MakerspaceMembership.objects.filter(
+            user=user, makerspace_id=makerspace.id
+        ).exists()
+        if not (is_superadmin or is_member):
+            raise PermissionDenied()
+
+        api_key_request = serializer.save(
+            requester=self.request.user,
+            status=ApiKeyRequest.Status.PENDING,
+        )
+        audit.record(
+            self.request.user,
+            "api_key_request.created",
+            makerspace=makerspace,
+            target=api_key_request,
+            meta={"allowed_origins": api_key_request.allowed_origins},
+        )
 
 
 @extend_schema(tags=["API clients"], summary="Retrieve or update API integration settings")

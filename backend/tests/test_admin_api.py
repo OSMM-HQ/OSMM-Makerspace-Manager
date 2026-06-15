@@ -2,7 +2,7 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from apps.accounts.models import User
-from apps.apiclients.models import ApiClient
+from apps.apiclients.models import ApiClient, ApiKeyRequest
 from apps.audit.models import AuditLog
 from apps.inventory.models import Category, InventoryProduct
 from apps.makerspaces.models import MakerspaceMembership
@@ -318,11 +318,34 @@ def test_inventory_quantity_adjustment_hides_cross_tenant_product_before_permiss
     assert response.status_code == 404
 
 
-def test_admin_can_create_and_list_makerspace_api_clients():
+def test_api_client_rest_is_superadmin_only():
     makerspace = make_space("client-space")
     admin = make_member("client-admin", makerspace)
-    client = authenticated_client(admin)
+    admin_client = authenticated_client(admin)
 
+    denied_create = admin_client.post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/api-clients",
+        {
+            "label": "Public web",
+            "allowed_origins": ["https://lab.example.com"],
+        },
+        format="json",
+    )
+    denied_list = admin_client.get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/api-clients"
+    )
+
+    assert denied_create.status_code == 403
+    assert denied_list.status_code == 403
+    assert ApiClient.objects.count() == 0
+
+    superadmin = make_user(
+        "client-super",
+        role=User.Role.SUPERADMIN,
+        access_status=User.AccessStatus.ACTIVE,
+        is_superuser=True,
+    )
+    client = authenticated_client(superadmin)
     created = client.post(
         f"/api/v1/admin/makerspace/{makerspace.id}/api-clients",
         {
@@ -332,6 +355,8 @@ def test_admin_can_create_and_list_makerspace_api_clients():
         format="json",
     )
     listed = client.get(f"/api/v1/admin/makerspace/{makerspace.id}/api-clients")
+    denied_detail = admin_client.get(f"/api/v1/admin/api-clients/{created.data['id']}")
+    detail = client.get(f"/api/v1/admin/api-clients/{created.data['id']}")
 
     assert created.status_code == 201
     assert created.data["client_id"].startswith("ck_")
@@ -340,9 +365,59 @@ def test_admin_can_create_and_list_makerspace_api_clients():
     assert created.data["public_makerspace_code"] == makerspace.public_code
     assert listed.status_code == 200
     assert listed.data["results"][0]["client_id"] == created.data["client_id"]
+    assert denied_detail.status_code == 403
+    assert detail.status_code == 200
+    assert detail.data["client_id"] == created.data["client_id"]
     assert ApiClient.objects.get().get_secret() == created.data["client_secret"]
     makerspace.refresh_from_db()
     assert makerspace.cors_allowed_origins == ["https://lab.example.com"]
+
+
+def test_member_can_request_api_key_without_secret_exposure():
+    makerspace = make_space("client-request-space")
+    requester = make_member("client-requester", makerspace)
+    client = authenticated_client(requester)
+
+    created = client.post(
+        "/api/v1/admin/api-key-requests",
+        {
+            "makerspace": makerspace.id,
+            "label": "Webhook server",
+            "reason": "Sync inventory.",
+            "allowed_origins": ["https://webhook.example.com"],
+        },
+        format="json",
+    )
+    listed = client.get(f"/api/v1/admin/api-key-requests?makerspace={makerspace.id}")
+
+    assert created.status_code == 201
+    assert created.data["status"] == ApiKeyRequest.Status.PENDING
+    assert "client_secret" not in created.data
+    assert "secret" not in created.data
+    assert listed.status_code == 200
+    assert listed.data["results"][0]["id"] == created.data["id"]
+    api_key_request = ApiKeyRequest.objects.get()
+    assert api_key_request.requester == requester
+    assert AuditLog.objects.filter(action="api_key_request.created").exists()
+
+
+def test_member_cannot_request_api_key_for_other_makerspace():
+    own_space = make_space("client-request-own")
+    other_space = make_space("client-request-other")
+    requester = make_member("client-request-cross", own_space)
+
+    response = authenticated_client(requester).post(
+        "/api/v1/admin/api-key-requests",
+        {
+            "makerspace": other_space.id,
+            "label": "Blocked webhook",
+            "allowed_origins": ["https://blocked.example.com"],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert ApiKeyRequest.objects.count() == 0
 
 
 def test_admin_can_manage_api_integration_settings_from_api_clients_area():

@@ -49,9 +49,15 @@ def test_qr_resolve_records_lookup_and_returns_allowed_actions():
 
 def test_browser_api_client_rejects_admin_write_scope():
     makerspace = make_space("prd-client")
-    manager = make_member("prd-client-manager", makerspace)
+    # Issuance is superadmin-only now; use a superadmin so we reach the serializer's
+    # scope validation (the browser+admin:write rejection) rather than the 403 gate.
+    superadmin = make_user(
+        "prd-client-superadmin",
+        role=User.Role.SUPERADMIN,
+        is_superuser=True,
+    )
 
-    response = authenticated_client(manager).post(
+    response = authenticated_client(superadmin).post(
         f"/api/v1/admin/makerspace/{makerspace.id}/api-clients",
         {
             "label": "Public browser",

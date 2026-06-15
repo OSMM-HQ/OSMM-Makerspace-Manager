@@ -1,5 +1,5 @@
 from django.conf import settings
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
@@ -7,8 +7,43 @@ from apps.accounts.models import User
 from apps.audit import services as audit
 from apps.hardware_requests.workflow_utils import get_or_create_requester
 from apps.printing.emails import send_print_email
-from apps.printing.models import PrintBucket, PrintRequest, PrintRequestFile
+from apps.printing.models import (
+    FilamentSpool,
+    PrintBucket,
+    PrintRequest,
+    PrintRequestFile,
+)
 from apps.printing.storage import print_object_size
+
+
+def _resolve_public_bucket(makerspace, bucket_id):
+    # Distinguish an omitted/null bucket (use the default) from an explicit invalid id like 0
+    # (which can't be a real PK) — the latter must still raise the validation error, not fall
+    # through to the default "Public Requests" queue.
+    if bucket_id is not None:
+        bucket = PrintBucket.objects.filter(
+            pk=bucket_id,
+            makerspace=makerspace,
+            is_active=True,
+        ).first()
+        if bucket is None:
+            raise ValidationError({"bucket_id": "Invalid or inactive bucket."})
+        return bucket
+
+    try:
+        with transaction.atomic():
+            bucket, _ = PrintBucket.objects.get_or_create(
+                makerspace=makerspace,
+                name="Public Requests",
+                defaults={"is_active": True},
+            )
+    except IntegrityError:
+        bucket = PrintBucket.objects.get(makerspace=makerspace, name="Public Requests")
+
+    if not bucket.is_active:
+        bucket.is_active = True
+        bucket.save(update_fields=["is_active"])
+    return bucket
 
 
 def submit_public_print_request(makerspace, data, result):
@@ -17,23 +52,37 @@ def submit_public_print_request(makerspace, data, result):
         if requester.access_status != User.AccessStatus.ACTIVE:
             raise PermissionDenied("Requester is not active.")
 
-        bucket = PrintBucket.objects.filter(
-            pk=data["bucket_id"],
-            makerspace=makerspace,
-            is_active=True,
-        ).first()
-        if bucket is None:
-            raise ValidationError({"bucket_id": "Invalid or inactive bucket."})
+        bucket = _resolve_public_bucket(makerspace, data.get("bucket_id"))
+        spool = None
+        spool_id = data.get("filament_spool_id")
+        if spool_id is not None:
+            spool = FilamentSpool.objects.filter(
+                pk=spool_id,
+                makerspace=makerspace,
+                is_active=True,
+            ).first()
+            if spool is None:
+                raise ValidationError(
+                    {"filament_spool_id": "Invalid or inactive spool."}
+                )
+
+        material = data.get("material", "")
+        color = data.get("color", "")
+        if spool is not None:
+            material = material or spool.material
+            color = color or spool.color
 
         request = PrintRequest.objects.create(
             bucket=bucket,
             requester=requester,
+            requester_name=data.get("requester_name", "").strip(),
             title=data["title"],
             description=data.get("description", ""),
             project_brief=data.get("project_brief", ""),
             preferred_settings=data.get("preferred_settings", ""),
-            material=data.get("material", ""),
-            color=data.get("color", ""),
+            material=material,
+            color=color,
+            requested_filament_spool=spool,
             quantity=data.get("quantity", 1),
             source_link=data.get("source_link", ""),
             contact_email=data.get("contact_email", "").strip(),

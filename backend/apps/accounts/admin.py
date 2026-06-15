@@ -1,13 +1,30 @@
+from django import forms
 from django.contrib import admin
+from django.contrib import messages
+from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib.auth.admin import GroupAdmin as DjangoGroupAdmin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.auth.models import Group
+from django.template.response import TemplateResponse
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
 
 from apps.accounts.models import User
+from apps.audit import services as audit
 from apps.makerspaces.models import MakerspaceMembership
 from config.admin_access import SuperuserOnlyModelAdmin
+
+
+class RestrictAccessForm(forms.Form):
+    status = forms.ChoiceField(
+        choices=[
+            choice
+            for choice in User.AccessStatus.choices
+            if choice[0] != User.AccessStatus.ACTIVE
+        ],
+        required=True,
+    )
+    reason = forms.CharField(required=True, widget=forms.Textarea)
 
 
 class MakerspaceMembershipInline(TabularInline):
@@ -20,6 +37,7 @@ class MakerspaceMembershipInline(TabularInline):
 
 @admin.register(User)
 class UserAdmin(SuperuserOnlyModelAdmin, DjangoUserAdmin, ModelAdmin):
+    actions = ["restrict_access", "restore_access"]
     form = UserChangeForm
     add_form = UserCreationForm
     change_password_form = AdminPasswordChangeForm
@@ -38,8 +56,74 @@ class UserAdmin(SuperuserOnlyModelAdmin, DjangoUserAdmin, ModelAdmin):
         ),
     )
     list_display = ("username", "email", "role", "access_status", "is_staff")
-    list_filter = DjangoUserAdmin.list_filter + ("role", "access_status")
+    list_filter = DjangoUserAdmin.list_filter + (
+        "role",
+        "access_status",
+        "makerspace_memberships__makerspace",
+    )
     inlines = (MakerspaceMembershipInline,)
+
+    @admin.action(description="Restrict selected users")
+    def restrict_access(self, request, queryset):
+        if "apply" not in request.POST:
+            context = {
+                **self.admin_site.each_context(request),
+                "title": "Restrict selected users",
+                "queryset": queryset,
+                "opts": self.model._meta,
+                "action_name": "restrict_access",
+                "action_checkbox_name": ACTION_CHECKBOX_NAME,
+                "status_choices": RestrictAccessForm.base_fields["status"].choices,
+            }
+            return TemplateResponse(
+                request,
+                "admin/accounts/restrict_access_action.html",
+                context,
+            )
+
+        form = RestrictAccessForm(request.POST)
+        if not form.is_valid():
+            self.message_user(request, form.errors, level=messages.ERROR)
+            return None
+
+        success_count = 0
+        status = form.cleaned_data["status"]
+        reason = form.cleaned_data["reason"]
+        for user in queryset:
+            user.access_status = status
+            user.restriction_reason = reason
+            user.save(update_fields=["access_status", "restriction_reason"])
+            audit.record(
+                request.user,
+                "user.access_restricted",
+                target=user,
+                meta={"status": user.access_status, "reason": user.restriction_reason},
+            )
+            success_count += 1
+
+        self.message_user(
+            request,
+            f"Restricted {success_count} user(s).",
+            level=messages.SUCCESS,
+        )
+        return None
+
+    @admin.action(description="Restore selected users")
+    def restore_access(self, request, queryset):
+        success_count = 0
+        for user in queryset:
+            user.access_status = User.AccessStatus.ACTIVE
+            user.restriction_reason = ""
+            user.save(update_fields=["access_status", "restriction_reason"])
+            audit.record(request.user, "user.access_restored", target=user)
+            success_count += 1
+
+        if success_count:
+            self.message_user(
+                request,
+                f"Restored access for {success_count} user(s).",
+                level=messages.SUCCESS,
+            )
 
 
 admin.site.unregister(Group)

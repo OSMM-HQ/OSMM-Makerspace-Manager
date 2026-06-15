@@ -1,10 +1,12 @@
-from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import generics
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
+from rest_framework.response import Response
 
 from apps.accounts import rbac
+from apps.audit import services as audit
 from apps.makerspaces.guards import require_module
-from apps.printing.models import PrintPrinter
+from apps.printing.models import FilamentSpool, PrintPrinter, PrintRequest
 from apps.printing.permissions import CanManagePrinting
 from apps.printing.serializers import PrintPrinterSerializer
 from apps.printing.views_common import ERROR_RESPONSES, _int_query_param
@@ -62,8 +64,8 @@ class ManagedPrinterListCreateView(ManagedPrinterMixin, generics.ListCreateAPIVi
         return super().post(request, *args, **kwargs)
 
 
-@extend_schema(tags=["Printing"], summary="Retrieve or update managed 3D printer")
-class ManagedPrinterDetailView(ManagedPrinterMixin, generics.RetrieveUpdateAPIView):
+@extend_schema(tags=["Printing"], summary="Retrieve, update, or delete managed 3D printer")
+class ManagedPrinterDetailView(ManagedPrinterMixin, generics.RetrieveUpdateDestroyAPIView):
     serializer_class = PrintPrinterSerializer
 
     def get_queryset(self):
@@ -78,6 +80,31 @@ class ManagedPrinterDetailView(ManagedPrinterMixin, generics.RetrieveUpdateAPIVi
         self.assert_can_manage_makerspace(makerspace_id)
         serializer.save()
 
+    def destroy(self, request, *args, **kwargs):
+        printer = self.get_object()
+        self.assert_can_manage_makerspace(printer.makerspace_id)
+        if (
+            PrintRequest.objects.filter(printer=printer).exists()
+            or FilamentSpool.objects.filter(printer=printer).exists()
+        ):
+            return Response(
+                {
+                    "detail": (
+                        "This printer is linked to print requests or spools; deactivate it "
+                        "instead to preserve history."
+                    )
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        audit.record(
+            request.user,
+            "printing.printer_deleted",
+            makerspace=printer.makerspace,
+            target=printer,
+        )
+        printer.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @extend_schema(responses={200: PrintPrinterSerializer, **ERROR_RESPONSES})
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
@@ -88,3 +115,13 @@ class ManagedPrinterDetailView(ManagedPrinterMixin, generics.RetrieveUpdateAPIVi
     )
     def patch(self, request, *args, **kwargs):
         return super().patch(request, *args, **kwargs)
+
+    @extend_schema(
+        responses={
+            204: None,
+            409: OpenApiResponse(description="Printer is referenced by print requests or spools."),
+            **ERROR_RESPONSES,
+        }
+    )
+    def delete(self, request, *args, **kwargs):
+        return super().delete(request, *args, **kwargs)

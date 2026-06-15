@@ -1,5 +1,6 @@
 import logging
 
+from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.template.loader import render_to_string
 
@@ -16,7 +17,23 @@ _SUBJECTS = {
 }
 
 
+def _with_email_relations(print_request):
+    bucket_cached = "bucket" in print_request._state.fields_cache
+    makerspace_cached = (
+        bucket_cached and "makerspace" in print_request.bucket._state.fields_cache
+    )
+    requester_cached = "requester" in print_request._state.fields_cache
+    if bucket_cached and makerspace_cached and requester_cached:
+        return print_request
+    return (
+        type(print_request)
+        .objects.select_related("bucket__makerspace", "requester")
+        .get(pk=print_request.pk)
+    )
+
+
 def send_print_email(event, print_request):
+    print_request = _with_email_relations(print_request)
     # Public requests come from Check-In shadow users with no account email, so the
     # reachable address is the contact_email captured on the request; fall back to the
     # requester's account email for staff-created/authenticated requests.
@@ -25,7 +42,18 @@ def send_print_email(event, print_request):
         return
 
     subject = _SUBJECTS[event]
-    context = {"print_request": print_request}
+    makerspace = print_request.bucket.makerspace
+    base = getattr(settings, "PUBLIC_APP_BASE_URL", "") or ""
+    status_url = (
+        f"{base}/m/{makerspace.slug}/print?token={print_request.public_token}"
+        if base
+        else ""
+    )
+    context = {
+        "print_request": print_request,
+        "status_url": status_url,
+        "public_token": str(print_request.public_token),
+    }
     try:
         text_body = render_to_string(f"email/print_{event}.txt", context)
         html_body = render_to_string(f"email/print_{event}.html", context)

@@ -2,6 +2,55 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — public UX, login, API-key requests, admin parity (2026-06-15)
+
+A multi-feature batch (8 phases) refined public flows, login, API-key governance, and Django-admin
+parity:
+
+- **Public 3D print request UX.** The public form no longer requires a bucket — `submit_public_print_request`
+  resolves a per-makerspace default `PrintBucket` named **"Public Requests"** (`get_or_create`, savepoint-guarded
+  against the `unique_together(makerspace, name)` race). Requesters can pick from the makerspace's **active
+  filament spools** via the AllowAny `GET /api/v1/printing/public/<slug>/spools` endpoint
+  (`PublicFilamentSpoolSerializer` exposes only id/material/color/remaining_weight_grams). The chosen spool is a
+  **preference**, stored on a NEW `PrintRequest.requested_filament_spool` FK (SET_NULL) that is **distinct from the
+  operational `filament_spool`** (which stays NULL until staff assign at start). A `PrintRequest.requester_name`
+  field captures the requester's name. `source_link` is (and was) optional. Print status emails now include a
+  **status link** (`PUBLIC_APP_BASE_URL` env + `/m/<slug>/print?token=<public_token>`) and the tracking token; the
+  public print page reads `?token=` to auto-show status. Migration `printing/0005`.
+- **Public self-checkout scanner (frontend).** `frontend/src/features/inventory/PublicSelfCheckoutPage.tsx`
+  (route `/m/:slug/checkout`, linked from the catalog when the `self_checkout` module is on) drives the
+  pre-existing AllowAny `PublicToolCheckoutView`/`PublicToolReturnView` (`/api/v1/public/<slug>/tools/{checkout,return}`):
+  enter Check-In ID → scan the **physical** tool QR (camera) → Use/Return. No QR payload is ever rendered on a public
+  page (preserves the physical-possession security model); the backend only resolves `public_self_checkout_enabled`
+  items, so non-enabled items/boxes are never exposed.
+- **Direct handout date.** `issue_direct_loan` no longer accepts a client `due_at`; it sets
+  `due_at = now + makerspace.default_loan_days` (fallback 7). The datetime picker was removed from `DirectLoans.tsx`.
+- **Printer delete.** `ManagedPrinterDetailView` is now `RetrieveUpdateDestroyAPIView`; DELETE returns **409** when the
+  printer is referenced by any `PrintRequest` OR `FilamentSpool` (mirrors the spool-delete guard; preserves history),
+  else deletes + audits. Frontend delete button added.
+- **Login.** `LoginPanel` is a real `<form>` with `autocomplete="username"/"current-password"` (password-manager save).
+  `StaffApp` restores the session on mount via a silent `POST /auth/refresh` (httpOnly 7-day cookie) → `/auth/me`
+  hydrate. `api.ts` refresh/logout send `credentials:"include"` + `X-Refresh-CSRF` and logout calls `POST /auth/logout`.
+  **`accounts.auth_cookies._origin_allowed` now also accepts dynamically-registered tenant origins** via the shared
+  `makerspaces.cors.origin_is_registered` (so cross-origin refresh/logout don't 403 for registered frontends).
+- **API-key governance (no keys in the React frontend).** ALL `ApiClient` REST endpoints (list/create/detail/update/
+  delete) are **superadmin-only** (`IsActiveDjangoSuperuser`); the Telegram/SMTP `ApiIntegrationSettingsView` is
+  unchanged. Non-superadmin staff can only file an **`ApiKeyRequest`** (`apiclients.models.ApiKeyRequest`, migration
+  `0003`) via `GET/POST /api/v1/admin/api-key-requests` (create + list-own). Issuance + one-time secret reveal happen
+  ONLY in the Django `/control/` admin: `ApiKeyRequestAdmin.approve_and_issue` calls `ApiClient.issue()` +
+  `sync_makerspace_origins()`, reveals the secret to the superadmin via `message_user`, and **notifies the requester
+  of approval/rejection with no secret** (`apiclients.notifications`, fail-safe). The React `ApiClientsPanel` was
+  stripped of all key create/secret/list surfaces and now only files requests + (superadmin-gated) integration settings.
+- **Inventory quantity math centralized.** The adjustment logic moved from `admin_api/views_inventory.py` into
+  `inventory.availability.adjust_quantities(...)` (row-locked, negative-guard, records `InventoryAdjustment` + audit);
+  both the admin API and the new Django-admin action call it.
+- **Django `/control/` operational parity.** New superadmin admin actions route through services (never mutate
+  status/quantity directly): inventory **Adjust quantities** (→ `availability.adjust_quantities`), hardware request
+  **Set return due date** (→ `handover_workflow.set_return_due`), user **Restrict/Restore access** (audited like the
+  API), and **safe delete** actions for printers/spools (API-style 409 reference guard). `UserAdmin` gained a
+  makerspace-membership `list_filter`. Hardware **issue/return are deliberately NOT mirrored in the admin** — they
+  require box-scan + photos + remark (hard rules), so they remain in the React evidence flow.
+
 ## Project Status
 
 ### Admin control plane (superadmin-only)

@@ -219,6 +219,55 @@ def test_managed_spool_delete_removes_unreferenced_spool():
     assert not FilamentSpool.objects.filter(pk=spool.id).exists()
 
 
+def test_managed_printer_delete_removes_unreferenced_printer():
+    makerspace = make_space("manage-printer-del-ok")
+    manager = make_print_manager("manage-printer-del-ok-manager", makerspace)
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Prusa MK4")
+
+    response = authenticated_client(manager).delete(printer_detail_url(printer))
+
+    assert response.status_code == 204
+    assert not PrintPrinter.objects.filter(pk=printer.id).exists()
+
+
+def test_managed_printer_delete_blocks_referenced_printer_with_409():
+    makerspace = make_space("manage-printer-del-ref")
+    bucket = make_bucket(makerspace)
+    requester = make_user("manage-printer-del-requester", access_status=User.AccessStatus.ACTIVE)
+    manager = make_print_manager("manage-printer-del-ref-manager", makerspace)
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Prusa MK4")
+    print_request = make_request(bucket, requester)
+    print_request.printer = printer
+    print_request.save(update_fields=["printer"])
+
+    response = authenticated_client(manager).delete(printer_detail_url(printer))
+
+    assert response.status_code == 409
+    assert response.data["detail"] == (
+        "This printer is linked to print requests or spools; deactivate it instead "
+        "to preserve history."
+    )
+    assert PrintPrinter.objects.filter(pk=printer.id).exists()
+
+
+def test_managed_printer_delete_blocks_printer_with_spools_with_409():
+    makerspace = make_space("manage-printer-del-spool")
+    manager = make_print_manager("manage-printer-del-spool-manager", makerspace)
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Prusa MK4")
+    FilamentSpool.objects.create(
+        makerspace=makerspace,
+        printer=printer,
+        material="PETG",
+        initial_weight_grams=1000,
+        remaining_weight_grams=1000,
+    )
+
+    response = authenticated_client(manager).delete(printer_detail_url(printer))
+
+    assert response.status_code == 409
+    assert PrintPrinter.objects.filter(pk=printer.id).exists()
+
+
 def test_managed_spool_delete_blocks_referenced_spool_with_409():
     makerspace = make_space("manage-spool-del-ref")
     bucket = make_bucket(makerspace)

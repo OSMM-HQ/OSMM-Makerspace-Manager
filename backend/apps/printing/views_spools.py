@@ -1,3 +1,4 @@
+from django.db.models import Q
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -68,7 +69,9 @@ class ManagedFilamentSpoolDetailView(
     def destroy(self, request, *args, **kwargs):
         spool = self.get_object()
         self.assert_can_manage_makerspace(spool.makerspace_id)
-        if PrintRequest.objects.filter(filament_spool=spool).exists():
+        if PrintRequest.objects.filter(
+            Q(filament_spool=spool) | Q(requested_filament_spool=spool)
+        ).exists():
             return Response(
                 {
                     "detail": (

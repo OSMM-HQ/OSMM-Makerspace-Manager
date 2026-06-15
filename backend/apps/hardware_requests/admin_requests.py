@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import admin
 from django.contrib import messages
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
@@ -5,10 +6,25 @@ from django.template.response import TemplateResponse
 from unfold.admin import ModelAdmin, TabularInline
 
 from apps.hardware_requests.admin_workflow import WORKFLOW_EXCEPTIONS
-from apps.hardware_requests.handover_workflow import assign_box
+from apps.hardware_requests.handover_workflow import (
+    assign_box,
+    set_return_due as workflow_set_return_due,
+)
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
 from apps.hardware_requests.request_workflow import accept_request, reject_request
 from config.admin_access import SuperuserOnlyModelAdmin
+
+
+class ReturnDueForm(forms.Form):
+    return_due_at = forms.DateTimeField(
+        required=True,
+        input_formats=[
+            "%Y-%m-%dT%H:%M",
+            "%Y-%m-%d %H:%M:%S",
+            "%Y-%m-%d %H:%M",
+            "%Y-%m-%d",
+        ],
+    )
 
 
 class HardwareRequestItemInline(TabularInline):
@@ -32,7 +48,12 @@ class HardwareRequestItemInline(TabularInline):
 
 @admin.register(HardwareRequest)
 class HardwareRequestAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
-    actions = ["accept_selected", "reject_selected", "assign_box_selected"]
+    actions = [
+        "accept_selected",
+        "reject_selected",
+        "assign_box_selected",
+        "set_return_due",
+    ]
     list_display = (
         "id",
         "status",
@@ -172,6 +193,47 @@ class HardwareRequestAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
             self.message_user(
                 request,
                 f"Assigned boxes for {success_count} hardware request(s).",
+                level=messages.SUCCESS,
+            )
+        return None
+
+    @admin.action(description="Set return due date for selected requests")
+    def set_return_due(self, request, queryset):
+        if "apply" not in request.POST:
+            return self._intermediate_action_response(
+                request,
+                queryset,
+                "admin/hardware_requests/set_return_due_action.html",
+                "Set return due date for selected hardware requests",
+                "set_return_due",
+            )
+
+        form = ReturnDueForm(request.POST)
+        if not form.is_valid():
+            self.message_user(request, form.errors, level=messages.ERROR)
+            return None
+
+        success_count = 0
+        for hardware_request in queryset:
+            try:
+                workflow_set_return_due(
+                    request.user,
+                    hardware_request,
+                    form.cleaned_data["return_due_at"],
+                )
+            except WORKFLOW_EXCEPTIONS as exc:
+                self.message_user(
+                    request,
+                    f"{hardware_request.pk}: {exc}",
+                    level=messages.ERROR,
+                )
+            else:
+                success_count += 1
+
+        if success_count:
+            self.message_user(
+                request,
+                f"Updated return due date for {success_count} hardware request(s).",
                 level=messages.SUCCESS,
             )
         return None

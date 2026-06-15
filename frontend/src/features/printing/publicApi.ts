@@ -6,6 +6,13 @@ export type PrintBucket = {
   description: string;
 };
 
+export type PublicFilamentSpool = {
+  id: number;
+  material: string;
+  color: string;
+  remaining_weight_grams: string;
+};
+
 export type PrintStatus = {
   public_token: string;
   status: string;
@@ -31,13 +38,15 @@ export type PrintUpload = {
 export type PrintRequestPayload = {
   website?: string;
   identifier: string;
-  bucket_id: number;
+  bucket_id?: number;
+  requester_name?: string;
   title: string;
   description?: string;
   project_brief?: string;
   preferred_settings?: string;
   material?: string;
   color?: string;
+  filament_spool_id?: number | null;
   quantity: number;
   source_link?: string;
   contact_email?: string;
@@ -47,6 +56,12 @@ export type PrintRequestPayload = {
 
 export function fetchPrintBuckets(slug: string) {
   return publicV1Request<PrintBucket[]>(`/printing/public/${slug}/buckets`);
+}
+
+export function fetchPublicSpools(slug: string) {
+  return publicV1Request<PublicFilamentSpool[]>(
+    `/printing/public/${slug}/spools`,
+  );
 }
 
 export function verifyPrintCheckin(slug: string, identifier: string) {

@@ -121,6 +121,7 @@ UNFOLD = {
                 "separator": True,
                 "items": [
                     _item("API clients", "vpn_key", "admin:apiclients_apiclient_changelist"),
+                    _item("API key requests", "approval", "admin:apiclients_apikeyrequest_changelist"),
                     _item("Tenant frontends", "devices", "admin:makerspaces_tenantfrontend_changelist"),
                 ],
             },

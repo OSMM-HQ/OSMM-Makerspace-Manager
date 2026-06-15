@@ -144,6 +144,11 @@ export function PublicInventoryPage() {
                   Request a 3D print
                 </Link>
               ) : null}
+              {modules.has("self_checkout") ? (
+                <Link className="desk-button" to={`/m/${makerspaceSlug}/checkout`}>
+                  Scan a tool
+                </Link>
+              ) : null}
               <ThemeToggle />
               <Link className="desk-button" to="/admin">
                 Staff login

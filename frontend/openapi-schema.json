@@ -398,6 +398,103 @@
                 }
             }
         },
+        "/api/v1/admin/api-key-requests": {
+            "get": {
+                "operationId": "api_v1_admin_api_key_requests_list",
+                "summary": "List or create API key requests",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "makerspace",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "API key requests"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedApiKeyRequestList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_admin_api_key_requests_create",
+                "summary": "List or create API key requests",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "makerspace",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "API key requests"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiKeyRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiKeyRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ApiKeyRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiKeyRequest"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/assets/{id}/qr": {
             "post": {
                 "operationId": "api_v1_admin_assets_qr_create",
@@ -6143,7 +6240,7 @@
         "/api/v1/printing/manage/printers/{id}/": {
             "get": {
                 "operationId": "api_v1_printing_manage_printers_retrieve",
-                "summary": "Retrieve or update managed 3D printer",
+                "summary": "Retrieve, update, or delete managed 3D printer",
                 "parameters": [
                     {
                         "in": "path",
@@ -6196,7 +6293,7 @@
             },
             "put": {
                 "operationId": "api_v1_printing_manage_printers_update",
-                "summary": "Retrieve or update managed 3D printer",
+                "summary": "Retrieve, update, or delete managed 3D printer",
                 "parameters": [
                     {
                         "in": "path",
@@ -6250,7 +6347,7 @@
             },
             "patch": {
                 "operationId": "api_v1_printing_manage_printers_partial_update",
-                "summary": "Retrieve or update managed 3D printer",
+                "summary": "Retrieve, update, or delete managed 3D printer",
                 "parameters": [
                     {
                         "in": "path",
@@ -6298,6 +6395,55 @@
                             }
                         },
                         "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "api_v1_printing_manage_printers_destroy",
+                "summary": "Retrieve, update, or delete managed 3D printer",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Printing"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    },
+                    "409": {
+                        "description": "Printer is referenced by print requests or spools."
                     },
                     "400": {
                         "content": {
@@ -7325,6 +7471,39 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/PrintRequestSubmitResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/printing/public/{makerspace_slug}/spools": {
+            "get": {
+                "operationId": "api_v1_printing_public_spools_list",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Public printing"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PublicFilamentSpool"
+                                    }
                                 }
                             }
                         },
@@ -9024,6 +9203,73 @@
                     "telegram_bot_token_set"
                 ]
             },
+            "ApiKeyRequest": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "makerspace": {
+                        "type": "integer"
+                    },
+                    "label": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "reason": {
+                        "type": "string"
+                    },
+                    "allowed_origins": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApiKeyRequestStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "resolution_note": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "resolved_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "allowed_origins",
+                    "created_at",
+                    "id",
+                    "label",
+                    "makerspace",
+                    "resolution_note",
+                    "resolved_at",
+                    "status"
+                ]
+            },
+            "ApiKeyRequestStatusEnum": {
+                "enum": [
+                    "pending",
+                    "approved",
+                    "rejected"
+                ],
+                "type": "string",
+                "description": "* `pending` - Pending\n* `approved` - Approved\n* `rejected` - Rejected"
+            },
             "AssetGenerate": {
                 "type": "object",
                 "properties": {
@@ -9637,11 +9883,6 @@
                 "properties": {
                     "identifier": {
                         "type": "string"
-                    },
-                    "due_at": {
-                        "type": "string",
-                        "format": "date-time",
-                        "nullable": true
                     },
                     "qr_payloads": {
                         "type": "array",
@@ -10348,6 +10589,37 @@
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/ApiClient"
+                        }
+                    }
+                }
+            },
+            "PaginatedApiKeyRequestList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ApiKeyRequest"
                         }
                     }
                 }
@@ -11676,6 +11948,10 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "requester_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
                     "title": {
                         "type": "string",
                         "readOnly": true
@@ -11769,6 +12045,14 @@
                         ],
                         "readOnly": true
                     },
+                    "requested_filament_spool": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FilamentSpoolSummary"
+                            }
+                        ],
+                        "readOnly": true
+                    },
                     "estimated_minutes": {
                         "type": "integer",
                         "readOnly": true
@@ -11833,8 +12117,10 @@
                     "project_brief",
                     "quantity",
                     "reason",
+                    "requested_filament_spool",
                     "requester",
                     "requester_email",
+                    "requester_name",
                     "requester_username",
                     "source_link",
                     "started_at",
@@ -11920,7 +12206,12 @@
                         "type": "string"
                     },
                     "bucket_id": {
-                        "type": "integer"
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "requester_name": {
+                        "type": "string",
+                        "maxLength": 120
                     },
                     "title": {
                         "type": "string",
@@ -11942,6 +12233,10 @@
                     "color": {
                         "type": "string",
                         "maxLength": 100
+                    },
+                    "filament_spool_id": {
+                        "type": "integer",
+                        "nullable": true
                     },
                     "quantity": {
                         "type": "integer",
@@ -11970,7 +12265,6 @@
                     }
                 },
                 "required": [
-                    "bucket_id",
                     "identifier",
                     "title"
                 ]
@@ -12288,6 +12582,31 @@
                     "name",
                     "product_count",
                     "slug"
+                ]
+            },
+            "PublicFilamentSpool": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "material": {
+                        "type": "string"
+                    },
+                    "color": {
+                        "type": "string"
+                    },
+                    "remaining_weight_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$"
+                    }
+                },
+                "required": [
+                    "color",
+                    "id",
+                    "material",
+                    "remaining_weight_grams"
                 ]
             },
             "PublicMakerspace": {

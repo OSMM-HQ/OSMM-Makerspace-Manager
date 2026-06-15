@@ -40,7 +40,6 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   const [scanned, setScanned] = useState<ScannedPayload[]>([]);
   const [showScanner, setShowScanner] = useState(false);
   const [qrPayloads, setQrPayloads] = useState("");
-  const [dueAt, setDueAt] = useState("");
   const products = useStaffGet<{ results: ProductOption[] }>(
     ["inventory-all", makerspace.id],
     `/admin/makerspace/${makerspace.id}/inventory?page_size=1000`,
@@ -65,7 +64,6 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
         method: "POST",
         body: JSON.stringify({
           identifier,
-          due_at: dueAt ? new Date(dueAt).toISOString() : null,
           qr_payloads: Array.from(new Set([
             ...scanned.map((item) => item.payload),
             ...qrPayloads.split("\n").map((value) => value.trim()).filter(Boolean),
@@ -127,10 +125,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   return (
     <div className="grid gap-4">
       <Panel title="Direct handout">
-        <div className="grid gap-3 md:grid-cols-2">
-          <input className="desk-input" placeholder="Check-In username, email, phone, or ID" value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
-          <input className="desk-input" type="datetime-local" value={dueAt} onChange={(e) => setDueAt(e.target.value)} />
-        </div>
+        <input className="desk-input" placeholder="Check-In username, email, phone, or ID" value={identifier} onChange={(e) => setIdentifier(e.target.value)} />
         <div className="mt-4">
           <div className="mb-2 flex items-center justify-between gap-3">
             <h3 className="text-sm font-semibold text-ink">Items</h3>

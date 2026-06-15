@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
-from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.makerspaces.models import Makerspace, MakerspaceMembership, TenantFrontend
 
 pytestmark = pytest.mark.django_db
 LOGIN = "/api/v1/auth/login"
@@ -87,6 +87,66 @@ def test_refresh_rejected_on_origin_prefix_bypass():
     resp = client.post(
         REFRESH, HTTP_X_REFRESH_CSRF="1", HTTP_ORIGIN="http://localhost:5000.evil.test"
     )
+    assert resp.status_code == 403
+
+
+def test_refresh_allows_registered_staff_frontend_origin():
+    registered_origin = "https://staff.example"
+    makerspace = Makerspace.objects.create(name="Registered", slug="registered")
+    TenantFrontend.objects.create(
+        makerspace=makerspace,
+        allowed_origins=[registered_origin],
+        frontend_type=TenantFrontend.FrontendType.STAFF_ADMIN,
+        is_active=True,
+    )
+    client = APIClient()
+    _login(client)
+
+    resp = client.post(
+        REFRESH,
+        HTTP_X_REFRESH_CSRF="1",
+        HTTP_ORIGIN=registered_origin,
+    )
+
+    assert resp.status_code == 200
+    assert "access" in resp.data
+    assert "refresh_token" in resp.cookies
+
+
+def test_refresh_rejects_public_and_integration_origins():
+    """A public-portal frontend origin and a makerspace public/API-client origin must NOT
+    pass the refresh CSRF check, even though both are 'registered' for CORS — otherwise a
+    page on a public/integration origin could read a staff access token."""
+    public_origin = "https://public.example"
+    api_origin = "https://api-client.example"
+    makerspace = Makerspace.objects.create(
+        name="Public", slug="public-origins", cors_allowed_origins=[api_origin]
+    )
+    TenantFrontend.objects.create(
+        makerspace=makerspace,
+        allowed_origins=[public_origin],
+        frontend_type=TenantFrontend.FrontendType.PUBLIC_PORTAL,
+        is_active=True,
+    )
+    client = APIClient()
+    _login(client)
+
+    for origin in (public_origin, api_origin):
+        resp = client.post(REFRESH, HTTP_X_REFRESH_CSRF="1", HTTP_ORIGIN=origin)
+        assert resp.status_code == 403, origin
+
+
+def test_refresh_rejects_unregistered_origin_with_csrf_header():
+    Makerspace.objects.create(name="Registered", slug="registered-origin-reject")
+    client = APIClient()
+    _login(client)
+
+    resp = client.post(
+        REFRESH,
+        HTTP_X_REFRESH_CSRF="1",
+        HTTP_ORIGIN="https://unregistered.example",
+    )
+
     assert resp.status_code == 403
 
 

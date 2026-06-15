@@ -6,3 +6,7 @@ Reason: {{ print_request.reason }}
 
 Bucket: {{ print_request.bucket.name }}
 Makerspace: {{ print_request.bucket.makerspace.name }}
+{% if status_url %}
+Track your request: {{ status_url }}
+{% endif %}
+Tracking token: {{ public_token }}

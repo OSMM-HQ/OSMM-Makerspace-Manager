@@ -1,7 +1,15 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { clearAccessToken, setAccessToken, staffRequest } from "../../lib/api";
+import {
+  clearAccessToken,
+  fetchMe,
+  logout as logoutStaff,
+  refreshAccessToken,
+  setAccessToken,
+  staffRequest,
+  type StaffAuthUser,
+} from "../../lib/api";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { ApiClientsPanel } from "./ApiClientsPanel";
 import { DirectLoans } from "./DirectLoans";
@@ -27,14 +35,6 @@ import {
   useStaffGet,
 } from "./StaffPanels";
 
-type AuthUser = {
-  username: string;
-  role: string;
-  is_superuser: boolean;
-  must_change_password: boolean;
-  makerspaces: { id: number; slug: string; role: string }[];
-};
-
 const ALL_TABS = [
   "queues", "direct", "inventory", "categories", "printing", "tobuy", "transfers",
   "stocktake", "ledger", "reports", "bulk", "qr", "api", "users", "audit",
@@ -43,27 +43,62 @@ const ALL_TABS = [
 // or an unknown role) is failed closed to the 3D-printing surfaces only.
 const FULL_ACCESS_ROLES = ["space_manager", "inventory_manager", "guest_admin"];
 // Print managers also get a To-Buy list (their items are auto-tagged "printing").
-const PRINTING_TABS = ["printing", "tobuy", "reports"];
+const PRINTING_TABS = ["printing", "tobuy", "reports", "api"];
 
 export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   const queryClient = useQueryClient();
-  const [user, setUser] = useState<AuthUser | null>(null);
+  const [user, setUser] = useState<StaffAuthUser | null>(null);
   const [selected, setSelected] = useState<number | null>(null);
   const [tab, setTab] = useState("queues");
+  const [restoring, setRestoring] = useState(true);
+  const hydrateUser = useCallback((nextUser: StaffAuthUser) => {
+    setUser(nextUser);
+    // Superadmin operates one makerspace at a time and must pick it explicitly
+    // first (the MakerspacePicker screen). Other staff drop into their first
+    // membership directly.
+    const superadmin = nextUser.is_superuser || nextUser.role === "superadmin";
+    setSelected(superadmin ? null : nextUser.makerspaces[0]?.id ?? null);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function restoreSession() {
+      const refreshed = await refreshAccessToken();
+      if (refreshed) {
+        try {
+          const currentUser = await fetchMe();
+          if (active) {
+            hydrateUser(currentUser);
+          }
+        } catch {
+          clearAccessToken();
+          if (active) {
+            setUser(null);
+          }
+        }
+      }
+      if (active) {
+        setRestoring(false);
+      }
+    }
+
+    restoreSession();
+    return () => {
+      active = false;
+    };
+  }, [hydrateUser]);
+
   const login = useMutation({
     mutationFn: (payload: { username: string; password: string }) =>
-      staffRequest<{ access: string; user: AuthUser }>("/auth/login", {
+      staffRequest<{ access: string; user: StaffAuthUser }>("/auth/login", {
         method: "POST",
+        credentials: "include",
         body: JSON.stringify(payload),
       }),
     onSuccess: (data) => {
       setAccessToken(data.access);
-      setUser(data.user);
-      // Superadmin operates one makerspace at a time and must pick it explicitly
-      // first (the MakerspacePicker screen). Other staff drop into their first
-      // membership directly.
-      const superadmin = data.user.is_superuser || data.user.role === "superadmin";
-      setSelected(superadmin ? null : data.user.makerspaces[0]?.id ?? null);
+      hydrateUser(data.user);
     },
   });
 
@@ -78,6 +113,16 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     () => makerspaces.data?.find((item) => item.id === selected),
     [makerspaces.data, selected],
   );
+
+  if (restoring) {
+    return (
+      <main className="desk-shell grid place-items-center px-5">
+        <div className="desk-panel w-full max-w-md p-6 text-sm font-semibold text-muted">
+          Restoring session...
+        </div>
+      </main>
+    );
+  }
 
   if (!user) {
     return (
@@ -102,9 +147,10 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
           queryClient.invalidateQueries({ queryKey: ["staff", "makerspaces"] });
           setUser({ ...user, must_change_password: false });
         }}
-        onSignOut={() => {
-          clearAccessToken();
+        onSignOut={async () => {
+          await logoutStaff();
           setUser(null);
+          setSelected(null);
           queryClient.clear();
         }}
       />
@@ -114,9 +160,10 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   // Backend treats is_superuser OR role === "superadmin" as superadmin; mirror that.
   const isSuperadmin = user.is_superuser || user.role === "superadmin";
 
-  const signOut = () => {
-    clearAccessToken();
+  const signOut = async () => {
+    await logoutStaff();
     setUser(null);
+    setSelected(null);
     queryClient.clear();
   };
 
@@ -190,7 +237,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
                 }`}
                 onClick={() => setTab(item)}
               >
-                  {item === "qr" ? "QR Tools" : item === "direct" ? "Direct handout" : item === "api" ? "API clients" : item === "stocktake" ? "Stocktake" : item === "printing" ? "3D Printing" : item === "tobuy" ? "To Buy" : item[0].toUpperCase() + item.slice(1)}
+                  {item === "qr" ? "QR Tools" : item === "direct" ? "Direct handout" : item === "api" ? "API access" : item === "stocktake" ? "Stocktake" : item === "printing" ? "3D Printing" : item === "tobuy" ? "To Buy" : item[0].toUpperCase() + item.slice(1)}
               </button>
             ))}
           </nav>
@@ -263,7 +310,9 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
           ) : null}
           {activeMakerspace && activeTab === "bulk" ? <BulkImport makerspace={activeMakerspace} /> : null}
           {activeMakerspace && activeTab === "qr" ? <QrTools makerspace={activeMakerspace} /> : null}
-          {activeMakerspace && activeTab === "api" ? <ApiClientsPanel makerspace={activeMakerspace} /> : null}
+          {activeMakerspace && activeTab === "api" ? (
+            <ApiClientsPanel makerspace={activeMakerspace} isSuperadmin={isSuperadmin} />
+          ) : null}
           {activeMakerspace && activeTab === "users" ? (
             <Users makerspaces={makerspaces.data ?? []} isSuperadmin={isSuperadmin} />
           ) : null}

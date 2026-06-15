@@ -61,7 +61,6 @@ class DirectLoanListCreateView(generics.ListAPIView):
             serializer.validated_data["identifier"],
             qr_payloads=serializer.validated_data.get("qr_payloads") or [],
             items=serializer.validated_data.get("items") or [],
-            due_at=serializer.validated_data.get("due_at"),
         )
         return Response(DirectLoanSerializer(loan).data, status=status.HTTP_201_CREATED)
 

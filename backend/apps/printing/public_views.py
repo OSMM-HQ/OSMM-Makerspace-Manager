@@ -15,7 +15,7 @@ from apps.hardware_requests.workflow_utils import get_or_create_requester
 from apps.makerspaces.lookup import get_public_makerspace
 from apps.makerspaces.platform import module_enabled
 from apps.printing import public_workflow
-from apps.printing.models import PrintBucket, PrintRequest, PrintRequestFile
+from apps.printing.models import FilamentSpool, PrintBucket, PrintRequest, PrintRequestFile
 from apps.printing.public_serializers import (
     PrintCheckinVerifyRequestSerializer,
     PrintCheckinVerifyResponseSerializer,
@@ -23,6 +23,7 @@ from apps.printing.public_serializers import (
     PrintPresignResponseSerializer,
     PrintRequestSubmitResponseSerializer,
     PrintRequestSubmitSerializer,
+    PublicFilamentSpoolSerializer,
     PublicPrintBucketSerializer,
     PublicPrintStatusSerializer,
 )
@@ -63,6 +64,25 @@ class PublicPrintBucketsView(APIView):
             makerspace=makerspace, is_active=True
         ).order_by("name")
         return Response(PublicPrintBucketSerializer(buckets, many=True).data)
+
+
+class PublicPrintSpoolsView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [ClientTierRateThrottle]
+    throttle_scope = "public_read"
+
+    @extend_schema(
+        tags=["Public printing"],
+        auth=[],
+        responses={200: PublicFilamentSpoolSerializer(many=True)},
+    )
+    def get(self, request, makerspace_slug):
+        makerspace = get_public_makerspace(makerspace_slug)
+        _require_module(makerspace)
+        spools = FilamentSpool.objects.filter(
+            makerspace=makerspace, is_active=True
+        ).order_by("material", "color")
+        return Response(PublicFilamentSpoolSerializer(spools, many=True).data)
 
 
 class PrintCheckinVerifyView(APIView):

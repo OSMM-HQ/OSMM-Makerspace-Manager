@@ -5,6 +5,7 @@ const API_V1_URL = API_URL.replace(/\/api$/, "/api/v1");
 const PUBLIC_API_KEY = import.meta.env.VITE_PUBLIC_API_KEY ?? "";
 const PUBLIC_CLIENT_ID = import.meta.env.VITE_PUBLIC_CLIENT_ID ?? "";
 const ACCESS_TOKEN_KEY = "makerspace.access";
+const REFRESH_CSRF_HEADER = "X-Refresh-CSRF";
 
 export type TenantBootstrap = {
   makerspace: {
@@ -28,6 +29,14 @@ export type TenantBootstrap = {
     publishable_key: string;
     inventory_path: string;
   };
+};
+
+export type StaffAuthUser = {
+  username: string;
+  role: string;
+  is_superuser: boolean;
+  must_change_password: boolean;
+  makerspaces: { id: number; slug: string; role: string }[];
 };
 
 function messageForStatus(status: number): string {
@@ -112,6 +121,46 @@ export function setAccessToken(token: string) {
 
 export function clearAccessToken() {
   localStorage.removeItem(ACCESS_TOKEN_KEY);
+}
+
+export async function refreshAccessToken(): Promise<boolean> {
+  const response = await fetch(`${API_V1_URL}/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      [REFRESH_CSRF_HEADER]: "1",
+    },
+  }).catch(() => null);
+
+  if (!response?.ok) {
+    return false;
+  }
+
+  const body = (await response.json().catch(() => ({}))) as { access?: string };
+  if (!body.access) {
+    return false;
+  }
+
+  setAccessToken(body.access);
+  return true;
+}
+
+export async function logout(): Promise<void> {
+  try {
+    await fetch(`${API_V1_URL}/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        [REFRESH_CSRF_HEADER]: "1",
+      },
+    });
+  } finally {
+    clearAccessToken();
+  }
+}
+
+export async function fetchMe(): Promise<StaffAuthUser> {
+  return staffRequest<StaffAuthUser>("/auth/me");
 }
 
 export async function staffRequest<T>(

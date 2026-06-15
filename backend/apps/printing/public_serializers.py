@@ -7,6 +7,13 @@ class PublicPrintBucketSerializer(serializers.Serializer):
     description = serializers.CharField()
 
 
+class PublicFilamentSpoolSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    material = serializers.CharField()
+    color = serializers.CharField()
+    remaining_weight_grams = serializers.DecimalField(max_digits=8, decimal_places=2)
+
+
 class PrintCheckinVerifyRequestSerializer(serializers.Serializer):
     identifier = serializers.CharField(trim_whitespace=True)
 
@@ -36,13 +43,19 @@ class PrintPresignResponseSerializer(serializers.Serializer):
 class PrintRequestSubmitSerializer(serializers.Serializer):
     website = serializers.CharField(required=False, allow_blank=True)
     identifier = serializers.CharField()
-    bucket_id = serializers.IntegerField()
+    bucket_id = serializers.IntegerField(required=False, allow_null=True)
+    requester_name = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=120,
+    )
     title = serializers.CharField(max_length=200)
     description = serializers.CharField(required=False, allow_blank=True)
     project_brief = serializers.CharField(required=False, allow_blank=True)
     preferred_settings = serializers.CharField(required=False, allow_blank=True)
     material = serializers.CharField(required=False, allow_blank=True, max_length=100)
     color = serializers.CharField(required=False, allow_blank=True, max_length=100)
+    filament_spool_id = serializers.IntegerField(required=False, allow_null=True)
     quantity = serializers.IntegerField(min_value=1, default=1)
     # Bound to the model column limits so overlong input is a clean 400, not a DB DataError.
     source_link = serializers.URLField(required=False, allow_blank=True, max_length=200)

@@ -3,6 +3,8 @@ from urllib.parse import urlsplit
 from django.conf import settings
 from rest_framework.exceptions import PermissionDenied
 
+from apps.makerspaces.cors import staff_origin_is_registered
+
 
 def _refresh_max_age():
     return int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds())
@@ -39,7 +41,10 @@ def _origin_allowed(raw):
     if not parts.scheme or not parts.netloc:
         return False
     candidate = f"{parts.scheme}://{parts.netloc}"
-    return candidate in set(settings.CORS_ALLOWED_ORIGINS)
+    # Only static CORS origins or registered STAFF-console origins may pass the refresh/logout
+    # CSRF check — NOT public/integration origins (Makerspace.cors_allowed_origins), which could
+    # otherwise read a staff access token via /auth/refresh.
+    return candidate in set(settings.CORS_ALLOWED_ORIGINS) or staff_origin_is_registered(candidate)
 
 
 def assert_csrf(request):

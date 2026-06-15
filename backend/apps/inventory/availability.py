@@ -1,10 +1,73 @@
-from django.db import connection
+from django.db import connection, transaction
 
 from apps.inventory.models import InventoryProduct
 
 
 class InsufficientStock(Exception):
     pass
+
+
+def adjust_quantities(
+    product, *, delta_available, delta_damaged, delta_lost, reason, actor
+):
+    """Apply signed deltas to a product's available/damaged/lost buckets, recompute
+    total, record an InventoryAdjustment, and audit. Row-locked; refuses to make any
+    bucket negative (raises InsufficientStock)."""
+    with transaction.atomic():
+        locked = InventoryProduct.objects.select_for_update().get(pk=product.pk)
+        available = locked.available_quantity + delta_available
+        damaged = locked.damaged_quantity + delta_damaged
+        lost = locked.lost_quantity + delta_lost
+        if available < 0 or damaged < 0 or lost < 0:
+            raise InsufficientStock(
+                "Quantity adjustment cannot make a bucket negative."
+            )
+
+        locked.available_quantity = available
+        locked.damaged_quantity = damaged
+        locked.lost_quantity = lost
+        locked.total_quantity = (
+            locked.available_quantity
+            + locked.reserved_quantity
+            + locked.issued_quantity
+            + locked.damaged_quantity
+            + locked.lost_quantity
+        )
+        locked.save(
+            update_fields=[
+                "available_quantity",
+                "damaged_quantity",
+                "lost_quantity",
+                "total_quantity",
+                "updated_at",
+            ]
+        )
+
+        from apps.audit import services as audit
+        from apps.operations.models import InventoryAdjustment
+
+        InventoryAdjustment.objects.create(
+            makerspace=locked.makerspace,
+            product=locked,
+            delta_available=delta_available,
+            delta_damaged=delta_damaged,
+            delta_lost=delta_lost,
+            reason=reason,
+            created_by=actor,
+        )
+        audit.record(
+            actor,
+            "inventory.quantity_adjusted",
+            makerspace=locked.makerspace,
+            target=locked,
+            meta={
+                "delta_available": delta_available,
+                "delta_damaged": delta_damaged,
+                "delta_lost": delta_lost,
+                "reason": reason,
+            },
+        )
+    return locked
 
 
 def issue_available(product, quantity):

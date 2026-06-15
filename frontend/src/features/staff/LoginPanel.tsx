@@ -28,11 +28,24 @@ export function LoginPanel({
           Use your staff account to manage requests, inventory, and handovers.
         </p>
         <label className="mt-5 block text-sm font-semibold">Username</label>
-        <input className="desk-input mt-1 w-full" value={username} onChange={(e) => setUsername(e.target.value)} />
+        <input
+          className="desk-input mt-1 w-full"
+          name="username"
+          autoComplete="username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        />
         <label className="mt-3 block text-sm font-semibold">Password</label>
-        <input className="desk-input mt-1 w-full" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <input
+          className="desk-input mt-1 w-full"
+          name="password"
+          autoComplete="current-password"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
         {error ? <p className="mt-3 text-sm text-danger">{error}</p> : null}
-        <button className="desk-button-primary mt-5 w-full">
+        <button className="desk-button-primary mt-5 w-full" type="submit">
           Sign in
         </button>
       </form>
