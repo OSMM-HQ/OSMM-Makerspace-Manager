@@ -11947,7 +11947,8 @@
                         "type": "string"
                     },
                     "contact_email": {
-                        "type": "string"
+                        "type": "string",
+                        "format": "email"
                     },
                     "contact_phone": {
                         "type": "string"

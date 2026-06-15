@@ -137,10 +137,13 @@ class ManagedPrintFileUrlView(APIView):
     permission_classes = [CanManagePrinting]
 
     def get(self, request, pk):
+        # Only files attached to a submitted request are exposable; unattached staging
+        # rows (a public user uploaded but never submitted) have print_request=None and
+        # must never get a signed URL.
         qs = rbac.scope_by_action(
             request.user,
             rbac.Action.MANAGE_PRINTING,
-            PrintRequestFile.objects.all(),
+            PrintRequestFile.objects.filter(print_request__isnull=False),
             "makerspace_id",
         )
         print_file = get_object_or_404(qs, pk=pk)

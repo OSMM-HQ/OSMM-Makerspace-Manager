@@ -44,7 +44,7 @@ class PrintRequestSubmitSerializer(serializers.Serializer):
     color = serializers.CharField(required=False, allow_blank=True, max_length=100)
     quantity = serializers.IntegerField(min_value=1, default=1)
     source_link = serializers.CharField(required=False, allow_blank=True)
-    contact_email = serializers.CharField(required=False, allow_blank=True)
+    contact_email = serializers.EmailField(required=False, allow_blank=True)
     contact_phone = serializers.CharField(required=False, allow_blank=True)
     file_ids = serializers.ListField(
         child=serializers.IntegerField(),

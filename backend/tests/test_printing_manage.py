@@ -69,6 +69,21 @@ def test_managed_file_url_returns_signed_url_for_owner_makerspace(monkeypatch):
     assert response.data["url"] == "http://signed/url"
 
 
+def test_managed_file_url_rejects_unattached_staging_file():
+    makerspace = make_space("manage-file-url-unattached")
+    manager = make_print_manager("manage-file-url-unattached-manager", makerspace)
+    staged = PrintRequestFile.objects.create(
+        makerspace=makerspace,
+        kind=PrintRequestFile.Kind.STL,
+        object_key="printing/manage-file-url-unattached/staged.stl",
+        owner_checkin_user_id="x",
+    )
+
+    response = authenticated_client(manager).get(managed_file_url(staged))
+
+    assert response.status_code == 404
+
+
 def test_managed_file_url_out_of_scope_404():
     makerspace = make_space("manage-file-url-own-scope")
     other_space = make_space("manage-file-url-other-scope")
