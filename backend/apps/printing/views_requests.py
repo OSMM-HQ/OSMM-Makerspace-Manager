@@ -1,15 +1,19 @@
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, status
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.accounts import rbac
+from apps.evidence.storage import StorageUnavailable
 from apps.makerspaces.guards import require_module
-from apps.printing.models import PrintRequest
+from apps.printing.models import PrintRequest, PrintRequestFile
 from apps.printing.permissions import CanManagePrinting, IsActiveRequester
 from apps.printing.serializers import (
     PrintRequestCreateSerializer,
     PrintRequestSerializer,
 )
+from apps.printing.storage import print_get_url
 from apps.printing.views_common import ERROR_RESPONSES, _int_query_param
 
 
@@ -126,6 +130,29 @@ class ManagedPrintRequestDetailView(
     @extend_schema(responses={200: PrintRequestSerializer, **ERROR_RESPONSES})
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
+
+
+@extend_schema(tags=["Printing"], summary="Get a signed view URL for a print request file")
+class ManagedPrintFileUrlView(APIView):
+    permission_classes = [CanManagePrinting]
+
+    def get(self, request, pk):
+        qs = rbac.scope_by_action(
+            request.user,
+            rbac.Action.MANAGE_PRINTING,
+            PrintRequestFile.objects.all(),
+            "makerspace_id",
+        )
+        print_file = get_object_or_404(qs, pk=pk)
+        require_module(print_file.makerspace_id, "printing")
+        try:
+            url = print_get_url(print_file.object_key)
+        except StorageUnavailable:
+            return Response(
+                {"detail": "Storage is unavailable."},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+        return Response({"url": url})
 
 
 @extend_schema(tags=["Printing"], summary="List completed print requests")

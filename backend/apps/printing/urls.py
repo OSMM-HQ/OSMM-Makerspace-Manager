@@ -12,6 +12,7 @@ from apps.printing.reports_views import (
     SuperadminPrintingReportView,
 )
 from apps.printing.views import (
+    ManagedPrintFileUrlView,
     ManagedPrintRequestDetailView,
     ManagedPrintRequestListView,
     ManagedFilamentSpoolDetailView,
@@ -124,6 +125,11 @@ urlpatterns = [
         "manage/requests/<int:pk>/fail",
         PrintRequestFailView.as_view(),
         name="managed-request-fail",
+    ),
+    path(
+        "manage/files/<int:pk>/url",
+        ManagedPrintFileUrlView.as_view(),
+        name="managed-file-url",
     ),
     path("manage/printed/", PrintedListView.as_view(), name="printed-list"),
 ]

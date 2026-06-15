@@ -26,6 +26,7 @@ from apps.printing.views_printers import (
     ManagedPrinterMixin,
 )
 from apps.printing.views_requests import (
+    ManagedPrintFileUrlView,
     ManagedPrintRequestDetailView,
     ManagedPrintRequestListView,
     ManagedPrintRequestQuerysetMixin,
@@ -56,6 +57,7 @@ __all__ = [
     "IsActiveRequester",
     "ManagedFilamentSpoolDetailView",
     "ManagedFilamentSpoolListCreateView",
+    "ManagedPrintFileUrlView",
     "ManagedPrintRequestDetailView",
     "ManagedPrintRequestListView",
     "ManagedPrintRequestQuerysetMixin",

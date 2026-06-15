@@ -5,7 +5,7 @@ from django.urls import reverse
 
 from apps.accounts.models import User
 from apps.makerspaces.models import MakerspaceMembership
-from apps.printing.models import FilamentSpool, PrintPrinter, PrintRequest
+from apps.printing.models import FilamentSpool, PrintPrinter, PrintRequest, PrintRequestFile
 from tests.test_printing import (
     authenticated_client,
     make_bucket,
@@ -37,6 +37,56 @@ def spool_detail_url(spool):
 
 def action_url(print_request, action):
     return reverse(f"printing:managed-request-{action}", kwargs={"pk": print_request.id})
+
+
+def managed_file_url(print_file):
+    return reverse("printing:managed-file-url", kwargs={"pk": print_file.id})
+
+
+def test_managed_file_url_returns_signed_url_for_owner_makerspace(monkeypatch):
+    makerspace = make_space("manage-file-url-own")
+    bucket = make_bucket(makerspace)
+    requester = make_user("manage-file-url-requester", access_status=User.AccessStatus.ACTIVE)
+    manager = make_print_manager("manage-file-url-manager", makerspace)
+    print_request = make_request(bucket, requester)
+    print_file = PrintRequestFile.objects.create(
+        print_request=print_request,
+        makerspace=makerspace,
+        kind=PrintRequestFile.Kind.STL,
+        object_key="printing/manage-file-url-own/model.stl",
+        content_type="model/stl",
+        size_bytes=1234,
+        owner_checkin_user_id="x",
+    )
+    monkeypatch.setattr(
+        "apps.printing.views_requests.print_get_url",
+        lambda object_key: "http://signed/url",
+    )
+
+    response = authenticated_client(manager).get(managed_file_url(print_file))
+
+    assert response.status_code == 200
+    assert response.data["url"] == "http://signed/url"
+
+
+def test_managed_file_url_out_of_scope_404():
+    makerspace = make_space("manage-file-url-own-scope")
+    other_space = make_space("manage-file-url-other-scope")
+    other_bucket = make_bucket(other_space)
+    requester = make_user("manage-file-url-scope-requester", access_status=User.AccessStatus.ACTIVE)
+    manager = make_print_manager("manage-file-url-scope-manager", makerspace)
+    print_request = make_request(other_bucket, requester)
+    print_file = PrintRequestFile.objects.create(
+        print_request=print_request,
+        makerspace=other_space,
+        kind=PrintRequestFile.Kind.STL,
+        object_key="printing/manage-file-url-other/model.stl",
+        owner_checkin_user_id="x",
+    )
+
+    response = authenticated_client(manager).get(managed_file_url(print_file))
+
+    assert response.status_code == 404
 
 
 def test_managed_printer_create_success_and_validation_error():

@@ -55,6 +55,18 @@ class PrintRequestSerializer(serializers.ModelSerializer):
         source="requester.username", read_only=True
     )
     handled_by = serializers.IntegerField(source="handled_by_id", read_only=True)
+    files = serializers.SerializerMethodField()
+
+    def get_files(self, obj):
+        return [
+            {
+                "id": f.id,
+                "kind": f.kind,
+                "content_type": f.content_type,
+                "size_bytes": f.size_bytes,
+            }
+            for f in obj.files.all()
+        ]
 
     class Meta:
         model = PrintRequest
@@ -75,6 +87,10 @@ class PrintRequestSerializer(serializers.ModelSerializer):
             "preferred_settings",
             "estimate_screenshot",
             "preview_screenshot",
+            "project_brief",
+            "contact_email",
+            "contact_phone",
+            "files",
             "status",
             "reason",
             "handled_by",

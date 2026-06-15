@@ -43,6 +43,15 @@ export type PrintRequest = {
   estimated_filament_grams: string;
   printer: PrintPrinter | null;
   filament_spool: FilamentSpool | null;
+  project_brief?: string;
+  contact_email?: string;
+  contact_phone?: string;
+  files?: {
+    id: number;
+    kind: string;
+    content_type: string;
+    size_bytes: number;
+  }[];
 };
 
 export type PrinterPayload = {
@@ -191,6 +200,11 @@ export function PrintRows({
   rows: PrintRequest[];
   action: (row: PrintRequest) => React.ReactNode;
 }) {
+  async function openFile(id: number) {
+    const res = await printingRequest<{ url: string }>(`/printing/manage/files/${id}/url`);
+    window.open(res.url, "_blank", "noopener");
+  }
+
   return (
     <div className="rounded-md border border-line">
       <h3 className="border-b border-line bg-surface px-3 py-2 text-sm font-semibold text-muted">{title}</h3>
@@ -205,6 +219,31 @@ export function PrintRows({
             <p className="mt-2 text-xs text-muted">
               {row.requester_username} - {row.material || "material n/a"} {row.color || ""} - {row.estimated_minutes || 0} min - {row.estimated_filament_grams || "0.00"}g
             </p>
+            {row.project_brief ? (
+              <p className="mt-1 text-xs text-muted">
+                <span className="font-medium text-ink">Brief: </span>{row.project_brief}
+              </p>
+            ) : null}
+            {row.contact_email || row.contact_phone ? (
+              <p className="mt-1 text-xs text-muted">
+                <span className="font-medium text-ink">Contact: </span>
+                {[row.contact_email, row.contact_phone].filter(Boolean).join(" ")}
+              </p>
+            ) : null}
+            {row.files?.length ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {row.files.map((file, index) => (
+                  <button
+                    key={file.id}
+                    type="button"
+                    className="desk-button text-xs"
+                    onClick={() => openFile(file.id)}
+                  >
+                    {file.kind ? `${humanize(file.kind)} ${index + 1}` : `File ${index + 1}`}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </article>
         )) : <p className="p-3 text-sm text-muted">No print requests.</p>}
       </div>
