@@ -1,29 +1,52 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 
 import QrScanner from "../../../components/ui/QrScanner";
 import { staffRequest } from "../../../lib/api";
-import { Panel, type Makerspace } from "./shared";
+import { Panel, type Makerspace, type Product, useStaffGet } from "./shared";
 
 type ResolveTarget =
   | { type: "product"; id: number; name: string }
   | { type: "asset"; id: number; asset_tag: string; product: string; status: string }
   | { type: "box"; id: number; label: string; code: string };
-type Resolved = { qr: { id: number; payload: string; status: string }; target: ResolveTarget; allowed_actions: string[] };
+type Resolved = { qr: { id: number; makerspace: number; payload: string; status: string }; target: ResolveTarget; allowed_actions: string[] };
+type Rebound = { qr: { id: number; makerspace: number; payload: string; status: string }; target: ResolveTarget };
 type BoxContents = {
   products: { id: number; name: string; available_quantity: number }[];
   assets: { id: number; asset_tag: string; product: string; status: string }[];
 };
+type ListResponse<T> = T[] | { results: T[] };
+
+function rows<T>(data?: ListResponse<T>) {
+  if (!data) return [];
+  return Array.isArray(data) ? data : data.results;
+}
 
 // The staff scanner page existed as an orphan route with dead action badges. This wires
 // the staff-reachable allowed_actions the backend returns: revoke (MANAGE_QR) and box
 // contents. checkout/return/direct_handout need a borrower identifier, so we point staff
 // to the Direct handout / self-checkout flows instead of faking them here.
-export function ScannerPanel(_props: { makerspace: Makerspace }) {
+export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
+  makerspace: Makerspace;
+  isSuperadmin: boolean;
+  makerspaces: Makerspace[];
+}) {
   const [payload, setPayload] = useState("");
   const [showScanner, setShowScanner] = useState(false);
   const [resolved, setResolved] = useState<Resolved | null>(null);
   const [contents, setContents] = useState<BoxContents | null>(null);
+  const [showRebind, setShowRebind] = useState(false);
+  const [selectedMakerspaceId, setSelectedMakerspaceId] = useState(makerspace.id);
+  const [selectedProductId, setSelectedProductId] = useState("");
+  const [newName, setNewName] = useState("");
+  const [successNote, setSuccessNote] = useState<string | null>(null);
+
+  const products = useStaffGet<ListResponse<Product>>(
+    ["inventory-all", selectedMakerspaceId],
+    `/admin/makerspace/${selectedMakerspaceId}/inventory?page_size=1000`,
+    showRebind && Boolean(selectedMakerspaceId),
+  );
+  const productRows = useMemo(() => rows(products.data), [products.data]);
 
   const resolve = useMutation({
     mutationFn: (value: string) =>
@@ -31,6 +54,7 @@ export function ScannerPanel(_props: { makerspace: Makerspace }) {
     onSuccess: (data) => {
       setResolved(data);
       setContents(null);
+      setSuccessNote(null);
     },
   });
   const revoke = useMutation({
@@ -41,6 +65,43 @@ export function ScannerPanel(_props: { makerspace: Makerspace }) {
     mutationFn: (boxId: number) => staffRequest<BoxContents>(`/admin/containers/${boxId}/contents`),
     onSuccess: setContents,
   });
+  const rebind = useMutation({
+    mutationFn: () =>
+      staffRequest<Rebound>(`/admin/qr/${resolved?.qr.id}/rebind-target`, {
+        method: "POST",
+        body: JSON.stringify({
+          target_type: "product",
+          target_id: Number(selectedProductId),
+          new_name: newName.trim() || undefined,
+        }),
+      }),
+    onSuccess: (data) => {
+      setShowRebind(false);
+      setNewName("");
+      setSuccessNote("Rebound.");
+      resolve.mutate(data.qr.payload, {
+        onError: () => {
+          setResolved(null);
+          setContents(null);
+          setSuccessNote("Rebound. Re-scan in the destination makerspace to view.");
+        },
+      });
+    },
+  });
+
+  useEffect(() => {
+    setSelectedMakerspaceId(makerspace.id);
+  }, [makerspace.id]);
+
+  useEffect(() => {
+    if (!productRows.length) {
+      setSelectedProductId("");
+      return;
+    }
+    if (!productRows.some((product) => String(product.id) === selectedProductId)) {
+      setSelectedProductId(String(productRows[0].id));
+    }
+  }, [productRows, selectedProductId]);
 
   const doResolve = (value: string) => {
     if (value.trim()) resolve.mutate(value);
@@ -49,6 +110,12 @@ export function ScannerPanel(_props: { makerspace: Makerspace }) {
   const actions = resolved?.allowed_actions ?? [];
   const resolveError = resolve.error instanceof Error ? resolve.error.message : undefined;
   const revokeError = revoke.error instanceof Error ? revoke.error.message : undefined;
+  const rebindError = rebind.error instanceof Error ? rebind.error.message : undefined;
+  const productError = products.error instanceof Error ? products.error.message : undefined;
+  // Rebind UI only targets PRODUCT QRs (the cross-makerspace quantity-product
+  // transfer scenario). The form always submits target_type "product", so offering
+  // it for an asset QR would silently convert that QR's type — disallow it here.
+  const canRebind = Boolean(resolved && target && target.type === "product");
 
   return (
     <Panel title="Scanner">
@@ -67,6 +134,7 @@ export function ScannerPanel(_props: { makerspace: Makerspace }) {
         <button className="desk-button" type="button" onClick={() => setShowScanner(true)}>Scan camera</button>
       </div>
       {resolveError ? <p className="mt-2 text-sm text-danger">{resolveError}</p> : null}
+      {successNote ? <p className="mt-2 text-sm text-accent">{successNote}</p> : null}
 
       {resolved && target ? (
         <div className="mt-4 rounded-md border border-line bg-surface p-3">
@@ -85,7 +153,65 @@ export function ScannerPanel(_props: { makerspace: Makerspace }) {
                 {revoke.isPending ? "Revoking..." : "Revoke QR"}
               </button>
             ) : null}
+            {canRebind ? (
+              <button type="button" onClick={() => setShowRebind((open) => !open)}>
+                Rename & rebind
+              </button>
+            ) : null}
           </div>
+          {showRebind ? (
+            <form
+              className="mt-3 grid gap-2 rounded-md border border-line bg-bg p-3 text-sm"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (selectedProductId) rebind.mutate();
+              }}
+            >
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted">Target makerspace</span>
+                {isSuperadmin ? (
+                  <select
+                    className="desk-input"
+                    value={selectedMakerspaceId}
+                    onChange={(event) => setSelectedMakerspaceId(Number(event.target.value))}
+                  >
+                    {(makerspaces.length ? makerspaces : [makerspace]).map((space) => (
+                      <option key={space.id} value={space.id}>{space.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input className="desk-input" value={makerspace.name} disabled />
+                )}
+              </label>
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted">Target product</span>
+                <select
+                  className="desk-input"
+                  value={selectedProductId}
+                  disabled={products.isLoading || !productRows.length}
+                  onChange={(event) => setSelectedProductId(event.target.value)}
+                >
+                  {productRows.map((product) => (
+                    <option key={product.id} value={product.id}>{product.name}</option>
+                  ))}
+                </select>
+              </label>
+              <input
+                className="desk-input"
+                placeholder="Rename (optional)"
+                value={newName}
+                onChange={(event) => setNewName(event.target.value)}
+              />
+              <div className="flex flex-wrap gap-2">
+                <button className="desk-button" type="submit" disabled={!selectedProductId || rebind.isPending}>
+                  {rebind.isPending ? "Saving..." : "Save"}
+                </button>
+                <button className="desk-button" type="button" onClick={() => setShowRebind(false)}>Cancel</button>
+              </div>
+              {productError ? <p className="text-sm text-danger">{productError}</p> : null}
+              {rebindError ? <p className="text-sm text-danger">{rebindError}</p> : null}
+            </form>
+          ) : null}
           {actions.some((action) => ["checkout", "return", "direct_handout"].includes(action)) ? (
             <p className="mt-2 text-xs text-muted">
               This item supports {actions.filter((a) => ["checkout", "return", "direct_handout"].includes(a)).join(" / ")} —

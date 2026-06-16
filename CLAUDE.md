@@ -2,6 +2,50 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — direct-handout UX, lending history, manual print log, QR rebind (2026-06-16)
+
+Four features (Codex plan-reviewed v1→v2, then per-phase Codex code review; committed phase-by-phase).
+Two migrations (`hardware_requests/0013`, `printing/0009`):
+
+- **Direct handout shows all in-stock products + container + blocking check-in verify** (commit
+  `9cc6336`). `direct_loan_workflow._manual_product` no longer requires `is_public`/
+  `public_self_checkout_enabled` (those gate ANONYMOUS public self-checkout, wrong for a staff
+  `ISSUE_DIRECT_LOAN` action) — staff can now hand out any non-archived **quantity** product (individual
+  still needs a scanned asset QR); `DirectLoans.tsx` `eligibleProducts` mirrors it. New optional
+  **container** FK on `PublicToolLoan` (migration `0013`, attribution note only) with a partial-unique
+  `uniq_active_loan_per_container` (a physical container is out on at most one active direct loan;
+  workflow pre-checks for a clean 409) — picked from `/admin/makerspace/<id>/containers`, shown in the
+  loans list. New **`POST /admin/makerspace/<id>/checkin/verify`** (`ISSUE_DIRECT_LOAN` + active +
+  `require_module('self_checkout')`, throttle scope `staff_checkin_verify`) returns **only `username`**
+  (not `external_id`); the frontend Verify button **blocks Issue until verified** and re-binds to the
+  exact identifier (`verifiedIdentifier === identifier`) so editing mid-flight can't approve a stale id.
+- **Per-item lending history (audit-capable staff only)** (commit `499d7d4`). New
+  **`GET /admin/inventory/<pk>/lending-history`** (`apps/admin_api/views_lending_history.py`): scopes
+  PRODUCT-FIRST via `scope_by_action(VIEW_AUDIT, InventoryProduct)` then **`hide_from_superadmin`**
+  (borrower PII respects the superadmin soft-hide), and reads the unified lend source
+  `HardwareRequestItem` (`issued_quantity>0`, `request__issued_at` set, ordered desc, top 3) → last
+  borrower + last 3 lends. Frontend: a lazy `LendingHistory` block in the Inventory item detail drawer,
+  mounted only when `canViewAudit` (superadmin / space manager / inventory manager — **not** guest admin).
+- **Manual print log** (commit `59cc5f6`). New `printing.ManualPrintLog` (migration `0009`) +
+  **`GET/POST /printing/manage/manual-logs`** (`CanManagePrinting`). The community logs an ad-hoc print
+  (`services_manual_logs.log_manual_print`, atomic): validates printer/spool makerspace + spool↔printer
+  compatibility + active, **rejects overdraw** (`grams_used > remaining`, mirroring the print-start
+  invariant), decrements the spool, audits `print.manual_logged`. Reports: `_filament_used` (initial −
+  remaining) auto-reflects the deduction; `_printer_outcomes` **merges manual grams + a `manual_logs`
+  count per printer, including manual-only printers**. Frontend: a "Manual print log" form + recent list
+  on the 3D Printing panel (invalidates spools **and** printers queries on success).
+- **Rename + rebind a saved QR across makerspaces** (commit pending). New
+  **`POST /admin/qr/<pk>/rebind-target`** (`apps/boxes/rebind.py`, no migration): re-points a saved
+  physical QR to another product (or same-makerspace asset) and optionally renames it. Locks the QR +
+  target; requires ACTIVE; **blocks an outstanding loan (409)** and a destination that already has an
+  active QR (409). Cross-makerspace moves (`target.makerspace != qr.makerspace`) are **superadmin-only**
+  (mirroring cross-makerspace transfers) and **product-only** (assets stay tenant-bound); same-makerspace
+  needs `MANAGE_QR`+`EDIT_INVENTORY`. Moves `qr.makerspace`/`target_*` (payload unchanged; old
+  `QrScanEvent` rows keep their immutable makerspace), writes a `REASSIGNMENT` scan event in the new
+  makerspace, audits `qr.rebound` + `inventory.renamed`. `new_name` capped at 100 (clean 400, not a DB
+  error). Frontend: a Scanner-panel "Rename & rebind" form (superadmin gets a destination-makerspace +
+  product picker) shown **only for product QRs**.
+
 ## Recent batch — staff-private cash payment on 3D print requests (2026-06-16)
 
 Lets the print manager charge cash for a print, collected on trust at handover, **never exposed to

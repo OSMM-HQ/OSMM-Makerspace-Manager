@@ -16,12 +16,15 @@ from apps.boxes.serializers import (
     CreateBoxQrSerializer,
     CreateToolQrSerializer,
     QrCodeSerializer,
+    QrRebindResultSerializer,
+    QrRebindTargetSerializer,
     QrResolveResultSerializer,
     QrResolveSerializer,
     QrScanResultSerializer,
     QrScanSerializer,
     qr_target_payload,
 )
+from apps.boxes.rebind import rebind_qr_target
 from apps.inventory.models import InventoryAsset, InventoryProduct
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.platform import module_enabled
@@ -237,6 +240,28 @@ class QrRevokeView(QrPermissionMixin, APIView):
         qr.save(update_fields=["status", "revoked_at", "updated_at"])
         audit.record(request.user, "qr.revoked", makerspace=qr.makerspace, target=qr)
         return Response(QrCodeSerializer(qr).data)
+
+
+class QrRebindTargetView(APIView):
+    @extend_schema(
+        tags=["QR assets"],
+        summary=(
+            "Rebind a saved QR to another product/asset "
+            "(cross-makerspace = superadmin) and optionally rename"
+        ),
+        request=QrRebindTargetSerializer,
+        responses={
+            200: QrRebindResultSerializer,
+            409: OpenApiResponse(description="Outstanding loan or target QR conflict."),
+        },
+    )
+    def post(self, request, pk, *args, **kwargs):
+        serializer = QrRebindTargetSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        from django.db import transaction
+
+        with transaction.atomic():
+            return rebind_qr_target(request.user, pk, serializer.validated_data)
 
 
 def _allowed_scanner_actions(user, qr):

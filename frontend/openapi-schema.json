@@ -4092,6 +4092,65 @@
                 }
             }
         },
+        "/api/v1/admin/qr/{id}/rebind-target": {
+            "post": {
+                "operationId": "api_v1_admin_qr_rebind_target_create",
+                "summary": "Rebind a saved QR to another product/asset (cross-makerspace = superadmin) and optionally rename",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "QR assets"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/QrRebindTarget"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/QrRebindTarget"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/QrRebindTarget"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/QrRebindResult"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "description": "Outstanding loan or target QR conflict."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/qr/{id}/revoke": {
             "post": {
                 "operationId": "api_v1_admin_qr_revoke_create",
@@ -14581,7 +14640,7 @@
                         "readOnly": true
                     },
                     "target_type": {
-                        "$ref": "#/components/schemas/TargetTypeEnum"
+                        "$ref": "#/components/schemas/QrCodeTargetTypeEnum"
                     },
                     "target_id": {
                         "type": "integer",
@@ -14633,6 +14692,15 @@
                 ],
                 "type": "string",
                 "description": "* `active` - Active\n* `revoked` - Revoked"
+            },
+            "QrCodeTargetTypeEnum": {
+                "enum": [
+                    "box",
+                    "product",
+                    "asset"
+                ],
+                "type": "string",
+                "description": "* `box` - Box\n* `product` - Product\n* `asset` - Asset"
             },
             "QrPrintBatch": {
                 "type": "object",
@@ -14801,6 +14869,48 @@
                 "required": [
                     "id"
                 ]
+            },
+            "QrRebindResult": {
+                "type": "object",
+                "properties": {
+                    "qr": {
+                        "$ref": "#/components/schemas/QrCode"
+                    },
+                    "target": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                },
+                "required": [
+                    "qr",
+                    "target"
+                ]
+            },
+            "QrRebindTarget": {
+                "type": "object",
+                "properties": {
+                    "target_type": {
+                        "$ref": "#/components/schemas/QrRebindTargetTargetTypeEnum"
+                    },
+                    "target_id": {
+                        "type": "integer"
+                    },
+                    "new_name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "target_id",
+                    "target_type"
+                ]
+            },
+            "QrRebindTargetTargetTypeEnum": {
+                "enum": [
+                    "product",
+                    "asset"
+                ],
+                "type": "string",
+                "description": "* `product` - product\n* `asset` - asset"
             },
             "QrResolve": {
                 "type": "object",
@@ -15574,15 +15684,6 @@
                 ],
                 "type": "string",
                 "description": "* `draft` - Draft\n* `counting` - Counting\n* `completed` - Completed\n* `approved` - Approved\n* `applied` - Applied\n* `cancelled` - Cancelled"
-            },
-            "TargetTypeEnum": {
-                "enum": [
-                    "box",
-                    "product",
-                    "asset"
-                ],
-                "type": "string",
-                "description": "* `box` - Box\n* `product` - Product\n* `asset` - Asset"
             },
             "TelegramTestAlert": {
                 "type": "object",

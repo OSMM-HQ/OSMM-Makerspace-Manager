@@ -105,6 +105,7 @@ export const openApiPaths = [
   "/api/v1/admin/qr/scan",
   "/api/v1/admin/qr/tools",
   "/api/v1/admin/qr/{id}/print",
+  "/api/v1/admin/qr/{id}/rebind-target",
   "/api/v1/admin/qr/{id}/revoke",
   "/api/v1/admin/reports/{report_key}/export",
   "/api/v1/admin/requests/{id}/accept",

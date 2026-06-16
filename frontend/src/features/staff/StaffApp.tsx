@@ -11,32 +11,11 @@ import {
   type StaffAuthUser,
 } from "../../lib/api";
 import { ThemeToggle } from "../../components/ThemeToggle";
-import { ApiClientsPanel } from "./ApiClientsPanel";
-import { DirectLoans } from "./DirectLoans";
 import { ChangePasswordGate } from "./ChangePasswordGate";
 import { LoginPanel } from "./LoginPanel";
-import { MakerspaceSettingsPanel } from "./MakerspaceSettingsPanel";
 import { MakerspacePicker } from "./MakerspacePicker";
-import { PlatformEmailPanel } from "./PlatformEmailPanel";
+import { StaffTabContent } from "./StaffTabContent";
 import {
-  AuditLog,
-  BulkImport,
-  Categories,
-  ContainersPanel,
-  Inventory,
-  Ledger,
-  NeedsFixShelf,
-  OperationsReports,
-  Panel,
-  PrintingPanel,
-  ProcurementPanel,
-  QrTools,
-  RequestsPanel,
-  ScannerPanel,
-  StocktakePanel,
-  StockTransferPanel,
-  TenantFrontendsPanel,
-  Users,
   type Makerspace,
   useStaffGet,
 } from "./StaffPanels";
@@ -300,68 +279,20 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
         </header>
 
         <div className="min-w-0 p-5">
-          {!activeMakerspace ? <Panel title="No makerspace">Assign a makerspace to this account.</Panel> : null}
-          {activeMakerspace && activeTab === "requests" ? (
-            <RequestsPanel
-              makerspace={activeMakerspace}
-              guestOnly={guestOnly}
-              canSeeHardware={canSeeHardware}
-              canSeePrinting={canSeePrinting}
-            />
-          ) : null}
-          {activeMakerspace && activeTab === "inventory" ? (
-            <Inventory makerspace={activeMakerspace} canViewAudit={canViewAudit} />
-          ) : null}
-          {activeMakerspace && activeTab === "needsfix" ? (
-            <NeedsFixShelf makerspace={activeMakerspace} />
-          ) : null}
-          {activeMakerspace && activeTab === "categories" ? (
-            <Categories makerspace={activeMakerspace} />
-          ) : null}
-          {activeMakerspace && activeTab === "printing" ? (
-            <PrintingPanel makerspace={activeMakerspace} />
-          ) : null}
-          {activeMakerspace && activeTab === "tobuy" ? (
-            <ProcurementPanel makerspace={activeMakerspace} canChooseKind={canChooseToBuyKind} />
-          ) : null}
-          {activeMakerspace && activeTab === "transfers" ? (
-            <StockTransferPanel
-              makerspace={activeMakerspace}
-              makerspaces={makerspaces.data ?? []}
-              isSuperadmin={isSuperadmin}
-              canEditInventory={canEditInventory}
-            />
-          ) : null}
-          {activeMakerspace && activeTab === "stocktake" ? (
-            <StocktakePanel makerspace={activeMakerspace} />
-          ) : null}
-          {activeMakerspace && activeTab === "containers" ? (
-            <ContainersPanel makerspace={activeMakerspace} />
-          ) : null}
-          {activeMakerspace && activeTab === "ledger" ? (
-            <Ledger makerspace={activeMakerspace} isSuperadmin={isSuperadmin} />
-          ) : null}
-          {activeMakerspace && activeTab === "reports" ? (
-            <OperationsReports makerspace={activeMakerspace} isSuperadmin={isSuperadmin} printingOnly={printingOnly} />
-          ) : null}
-          {activeMakerspace && activeTab === "direct" ? (
-            <DirectLoans makerspace={activeMakerspace} />
-          ) : null}
-          {activeMakerspace && activeTab === "bulk" ? <BulkImport makerspace={activeMakerspace} /> : null}
-          {activeMakerspace && activeTab === "qr" ? <QrTools makerspace={activeMakerspace} /> : null}
-          {activeMakerspace && activeTab === "scanner" ? <ScannerPanel makerspace={activeMakerspace} /> : null}
-          {activeMakerspace && activeTab === "frontends" ? <TenantFrontendsPanel makerspace={activeMakerspace} /> : null}
-          {activeMakerspace && activeTab === "api" ? (
-            <ApiClientsPanel makerspace={activeMakerspace} isSuperadmin={isSuperadmin} canManageMakerspace={canManageMakerspace} />
-          ) : null}
-          {activeMakerspace && activeTab === "settings" ? (
-            <MakerspaceSettingsPanel makerspace={activeMakerspace} isSuperadmin={isSuperadmin} />
-          ) : null}
-          {activeMakerspace && activeTab === "platform" ? <PlatformEmailPanel /> : null}
-          {activeMakerspace && activeTab === "users" ? (
-            <Users makerspaces={makerspaces.data ?? []} isSuperadmin={isSuperadmin} />
-          ) : null}
-          {activeMakerspace && activeTab === "audit" ? <AuditLog /> : null}
+          <StaffTabContent
+            activeMakerspace={activeMakerspace}
+            activeTab={activeTab}
+            guestOnly={guestOnly}
+            makerspaces={makerspaces.data ?? []}
+            isSuperadmin={isSuperadmin}
+            printingOnly={printingOnly}
+            canChooseToBuyKind={canChooseToBuyKind}
+            canEditInventory={canEditInventory}
+            canManageMakerspace={canManageMakerspace}
+            canSeeHardware={canSeeHardware}
+            canSeePrinting={canSeePrinting}
+            canViewAudit={canViewAudit}
+          />
         </div>
       </section>
     </main>
