@@ -1,9 +1,23 @@
 # Makerspace Manager
 
-Open-source, multi-tenant **hardware-loan manager for makerspaces**. The public can browse
-a makerspace's inventory and request to borrow tools; staff issue and return that hardware with
-full traceability — every handover produces evidence (QR scans + photos + remarks + an
-append-only audit log) so accountability for lost or damaged hardware is never ambiguous.
+This project started from inside the TinkerSpace Kochi community.
+
+As an active community member, I wanted to figure out a common, practical way to manage two things
+every busy makerspace eventually struggles with: shared inventory and 3D printing requests. Different
+people had different opinions, habits, and priorities, so this is not presented as the only correct
+way to run a makerspace. It is simply one working approach I built to solve the problem in our own
+methods.
+
+The idea is simple: make it easier for a community to know what tools exist, who borrowed what, what
+is available, and how 3D printing work moves from request to completion.
+
+This repo is open for people to explore in a fun way. Read through it, break it locally, add ideas,
+improve flows, remix the features, or use it as a starting point for your own space. If your
+community works differently, fork it, edit it, and host your own version.
+
+Open-source, multi-tenant **inventory and 3D printing manager for makerspaces**. The public can
+browse a makerspace's inventory and request to borrow tools; staff can manage hardware, returns,
+3D printing work, evidence, QR scans, remarks, and audit logs so accountability stays clear.
 
 One deployment can host many makerspaces (tenants). Each owns its inventory, public URL,
 staff, Telegram group, QR namespace, and audit scope.
