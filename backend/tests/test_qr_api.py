@@ -13,6 +13,7 @@ from tests.return_helpers import (
     make_member,
     make_product,
     make_space,
+    make_user,
 )
 
 pytestmark = pytest.mark.django_db
@@ -133,6 +134,47 @@ def test_suspended_qr_manager_cannot_manage_qr(membership_role, global_role):
     )
 
     assert response.status_code == 403
+
+
+def test_must_change_password_superadmin_cannot_manage_qr():
+    makerspace = make_space("qr-password-rotate")
+    superadmin = make_user(
+        "qr-password-rotate-super",
+        role=User.Role.SUPERADMIN,
+        access_status=User.AccessStatus.ACTIVE,
+        must_change_password=True,
+    )
+
+    response = authenticated_client(superadmin).post(
+        "/api/v1/admin/qr/boxes",
+        {"makerspace_id": makerspace.id, "label": "Denied"},
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert QrCode.objects.count() == 0
+
+
+def test_suspended_staff_cannot_resolve_qr():
+    makerspace = make_space("qr-resolve-suspended")
+    staff = make_member("qr-resolve-suspended-manager", makerspace)
+    staff.access_status = User.AccessStatus.SUSPENDED
+    staff.save(update_fields=["access_status"])
+    product = make_product(makerspace)
+    qr = QrCode.objects.create(
+        makerspace=makerspace,
+        target_type=QrCode.TargetType.PRODUCT,
+        target_id=product.id,
+    )
+
+    response = authenticated_client(staff).post(
+        "/api/v1/admin/qr/resolve",
+        {"payload": qr.payload},
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert QrScanEvent.objects.count() == 0
 
 
 def test_qr_scan_event_is_immutable_at_model_and_db():

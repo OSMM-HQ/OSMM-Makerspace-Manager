@@ -8,7 +8,6 @@ from apps.accounts import rbac
 from apps.accounts.models import User
 from apps.admin_api.permissions import IsActiveStaff, require_action
 from apps.admin_api.serializers_makerspaces import (
-    MakerspaceDisabledRowSerializer,
     MakerspaceSerializer,
     MakerspaceSwitcherSerializer,
     ReturnPolicySerializer,
@@ -37,11 +36,12 @@ class MakerspaceListCreateView(generics.ListCreateAPIView):
         actor = self.request.user
         origin_scope = origin_scoped_makerspace_id(self.request)
         if actor.is_superuser or actor.role == User.Role.SUPERADMIN:
-            # Governance list: the superadmin still sees hidden, non-archived
-            # makerspaces (rendered as slim disabled rows in list() below) so a
-            # hard-hidden space stays discoverable for break-glass. Archived
-            # spaces are omitted from the React console and remain visible only
-            # in /control/.
+            queryset = rbac.scope_by_action(
+                actor,
+                rbac.Action.VIEW_INVENTORY,
+                queryset,
+                field="id",
+            )
             if origin_scope is not None:
                 queryset = queryset.filter(id=origin_scope)
             return queryset.order_by("name")
@@ -67,12 +67,8 @@ class MakerspaceListCreateView(generics.ListCreateAPIView):
         # leak B's config. Settings writes stay MANAGE_MAKERSPACE-gated elsewhere.
         view_scope = rbac.makerspaces_for_action(request.user, rbac.Action.VIEW_INVENTORY)
         context = self.get_serializer_context()
-        is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPERADMIN
-        hidden_ids = rbac.superadmin_hidden_makerspace_ids() if is_superadmin else set()
 
         def serialize(makerspace):
-            if is_superadmin and makerspace.id in hidden_ids:
-                return MakerspaceDisabledRowSerializer(makerspace, context=context).data
             can_view = view_scope is rbac.ALL or makerspace.id in view_scope
             serializer = MakerspaceSerializer if can_view else MakerspaceSwitcherSerializer
             return serializer(makerspace, context=context).data
@@ -98,30 +94,11 @@ class MakerspaceDetailView(generics.RetrieveUpdateAPIView):
     http_method_names = ["get", "patch", "head", "options"]
 
     def get_serializer_class(self):
-        # self.request is None during schema generation; the user may be Anonymous.
-        if self.request is not None and self.request.method == "GET":
-            makerspace = getattr(self, "_makerspace_object", None)
-            actor = getattr(self.request, "user", None)
-            is_superadmin = bool(
-                actor
-                and getattr(actor, "is_authenticated", False)
-                and (actor.is_superuser or getattr(actor, "role", None) == User.Role.SUPERADMIN)
-            )
-            hidden_ids = rbac.superadmin_hidden_makerspace_ids() if is_superadmin else set()
-            if makerspace is not None and makerspace.id in hidden_ids:
-                return MakerspaceDisabledRowSerializer
         return MakerspaceSerializer
 
     def get_queryset(self):
         actor = self.request.user
-        is_superadmin = actor.is_superuser or actor.role == User.Role.SUPERADMIN
         queryset = Makerspace.objects.filter(archived_at__isnull=True)
-        if self.request.method == "GET" and is_superadmin:
-            # Slim disabled-row visibility (get_serializer_class serves the slim
-            # serializer for a hidden makerspace) so the superadmin can still see a
-            # hard-hidden space exists for break-glass. PATCH stays RBAC-scoped, so
-            # a superadmin still can't edit/re-enable a hidden makerspace.
-            return queryset
         action = (
             rbac.Action.MANAGE_MAKERSPACE
             if self.request.method == "PATCH"

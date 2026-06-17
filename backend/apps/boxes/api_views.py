@@ -34,6 +34,8 @@ from apps.openapi import QR_BOX_EXAMPLE, QR_SCAN_EXAMPLE
 
 
 class QrPermissionMixin:
+    permission_classes = [IsActiveStaff]
+
     def _require_qr(self, user, makerspace_id):
         require_module(makerspace_id, "qr_management")
         if (

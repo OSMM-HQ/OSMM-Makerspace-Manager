@@ -70,6 +70,28 @@ class StockTransferAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
 class StocktakeLineInline(TabularInline):
     model = StocktakeLine
     extra = 0
+    can_delete = False
+    readonly_fields = (
+        "stocktake",
+        "product",
+        "asset",
+        "container",
+        "expected_quantity",
+        "counted_quantity",
+        "variance_quantity",
+        "condition",
+        "notes",
+    )
+    fields = readonly_fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(StocktakeSession)

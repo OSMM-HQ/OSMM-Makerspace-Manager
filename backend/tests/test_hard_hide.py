@@ -47,15 +47,24 @@ def hide_makerspace(makerspace):
     makerspace.save(update_fields=["superadmin_access_enabled"])
 
 
-def test_superadmin_keeps_setup_access_until_space_manager_exists():
+def test_superadmin_keeps_setup_access_for_enabled_space_without_manager():
     setup_space = make_space("hard-hide-setup-window")
-    setup_space.superadmin_access_enabled = False
-    setup_space.save(update_fields=["superadmin_access_enabled"])
     superadmin = make_superadmin("hard-hide-setup-window-super")
 
     assert rbac.can(superadmin, rbac.Action.MANAGE_MAKERSPACE, setup_space.id) is True
     assert rbac.can(superadmin, rbac.Action.EDIT_INVENTORY, setup_space.id) is True
     assert rbac.resolve_scope(superadmin) is rbac.ALL
+
+
+def test_superadmin_access_off_blocks_even_without_space_manager():
+    setup_space = make_space("hard-hide-off-without-manager")
+    setup_space.superadmin_access_enabled = False
+    setup_space.save(update_fields=["superadmin_access_enabled"])
+    superadmin = make_superadmin("hard-hide-off-without-manager-super")
+
+    assert rbac.can(superadmin, rbac.Action.MANAGE_MAKERSPACE, setup_space.id) is False
+    assert rbac.can(superadmin, rbac.Action.EDIT_INVENTORY, setup_space.id) is False
+    assert setup_space.id not in rbac.resolve_scope(superadmin)
 
 
 def test_superadmin_rbac_hard_hides_disabled_makerspace():
@@ -203,7 +212,7 @@ def test_superadmin_inventory_endpoint_is_blocked_for_hidden_space_but_visible_w
     ]
 
 
-def test_superadmin_makerspace_visibility_keeps_hidden_space_as_slim_row():
+def test_staff_makerspace_api_excludes_hidden_space_for_superadmin():
     hidden = make_space("hard-hide-visible-hidden")
     hide_makerspace(hidden)
     visible = make_space("hard-hide-visible-enabled")
@@ -215,16 +224,11 @@ def test_superadmin_makerspace_visibility_keeps_hidden_space_as_slim_row():
 
     assert listed.status_code == 200
     rows = {row["id"]: row for row in listed.data}
-    assert hidden.id in rows
+    assert hidden.id not in rows
     assert visible.id in rows
-    assert rows[hidden.id]["superadmin_access_enabled"] is False
-    assert "public_api_key" not in rows[hidden.id]
     assert "public_api_key" in rows[visible.id]
 
-    assert detail.status_code == 200
-    assert detail.data["id"] == hidden.id
-    assert detail.data["superadmin_access_enabled"] is False
-    assert "public_api_key" not in detail.data
+    assert detail.status_code == 404
 
 
 def test_superadmin_break_glass_create_is_space_manager_only_and_fresh_user_only():

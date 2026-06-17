@@ -198,7 +198,7 @@ def test_audit_list_hides_disabled_space_even_with_explicit_filter():
     assert response.data["results"] == []
 
 
-def test_makerspace_list_uses_slim_serializer_for_disabled_space_for_superadmin():
+def test_makerspace_list_excludes_disabled_space_for_superadmin():
     hidden_space = make_space("access-hidden-list")
     make_member("access-hidden-list-manager", hidden_space)
     hidden_space.superadmin_access_enabled = False
@@ -207,14 +207,13 @@ def test_makerspace_list_uses_slim_serializer_for_disabled_space_for_superadmin(
     superadmin = make_superadmin("access-list-super")
 
     response = authenticated_client(superadmin).get(reverse("admin-makerspaces"))
+    detail = authenticated_client(superadmin).get(makerspace_detail_url(hidden_space))
 
     assert response.status_code == 200
     rows = {row["id"]: row for row in response.data}
-    assert rows[hidden_space.id]["superadmin_access_enabled"] is False
-    assert "public_api_key" not in rows[hidden_space.id]
-    assert "cors_allowed_origins" not in rows[hidden_space.id]
-    assert "smtp_host" not in rows[hidden_space.id]
+    assert hidden_space.id not in rows
     assert "public_api_key" in rows[visible_space.id]
+    assert detail.status_code == 404
 
 
 def test_member_of_disabled_space_unaffected():

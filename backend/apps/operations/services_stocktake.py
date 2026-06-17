@@ -36,6 +36,7 @@ def add_stocktake_line(actor, stocktake, data):
         condition = data.get("condition") or StocktakeLine.Condition.AVAILABLE
         if data.get("asset_id"):
             asset = InventoryAsset.objects.get(pk=data["asset_id"], makerspace=locked.makerspace)
+            _validate_asset_count(asset, data["counted_quantity"])
             expected = 1 if _asset_bucket(asset.status) == condition else 0
         else:
             product = InventoryProduct.objects.get(pk=data["product_id"], makerspace=locked.makerspace)
@@ -87,7 +88,8 @@ def apply_stocktake_adjustments(actor, stocktake):
         locked = StocktakeSession.objects.select_for_update().get(pk=stocktake.pk)
         if locked.status != StocktakeSession.Status.APPROVED:
             raise ValidationError("Only approved stocktakes can be applied.")
-        for line in locked.lines.select_related("product", "asset"):
+        for line in locked.lines.select_related("product", "asset", "container"):
+            _validate_line_scope(locked, line)
             entries = _ledger_entries_for_line(actor, locked, line)
             _apply_ledger_entries(entries)
             _record_adjustment(actor, locked, line, entries)
@@ -123,6 +125,28 @@ def _asset_new_status(line):
     if line.condition == StocktakeLine.Condition.LOST:
         return InventoryAsset.Status.LOST
     return InventoryAsset.Status.AVAILABLE
+
+
+def _validate_line_scope(stocktake, line):
+    if line.product_id and line.product.makerspace_id != stocktake.makerspace_id:
+        raise ValidationError("Stocktake line product belongs to another makerspace.")
+    if line.asset_id:
+        if line.asset.makerspace_id != stocktake.makerspace_id:
+            raise ValidationError("Stocktake line asset belongs to another makerspace.")
+        if line.asset.product_id != line.product_id and line.product_id is not None:
+            raise ValidationError("Stocktake line asset and product do not match.")
+        _validate_asset_count(line.asset, line.counted_quantity)
+    if line.container_id and line.container.makerspace_id != stocktake.makerspace_id:
+        raise ValidationError("Stocktake line container belongs to another makerspace.")
+
+
+def _validate_asset_count(asset, counted_quantity):
+    if counted_quantity not in (0, 1):
+        raise ValidationError({"counted_quantity": "Asset stocktake counts must be 0 or 1."})
+    if _asset_bucket(asset.status) is None:
+        raise ValidationError(
+            {"asset_id": "Only available, damaged, or lost assets can be stocktaken."}
+        )
 
 
 def _ledger_entries_for_line(actor, stocktake, line):

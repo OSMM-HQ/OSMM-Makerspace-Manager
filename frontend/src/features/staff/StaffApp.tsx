@@ -103,19 +103,9 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   );
   const activeMakerspace = useMemo(
     () => {
-      const matched = makerspaces.data?.find((item) => item.id === selected);
-      if (matched || tenant.mode !== "single" || !tenant.bootstrap) {
-        return matched;
-      }
-      return {
-        id: tenant.bootstrap.makerspace.id,
-        name: tenant.bootstrap.makerspace.name,
-        public_code: tenant.bootstrap.makerspace.public_code,
-        slug: tenant.bootstrap.makerspace.slug,
-        telegram_group_chat_id: "",
-      };
+      return makerspaces.data?.find((item) => item.id === selected);
     },
-    [makerspaces.data, selected, tenant],
+    [makerspaces.data, selected],
   );
 
   if (restoring) {
@@ -172,10 +162,18 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     queryClient.clear();
   };
 
+  if (singleTenantLocked && makerspaces.isLoading) {
+    return (
+      <main className="desk-shell grid place-items-center px-5">
+        <div className="desk-panel w-full max-w-md p-6 text-sm font-semibold text-muted">
+          Checking makerspace access...
+        </div>
+      </main>
+    );
+  }
+
   const hasSingleTenantAccess =
-    !singleTenantLocked ||
-    isSuperadmin ||
-    user.makerspaces.some((item) => item.id === tenant.makerspaceId);
+    !singleTenantLocked || Boolean(activeMakerspace);
 
   if (!hasSingleTenantAccess) {
     return (
