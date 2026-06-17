@@ -41,16 +41,25 @@ def frontend_allowed_origins(frontend):
 
 
 def resolve_frontend(*, tenant=None, slug=None, origin=None, host=None):
-    queryset = TenantFrontend.objects.select_related("makerspace").filter(is_active=True)
+    queryset = TenantFrontend.objects.select_related("makerspace").filter(
+        is_active=True,
+        makerspace__archived_at__isnull=True,
+    )
     if tenant:
         frontend = queryset.filter(token=tenant).first()
         if frontend:
             return frontend
-        makerspace = Makerspace.objects.filter(public_code__iexact=tenant).first()
+        makerspace = Makerspace.objects.filter(
+            public_code__iexact=tenant,
+            archived_at__isnull=True,
+        ).first()
         if makerspace:
             return primary_or_synthetic_frontend(makerspace)
     if slug:
-        makerspace = Makerspace.objects.filter(slug=slug).first()
+        makerspace = Makerspace.objects.filter(
+            slug=slug,
+            archived_at__isnull=True,
+        ).first()
         if makerspace:
             return primary_or_synthetic_frontend(makerspace)
     hostname = origin_to_hostname(origin) or origin_to_hostname(host)

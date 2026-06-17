@@ -69,33 +69,65 @@ class StaffListCreateView(generics.ListCreateAPIView):
         target_role = self.kwargs["role"]
         if data["role"] != target_role:
             raise ValidationError({"role": "Role does not match endpoint."})
-        if not _can_create_staff_role(request.user, target_role, data["makerspace_id"]):
+        makerspace_id = data["makerspace_id"]
+        if not _can_create_staff_role(request.user, target_role, makerspace_id):
             raise PermissionDenied()
         # A superadmin can target any makerspace_id, including a nonexistent one. Validate
         # before writing: otherwise get_or_create commits the user, then the membership FK
         # fails -> 500 and an orphaned staff account. Wrap both writes in one transaction so
         # a membership failure rolls back the user creation too.
-        if not Makerspace.objects.filter(pk=data["makerspace_id"]).exists():
+        makerspace = Makerspace.objects.filter(pk=makerspace_id).first()
+        if not makerspace:
             raise ValidationError({"makerspace_id": "Makerspace does not exist."})
+        # An archived makerspace is soft-deleted / operationally unreachable; never attach
+        # new staff to it (the superadmin branch of _can_create_staff_role bypasses rbac scope).
+        if makerspace.archived_at is not None:
+            raise ValidationError({"makerspace_id": "Makerspace is archived."})
+        is_break_glass = (
+            (request.user.is_superuser or request.user.role == User.Role.SUPERADMIN)
+            and not makerspace.superadmin_access_enabled
+        )
+        user_defaults = {
+            "email": data.get("email", ""),
+            "first_name": data.get("first_name", ""),
+            "last_name": data.get("last_name", ""),
+            "role": _global_role_for_membership(target_role),
+            "password": make_password(data.get("password") or get_random_string(32)),
+        }
         with transaction.atomic():
-            user, created = User.objects.get_or_create(
-                username=data["username"],
-                defaults={
-                    "email": data.get("email", ""),
-                    "first_name": data.get("first_name", ""),
-                    "last_name": data.get("last_name", ""),
-                    "role": _global_role_for_membership(target_role),
-                    "password": make_password(data.get("password") or get_random_string(32)),
-                },
-            )
-            membership, _ = MakerspaceMembership.objects.update_or_create(
-                user=user,
-                makerspace_id=data["makerspace_id"],
-                defaults={"role": target_role},
-            )
+            if is_break_glass:
+                errors = {}
+                if User.objects.filter(username=data["username"]).exists():
+                    errors["username"] = "A user with that username already exists."
+                email = data.get("email", "")
+                if email and User.objects.filter(email__iexact=email).exists():
+                    errors["email"] = "A user with that email already exists."
+                if errors:
+                    raise ValidationError(errors)
+                user = User.objects.create(username=data["username"], **user_defaults)
+                membership = MakerspaceMembership.objects.create(
+                    user=user,
+                    makerspace=makerspace,
+                    role=target_role,
+                )
+                created = True
+            else:
+                user, created = User.objects.get_or_create(
+                    username=data["username"],
+                    defaults=user_defaults,
+                )
+                membership, _ = MakerspaceMembership.objects.update_or_create(
+                    user=user,
+                    makerspace_id=makerspace_id,
+                    defaults={"role": target_role},
+                )
         audit.record(
             request.user,
-            "staff.created" if created else "staff.membership_updated",
+            (
+                "superadmin.break_glass_space_manager_created"
+                if is_break_glass
+                else "staff.created" if created else "staff.membership_updated"
+            ),
             makerspace=membership.makerspace,
             target=user,
             meta={"membership_role": target_role},
@@ -115,6 +147,13 @@ def _global_role_for_membership(target_role):
 
 def _can_create_staff_role(user, target_role, makerspace_id):
     if user.is_superuser or user.role == User.Role.SUPERADMIN:
+        superadmin_access_enabled = (
+            Makerspace.objects.filter(pk=makerspace_id)
+            .values_list("superadmin_access_enabled", flat=True)
+            .first()
+        )
+        if superadmin_access_enabled is False:
+            return target_role == MakerspaceMembership.Role.SPACE_MANAGER
         return True
     if target_role not in (
         MakerspaceMembership.Role.PRINT_MANAGER,
@@ -178,18 +217,27 @@ class ResetUserPasswordView(APIView):
         # Never reset a superadmin via this endpoint.
         if target.is_superuser or target.role == User.Role.SUPERADMIN:
             raise PermissionDenied("Cannot reset a superadmin's password here.")
-        # EXISTENTIAL hidden-space Space-Manager block (applies to ALL actors incl. superadmin):
-        # if the target is a SPACE_MANAGER of ANY makerspace that disabled superadmin access,
-        # nobody may reset them in-app (they self-recover by email, or the space re-enables access).
-        if MakerspaceMembership.objects.filter(
+        break_glass_password_reset = False
+        space_manager_memberships = MakerspaceMembership.objects.filter(
             user=target,
             role=MakerspaceMembership.Role.SPACE_MANAGER,
-            makerspace__superadmin_access_enabled=False,
-        ).exists():
-            raise PermissionDenied(
-                "This user is a Space Manager of a makerspace that turned off superadmin access; "
-                "they must self-recover via the forgot-password email, or the makerspace must re-enable access."
-            )
+        )
+        hidden_space_manager = space_manager_memberships.filter(
+            makerspace__superadmin_access_enabled=False
+        ).exists()
+        if hidden_space_manager:
+            if not is_superadmin:
+                raise PermissionDenied(
+                    "This user is a Space Manager of a makerspace that turned off superadmin access; "
+                    "they must self-recover via the forgot-password email, or the makerspace must re-enable access."
+                )
+            if space_manager_memberships.filter(
+                makerspace__superadmin_access_enabled=True,
+            ).exists():
+                raise PermissionDenied(
+                    "Cannot reset a Space Manager who also manages a makerspace with superadmin access enabled."
+                )
+            break_glass_password_reset = True
         if not is_superadmin:
             memberships = MakerspaceMembership.objects.filter(user=target)
             if not memberships.exists():
@@ -234,7 +282,11 @@ class ResetUserPasswordView(APIView):
         _blacklist_outstanding_tokens(target)
         audit.record(
             actor,
-            "user.password_reset",
+            (
+                "superadmin.break_glass_space_manager_password_reset"
+                if break_glass_password_reset
+                else "user.password_reset"
+            ),
             target=target,
             meta={"by_superadmin": is_superadmin},
         )
@@ -275,6 +327,9 @@ class AuditLogListView(generics.ListAPIView):
         queryset = AuditLog.objects.select_related("actor", "makerspace").order_by("-created_at")
         queryset = rbac.scope_by_action(self.request.user, rbac.Action.VIEW_AUDIT, queryset)
         queryset = rbac.hide_from_superadmin(self.request.user, queryset, field="makerspace_id")
+        archived = rbac.archived_makerspace_ids()
+        if archived:
+            queryset = queryset.exclude(makerspace_id__in=archived)
         makerspace_id = self.request.query_params.get("makerspace")
         action = self.request.query_params.get("action")
         target_type, target_id = (

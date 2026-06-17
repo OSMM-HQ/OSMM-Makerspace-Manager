@@ -2,6 +2,103 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — superadmin makerspace archive → purge + hard-hide P2 (2026-06-17)
+
+Adds a superadmin-only **two-step makerspace removal** (Codex Stage-1 plan-reviewed: APPROVED after
+2 revision rounds; spec `docs/superpowers/specs/2026-06-17-superadmin-archive-purge-makerspace-design.md`).
+Surface is the **Django `/control/` admin only** (superadmin-locked by construction). One migration
+(`makerspaces/0014`, adds `archived_at`/`archived_by`).
+
+- **Model.** `Makerspace.archived_at` (nullable, indexed; `IS NOT NULL` ⇒ archived — single source
+  of truth, no boolean) + `archived_by` (FK user, SET_NULL).
+- **Lifecycle service (`apps/makerspaces/lifecycle.py`, single source of truth).** `archive` (atomic
+  + `select_for_update`; rejects a hidden `superadmin_access_enabled=False` space and an
+  already-archived one; sets `archived_at/by`, flips `public_inventory_enabled=False`; reversible) /
+  `unarchive` / `purge`. **Purge is the break-glass op:** guards (archived **and** enabled **and**
+  actor `is_superuser`); collects S3 keys (evidence + `PrintRequestFile` + legacy `PrintRequest`
+  `model_file`/`estimate_screenshot`/`preview_screenshot`); writes a **platform-scoped**
+  (`makerspace=None`) `makerspace.purge_started` audit **before** teardown; in `transaction.atomic()`
+  suspends triggers for that transaction only via `SET LOCAL session_replication_role = 'replica'`
+  (transaction-scoped: Postgres auto-resets it on commit/rollback/disconnect, so a crash mid-purge can
+  never leave the append-only immutability triggers durably disabled platform-wide — `ALTER TABLE …
+  DISABLE TRIGGER USER` was rejected because it cannot be re-enabled inside the same transaction that
+  modified the table, "pending trigger events", forcing a non-crash-safe post-commit re-enable; the
+  lost DB-level FK enforcement is safe because Django's ORM does every CASCADE/SET_NULL fixup in Python
+  and the comprehensive test asserts no orphans), then deletes the **full `PROTECT` object graph in a
+  verified dependency order** (Django
+  `PROTECT` is Python-collector-enforced, so trigger suspension does NOT bypass it — the order must
+  clear each `PROTECT` edge before its parent: `QrPrintBatch`→`StockTransfer`(any space-touching, incl.
+  cross-makerspace)→stocktake/adjustment→printing→`BoxScan`/`QrScanEvent`/`PublicToolLoan`/return-records
+  **before** `HardwareRequest`→`EvidencePhoto`→`QrCode`→assets/products/`Box`→account/api/frontend
+  rows→`AuditLog`→`makerspace.delete()`); **after** a clean commit writes `makerspace.purged` and
+  best-effort deletes the S3 keys. A surviving cross-makerspace transfer destination keeps its
+  `InventoryAdjustment` (transfer `SET_NULL`).
+- **Archive = soft-delete for EVERYONE (central rbac, not entry-point-only).** `rbac.archived_makerspace_ids()`
+  + exclusion threaded through `resolve_scope`, `makerspaces_for_action(s)`, and (absolute, no member
+  carve-out) `can` — so a direct `?makerspace=<archived id>` staff route 403s/empties. Also excluded
+  from the superadmin aggregates (`operations.ledger`/`reports`, `printing.reports`, `AuditLogListView`),
+  the public bootstrap (`platform.resolve_frontend` + `lookup.py`) + public inventory, the **token-only**
+  public status endpoints (`RequestStatusView`, `PublicPrintStatusView`), and the staff makerspace
+  switcher + React makerspace list/detail. Archived stays visible **only** in `/control/` for purge.
+- **Admin (`apps/makerspaces/admin.py`).** `MakerspaceAdmin.has_delete_permission=False` (kills the
+  broken default delete + `delete_selected`); **Archive / Unarchive / Permanently purge** actions, purge
+  via an intermediate confirmation page requiring the superadmin to **retype each slug**. Hidden rows are
+  already excluded by `SuperuserOnlyModelAdmin._obj_in_hidden`, and the service re-checks
+  `superadmin_access_enabled` — so archive/purge can't backdoor the hard-hide governance.
+- **Hard-hide P2 fix (carried from the prior batch's Stage-4 review).** `MakerspacePrintingReportView`
+  dropped its pre-RBAC `Http404` for a hidden makerspace; the hard block makes `rbac.can()` return False
+  → clean **403** (matches the documented status contract). Test renamed
+  `test_report_per_makerspace_softhide_404` → `…_hardhide_403`.
+- Tests: `backend/tests/test_makerspace_lifecycle.py` (guards; comprehensive populate-every-model purge
+  drift-guard incl. `BoxScan/QrScanEvent/PublicToolLoan.request` + cross-makerspace transfer survivor;
+  trigger re-enable; archive scope-leak coverage across rbac/aggregates/public/token-status/switcher).
+
+## Recent batch — superadmin access: SOFT hide → HARD block (2026-06-17)
+
+Converted the per-makerspace `superadmin_access_enabled=False` toggle from a SOFT hide (data merely
+dropped from aggregate/list surfaces; core RBAC untouched; superadmin kept raw staff-API + Django
+`/control/` reach) into a **HARD block**. Codex plan-reviewed (APPROVED after revisions); 508 tests
+green. No migration (reuses the existing flag + `PlatformEmailSettings`). **Supersedes the soft-hide
+behavior documented in the "collaborative-makerspace self-governance" section below.** NOTE: a hard
+block is application-layer only — an instance operator with DB/`manage.py` access can always flip the
+flag; that out-of-band override is intentional and undocumented to end users.
+
+- **Centralized RBAC policy (`apps/accounts/rbac.py`).** New `_superadmin_hidden_to_exclude` /
+  `_superadmin_visible_ids` / `superadmin_hidden_block_applies` helpers; `can`, `scope_by_action`,
+  `scope_by_makerspace`, `makerspaces_for_action`, and `makerspaces_for_actions` now exclude a
+  hidden makerspace **for a GLOBAL superadmin** (returns a concrete id set instead of the `ALL`
+  sentinel when any makerspace is hidden; `ALL` fast-path preserved when none are). A superadmin who
+  holds an EXPLICIT `MakerspaceMembership` in a hidden space keeps that membership ROLE's actions
+  only (no global superpower — a hidden-space PRINT_MANAGER ≠ MANAGE_MAKERSPACE). Non-superadmin
+  members are unaffected. `hide_from_superadmin` delegates to the same policy (honors the
+  explicit-member carve-out), so it can't contradict `scope_by_action`. This single change cascades
+  the block to every `/api/v1/admin/...` endpoint and **closes the prior soft-hide
+  `?makerspace=<hidden id>` escape hatch** (the audit-report batch's #4) — explicit-id now yields
+  403/empty.
+- **Existence stays visible (governance/break-glass).** `views_makerspaces.py`: the makerspace
+  LIST + detail-GET still return a hidden makerspace to the superadmin as the slim
+  `MakerspaceDisabledRowSerializer` (id/name/slug/flag only — no api_key/SMTP/CORS), so it remains
+  discoverable; PATCH stays RBAC-scoped, so a superadmin still can't edit/re-enable it (a re-enable
+  PATCH now **404s**).
+- **Block-OFF-unless-SMTP.** `integrations/email.py` gains `platform_email_configured()`
+  (`smtp_host.strip()`); `MakerspaceSerializer` rejects True→False unless the instance Platform
+  Email is configured, so locked-out staff always have a forgot-password recovery path. Re-enable
+  (False→True) stays space-manager-only (superadmin 400s, or now 404s via the hard block).
+- **Break-glass (recovery when all space managers are lost).** `views_users.py`: a superadmin may
+  CREATE a brand-new SPACE_MANAGER for a hidden makerspace (`_can_create_staff_role` allows only
+  SPACE_MANAGER there; rejects attaching/restoring an EXISTING username/email — fresh account only),
+  and may reset a SPACE_MANAGER who manages ONLY hidden makerspace(s) (blocked if they also manage a
+  superadmin-access-ENABLED space). Both audited as `superadmin.break_glass_space_manager_created` /
+  `..._password_reset`. The created SM logs in and re-enables.
+- **Django `/control/` object-level block.** `config/admin_access.py` `SuperuserOnlyModelAdmin` now
+  also denies `has_view/change/delete_permission` for a hidden makerspace's row (via `_obj_in_hidden`
+  resolving the same `resolve_hidden_lookup` path) — previously only the changelist was filtered, so
+  the change/delete PAGES were reachable by id.
+- Status contract under the hard block: hidden makerspace → **403** on action/permission-gated
+  endpoints (report, managed-print list, …), **404** on object-lookup detail + re-enable PATCH,
+  **empty 200** on scope-filtered lists (needs-fix shelf). 404 is no longer used to feign
+  non-existence (existence is openly visible as a slim row), so 403 "forbidden" is the honest status.
+
 ## Recent batch — audit-report hardening (5 parallel-Codex phases) + lend attribution (2026-06-17)
 
 Fix batch from a 6-Codex codebase audit (Codex plan-reviewed → APPROVED; 5 file-disjoint phases run

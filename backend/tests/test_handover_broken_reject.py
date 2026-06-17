@@ -169,9 +169,11 @@ def test_superadmin_needs_fix_shelf_hides_disabled_space_unless_explicit():
     assert listing.status_code == 200
     assert {row["id"] for row in listing.data["results"]} == {visible_product.id}
 
+    # Hard hide: even an explicit ?makerspace=<hidden id> yields nothing for a
+    # global superadmin (the soft-hide escape hatch is closed by the RBAC block).
     listing = client.get(_shelf_url(), {"makerspace": hidden_space.id})
     assert listing.status_code == 200
-    assert {row["id"] for row in listing.data["results"]} == {hidden_product.id}
+    assert {row["id"] for row in listing.data["results"]} == set()
 
 
 def test_needs_fix_shelf_scrap_drops_total():

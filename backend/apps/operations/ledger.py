@@ -45,9 +45,12 @@ def _request_item_rows(makerspace_id):
     if makerspace_id is not None:
         queryset = queryset.filter(request__makerspace_id=makerspace_id)
     else:
-        hidden = rbac.superadmin_hidden_makerspace_ids()
-        if hidden:
-            queryset = queryset.exclude(request__makerspace_id__in=hidden)
+        excluded = (
+            rbac.superadmin_hidden_makerspace_ids()
+            | rbac.archived_makerspace_ids()
+        )
+        if excluded:
+            queryset = queryset.exclude(request__makerspace_id__in=excluded)
 
     rows = []
     for item in queryset.order_by("-request__issued_at", "request_id", "id"):

@@ -132,7 +132,7 @@ class RequestStatusView(generics.RetrieveAPIView):
     def get_queryset(self):
         from apps.hardware_requests.view_helpers import request_queryset
 
-        return request_queryset()
+        return request_queryset().filter(makerspace__archived_at__isnull=True)
 
     @extend_schema(
         tags=["Public requests"],

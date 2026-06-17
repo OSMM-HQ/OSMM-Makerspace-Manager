@@ -28,6 +28,8 @@ class PrintRequestCreateSerializer(serializers.ModelSerializer):
         )
 
     def validate_bucket(self, value):
+        if value.makerspace.archived_at is not None:
+            raise serializers.ValidationError("Makerspace is archived.")
         if not value.is_active:
             raise serializers.ValidationError("Bucket is not active.")
         return value

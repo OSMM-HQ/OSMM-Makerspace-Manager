@@ -10,8 +10,9 @@ def resolve_scope(actor):
     if actor is None or not getattr(actor, "is_authenticated", False):
         return set()
     if actor.is_superuser or actor.role == User.Role.SUPERADMIN:
-        return ALL
-    return set(actor.makerspace_memberships.values_list("makerspace_id", flat=True))
+        return _superadmin_visible_ids(actor, None)
+    scope = set(actor.makerspace_memberships.values_list("makerspace_id", flat=True))
+    return _exclude_archived_ids(scope)
 
 
 def scope_by_makerspace(actor, queryset, makerspace_field="makerspace_id"):
@@ -81,7 +82,7 @@ def makerspaces_for_action(actor, action):
     if actor is None or not getattr(actor, "is_authenticated", False):
         return set()
     if actor.is_superuser or actor.role == User.Role.SUPERADMIN:
-        return ALL
+        return _superadmin_visible_ids(actor, action)
     roles = [
         role
         for role, actions in _MEMBERSHIP_ROLE_ACTIONS.items()
@@ -89,11 +90,12 @@ def makerspaces_for_action(actor, action):
     ]
     if not roles:
         return set()
-    return set(
+    scope = set(
         actor.makerspace_memberships.filter(role__in=roles).values_list(
             "makerspace_id", flat=True
         )
     )
+    return _exclude_archived_ids(scope)
 
 
 def makerspaces_for_actions(actor, *actions):
@@ -137,7 +139,18 @@ def can(actor, action, makerspace_id=None):
     makerspace_id is required and the membership role decides the allowed actions."""
     if actor is None or not getattr(actor, "is_authenticated", False):
         return False
+    if makerspace_id is not None and _id_in(makerspace_id, archived_makerspace_ids()):
+        return False
     if actor.is_superuser or actor.role == User.Role.SUPERADMIN:
+        if makerspace_id is None:
+            return True
+        if makerspace_id in superadmin_hidden_makerspace_ids():
+            # Hard hide: global superpower is withheld for a hidden makerspace.
+            # A superadmin who is an explicit member still gets that role's actions.
+            role = membership_role(actor, makerspace_id)
+            if role is None:
+                return False
+            return action in _MEMBERSHIP_ROLE_ACTIONS.get(role, set())
         return True
     if makerspace_id is None:
         return False
@@ -158,12 +171,99 @@ def superadmin_hidden_makerspace_ids():
     )
 
 
-def hide_from_superadmin(actor, queryset, field="makerspace_id"):
-    if actor is None or not getattr(actor, "is_authenticated", False):
-        return queryset
-    if not (actor.is_superuser or actor.role == User.Role.SUPERADMIN):
-        return queryset
+def archived_makerspace_ids():
+    from apps.makerspaces.models import Makerspace
+
+    return set(
+        Makerspace.objects.filter(archived_at__isnull=False).values_list(
+            "id",
+            flat=True,
+        )
+    )
+
+
+def _exclude_archived_ids(scope):
+    archived = archived_makerspace_ids()
+    return scope - archived if archived else scope
+
+
+def _id_in(makerspace_id, ids):
+    if makerspace_id in ids:
+        return True
+    try:
+        return int(makerspace_id) in ids
+    except (TypeError, ValueError):
+        return False
+
+
+def _is_superadmin(actor):
+    return bool(
+        actor is not None
+        and getattr(actor, "is_authenticated", False)
+        and (actor.is_superuser or actor.role == User.Role.SUPERADMIN)
+    )
+
+
+def _superadmin_hidden_to_exclude(actor, action=None):
+    """Hidden makerspace ids a GLOBAL superadmin must be cut off from.
+
+    A makerspace with superadmin_access_enabled=False is excluded UNLESS the
+    superadmin holds an explicit MakerspaceMembership there (granting `action`,
+    when given) — a superadmin who is also a real member keeps that membership's
+    role-scoped access, but never global superpower (review fix #2)."""
     hidden = superadmin_hidden_makerspace_ids()
     if not hidden:
+        return set()
+    memberships = actor.makerspace_memberships.filter(makerspace_id__in=hidden)
+    if action is None:
+        member_ok = set(memberships.values_list("makerspace_id", flat=True))
+    else:
+        granting = [r for r, acts in _MEMBERSHIP_ROLE_ACTIONS.items() if action in acts]
+        member_ok = (
+            set(
+                memberships.filter(role__in=granting).values_list(
+                    "makerspace_id", flat=True
+                )
+            )
+            if granting
+            else set()
+        )
+    return hidden - member_ok
+
+
+def _superadmin_visible_ids(actor, action=None):
+    """Concrete id set a global superadmin may act in (all makerspaces minus the
+    hard-hidden, non-member ones and archived ones). Returns ALL when there is
+    no exclusion so the fast path is preserved for the common case."""
+    excluded = _superadmin_hidden_to_exclude(actor, action) | archived_makerspace_ids()
+    if not excluded:
+        return ALL
+    from apps.makerspaces.models import Makerspace
+
+    return set(Makerspace.objects.exclude(id__in=excluded).values_list("id", flat=True))
+
+
+def superadmin_hidden_block_applies(actor, makerspace_id, action=None):
+    """True when a global superadmin must be HARD-blocked from `makerspace_id`."""
+    if not _is_superadmin(actor) or makerspace_id is None:
+        return False
+    if makerspace_id not in superadmin_hidden_makerspace_ids():
+        return False
+    role = membership_role(actor, makerspace_id)
+    if role is None:
+        return True  # no membership -> global superpower is withheld
+    if action is None:
+        return False  # legitimate member: membership role governs, not blocked
+    return action not in _MEMBERSHIP_ROLE_ACTIONS.get(role, set())
+
+
+def hide_from_superadmin(actor, queryset, field="makerspace_id"):
+    """Exclude hard-hidden makerspaces for a global superadmin. Delegates to the
+    same policy as the RBAC scopes so a superadmin who is an explicit member of a
+    hidden space is NOT excluded (no contradiction with scope_by_action)."""
+    if not _is_superadmin(actor):
         return queryset
-    return queryset.exclude(**{f"{field}__in": hidden})
+    excluded = _superadmin_hidden_to_exclude(actor, None)
+    if not excluded:
+        return queryset
+    return queryset.exclude(**{f"{field}__in": excluded})

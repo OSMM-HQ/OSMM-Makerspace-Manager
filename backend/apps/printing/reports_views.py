@@ -1,4 +1,3 @@
-from django.http import Http404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
@@ -40,11 +39,9 @@ class MakerspacePrintingReportView(APIView):
     )
     def get(self, request, makerspace_id, *args, **kwargs):
         require_module(makerspace_id, "printing")
-        if (
-            _is_superadmin(request.user)
-            and makerspace_id in rbac.superadmin_hidden_makerspace_ids()
-        ):
-            raise Http404()
+        # The hard-hide block makes rbac.can() return False for a global superadmin on a
+        # hidden makerspace, so this falls through to a 403 — the honest status, since the
+        # makerspace's existence isn't secret (it still shows as a slim row in the list).
         if not rbac.can(request.user, rbac.Action.MANAGE_PRINTING, makerspace_id):
             raise PermissionDenied()
 

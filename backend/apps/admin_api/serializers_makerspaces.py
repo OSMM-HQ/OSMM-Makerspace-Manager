@@ -2,6 +2,7 @@ from django.db import transaction
 from rest_framework import serializers
 
 from apps.accounts.models import User
+from apps.integrations.email import platform_email_configured
 from apps.makerspaces.models import Makerspace, TenantFrontend
 
 
@@ -86,6 +87,15 @@ class MakerspaceSerializer(serializers.ModelSerializer):
                         {
                             "superadmin_access_enabled": (
                                 "Only the makerspace admin can re-enable superadmin access."
+                            )
+                        }
+                    )
+                if new_flag is False and not platform_email_configured():
+                    raise serializers.ValidationError(
+                        {
+                            "superadmin_access_enabled": (
+                                "Configure Platform Email before disabling superadmin access, "
+                                "so password recovery remains possible."
                             )
                         }
                     )

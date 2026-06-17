@@ -1085,9 +1085,11 @@ def test_superadmin_managed_print_list_hides_disabled_space_unless_explicit():
     assert response.status_code == 200
     assert result_ids(response) == {visible_request.id}
 
+    # Hard hide: an explicit ?makerspace=<hidden id> is FORBIDDEN (403) for a
+    # global superadmin (CanManagePrinting denies the disabled space; the soft-hide
+    # escape hatch is closed by the RBAC block).
     response = client.get(managed_list_url(), {"makerspace": hidden_space.id})
-    assert response.status_code == 200
-    assert result_ids(response) == {hidden_request.id}
+    assert response.status_code == 403
 
 
 def test_guest_admin_without_manage_printing_gets_empty_list_or_403_with_makerspace():

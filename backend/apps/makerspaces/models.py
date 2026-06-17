@@ -105,6 +105,18 @@ class Makerspace(models.Model):
         on_delete=models.SET_NULL,
         related_name="created_makerspaces",
     )
+    # Soft-delete state. archived_at IS NOT NULL ⇒ archived (single source of truth; no
+    # separate boolean). An archived makerspace is operationally unreachable for everyone
+    # (excluded centrally in rbac + public surfaces) but stays visible to the superadmin in
+    # the Django /control/ admin so it can be permanently purged.
+    archived_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    archived_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

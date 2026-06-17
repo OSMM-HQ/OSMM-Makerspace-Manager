@@ -135,6 +135,28 @@ class SuperuserOnlyModelAdmin:
             queryset = queryset.exclude(**{f"{lookup}__in": hidden})
         return queryset
 
+    def _obj_in_hidden(self, obj):
+        """True if `obj` belongs to a hard-hidden makerspace. Complements
+        get_queryset (which only hides changelists) by blocking the object-level
+        view/change/delete PAGES too, so /control/ can't reach a hidden row by id."""
+        if obj is None:
+            return False
+        lookup = self.resolve_hidden_lookup()
+        if not lookup:
+            return False
+
+        from apps.accounts import rbac
+
+        hidden = rbac.superadmin_hidden_makerspace_ids()
+        if not hidden:
+            return False
+        value = obj
+        for part in lookup.split("__"):
+            value = getattr(value, part, None)
+            if value is None:
+                return False
+        return value in hidden
+
     def _has_superuser_access(self, request):
         from apps.accounts.models import User
 
@@ -149,16 +171,16 @@ class SuperuserOnlyModelAdmin:
         )
 
     def has_view_permission(self, request, obj=None):
-        return self._has_superuser_access(request)
+        return self._has_superuser_access(request) and not self._obj_in_hidden(obj)
 
     def has_add_permission(self, request):
         return self._has_superuser_access(request)
 
     def has_change_permission(self, request, obj=None):
-        return self._has_superuser_access(request)
+        return self._has_superuser_access(request) and not self._obj_in_hidden(obj)
 
     def has_delete_permission(self, request, obj=None):
-        return self._has_superuser_access(request)
+        return self._has_superuser_access(request) and not self._obj_in_hidden(obj)
 
     def has_module_permission(self, request):
         return self._has_superuser_access(request)

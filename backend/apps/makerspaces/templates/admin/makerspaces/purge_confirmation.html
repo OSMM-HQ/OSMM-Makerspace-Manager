@@ -1,0 +1,43 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="{{ action_name }}">
+  <input type="hidden" name="confirm_purge" value="1">
+  {% for obj in queryset %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+  {% endfor %}
+
+  <p>
+    ALL data and the audit trail for the selected makerspaces will be permanently destroyed.
+    RETYPE each makerspace slug exactly to confirm purge.
+  </p>
+
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">Name</th>
+        <th scope="col">Slug</th>
+        <th scope="col">Confirm slug</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for obj in queryset %}
+        <tr>
+          <td>{{ obj.name }}</td>
+          <td><code>{{ obj.slug }}</code></td>
+          <td>
+            <input type="text" name="slug_{{ obj.pk }}" autocomplete="off">
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="submit-row">
+    <input type="submit" value="Purge makerspaces" class="default">
+    <a href=".">Cancel</a>
+  </div>
+</form>
+{% endblock %}

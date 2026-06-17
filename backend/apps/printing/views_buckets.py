@@ -19,6 +19,7 @@ class PrintBucketListView(generics.ListAPIView):
         require_module(makerspace_id, "printing")
         return PrintBucket.objects.filter(
             makerspace_id=makerspace_id,
+            makerspace__archived_at__isnull=True,
             is_active=True,
         ).order_by("name")
 

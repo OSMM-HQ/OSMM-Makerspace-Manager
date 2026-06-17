@@ -371,7 +371,7 @@ def test_report_payments_totals():
     ]
 
 
-def test_report_per_makerspace_softhide_404():
+def test_report_per_makerspace_hardhide_403():
     hidden_space = make_space("payment-report-hidden")
     hidden_space.superadmin_access_enabled = False
     hidden_space.save(update_fields=["superadmin_access_enabled"])
@@ -382,8 +382,11 @@ def test_report_per_makerspace_softhide_404():
         access_status=User.AccessStatus.ACTIVE,
     )
 
+    # Hard hide: a global superadmin is FORBIDDEN (403) from a disabled space's
+    # report. Existence isn't secret (the makerspace still shows as a slim row in
+    # the makerspace list), so 403 "forbidden" is the honest status, not a 404.
     response = authenticated_client(superadmin).get(makerspace_report_url(hidden_space))
-    assert response.status_code == 404
+    assert response.status_code == 403
 
     response = authenticated_client(manager).get(makerspace_report_url(hidden_space))
     assert response.status_code == 200

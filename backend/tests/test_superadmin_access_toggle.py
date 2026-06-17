@@ -63,6 +63,14 @@ def test_superadmin_cannot_re_enable_but_makerspace_admin_can():
     space_manager = make_member("access-toggle-manager", space)
     superadmin = make_superadmin("access-toggle-super")
 
+    # Disabling superadmin access now requires a usable instance Platform Email
+    # (so locked-out staff always have a forgot-password recovery path).
+    from apps.integrations.models import PlatformEmailSettings
+
+    cfg = PlatformEmailSettings.load()
+    cfg.smtp_host = "smtp.example.com"
+    cfg.save(update_fields=["smtp_host"])
+
     disabled = authenticated_client(superadmin).patch(
         makerspace_detail_url(space),
         {"superadmin_access_enabled": False},
@@ -72,12 +80,15 @@ def test_superadmin_cannot_re_enable_but_makerspace_admin_can():
     space.refresh_from_db()
     assert space.superadmin_access_enabled is False
 
+    # Hard hide: once disabled, the space is RBAC-invisible to the superadmin, so
+    # the re-enable PATCH 404s (it can't resolve the object) — re-enable stays a
+    # space-manager-only right, now enforced even harder than the old 400.
     regrant = authenticated_client(superadmin).patch(
         makerspace_detail_url(space),
         {"superadmin_access_enabled": True},
         format="json",
     )
-    assert regrant.status_code == 400
+    assert regrant.status_code == 404
     space.refresh_from_db()
     assert space.superadmin_access_enabled is False
 

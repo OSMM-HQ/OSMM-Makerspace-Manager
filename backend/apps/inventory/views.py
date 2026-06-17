@@ -34,6 +34,7 @@ class PublicMakerspaceListView(ListAPIView):
     def get_queryset(self):
         return Makerspace.objects.filter(
             public_inventory_enabled=True,
+            archived_at__isnull=True,
         ).order_by("name")
 
 
@@ -88,6 +89,7 @@ class PublicInventoryListView(ListAPIView):
         queryset = makerspace.products.select_related("category").filter(
             is_public=True,
             is_archived=False,
+            makerspace__archived_at__isnull=True,
         )
         query = self.request.query_params.get("q", "").strip()
         if query:
@@ -174,6 +176,10 @@ class PublicInventoryDetailView(RetrieveAPIView):
             raise Http404
         return (
             makerspace.products.select_related("category")
-            .filter(is_public=True, is_archived=False)
+            .filter(
+                is_public=True,
+                is_archived=False,
+                makerspace__archived_at__isnull=True,
+            )
             .order_by("name")
         )

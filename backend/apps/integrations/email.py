@@ -37,13 +37,14 @@ def platform_mail_connection():
     from apps.integrations.models import PlatformEmailSettings
 
     cfg = PlatformEmailSettings.load()
-    if not cfg.smtp_host:
+    smtp_host = (cfg.smtp_host or "").strip()
+    if not smtp_host:
         return None, settings.DEFAULT_FROM_EMAIL
     use_ssl = cfg.smtp_use_ssl
     use_tls = cfg.smtp_use_tls and not use_ssl
     return (
         get_connection(
-            host=cfg.smtp_host,
+            host=smtp_host,
             port=cfg.smtp_port,
             username=cfg.smtp_username or None,
             password=cfg.get_smtp_password() or None,
@@ -52,6 +53,13 @@ def platform_mail_connection():
         ),
         cfg.from_email or settings.DEFAULT_FROM_EMAIL,
     )
+
+
+def platform_email_configured() -> bool:
+    from apps.integrations.models import PlatformEmailSettings
+
+    cfg = PlatformEmailSettings.load()
+    return bool((cfg.smtp_host or "").strip())
 
 
 def send_password_reset_email(recipient, reset_url):

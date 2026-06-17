@@ -28,11 +28,14 @@ def build_printing_report(makerspace_id=None, *, include_makerspace=False):
         spools = spools.filter(makerspace_id=makerspace_id)
         manual_logs = manual_logs.filter(makerspace_id=makerspace_id)
     else:
-        hidden = rbac.superadmin_hidden_makerspace_ids()
-        if hidden:
-            requests = requests.exclude(bucket__makerspace_id__in=hidden)
-            spools = spools.exclude(makerspace_id__in=hidden)
-            manual_logs = manual_logs.exclude(makerspace_id__in=hidden)
+        excluded = (
+            rbac.superadmin_hidden_makerspace_ids()
+            | rbac.archived_makerspace_ids()
+        )
+        if excluded:
+            requests = requests.exclude(bucket__makerspace_id__in=excluded)
+            spools = spools.exclude(makerspace_id__in=excluded)
+            manual_logs = manual_logs.exclude(makerspace_id__in=excluded)
 
     return {
         "totals": _totals(requests),

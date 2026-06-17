@@ -1,0 +1,322 @@
+import pytest
+from django.contrib import admin
+from django.test import RequestFactory
+from django.urls import reverse
+
+from apps.accounts import rbac
+from apps.accounts.models import User
+from apps.audit.models import AuditLog
+from apps.integrations.models import PlatformEmailSettings
+from apps.inventory.models import InventoryProduct
+from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from tests.return_helpers import (
+    authenticated_client,
+    make_member,
+    make_product,
+    make_space,
+    make_user,
+)
+
+pytestmark = pytest.mark.django_db
+
+
+def make_superadmin(username, **kwargs):
+    defaults = {
+        "role": User.Role.SUPERADMIN,
+        "access_status": User.AccessStatus.ACTIVE,
+    }
+    defaults.update(kwargs)
+    return make_user(username, **defaults)
+
+
+def hide_makerspace(makerspace):
+    makerspace.superadmin_access_enabled = False
+    makerspace.save(update_fields=["superadmin_access_enabled"])
+
+
+def test_superadmin_rbac_hard_hides_disabled_makerspace():
+    hidden = make_space("hard-hide-rbac-hidden")
+    hide_makerspace(hidden)
+    visible = make_space("hard-hide-rbac-visible")
+    superadmin = make_superadmin("hard-hide-rbac-super")
+    hidden_product = make_product(hidden, name="Hidden probe")
+    visible_product = make_product(visible, name="Visible probe")
+
+    for action in (
+        rbac.Action.VIEW_INVENTORY,
+        rbac.Action.MANAGE_PRINTING,
+        rbac.Action.EDIT_INVENTORY,
+    ):
+        assert rbac.can(superadmin, action, hidden.id) is False
+        assert rbac.can(superadmin, action, visible.id) is True
+
+    view_scope = rbac.makerspaces_for_action(
+        superadmin,
+        rbac.Action.VIEW_INVENTORY,
+    )
+    assert view_scope is not rbac.ALL
+    assert hidden.id not in view_scope
+    assert visible.id in view_scope
+    assert rbac.makerspaces_for_actions(
+        superadmin,
+        rbac.Action.VIEW_INVENTORY,
+        rbac.Action.MANAGE_PRINTING,
+    ) == view_scope
+
+    scoped_products = rbac.scope_by_action(
+        superadmin,
+        rbac.Action.VIEW_INVENTORY,
+        InventoryProduct.objects.all(),
+    )
+    assert hidden_product not in scoped_products
+    assert visible_product in scoped_products
+
+    resolved = rbac.resolve_scope(superadmin)
+    assert resolved is not rbac.ALL
+    assert hidden.id not in resolved
+    assert visible.id in resolved
+
+    scoped_spaces = rbac.scope_by_makerspace(
+        superadmin,
+        Makerspace.objects.all(),
+        makerspace_field="id",
+    )
+    assert hidden not in scoped_spaces
+    assert visible in scoped_spaces
+
+
+def test_superadmin_rbac_preserves_all_fast_path_when_no_makerspace_is_hidden():
+    superadmin = make_superadmin("hard-hide-fast-path-super")
+    make_space("hard-hide-fast-path-visible")
+
+    assert (
+        rbac.makerspaces_for_action(superadmin, rbac.Action.VIEW_INVENTORY)
+        is rbac.ALL
+    )
+    assert (
+        rbac.makerspaces_for_actions(
+            superadmin,
+            rbac.Action.VIEW_INVENTORY,
+            rbac.Action.MANAGE_PRINTING,
+        )
+        is rbac.ALL
+    )
+    assert rbac.resolve_scope(superadmin) is rbac.ALL
+
+
+def test_superadmin_explicit_hidden_member_gets_membership_role_only():
+    hidden = make_space("hard-hide-member-print")
+    hide_makerspace(hidden)
+    visible = make_space("hard-hide-member-visible")
+    superadmin = make_superadmin("hard-hide-member-super")
+    MakerspaceMembership.objects.create(
+        user=superadmin,
+        makerspace=hidden,
+        role=MakerspaceMembership.Role.PRINT_MANAGER,
+    )
+
+    assert rbac.can(superadmin, rbac.Action.MANAGE_PRINTING, hidden.id) is True
+    assert rbac.can(superadmin, rbac.Action.MANAGE_MAKERSPACE, hidden.id) is False
+    assert rbac.can(superadmin, rbac.Action.EDIT_INVENTORY, hidden.id) is False
+    assert rbac.can(superadmin, rbac.Action.MANAGE_MAKERSPACE, visible.id) is True
+
+
+def test_hidden_makerspace_member_keeps_manage_access_and_inventory_visibility():
+    hidden = make_space("hard-hide-own-member")
+    hide_makerspace(hidden)
+    space_manager = make_member(
+        "hard-hide-own-manager",
+        hidden,
+        membership_role=MakerspaceMembership.Role.SPACE_MANAGER,
+        role=User.Role.SPACE_MANAGER,
+    )
+    product = make_product(hidden, name="Hidden member product")
+
+    assert (
+        rbac.can(space_manager, rbac.Action.MANAGE_MAKERSPACE, hidden.id)
+        is True
+    )
+    assert list(
+        rbac.scope_by_action(
+            space_manager,
+            rbac.Action.VIEW_INVENTORY,
+            InventoryProduct.objects.all(),
+        )
+    ) == [product]
+
+    response = authenticated_client(space_manager).get(
+        reverse("admin-inventory", kwargs={"makerspace_id": hidden.id})
+    )
+
+    assert response.status_code == 200
+    assert [item["id"] for item in response.data["results"]] == [product.id]
+
+
+def test_superadmin_inventory_endpoint_is_blocked_for_hidden_space_but_visible_works():
+    hidden = make_space("hard-hide-api-hidden")
+    hide_makerspace(hidden)
+    visible = make_space("hard-hide-api-visible")
+    hidden_product = make_product(hidden, name="Hidden endpoint product")
+    visible_product = make_product(visible, name="Visible endpoint product")
+    superadmin = make_superadmin("hard-hide-api-super")
+    client = authenticated_client(superadmin)
+
+    hidden_list = client.get(
+        reverse("admin-inventory", kwargs={"makerspace_id": hidden.id})
+    )
+    visible_list = client.get(
+        reverse("admin-inventory", kwargs={"makerspace_id": visible.id})
+    )
+    hidden_detail = client.get(
+        reverse("admin-inventory-detail", kwargs={"pk": hidden_product.id})
+    )
+
+    assert hidden_list.status_code == 403
+    assert hidden_detail.status_code == 404
+    assert visible_list.status_code == 200
+    assert [item["id"] for item in visible_list.data["results"]] == [
+        visible_product.id
+    ]
+
+
+def test_superadmin_makerspace_visibility_keeps_hidden_space_as_slim_row():
+    hidden = make_space("hard-hide-visible-hidden")
+    hide_makerspace(hidden)
+    visible = make_space("hard-hide-visible-enabled")
+    superadmin = make_superadmin("hard-hide-visible-super")
+    client = authenticated_client(superadmin)
+
+    listed = client.get(reverse("admin-makerspaces"))
+    detail = client.get(reverse("admin-makerspace", kwargs={"pk": hidden.id}))
+
+    assert listed.status_code == 200
+    rows = {row["id"]: row for row in listed.data}
+    assert hidden.id in rows
+    assert visible.id in rows
+    assert rows[hidden.id]["superadmin_access_enabled"] is False
+    assert "public_api_key" not in rows[hidden.id]
+    assert "public_api_key" in rows[visible.id]
+
+    assert detail.status_code == 200
+    assert detail.data["id"] == hidden.id
+    assert detail.data["superadmin_access_enabled"] is False
+    assert "public_api_key" not in detail.data
+
+
+def test_superadmin_break_glass_create_is_space_manager_only_and_fresh_user_only():
+    hidden = make_space("hard-hide-break-glass")
+    hide_makerspace(hidden)
+    existing = make_user(
+        "hard-hide-existing-user",
+        access_status=User.AccessStatus.ACTIVE,
+    )
+    superadmin = make_superadmin("hard-hide-break-glass-super")
+    client = authenticated_client(superadmin)
+
+    created = client.post(
+        reverse("admin-users-space-managers"),
+        {
+            "username": "hard-hide-new-manager",
+            "email": "hard-hide-new-manager@example.com",
+            "makerspace_id": hidden.id,
+            "role": MakerspaceMembership.Role.SPACE_MANAGER,
+        },
+        format="json",
+    )
+    rejected_role = client.post(
+        reverse("admin-users-print-managers"),
+        {
+            "username": "hard-hide-new-print",
+            "email": "hard-hide-new-print@example.com",
+            "makerspace_id": hidden.id,
+            "role": MakerspaceMembership.Role.PRINT_MANAGER,
+        },
+        format="json",
+    )
+    rejected_existing = client.post(
+        reverse("admin-users-space-managers"),
+        {
+            "username": existing.username,
+            "email": "hard-hide-existing-user-new@example.com",
+            "makerspace_id": hidden.id,
+            "role": MakerspaceMembership.Role.SPACE_MANAGER,
+        },
+        format="json",
+    )
+
+    assert created.status_code == 201
+    created_user = User.objects.get(username="hard-hide-new-manager")
+    assert created.data["makerspace_id"] == hidden.id
+    assert created.data["role"] == MakerspaceMembership.Role.SPACE_MANAGER
+    assert created_user.role == User.Role.SPACE_MANAGER
+    assert AuditLog.objects.filter(
+        action="superadmin.break_glass_space_manager_created",
+        makerspace=hidden,
+        target_id=str(created_user.id),
+    ).exists()
+
+    assert rejected_role.status_code == 403
+    assert not User.objects.filter(username="hard-hide-new-print").exists()
+    assert rejected_existing.status_code == 400
+    assert "username" in rejected_existing.data
+    assert not MakerspaceMembership.objects.filter(
+        user=existing,
+        makerspace=hidden,
+    ).exists()
+
+
+def test_superadmin_access_cannot_be_disabled_until_platform_smtp_is_configured():
+    makerspace = make_space("hard-hide-smtp-block")
+    superadmin = make_superadmin("hard-hide-smtp-super")
+    client = authenticated_client(superadmin)
+    url = reverse("admin-makerspace", kwargs={"pk": makerspace.id})
+
+    blocked = client.patch(
+        url,
+        {"superadmin_access_enabled": False},
+        format="json",
+    )
+    makerspace.refresh_from_db()
+    assert blocked.status_code == 400
+    assert makerspace.superadmin_access_enabled is True
+
+    cfg = PlatformEmailSettings.load()
+    cfg.smtp_host = "smtp.example.com"
+    cfg.save(update_fields=["smtp_host"])
+
+    allowed = client.patch(
+        url,
+        {"superadmin_access_enabled": False},
+        format="json",
+    )
+    makerspace.refresh_from_db()
+    assert allowed.status_code == 200
+    assert makerspace.superadmin_access_enabled is False
+
+
+def test_django_admin_object_permissions_block_hidden_makerspace_rows():
+    hidden = make_space("hard-hide-control-hidden")
+    hide_makerspace(hidden)
+    visible = make_space("hard-hide-control-visible")
+    hidden_product = make_product(hidden, name="Hidden control product")
+    visible_product = make_product(visible, name="Visible control product")
+    superadmin = make_superadmin(
+        "hard-hide-control-super",
+        is_staff=True,
+        is_superuser=True,
+    )
+    request = RequestFactory().get("/control/")
+    request.user = superadmin
+
+    product_admin = admin.site._registry[InventoryProduct]
+    makerspace_admin = admin.site._registry[Makerspace]
+
+    assert product_admin.has_view_permission(request, hidden_product) is False
+    assert product_admin.has_change_permission(request, hidden_product) is False
+    assert makerspace_admin.has_view_permission(request, hidden) is False
+    assert makerspace_admin.has_change_permission(request, hidden) is False
+
+    assert product_admin.has_view_permission(request, visible_product) is True
+    assert product_admin.has_change_permission(request, visible_product) is True
+    assert makerspace_admin.has_view_permission(request, visible) is True
+    assert makerspace_admin.has_change_permission(request, visible) is True

@@ -32,14 +32,20 @@ class MakerspaceListCreateView(generics.ListCreateAPIView):
         # manager isn't stuck on an empty list / "No makerspace" screen. Create
         # (POST) stays superadmin-only in perform_create, so widening the read
         # scope here doesn't grant anyone new write access.
+        queryset = Makerspace.objects.filter(archived_at__isnull=True)
+        actor = self.request.user
+        if actor.is_superuser or actor.role == User.Role.SUPERADMIN:
+            # Governance list: the superadmin still sees hidden, non-archived
+            # makerspaces (rendered as slim disabled rows in list() below) so a
+            # hard-hidden space stays discoverable for break-glass. Archived
+            # spaces are omitted from the React console and remain visible only
+            # in /control/.
+            return queryset.order_by("name")
         scope = rbac.makerspaces_for_actions(
-            self.request.user,
+            actor,
             rbac.Action.VIEW_INVENTORY,
             rbac.Action.MANAGE_PRINTING,
         )
-        queryset = Makerspace.objects.all()
-        if scope is rbac.ALL:
-            return queryset.order_by("name")
         if not scope:
             return queryset.none()
         return queryset.filter(id__in=scope).order_by("name")
@@ -98,12 +104,21 @@ class MakerspaceDetailView(generics.RetrieveUpdateAPIView):
         return MakerspaceSerializer
 
     def get_queryset(self):
+        actor = self.request.user
+        is_superadmin = actor.is_superuser or actor.role == User.Role.SUPERADMIN
+        queryset = Makerspace.objects.filter(archived_at__isnull=True)
+        if self.request.method == "GET" and is_superadmin:
+            # Slim disabled-row visibility (get_serializer_class serves the slim
+            # serializer for a hidden makerspace) so the superadmin can still see a
+            # hard-hidden space exists for break-glass. PATCH stays RBAC-scoped, so
+            # a superadmin still can't edit/re-enable a hidden makerspace.
+            return queryset
         action = (
             rbac.Action.MANAGE_MAKERSPACE
             if self.request.method == "PATCH"
             else rbac.Action.VIEW_INVENTORY
         )
-        return rbac.scope_by_action(self.request.user, action, Makerspace.objects.all(), field="id")
+        return rbac.scope_by_action(self.request.user, action, queryset, field="id")
 
     def get_object(self):
         self._makerspace_object = super().get_object()

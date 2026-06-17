@@ -55,12 +55,42 @@ def test_cannot_reset_superadmin_target():
     assert response.status_code == 404
 
 
-def test_superadmin_cannot_reset_hidden_space_space_manager():
+def test_superadmin_break_glass_resets_hidden_only_space_manager():
+    # Hard-hide break-glass: a superadmin MAY reset a Space Manager who manages
+    # ONLY hard-hidden makerspace(s) — the recovery path when the space is locked
+    # out and the instance has no SMTP for self-service forgot-password.
     hidden_space = make_space("admin-reset-hidden")
     hidden_space.superadmin_access_enabled = False
     hidden_space.save(update_fields=["superadmin_access_enabled"])
     target = make_member("admin-reset-hidden-manager", hidden_space)
     superadmin = make_superadmin("admin-reset-hidden-super")
+
+    response = authenticated_client(superadmin).post(
+        reset_password_url(target),
+        {},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["temporary_password"]
+    target.refresh_from_db()
+    assert target.must_change_password is True
+
+
+def test_superadmin_break_glass_blocked_when_also_enabled_space_manager():
+    # If the target also manages a superadmin-access-ENABLED space, break-glass is
+    # refused — it must not become a way to take over an enabled-space Space Manager.
+    hidden_space = make_space("admin-reset-mixed-hidden")
+    hidden_space.superadmin_access_enabled = False
+    hidden_space.save(update_fields=["superadmin_access_enabled"])
+    enabled_space = make_space("admin-reset-mixed-enabled")
+    target = make_member("admin-reset-mixed-manager", hidden_space)
+    MakerspaceMembership.objects.create(
+        user=target,
+        makerspace=enabled_space,
+        role=MakerspaceMembership.Role.SPACE_MANAGER,
+    )
+    superadmin = make_superadmin("admin-reset-mixed-super")
 
     response = authenticated_client(superadmin).post(
         reset_password_url(target),

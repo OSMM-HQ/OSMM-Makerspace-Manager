@@ -201,7 +201,9 @@ class PublicPrintStatusView(generics.RetrieveAPIView):
     throttle_scope = "request_status"
     serializer_class = PublicPrintStatusSerializer
     lookup_field = "public_token"
-    queryset = PrintRequest.objects.all()
+    queryset = PrintRequest.objects.filter(
+        bucket__makerspace__archived_at__isnull=True
+    )
 
     @extend_schema(
         tags=["Public printing"],
