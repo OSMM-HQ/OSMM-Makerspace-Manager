@@ -30,14 +30,16 @@ class PrintRequestAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         "status", "reason", "handled_by", "printer", "filament_spool",
         "requested_filament_spool", "requester_name",
         "estimated_minutes", "estimated_filament_grams", "created_at", "accepted_at",
-        "started_at", "completed_at", "updated_at", "files_preview",
+        "filament_grams_reserved", "filament_grams_used", "started_at",
+        "completed_at", "updated_at", "files_preview",
     )
     fields = (
         "bucket", "requester", "requester_name", "title", "description", "material",
         "color", "quantity", "source_link", "model_file", "preferred_settings",
         "estimate_screenshot", "preview_screenshot", "status", "reason", "handled_by",
         "printer", "filament_spool", "requested_filament_spool", "estimated_minutes",
-        "estimated_filament_grams", "created_at", "accepted_at", "started_at",
+        "estimated_filament_grams", "filament_grams_reserved",
+        "filament_grams_used", "created_at", "accepted_at", "started_at",
         "completed_at", "updated_at", "files_preview",
     )
 
@@ -177,11 +179,24 @@ class PrintRequestAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         if not reason:
             self.message_user(request, "Failure reason is required.", level=messages.ERROR)
             return None
+        try:
+            percent_complete = int(request.POST.get("percent_complete", ""))
+        except ValueError:
+            self.message_user(request, "Percent complete is required.", level=messages.ERROR)
+            return None
+        if percent_complete < 0 or percent_complete > 100:
+            self.message_user(request, "Percent complete must be from 0 to 100.", level=messages.ERROR)
+            return None
 
         success_count = 0
         for print_request in queryset:
             try:
-                workflow.fail(print_request, request.user, reason)
+                workflow.fail(
+                    print_request,
+                    request.user,
+                    reason,
+                    percent_complete=percent_complete,
+                )
             except workflow.InvalidTransition as exc:
                 self.message_user(request, f"{print_request.pk}: {exc}", level=messages.ERROR)
             else:

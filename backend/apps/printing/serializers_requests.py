@@ -110,6 +110,7 @@ class PrintRequestSerializer(serializers.ModelSerializer):
             "estimated_minutes",
             "estimated_filament_grams",
             "filament_grams_used",
+            "filament_grams_reserved",
             "reprint_of",
             "created_at",
             "accepted_at",
@@ -153,8 +154,7 @@ class FailPrintSerializer(serializers.Serializer):
     percent_complete = serializers.IntegerField(
         min_value=0,
         max_value=100,
-        required=False,
-        default=0,
+        required=True,
     )
 
 

@@ -7,6 +7,11 @@ from django.utils import timezone
 from apps.audit import services as audit
 from apps.printing.emails import send_print_email
 from apps.printing.models import FilamentSpool, PrintPrinter, PrintRequest
+from apps.printing.spool_reservations import (
+    SpoolReservationError,
+    reconcile_filament,
+    reserve_filament,
+)
 
 
 class InvalidTransition(Exception):
@@ -45,6 +50,7 @@ def _transition(
         if status == PrintRequest.Status.PRINTING:
             _assign_print_job(
                 locked,
+                actor=actor,
                 printer_id=printer_id,
                 filament_spool_id=filament_spool_id,
                 estimated_minutes=estimated_minutes,
@@ -53,7 +59,8 @@ def _transition(
             locked.started_at = now
             extra_update_fields.extend(
                 ["printer", "filament_spool", "estimated_minutes",
-                 "estimated_filament_grams", "started_at"]
+                 "estimated_filament_grams", "filament_grams_reserved",
+                 "filament_grams_used", "started_at"]
             )
 
         locked.status = status
@@ -87,14 +94,12 @@ def _transition(
             and locked.estimated_filament_grams
             and locked.estimated_filament_grams > 0
         ):
-            _deduct_spool(actor, locked, locked.estimated_filament_grams, reason="completed")
+            _reconcile_spool(actor, locked, locked.estimated_filament_grams, "completed")
         elif (
             status == PrintRequest.Status.FAILED
             and locked.filament_spool_id
             and locked.estimated_filament_grams
             and locked.estimated_filament_grams > 0
-            and percent_complete
-            and percent_complete > 0
         ):
             partial = (
                 locked.estimated_filament_grams
@@ -102,7 +107,9 @@ def _transition(
                 / Decimal(100)
             ).quantize(Decimal("0.01"))
             if partial > 0:
-                _deduct_spool(actor, locked, partial, reason="failed_partial")
+                _reconcile_spool(actor, locked, partial, "failed_partial")
+            else:
+                _reconcile_spool(actor, locked, Decimal("0.00"), "failed_partial")
         if event in {"accepted", "started", "rejected", "completed"}:
             transaction.on_commit(
                 lambda request_id=locked.pk, email_event=event: send_print_email(
@@ -115,25 +122,11 @@ def _transition(
         return locked
 
 
-def _deduct_spool(actor, locked, grams, *, reason):
-    spool = FilamentSpool.objects.select_for_update().get(pk=locked.filament_spool_id)
-    remaining_before = spool.remaining_weight_grams
-    spool.remaining_weight_grams = max(remaining_before - grams, Decimal("0"))
-    spool.save(update_fields=["remaining_weight_grams", "updated_at"])
-    locked.filament_grams_used = grams
-    locked.save(update_fields=["filament_grams_used"])
-    audit.record(
-        actor,
-        "print.spool_deducted",
-        makerspace=locked.bucket.makerspace,
-        target=spool,
-        meta={
-            "spool_id": spool.id, "deducted_grams": str(grams),
-            "remaining_before": str(remaining_before),
-            "remaining_after": str(spool.remaining_weight_grams),
-            "print_request_id": locked.id, "reason": reason,
-        },
-    )
+def _reconcile_spool(actor, locked, grams, reason):
+    try:
+        reconcile_filament(actor, locked, grams, reason=reason)
+    except SpoolReservationError as exc:
+        raise InvalidTransition(str(exc)) from exc
 
 
 def _coerce_price(price):
@@ -147,7 +140,7 @@ def _coerce_price(price):
 
 
 def _assign_print_job(
-    print_request, *, printer_id, filament_spool_id,
+    print_request, *, actor, printer_id, filament_spool_id,
     estimated_minutes, estimated_filament_grams,
 ):
     if printer_id is not None:
@@ -191,6 +184,10 @@ def _assign_print_job(
         > print_request.filament_spool.remaining_weight_grams
     ):
         raise InvalidTransition("Estimated filament exceeds remaining spool weight.")
+    try:
+        reserve_filament(actor, print_request)
+    except SpoolReservationError as exc:
+        raise InvalidTransition(str(exc)) from exc
 
 
 def accept(print_request, actor, *, price=0):

@@ -267,6 +267,12 @@ class PrintRequest(models.Model):
         decimal_places=2,
         default=0,
     )
+    filament_grams_reserved = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
     reprint_of = models.ForeignKey(
         "self",
         null=True,

@@ -237,7 +237,7 @@ def test_managed_fail_print_requires_reason_and_stores_reason():
 
     response = authenticated_client(manager).post(
         action_url(print_request, "fail"),
-        {"reason": "Layer shift."},
+        {"reason": "Layer shift.", "percent_complete": 0},
         format="json",
     )
 

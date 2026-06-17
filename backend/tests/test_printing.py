@@ -403,7 +403,9 @@ def test_complete_decrements_spool_remaining_and_report_filament_used():
     assert spool.remaining_weight_grams == Decimal("900.00")
     print_request.refresh_from_db()
     assert print_request.filament_grams_used == Decimal("100.00")
-    assert AuditLog.objects.filter(action="print.spool_deducted").count() == 1
+    assert print_request.filament_grams_reserved == Decimal("0.00")
+    assert AuditLog.objects.filter(action="print.spool_reserved").count() == 1
+    assert AuditLog.objects.filter(action="print.spool_reconciled").count() == 1
 
     response = authenticated_client(manager).get(makerspace_report_url(makerspace))
 
@@ -450,7 +452,8 @@ def test_fail_with_percent_charges_partial_filament():
     assert spool.remaining_weight_grams == Decimal("960.00")
     print_request.refresh_from_db()
     assert print_request.filament_grams_used == Decimal("40.00")
-    assert AuditLog.objects.filter(action="print.spool_deducted").exists()
+    assert print_request.filament_grams_reserved == Decimal("0.00")
+    assert AuditLog.objects.filter(action="print.spool_reconciled").exists()
 
 
 def test_fail_with_zero_percent_does_not_charge():
@@ -484,9 +487,10 @@ def test_fail_with_zero_percent_does_not_charge():
     assert spool.remaining_weight_grams == Decimal("1000.00")
     print_request.refresh_from_db()
     assert print_request.filament_grams_used == Decimal("0.00")
+    assert print_request.filament_grams_reserved == Decimal("0.00")
 
 
-def test_complete_spool_decrement_clamps_at_zero():
+def test_complete_rejects_unreserved_filament_overdraw():
     makerspace = make_space("spool-deduct-clamp")
     bucket = make_bucket(makerspace)
     requester = make_user("spool-clamp-requester", access_status=User.AccessStatus.ACTIVE)
@@ -513,10 +517,11 @@ def test_complete_spool_decrement_clamps_at_zero():
     PrintRequest.objects.filter(pk=print_request.pk).update(
         estimated_filament_grams=Decimal("100000.00")
     )
-    workflow.complete(print_request, manager)
+    with pytest.raises(workflow.InvalidTransition):
+        workflow.complete(print_request, manager)
 
     spool.refresh_from_db()
-    assert spool.remaining_weight_grams == Decimal("0.00")
+    assert spool.remaining_weight_grams == Decimal("5.00")
 
 
 def test_fail_does_not_decrement_spool_remaining():
@@ -547,7 +552,9 @@ def test_fail_does_not_decrement_spool_remaining():
 
     spool.refresh_from_db()
     assert spool.remaining_weight_grams == Decimal("1000.00")
-    assert not AuditLog.objects.filter(action="print.spool_deducted").exists()
+    print_request.refresh_from_db()
+    assert print_request.filament_grams_reserved == Decimal("0.00")
+    assert AuditLog.objects.filter(action="print.spool_reconciled").exists()
 
 
 def test_reprint_clones_failed_request():
@@ -881,7 +888,7 @@ def test_printer_list_shows_free_state_pending_minutes_and_spool_leftover_estima
     assert row["current_request"]["id"] == first.id
     assert row["pending_estimated_minutes"] == 165
     assert row["active_spool"]["id"] == spool.id
-    assert row["active_spool"]["remaining_weight_grams"] == "640.00"
+    assert row["active_spool"]["remaining_weight_grams"] == "490.00"
     assert row["estimated_spool_remaining_after_queue_grams"] == "410.00"
 
 
@@ -964,7 +971,7 @@ def test_print_manager_fails_printing_request_with_reason_and_no_email():
 
     response = authenticated_client(manager).post(
         action_url(print_request, "fail"),
-        {"reason": "Nozzle jammed."},
+        {"reason": "Nozzle jammed.", "percent_complete": 0},
         format="json",
     )
 
@@ -974,6 +981,29 @@ def test_print_manager_fails_printing_request_with_reason_and_no_email():
     assert print_request.reason == "Nozzle jammed."
     assert AuditLog.objects.get(action="print.failed").target_id == str(print_request.id)
     assert mail.outbox == []
+
+
+def test_print_manager_fail_requires_percent_complete():
+    makerspace = make_space("fail-percent-required")
+    bucket = make_bucket(makerspace)
+    requester = make_user("fail-percent-requester", access_status=User.AccessStatus.ACTIVE)
+    manager = make_print_manager("fail-percent-manager", makerspace)
+    print_request = make_request(
+        bucket,
+        requester,
+        status=PrintRequest.Status.PRINTING,
+    )
+
+    response = authenticated_client(manager).post(
+        action_url(print_request, "fail"),
+        {"reason": "Nozzle jammed."},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "percent_complete" in response.data
+    print_request.refresh_from_db()
+    assert print_request.status == PrintRequest.Status.PRINTING
 
 
 @pytest.mark.parametrize(

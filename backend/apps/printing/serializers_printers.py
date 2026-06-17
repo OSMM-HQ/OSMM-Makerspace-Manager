@@ -110,7 +110,10 @@ class PrintPrinterSerializer(serializers.ModelSerializer):
             return None
         pending_grams = sum(
             request.estimated_filament_grams
-            for request in self._queue(obj).filter(filament_spool=spool)
+            for request in self._queue(obj).filter(
+                filament_spool=spool,
+                status=PrintRequest.Status.ACCEPTED,
+            )
         )
         estimated = max(spool.remaining_weight_grams - pending_grams, 0)
         return f"{estimated:.2f}"
