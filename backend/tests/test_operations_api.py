@@ -128,8 +128,128 @@ def test_intra_makerspace_transfer_allowed_for_edit_inventory_manager():
 
     assert created.status_code == 201
     product.refresh_from_db()
-    assert product.box_id == destination.id
+    assert product.available_quantity == 9
+    assert product.total_quantity == 9
+    moved = InventoryProduct.objects.get(
+        makerspace=makerspace,
+        name=product.name,
+        box=destination,
+    )
+    assert moved.available_quantity == 1
+    assert moved.total_quantity == 1
+    assert moved.is_public is False
     assert StockTransfer.objects.count() == 1
+
+
+def test_partial_intra_makerspace_transfer_keeps_remaining_stock_in_source_box():
+    makerspace = make_space("ops-transfer-split")
+    manager = make_member("ops-transfer-split-manager", makerspace)
+    source = make_box(makerspace, "Source")
+    destination = make_box(makerspace, "Destination")
+    product = make_product(
+        makerspace,
+        name="Header Pins",
+        box=source,
+        total_quantity=10,
+        available_quantity=10,
+    )
+
+    response = authenticated_client(manager).post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/stock-transfers",
+        {
+            "source_container_id": source.id,
+            "destination_container_id": destination.id,
+            "reason": "Restock front shelf",
+            "lines": [{"product_id": product.id, "quantity": 2}],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    product.refresh_from_db()
+    moved = InventoryProduct.objects.get(
+        makerspace=makerspace,
+        name="Header Pins",
+        box=destination,
+    )
+    assert (product.box_id, product.available_quantity, product.total_quantity) == (
+        source.id,
+        8,
+        8,
+    )
+    assert (moved.available_quantity, moved.total_quantity) == (2, 2)
+
+
+def test_intra_makerspace_transfer_merges_into_matching_destination_product():
+    makerspace = make_space("ops-transfer-merge")
+    manager = make_member("ops-transfer-merge-manager", makerspace)
+    source = make_box(makerspace, "Source")
+    destination = make_box(makerspace, "Destination")
+    product = make_product(
+        makerspace,
+        name="Jumper Wires",
+        box=source,
+        total_quantity=10,
+        available_quantity=10,
+    )
+    existing = make_product(
+        makerspace,
+        name="Jumper Wires",
+        box=destination,
+        total_quantity=3,
+        available_quantity=3,
+        is_public=False,
+    )
+
+    response = authenticated_client(manager).post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/stock-transfers",
+        {
+            "source_container_id": source.id,
+            "destination_container_id": destination.id,
+            "reason": "Top up destination shelf",
+            "lines": [{"product_id": product.id, "quantity": 4}],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    product.refresh_from_db()
+    existing.refresh_from_db()
+    assert (product.available_quantity, product.total_quantity) == (6, 6)
+    assert (existing.available_quantity, existing.total_quantity) == (7, 7)
+    assert InventoryProduct.objects.filter(makerspace=makerspace, name="Jumper Wires").count() == 2
+
+
+def test_intra_makerspace_transfer_rejects_more_than_available_stock():
+    makerspace = make_space("ops-transfer-over")
+    manager = make_member("ops-transfer-over-manager", makerspace)
+    product = make_product(
+        makerspace,
+        name="Bearings",
+        total_quantity=10,
+        available_quantity=3,
+        reserved_quantity=7,
+    )
+    destination = make_box(makerspace, "Destination")
+
+    response = authenticated_client(manager).post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/stock-transfers",
+        {
+            "destination_container_id": destination.id,
+            "reason": "Move reserved stock",
+            "lines": [{"product_id": product.id, "quantity": 4}],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    product.refresh_from_db()
+    assert (product.available_quantity, product.reserved_quantity, product.total_quantity) == (
+        3,
+        7,
+        10,
+    )
+    assert InventoryProduct.objects.filter(makerspace=makerspace, box=destination).count() == 0
 
 
 def test_intra_makerspace_transfer_denied_for_other_makerspace_manager():

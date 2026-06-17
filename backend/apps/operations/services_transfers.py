@@ -6,6 +6,7 @@ from apps.audit import services as audit
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 from apps.operations.models import InventoryAdjustment, StockTransfer, StockTransferLine
 from apps.operations.services_shared import _container
+from apps.operations.services_transfer_splits import move_quantity_stock
 
 
 def apply_stock_transfer(actor, makerspace, data):
@@ -46,6 +47,7 @@ def _apply_intra_makerspace_line(actor, transfer, makerspace, source, destinatio
     """Relocate a product/asset between containers within one makerspace."""
     product = None
     asset = None
+    split_created = False
     quantity = line_data.get("quantity") or 1
     if line_data.get("asset_id"):
         asset = InventoryAsset.objects.select_for_update().select_related("product").get(
@@ -66,10 +68,11 @@ def _apply_intra_makerspace_line(actor, transfer, makerspace, source, destinatio
         )
         if source and product.box_id != source.id:
             raise ValidationError({"product_id": "Product is not in the source container."})
-        if quantity > product.total_quantity:
-            raise ValidationError({"quantity": "Cannot transfer more than total stock."})
-        product.box = destination
-        product.save(update_fields=["box", "updated_at"])
+        destination_product, split_created = move_quantity_stock(
+            product,
+            destination,
+            quantity,
+        )
     StockTransferLine.objects.create(
         transfer=transfer,
         product=None if asset else product,
@@ -79,10 +82,13 @@ def _apply_intra_makerspace_line(actor, transfer, makerspace, source, destinatio
         to_status=line_data.get("to_status", ""),
         notes=line_data.get("notes", ""),
     )
+    adjustment_product = product
+    if not asset and split_created:
+        adjustment_product = destination_product
     InventoryAdjustment.objects.create(
         makerspace=makerspace,
         transfer=transfer,
-        product=None if asset else product,
+        product=None if asset else adjustment_product,
         asset=asset,
         reason=transfer.reason,
         created_by=actor,
