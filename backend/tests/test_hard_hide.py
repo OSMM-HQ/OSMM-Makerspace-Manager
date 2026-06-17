@@ -318,7 +318,7 @@ def test_superadmin_access_cannot_be_disabled_until_platform_smtp_is_configured(
     assert makerspace.superadmin_access_enabled is False
 
 
-def test_django_admin_object_permissions_block_hidden_makerspace_rows():
+def test_django_admin_object_permissions_keep_hidden_makerspace_audit_only():
     hidden = make_space("hard-hide-control-hidden")
     hide_makerspace(hidden)
     visible = make_space("hard-hide-control-visible")
@@ -337,8 +337,10 @@ def test_django_admin_object_permissions_block_hidden_makerspace_rows():
 
     assert product_admin.has_view_permission(request, hidden_product) is False
     assert product_admin.has_change_permission(request, hidden_product) is False
-    assert makerspace_admin.has_view_permission(request, hidden) is False
+    assert makerspace_admin.has_view_permission(request, hidden) is True
     assert makerspace_admin.has_change_permission(request, hidden) is False
+    assert makerspace_admin.has_delete_permission(request, hidden) is False
+    assert makerspace_admin.get_inline_instances(request, hidden) == []
 
     assert product_admin.has_view_permission(request, visible_product) is True
     assert product_admin.has_change_permission(request, visible_product) is True

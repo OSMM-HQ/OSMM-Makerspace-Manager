@@ -174,6 +174,7 @@ def test_makerspace_admin_lists_superadmin_status_and_frontend_mode():
     )
     model_admin = admin.site._registry[Makerspace]
 
+    assert "location" in model_admin.list_display
     assert "superadmin_access_enabled" in model_admin.list_display
     assert "frontend_mode" in model_admin.list_display
     assert model_admin.frontend_mode(makerspace) == "single-tenant"

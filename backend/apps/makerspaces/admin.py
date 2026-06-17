@@ -33,6 +33,11 @@ class MakerspaceMembershipInline(TabularInline):
     autocomplete_fields = ("user",)
     extra = 0
 
+    def has_view_permission(self, request, obj=None):
+        if obj is not None and not obj.superadmin_access_enabled:
+            return False
+        return super().has_view_permission(request, obj)
+
 
 @admin.register(Makerspace)
 class MakerspaceAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
@@ -67,6 +72,21 @@ class MakerspaceAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         ),
     )
     inlines = (MakerspaceMembershipInline,)
+
+    def has_view_permission(self, request, obj=None):
+        if obj is not None and not obj.superadmin_access_enabled:
+            return self._has_superuser_access(request)
+        return super().has_view_permission(request, obj)
+
+    def has_change_permission(self, request, obj=None):
+        if obj is not None and not obj.superadmin_access_enabled:
+            return False
+        return super().has_change_permission(request, obj)
+
+    def get_inline_instances(self, request, obj=None):
+        if obj is not None and not obj.superadmin_access_enabled:
+            return []
+        return super().get_inline_instances(request, obj)
 
     def has_delete_permission(self, request, obj=None):
         return False

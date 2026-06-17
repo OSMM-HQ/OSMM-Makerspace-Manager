@@ -3,139 +3,218 @@ from django.core.management.base import BaseCommand
 
 from apps.accounts.models import User
 from apps.apiclients.models import ApiClient
+from apps.boxes.models import Box
 from apps.inventory.categories import ensure_default_categories
-from apps.inventory.models import Category, InventoryProduct, PublicAvailabilityMode
-from apps.makerspaces.models import Makerspace
+from apps.inventory.models import (
+    Category,
+    InventoryAsset,
+    InventoryProduct,
+    PublicAvailabilityMode,
+    TrackingMode,
+)
+from apps.makerspaces.models import Makerspace, MakerspaceMembership
+
+
+DEMO_SPACES = [
+    {
+        "slug": "alpha-lab",
+        "name": "Alpha Robotics Lab",
+        "location": "Main Campus - Room A12",
+        "manager": "alpha_manager",
+        "superadmin_access_enabled": True,
+    },
+    {
+        "slug": "beta-workshop",
+        "name": "Beta Woodshop",
+        "location": "North Wing - Woodshop",
+        "manager": "beta_manager",
+        "superadmin_access_enabled": False,
+    },
+    {
+        "slug": "gamma-fab",
+        "name": "Gamma Fabrication Studio",
+        "location": "Downtown Fab Studio",
+        "manager": "gamma_manager",
+        "superadmin_access_enabled": True,
+    },
+]
+
+DEMO_PRODUCTS = [
+    ("Arduino Uno R4", "microcontrollers", 18, "Electronics Bay"),
+    ("Soldering Station", "accessories", 6, "Repair Bench"),
+    ("Cordless Drill Kit", "accessories", 4, "Tool Wall"),
+    ("Digital Caliper", "sensors", 10, "Measurement Drawer"),
+]
 
 
 class Command(BaseCommand):
-    help = "Seed an idempotent demo makerspace and public inventory."
+    help = "Seed demo superadmin, makerspaces, staff, boxes, and inventory."
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--password",
+            default="demo12345",
+            help="Password applied to all demo staff accounts.",
+        )
 
     def handle(self, *args, **options):
-        superadmin, user_created = User.objects.get_or_create(
-            username="superadmin",
-            defaults={
-                "email": "superadmin@makerspace.local",
-                "role": User.Role.SUPERADMIN,
-                "is_staff": True,
-                "is_superuser": True,
-            },
+        password = options["password"]
+        superadmin = self._user(
+            "superadmin",
+            "superadmin@makerspace.local",
+            password,
+            User.Role.SUPERADMIN,
+            is_staff=True,
+            is_superuser=True,
         )
-        if user_created:
-            superadmin.set_unusable_password()
-            superadmin.save(update_fields=["password"])
 
-        makerspace, makerspace_created = Makerspace.objects.get_or_create(
-            slug="makerspace",
-            defaults={
-                "name": "Makerspace Demo",
-                "public_inventory_enabled": True,
-                "created_by": superadmin,
-            },
-        )
-        makerspace.name = "Makerspace Demo"
-        makerspace.public_inventory_enabled = True
-        makerspace.save(update_fields=["name", "public_inventory_enabled"])
-        ensure_default_categories(makerspace)
-
-        products = [
-            {
-                "name": "Soldering Iron",
-                "public_availability_mode": PublicAvailabilityMode.EXACT_COUNT,
-                "show_public_count": True,
-                "total_quantity": 10,
-                "available_quantity": 8,
-                "storage_location": "Electronics Bench A",
-            },
-            {
-                "name": "Arduino Uno",
-                "public_availability_mode": PublicAvailabilityMode.EXACT_COUNT,
-                "show_public_count": False,
-                "total_quantity": 20,
-                "available_quantity": 2,
-            },
-            {
-                "name": "3D Printer Filament",
-                "public_availability_mode": PublicAvailabilityMode.STATUS_ONLY,
-                "total_quantity": 50,
-                "available_quantity": 50,
-                "storage_location": "Fabrication Storage",
-            },
-            {
-                "name": "Oscilloscope",
-                "public_availability_mode": PublicAvailabilityMode.STATUS_ONLY,
-                "total_quantity": 4,
-                "available_quantity": 0,
-            },
-            {
-                "name": "Raspberry Pi 5",
-                "public_availability_mode": PublicAvailabilityMode.STATUS_ONLY,
-                "total_quantity": 15,
-                "available_quantity": 3,
-            },
-            {
-                "name": "Secret Internal Tool",
-                "is_public": False,
-                "total_quantity": 1,
-                "available_quantity": 1,
-                "storage_location": "Admin Cabinet",
-            },
-            {
-                "name": "Retired Heat Gun",
-                "is_archived": True,
-                "is_public": True,
-                "total_quantity": 2,
-                "available_quantity": 2,
-            },
-        ]
-
-        created_count = 0
-        for product_data in products:
-            _, created = InventoryProduct.objects.get_or_create(
-                makerspace=makerspace,
-                name=product_data["name"],
-                defaults=product_data,
+        spaces_created = 0
+        products_written = 0
+        assets_written = 0
+        for spec in DEMO_SPACES:
+            makerspace, created = Makerspace.objects.update_or_create(
+                slug=spec["slug"],
+                defaults={
+                    "name": spec["name"],
+                    "location": spec["location"],
+                    "public_inventory_enabled": True,
+                    "superadmin_access_enabled": spec["superadmin_access_enabled"],
+                    "created_by": superadmin,
+                },
             )
-            created_count += int(created)
-
-        product_categories = {
-            "Arduino Uno": "microcontrollers",
-            "Raspberry Pi 5": "sbcs",
-            "Soldering Iron": "accessories",
-            "Oscilloscope": "accessories",
-            "3D Printer Filament": "accessories",
-        }
-        categories = {
-            category.slug: category
-            for category in Category.objects.filter(
-                makerspace=makerspace,
-                slug__in=set(product_categories.values()),
+            spaces_created += int(created)
+            ensure_default_categories(makerspace)
+            manager = self._user(
+                spec["manager"],
+                f"{spec['manager']}@makerspace.local",
+                password,
+                User.Role.SPACE_MANAGER,
             )
-        }
-        for product_name, category_slug in product_categories.items():
-            product = InventoryProduct.objects.get(
+            MakerspaceMembership.objects.update_or_create(
                 makerspace=makerspace,
-                name=product_name,
+                user=manager,
+                defaults={"role": MakerspaceMembership.Role.SPACE_MANAGER},
             )
-            if product.category_id is None:
-                product.category = categories[category_slug]
-                product.save(update_fields=["category"])
+            box = self._box(makerspace, "Starter Inventory", spec["location"])
+            products_written += self._products(makerspace, box)
+            assets_written += self._assets(makerspace, box)
 
-        # review fix #3: do NOT use get_or_create - secret_encrypted is non-null with no default,
-        # so a create() without it would crash. Fetch-or-instantiate, then set the secret.
-        if settings.HMAC_CLIENT_ID and settings.HMAC_SECRET:
-            client = ApiClient.objects.filter(client_id=settings.HMAC_CLIENT_ID).first()
-            if client is None:
-                client = ApiClient(client_id=settings.HMAC_CLIENT_ID, label="Legacy frontend")
-            client.allowed_origins = list(settings.CORS_ALLOWED_ORIGINS)
-            client.set_secret(settings.HMAC_SECRET)
-            client.save()
-
+        self._sync_legacy_hmac_client()
         self.stdout.write(
             self.style.SUCCESS(
                 "Seeded demo data: "
-                f"user_created={user_created}, "
-                f"makerspace_created={makerspace_created}, "
-                f"products_created={created_count}."
+                f"spaces_created={spaces_created}, "
+                f"products_written={products_written}, "
+                f"assets_written={assets_written}. "
+                "Accounts: superadmin, alpha_manager, beta_manager, gamma_manager."
             )
         )
+        self.stdout.write(self.style.WARNING(f"Demo password for all accounts: {password}"))
+
+    def _user(self, username, email, password, role, **flags):
+        user, _ = User.objects.get_or_create(username=username, defaults={"email": email})
+        user.email = email
+        user.role = role
+        user.access_status = User.AccessStatus.ACTIVE
+        user.must_change_password = False
+        user.is_staff = flags.get("is_staff", role == User.Role.SUPERADMIN)
+        user.is_superuser = flags.get("is_superuser", role == User.Role.SUPERADMIN)
+        user.set_password(password)
+        user.save(
+            update_fields=[
+                "email",
+                "role",
+                "access_status",
+                "must_change_password",
+                "is_staff",
+                "is_superuser",
+                "password",
+            ]
+        )
+        return user
+
+    def _box(self, makerspace, label, location):
+        box, _ = Box.objects.update_or_create(
+            makerspace=makerspace,
+            label=label,
+            defaults={"location": location, "description": "Seeded demo storage."},
+        )
+        return box
+
+    def _products(self, makerspace, box):
+        categories = {
+            category.slug: category
+            for category in Category.objects.filter(makerspace=makerspace)
+        }
+        for name, category_slug, quantity, location in DEMO_PRODUCTS:
+            InventoryProduct.objects.update_or_create(
+                makerspace=makerspace,
+                name=name,
+                defaults={
+                    "box": box,
+                    "category": categories.get(category_slug),
+                    "description": f"Demo stock for {makerspace.name}.",
+                    "tracking_mode": TrackingMode.QUANTITY,
+                    "total_quantity": quantity,
+                    "available_quantity": quantity,
+                    "reserved_quantity": 0,
+                    "issued_quantity": 0,
+                    "damaged_quantity": 0,
+                    "lost_quantity": 0,
+                    "needs_fix_quantity": 0,
+                    "is_public": True,
+                    "public_self_checkout_enabled": True,
+                    "show_public_count": True,
+                    "public_availability_mode": PublicAvailabilityMode.EXACT_COUNT,
+                    "storage_location": location,
+                    "is_archived": False,
+                },
+            )
+        return len(DEMO_PRODUCTS)
+
+    def _assets(self, makerspace, box):
+        product, _ = InventoryProduct.objects.update_or_create(
+            makerspace=makerspace,
+            name="Oscilloscope Rigol DS1054Z",
+            defaults={
+                "box": box,
+                "description": "Serialized demo lab instrument.",
+                "tracking_mode": TrackingMode.INDIVIDUAL,
+                "total_quantity": 3,
+                "available_quantity": 3,
+                "reserved_quantity": 0,
+                "issued_quantity": 0,
+                "damaged_quantity": 0,
+                "lost_quantity": 0,
+                "needs_fix_quantity": 0,
+                "is_public": True,
+                "public_self_checkout_enabled": False,
+                "show_public_count": False,
+                "public_availability_mode": PublicAvailabilityMode.STATUS_ONLY,
+                "storage_location": "Instrument Cabinet",
+                "is_archived": False,
+            },
+        )
+        for index in range(1, 4):
+            InventoryAsset.objects.update_or_create(
+                makerspace=makerspace,
+                asset_tag=f"{makerspace.slug.upper()}-OSC-{index:02d}",
+                defaults={
+                    "product": product,
+                    "box": box,
+                    "serial_number": f"DEMO-{makerspace.slug}-{index:02d}",
+                    "status": InventoryAsset.Status.AVAILABLE,
+                    "public_self_checkout_enabled": False,
+                },
+            )
+        return 3
+
+    def _sync_legacy_hmac_client(self):
+        if not settings.HMAC_CLIENT_ID or not settings.HMAC_SECRET:
+            return
+        client = ApiClient.objects.filter(client_id=settings.HMAC_CLIENT_ID).first()
+        if client is None:
+            client = ApiClient(client_id=settings.HMAC_CLIENT_ID, label="Legacy frontend")
+        client.allowed_origins = list(settings.CORS_ALLOWED_ORIGINS)
+        client.set_secret(settings.HMAC_SECRET)
+        client.save()
