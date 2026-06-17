@@ -1,5 +1,5 @@
 import type { Key, ReactNode } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { ConfirmDialog, DataTable, FilterBar, Modal, StatusBadge } from "../../../components/ui";
@@ -40,6 +40,16 @@ export function Inventory({ makerspace, canViewAudit = false }: { makerspace: Ma
   const [addOpen, setAddOpen] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<AdminProduct | null>(null);
   const [qrConfirm, setQrConfirm] = useState<boolean | null>(null);
+  useEffect(() => {
+    setSearch(localStorage.getItem(`inventory.view.${makerspace.id}`) ?? "");
+    setSelectedIds([]);
+    setForm(emptyForm);
+    setAdjustForm(emptyAdjust);
+    setEditing(null);
+    setAddOpen(false);
+    setArchiveTarget(null);
+    setQrConfirm(null);
+  }, [makerspace.id]);
   const products = useStaffGet<{ results: AdminProduct[] }>(["inventory", makerspace.id], `/admin/makerspace/${makerspace.id}/inventory`);
   const categories = useStaffGet<CategoryListResponse>(["categories", makerspace.id], `/admin/makerspace/${makerspace.id}/categories`);
   const invalidate = () => {

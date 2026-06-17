@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import QrScanner from "../../components/ui/QrScanner";
@@ -50,6 +50,17 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   // mid-flight must never approve a stale, mismatched identity.
   const [verifiedIdentifier, setVerifiedIdentifier] = useState("");
   const [verifiedUsername, setVerifiedUsername] = useState("");
+  useEffect(() => {
+    setIdentifier("");
+    setLineRows([{ key: 1, productId: "", quantity: "1" }]);
+    setNextLineKey(2);
+    setScanned([]);
+    setShowScanner(false);
+    setQrPayloads("");
+    setContainerId("");
+    setVerifiedIdentifier("");
+    setVerifiedUsername("");
+  }, [makerspace.id]);
   const products = useStaffGet<{ results: ProductOption[] }>(
     ["inventory-all", makerspace.id],
     `/admin/makerspace/${makerspace.id}/inventory?page_size=1000`,

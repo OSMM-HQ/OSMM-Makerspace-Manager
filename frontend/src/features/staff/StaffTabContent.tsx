@@ -54,10 +54,12 @@ export function StaffTabContent({
   if (!activeMakerspace) {
     return <Panel title="No makerspace">Assign a makerspace to this account.</Panel>;
   }
+  const makerspaceKey = activeMakerspace.id;
   return (
     <>
       {activeTab === "requests" ? (
         <RequestsPanel
+          key={makerspaceKey}
           makerspace={activeMakerspace}
           guestOnly={guestOnly}
           canSeeHardware={canSeeHardware}
@@ -65,54 +67,74 @@ export function StaffTabContent({
         />
       ) : null}
       {activeTab === "inventory" ? (
-        <Inventory makerspace={activeMakerspace} canViewAudit={canViewAudit} />
+        <Inventory
+          key={makerspaceKey}
+          makerspace={activeMakerspace}
+          canViewAudit={canViewAudit}
+        />
       ) : null}
-      {activeTab === "needsfix" ? <NeedsFixShelf makerspace={activeMakerspace} /> : null}
-      {activeTab === "categories" ? <Categories makerspace={activeMakerspace} /> : null}
-      {activeTab === "printing" ? <PrintingPanel makerspace={activeMakerspace} /> : null}
+      {activeTab === "needsfix" ? <NeedsFixShelf key={makerspaceKey} makerspace={activeMakerspace} /> : null}
+      {activeTab === "categories" ? <Categories key={makerspaceKey} makerspace={activeMakerspace} /> : null}
+      {activeTab === "printing" ? <PrintingPanel key={makerspaceKey} makerspace={activeMakerspace} /> : null}
       {activeTab === "tobuy" ? (
-        <ProcurementPanel makerspace={activeMakerspace} canChooseKind={canChooseToBuyKind} />
+        <ProcurementPanel
+          key={makerspaceKey}
+          makerspace={activeMakerspace}
+          canChooseKind={canChooseToBuyKind}
+        />
       ) : null}
       {activeTab === "transfers" ? (
         <StockTransferPanel
+          key={makerspaceKey}
           makerspace={activeMakerspace}
           makerspaces={makerspaces}
           isSuperadmin={isSuperadmin}
           canEditInventory={canEditInventory}
         />
       ) : null}
-      {activeTab === "stocktake" ? <StocktakePanel makerspace={activeMakerspace} /> : null}
-      {activeTab === "containers" ? <ContainersPanel makerspace={activeMakerspace} /> : null}
+      {activeTab === "stocktake" ? <StocktakePanel key={makerspaceKey} makerspace={activeMakerspace} /> : null}
+      {activeTab === "containers" ? <ContainersPanel key={makerspaceKey} makerspace={activeMakerspace} /> : null}
       {activeTab === "ledger" ? (
-        <Ledger makerspace={activeMakerspace} isSuperadmin={isSuperadmin} />
+        <Ledger
+          key={makerspaceKey}
+          makerspace={activeMakerspace}
+          isSuperadmin={isSuperadmin}
+        />
       ) : null}
       {activeTab === "reports" ? (
         <OperationsReports
+          key={makerspaceKey}
           makerspace={activeMakerspace}
           isSuperadmin={isSuperadmin}
           printingOnly={printingOnly}
         />
       ) : null}
-      {activeTab === "direct" ? <DirectLoans makerspace={activeMakerspace} /> : null}
-      {activeTab === "bulk" ? <BulkImport makerspace={activeMakerspace} /> : null}
-      {activeTab === "qr" ? <QrTools makerspace={activeMakerspace} /> : null}
+      {activeTab === "direct" ? <DirectLoans key={makerspaceKey} makerspace={activeMakerspace} /> : null}
+      {activeTab === "bulk" ? <BulkImport key={makerspaceKey} makerspace={activeMakerspace} /> : null}
+      {activeTab === "qr" ? <QrTools key={makerspaceKey} makerspace={activeMakerspace} /> : null}
       {activeTab === "scanner" ? (
         <ScannerPanel
+          key={makerspaceKey}
           makerspace={activeMakerspace}
           isSuperadmin={isSuperadmin}
           makerspaces={makerspaces}
         />
       ) : null}
-      {activeTab === "frontends" ? <TenantFrontendsPanel makerspace={activeMakerspace} /> : null}
+      {activeTab === "frontends" ? <TenantFrontendsPanel key={makerspaceKey} makerspace={activeMakerspace} /> : null}
       {activeTab === "api" ? (
         <ApiClientsPanel
+          key={makerspaceKey}
           makerspace={activeMakerspace}
           isSuperadmin={isSuperadmin}
           canManageMakerspace={canManageMakerspace}
         />
       ) : null}
       {activeTab === "settings" ? (
-        <MakerspaceSettingsPanel makerspace={activeMakerspace} isSuperadmin={isSuperadmin} />
+        <MakerspaceSettingsPanel
+          key={makerspaceKey}
+          makerspace={activeMakerspace}
+          isSuperadmin={isSuperadmin}
+        />
       ) : null}
       {activeTab === "platform" ? <PlatformEmailPanel /> : null}
       {activeTab === "users" ? (
