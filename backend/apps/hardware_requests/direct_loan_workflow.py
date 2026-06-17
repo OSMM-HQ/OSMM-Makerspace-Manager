@@ -1,7 +1,7 @@
 from collections import Counter
 from datetime import timedelta
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.audit import services as audit
@@ -29,9 +29,15 @@ def issue_direct_loan(
     with transaction.atomic():
         container = None
         if container_id is not None:
-            container = Box.objects.filter(pk=container_id, makerspace=makerspace).first()
+            container = (
+                Box.objects.select_for_update()
+                .filter(pk=container_id, makerspace=makerspace)
+                .first()
+            )
             if container is None:
                 raise RequestValidationError("Container is not in this makerspace.")
+            if not container.is_active:
+                raise RequestValidationError("Container is not active.")
             # A physical container can only be out on one active handout at a time.
             # Explicit check gives a clean 409; the partial-unique constraint is the
             # race backstop (mirrors the per-QR active-loan guard).
@@ -60,7 +66,9 @@ def issue_direct_loan(
             seen_qr_ids.add(qr.id)
             if qr_has_active_loan(makerspace, qr):
                 raise InvalidTransition("One scanned QR code is already checked out.")
-            label, quantities, target_asset_ids = _checkout_target(qr)
+            label, quantities, target_asset_ids = _checkout_target(
+                qr, require_public=False
+            )
             labels.append(label)
             qrs.append(qr)
             product_quantities.update(quantities)
@@ -81,20 +89,26 @@ def issue_direct_loan(
             requested_for="Admin direct handout",
             issued_by=actor,
         )
-        loan = PublicToolLoan.objects.create(
-            makerspace=makerspace,
-            qr_code=qrs[0] if qrs else None,
-            container=container,
-            qr_ids=[qr.id for qr in qrs],
-            request=request,
-            requester=requester,
-            target_type="direct",
-            target_id=request.id,
-            target_label=", ".join(labels)[:200] or "Direct handout",
-            asset_ids=asset_ids,
-            source=PublicToolLoan.Source.ADMIN_DIRECT,
-            due_at=due_at,
-        )
+        try:
+            with transaction.atomic():
+                loan = PublicToolLoan.objects.create(
+                    makerspace=makerspace,
+                    qr_code=qrs[0] if qrs else None,
+                    container=container,
+                    qr_ids=[qr.id for qr in qrs],
+                    request=request,
+                    requester=requester,
+                    target_type="direct",
+                    target_id=request.id,
+                    target_label=", ".join(labels)[:200] or "Direct handout",
+                    asset_ids=asset_ids,
+                    source=PublicToolLoan.Source.ADMIN_DIRECT,
+                    due_at=due_at,
+                )
+        except IntegrityError as exc:
+            raise InvalidTransition(
+                "That container is already out on another direct handout."
+            ) from exc
         for qr in qrs:
             QrScanEvent.objects.create(
                 makerspace=makerspace,

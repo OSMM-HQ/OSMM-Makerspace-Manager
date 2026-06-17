@@ -12,6 +12,7 @@ type DirectLoan = {
   target_label: string;
   container_label?: string | null;
   due_at: string | null;
+  issued_by: { username: string; role: string } | null;
   items: { product_name: string; quantity: number }[];
 };
 
@@ -245,6 +246,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
                     {loan.status}
                     {loan.container_label ? ` - given in: ${loan.container_label}` : ""}
                     {loan.due_at ? ` - due ${new Date(loan.due_at).toLocaleString()}` : ""}
+                    {loan.issued_by ? ` - Issued by ${loan.issued_by.username}` : ""}
                   </p>
                 </div>
                 {loan.status === "checked_out" ? (

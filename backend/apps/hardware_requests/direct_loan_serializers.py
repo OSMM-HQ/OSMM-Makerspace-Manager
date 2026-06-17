@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.hardware_requests.self_checkout_serializers import PublicToolLoanSerializer
@@ -28,15 +29,28 @@ class DirectLoanReturnSerializer(serializers.Serializer):
     returned_by_identifier = serializers.CharField(required=False, allow_blank=True)
 
 
+class DirectLoanUserAttributionSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    role = serializers.CharField()
+
+
 class DirectLoanSerializer(PublicToolLoanSerializer):
     id = serializers.IntegerField(read_only=True)
     container_id = serializers.IntegerField(read_only=True)
     container_label = serializers.SerializerMethodField()
     due_at = serializers.DateTimeField(read_only=True, allow_null=True)
     source = serializers.CharField(read_only=True)
+    issued_by = serializers.SerializerMethodField()
 
     def get_container_label(self, obj):
         return obj.container.label if obj.container else None
+
+    @extend_schema_field(DirectLoanUserAttributionSerializer(allow_null=True))
+    def get_issued_by(self, obj):
+        user = getattr(obj.request, "issued_by", None)
+        if user is None:
+            return None
+        return {"username": user.username, "role": user.role}
 
 
 class StaffCheckinVerifyRequestSerializer(serializers.Serializer):

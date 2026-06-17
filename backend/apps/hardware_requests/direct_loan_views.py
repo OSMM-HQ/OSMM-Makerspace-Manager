@@ -21,6 +21,7 @@ from apps.hardware_requests.models import PublicToolLoan
 from apps.hardware_requests.view_helpers import ACTION_ERROR_RESPONSES
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.models import Makerspace
+from apps.makerspaces.platform import module_enabled
 
 
 class DirectLoanListCreateView(generics.ListAPIView):
@@ -31,7 +32,7 @@ class DirectLoanListCreateView(generics.ListAPIView):
         require_module(makerspace_id, "self_checkout")
         _require(self.request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace_id)
         queryset = PublicToolLoan.objects.select_related(
-            "container", "request", "requester"
+            "container", "request", "request__issued_by", "requester"
         ).filter(makerspace_id=makerspace_id, source=PublicToolLoan.Source.ADMIN_DIRECT)
         status_filter = self.request.query_params.get("status")
         if status_filter:
@@ -58,13 +59,16 @@ class DirectLoanListCreateView(generics.ListAPIView):
         _require(request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace.id)
         serializer = DirectLoanIssueSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        container_id = serializer.validated_data.get("container_id")
+        if container_id is not None and not module_enabled(makerspace, "containers"):
+            container_id = None
         loan = direct_loan_workflow.issue_direct_loan(
             makerspace,
             request.user,
             serializer.validated_data["identifier"],
             qr_payloads=serializer.validated_data.get("qr_payloads") or [],
             items=serializer.validated_data.get("items") or [],
-            container_id=serializer.validated_data.get("container_id"),
+            container_id=container_id,
         )
         return Response(DirectLoanSerializer(loan).data, status=status.HTTP_201_CREATED)
 

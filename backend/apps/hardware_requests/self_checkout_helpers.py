@@ -8,7 +8,7 @@ from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
 from apps.hardware_requests.workflow_errors import RequestValidationError, RequesterBlocked
 from apps.hardware_requests.workflow_utils import get_or_create_requester
 from apps.inventory import availability
-from apps.inventory.models import InventoryAsset, InventoryProduct
+from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 
 
 def _requester(external_id):
@@ -29,36 +29,52 @@ def _locked_qr(makerspace, payload):
     return qr
 
 
-def _checkout_target(qr):
+def _checkout_target(qr, *, require_public=True):
     if qr.target_type == QrCode.TargetType.PRODUCT:
-        product = _eligible_product(qr.target_id, qr.makerspace)
+        product = _eligible_product(
+            qr.target_id, qr.makerspace, require_public=require_public
+        )
+        if product.tracking_mode == TrackingMode.INDIVIDUAL:
+            raise RequestValidationError(
+                "Individual-tracked products require a scanned asset QR."
+            )
         _issue_product(product, 1)
         return product.name, {product: 1}, []
     if qr.target_type == QrCode.TargetType.ASSET:
-        asset = _eligible_asset(qr.target_id, qr.makerspace)
+        asset = _eligible_asset(
+            qr.target_id, qr.makerspace, require_public=require_public
+        )
         _issue_product(asset.product, 1)
         asset.status = InventoryAsset.Status.ISSUED
         asset.save(update_fields=["status", "updated_at"])
         return asset.asset_tag, {asset.product: 1}, [asset.id]
-    return _checkout_box(qr)
+    return _checkout_box(qr, require_public=require_public)
 
 
-def _checkout_box(qr):
+def _checkout_box(qr, *, require_public=True):
     box = Box.objects.select_for_update().filter(pk=qr.target_id, makerspace=qr.makerspace).first()
     if box is None or not box.is_active:
         raise RequestValidationError("Box is not available for public self-checkout.")
+    asset_filters = {
+        "box": box,
+        "status": InventoryAsset.Status.AVAILABLE,
+        "product__is_archived": False,
+    }
+    if require_public:
+        asset_filters.update(
+            {
+                "public_self_checkout_enabled": True,
+                "product__is_public": True,
+                "product__public_self_checkout_enabled": True,
+            }
+        )
     assets = list(
         InventoryAsset.objects.select_for_update()
         .select_related("product")
-        .filter(
-            box=box,
-            status=InventoryAsset.Status.AVAILABLE,
-            public_self_checkout_enabled=True,
-            product__is_public=True,
-            product__is_archived=False,
-            product__public_self_checkout_enabled=True,
-        )
+        .filter(**asset_filters)
     )
+    issued_quantities = Counter()
+    issued_asset_ids = []
     if assets:
         # The assets were loaded with select_related("product") but that does NOT lock
         # the product rows. issue_available() requires the caller to hold a row lock, so
@@ -74,40 +90,53 @@ def _checkout_box(qr):
         quantities = Counter(locked_products[asset.product_id] for asset in assets)
         for product, quantity in quantities.items():
             _issue_product(product, quantity)
-        InventoryAsset.objects.filter(pk__in=[asset.id for asset in assets]).update(
+        issued_asset_ids = [asset.id for asset in assets]
+        InventoryAsset.objects.filter(pk__in=issued_asset_ids).update(
             status=InventoryAsset.Status.ISSUED
         )
-        return box.label, dict(quantities), [asset.id for asset in assets]
+        issued_quantities.update(quantities)
+        if require_public:
+            return box.label, dict(issued_quantities), issued_asset_ids
 
-    products = list(
-        InventoryProduct.objects.select_for_update().filter(
-            box=box,
-            is_public=True,
-            is_archived=False,
-            public_self_checkout_enabled=True,
-            available_quantity__gte=1,
+    product_filters = {
+        "box": box,
+        "is_archived": False,
+        "available_quantity__gte": 1,
+    }
+    if require_public:
+        product_filters.update(
+            {
+                "is_public": True,
+                "public_self_checkout_enabled": True,
+            }
         )
-    )
+    products = list(InventoryProduct.objects.select_for_update().filter(**product_filters))
     if not products:
+        if issued_quantities:
+            return box.label, dict(issued_quantities), issued_asset_ids
         raise RequestValidationError("Box has no public self-checkout items.")
+    if any(product.tracking_mode == TrackingMode.INDIVIDUAL for product in products):
+        raise RequestValidationError(
+            "Individual-tracked products require a scanned asset QR."
+        )
     for product in products:
         _issue_product(product, 1)
-    return box.label, {product: 1 for product in products}, []
+        issued_quantities[product] += 1
+    return box.label, dict(issued_quantities), issued_asset_ids
 
 
-def _eligible_product(pk, makerspace):
+def _eligible_product(pk, makerspace, *, require_public=True):
     product = InventoryProduct.objects.select_for_update().filter(pk=pk, makerspace=makerspace).first()
-    if (
-        product is None
-        or not product.is_public
-        or product.is_archived
-        or not product.public_self_checkout_enabled
+    if product is None or product.is_archived:
+        raise RequestValidationError("Tool is not enabled for public self-checkout.")
+    if require_public and (
+        not product.is_public or not product.public_self_checkout_enabled
     ):
         raise RequestValidationError("Tool is not enabled for public self-checkout.")
     return product
 
 
-def _eligible_asset(pk, makerspace):
+def _eligible_asset(pk, makerspace, *, require_public=True):
     asset = (
         InventoryAsset.objects.select_for_update()
         .select_related("product")
@@ -116,9 +145,11 @@ def _eligible_asset(pk, makerspace):
     )
     if asset is None or asset.status != InventoryAsset.Status.AVAILABLE:
         raise RequestValidationError("Asset is not available for public self-checkout.")
-    if not asset.public_self_checkout_enabled:
+    if require_public and not asset.public_self_checkout_enabled:
         raise RequestValidationError("Asset is not enabled for public self-checkout.")
-    asset.product = _eligible_product(asset.product_id, makerspace)
+    asset.product = _eligible_product(
+        asset.product_id, makerspace, require_public=require_public
+    )
     return asset
 
 
