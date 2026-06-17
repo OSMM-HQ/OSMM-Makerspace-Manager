@@ -142,6 +142,7 @@ def test_needs_fix_shelf_lists_and_repairs():
 def test_superadmin_needs_fix_shelf_hides_disabled_space_unless_explicit():
     visible_space = make_space("shelf-visible-superadmin")
     hidden_space = make_space("shelf-hidden-superadmin")
+    make_member("shelf-hidden-superadmin-manager", hidden_space)
     hidden_space.superadmin_access_enabled = False
     hidden_space.save(update_fields=["superadmin_access_enabled"])
     visible_product = make_product(

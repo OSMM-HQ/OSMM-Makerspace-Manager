@@ -106,6 +106,35 @@ def test_superadmin_can_restrict_and_restore_user_access():
     )
 
 
+def test_superadmin_cannot_restrict_or_restore_hidden_makerspace_user():
+    hidden = make_space("restrict-hidden")
+    hidden.superadmin_access_enabled = False
+    hidden.save(update_fields=["superadmin_access_enabled"])
+    target = make_member("restrict-hidden-target", hidden)
+    target.access_status = User.AccessStatus.SUSPENDED
+    target.restriction_reason = "Already suspended"
+    target.save(update_fields=["access_status", "restriction_reason"])
+    superadmin = make_user(
+        "restrict-hidden-super",
+        role=User.Role.SUPERADMIN,
+        access_status=User.AccessStatus.ACTIVE,
+    )
+    client = authenticated_client(superadmin)
+
+    restricted = client.post(
+        f"/api/v1/admin/users/{target.id}/restrict",
+        {"reason": "No global access", "status": User.AccessStatus.RESTRICTED},
+        format="json",
+    )
+    restored = client.post(f"/api/v1/admin/users/{target.id}/restore-access")
+
+    assert restricted.status_code == 403
+    assert restored.status_code == 403
+    target.refresh_from_db()
+    assert target.access_status == User.AccessStatus.SUSPENDED
+    assert target.restriction_reason == "Already suspended"
+
+
 def test_admin_bulk_import_preview_and_apply_are_makerspace_scoped():
     makerspace = make_space("bulk-import")
     admin = make_member("bulk-admin", makerspace)
@@ -442,6 +471,47 @@ def test_api_client_makerspace_admin_cannot_escalate_privileged_fields():
     assert obj.rate_limit_tier == "trusted"
 
 
+def test_hidden_makerspace_superadmin_member_cannot_escalate_api_client_fields():
+    makerspace = make_space("client-hidden-escalate")
+    makerspace.superadmin_access_enabled = False
+    makerspace.save(update_fields=["superadmin_access_enabled"])
+    superadmin = make_user(
+        "client-hidden-escalate-super",
+        role=User.Role.SUPERADMIN,
+        access_status=User.AccessStatus.ACTIVE,
+        is_superuser=True,
+    )
+    MakerspaceMembership.objects.create(
+        user=superadmin,
+        makerspace=makerspace,
+        role=MakerspaceMembership.Role.SPACE_MANAGER,
+    )
+    client = authenticated_client(superadmin)
+
+    created = client.post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/api-clients",
+        {
+            "label": "Hidden web",
+            "allowed_origins": ["https://hidden.example.com"],
+            "rate_limit_tier": "trusted",
+            "scopes": ["admin:write"],
+            "client_type": "server",
+        },
+        format="json",
+    )
+    patched = client.patch(
+        f"/api/v1/admin/api-clients/{created.data['id']}",
+        {"rate_limit_tier": "trusted", "scopes": ["admin:write"]},
+        format="json",
+    )
+
+    assert created.status_code == 201
+    assert patched.status_code == 200
+    obj = ApiClient.objects.get(id=created.data["id"])
+    assert obj.rate_limit_tier == "standard"
+    assert obj.scopes == []
+
+
 def test_member_can_request_api_key_without_secret_exposure():
     makerspace = make_space("client-request-space")
     requester = make_member("client-requester", makerspace)
@@ -468,6 +538,51 @@ def test_member_can_request_api_key_without_secret_exposure():
     api_key_request = ApiKeyRequest.objects.get()
     assert api_key_request.requester == requester
     assert AuditLog.objects.filter(action="api_key_request.created").exists()
+
+
+def test_superadmin_cannot_request_api_key_for_hidden_makerspace_without_membership():
+    hidden = make_space("client-request-hidden")
+    make_member("client-request-hidden-manager", hidden)
+    hidden.superadmin_access_enabled = False
+    hidden.save(update_fields=["superadmin_access_enabled"])
+    superadmin = make_user(
+        "client-request-hidden-super",
+        role=User.Role.SUPERADMIN,
+        access_status=User.AccessStatus.ACTIVE,
+    )
+
+    response = authenticated_client(superadmin).post(
+        "/api/v1/admin/api-key-requests",
+        {
+            "makerspace": hidden.id,
+            "label": "Blocked hidden webhook",
+            "allowed_origins": ["https://hidden.example.com"],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 403
+    assert ApiKeyRequest.objects.count() == 0
+
+
+def test_hidden_makerspace_member_can_request_api_key():
+    hidden = make_space("client-request-hidden-member")
+    hidden.superadmin_access_enabled = False
+    hidden.save(update_fields=["superadmin_access_enabled"])
+    requester = make_member("client-request-hidden-member", hidden)
+
+    response = authenticated_client(requester).post(
+        "/api/v1/admin/api-key-requests",
+        {
+            "makerspace": hidden.id,
+            "label": "Hidden member webhook",
+            "allowed_origins": ["https://hidden-member.example.com"],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert ApiKeyRequest.objects.get().makerspace == hidden
 
 
 def test_member_cannot_request_api_key_for_other_makerspace():

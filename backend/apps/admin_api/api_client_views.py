@@ -23,6 +23,11 @@ class ApiClientListCreateView(generics.ListCreateAPIView):
     serializer_class = ApiClientSerializer
     permission_classes = [IsActiveStaff]
 
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["makerspace_id"] = self.kwargs.get("makerspace_id")
+        return context
+
     def get_queryset(self):
         makerspace_id = self.kwargs["makerspace_id"]
         require_action(
@@ -131,7 +136,11 @@ class ApiKeyRequestListCreateView(generics.ListCreateAPIView):
         is_member = MakerspaceMembership.objects.filter(
             user=user, makerspace_id=makerspace.id
         ).exists()
-        if not (is_superadmin or is_member):
+        if makerspace.archived_at is not None:
+            raise PermissionDenied()
+        if is_superadmin and not is_member:
+            require_action(user, rbac.Action.MANAGE_MAKERSPACE, makerspace.id)
+        elif not is_member:
             raise PermissionDenied()
 
         api_key_request = serializer.save(

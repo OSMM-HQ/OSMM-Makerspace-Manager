@@ -68,9 +68,10 @@ class MakerspaceListCreateView(generics.ListCreateAPIView):
         view_scope = rbac.makerspaces_for_action(request.user, rbac.Action.VIEW_INVENTORY)
         context = self.get_serializer_context()
         is_superadmin = request.user.is_superuser or request.user.role == User.Role.SUPERADMIN
+        hidden_ids = rbac.superadmin_hidden_makerspace_ids() if is_superadmin else set()
 
         def serialize(makerspace):
-            if is_superadmin and not makerspace.superadmin_access_enabled:
+            if is_superadmin and makerspace.id in hidden_ids:
                 return MakerspaceDisabledRowSerializer(makerspace, context=context).data
             can_view = view_scope is rbac.ALL or makerspace.id in view_scope
             serializer = MakerspaceSerializer if can_view else MakerspaceSwitcherSerializer
@@ -106,7 +107,8 @@ class MakerspaceDetailView(generics.RetrieveUpdateAPIView):
                 and getattr(actor, "is_authenticated", False)
                 and (actor.is_superuser or getattr(actor, "role", None) == User.Role.SUPERADMIN)
             )
-            if makerspace is not None and is_superadmin and not makerspace.superadmin_access_enabled:
+            hidden_ids = rbac.superadmin_hidden_makerspace_ids() if is_superadmin else set()
+            if makerspace is not None and makerspace.id in hidden_ids:
                 return MakerspaceDisabledRowSerializer
         return MakerspaceSerializer
 

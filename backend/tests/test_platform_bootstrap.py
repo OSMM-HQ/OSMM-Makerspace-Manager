@@ -165,6 +165,7 @@ def test_space_manager_can_register_frontend_for_superadmin_hidden_makerspace():
 
 def test_superadmin_cannot_register_frontend_for_superadmin_hidden_makerspace():
     makerspace = make_space("platform-hidden-superadmin-blocked")
+    make_member("platform-hidden-superadmin-blocked-manager", makerspace)
     makerspace.superadmin_access_enabled = False
     makerspace.save(update_fields=["superadmin_access_enabled"])
     superadmin = make_user(

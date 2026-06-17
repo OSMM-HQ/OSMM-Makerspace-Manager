@@ -72,6 +72,7 @@ def test_inventory_lending_history_soft_hidden_from_superadmin():
     # A makerspace that has opted out of superadmin access must not leak borrower
     # PII to a superadmin via this endpoint (mirrors the audit/report soft-hide).
     makerspace = make_space("lending-history-hidden")
+    make_member("lending-history-hidden-manager", makerspace)
     makerspace.superadmin_access_enabled = False
     makerspace.save(update_fields=["superadmin_access_enabled"])
     superadmin = make_user(

@@ -88,7 +88,10 @@ def _require_rebind_permission(user, qr, target, target_type, cross):
     if user.access_status != User.AccessStatus.ACTIVE:
         raise PermissionDenied()
     if cross:
-        if not (user.is_superuser or user.role == User.Role.SUPERADMIN):
+        if not (
+            rbac.can(user, rbac.Action.TRANSFER_STOCK, qr.makerspace_id)
+            and rbac.can(user, rbac.Action.TRANSFER_STOCK, target.makerspace_id)
+        ):
             raise PermissionDenied()
         if (
             qr.target_type != QrCode.TargetType.PRODUCT

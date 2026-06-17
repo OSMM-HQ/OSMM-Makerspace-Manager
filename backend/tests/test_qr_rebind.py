@@ -142,6 +142,44 @@ def test_cross_makerspace_rebind_by_non_superadmin_manager_is_denied():
     assert qr.target_id == source.id
 
 
+def test_cross_makerspace_rebind_denies_hidden_source_or_destination():
+    source_space = make_space("qr-rebind-hidden-source")
+    destination_space = make_space("qr-rebind-hidden-dest")
+    make_member("qr-rebind-hidden-source-manager", source_space)
+    make_member("qr-rebind-hidden-dest-manager", destination_space)
+    source_space.superadmin_access_enabled = False
+    source_space.save(update_fields=["superadmin_access_enabled"])
+    actor = make_user(
+        "qr-rebind-hidden-superadmin",
+        role=User.Role.SUPERADMIN,
+        access_status=User.AccessStatus.ACTIVE,
+    )
+    source = make_product(source_space, name="Hidden Source Product")
+    target = make_product(destination_space, name="Hidden Destination Product")
+    qr = _qr(source, actor)
+
+    hidden_source = authenticated_client(actor).post(
+        f"/api/v1/admin/qr/{qr.id}/rebind-target",
+        _rebind_payload(target),
+        format="json",
+    )
+    source_space.superadmin_access_enabled = True
+    source_space.save(update_fields=["superadmin_access_enabled"])
+    destination_space.superadmin_access_enabled = False
+    destination_space.save(update_fields=["superadmin_access_enabled"])
+    hidden_destination = authenticated_client(actor).post(
+        f"/api/v1/admin/qr/{qr.id}/rebind-target",
+        _rebind_payload(target),
+        format="json",
+    )
+
+    assert hidden_source.status_code == 403
+    assert hidden_destination.status_code == 403
+    qr.refresh_from_db()
+    assert qr.makerspace_id == source_space.id
+    assert qr.target_id == source.id
+
+
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_rebind_blocked_when_qr_has_outstanding_loan():
     makerspace = make_space("qr-rebind-loan")

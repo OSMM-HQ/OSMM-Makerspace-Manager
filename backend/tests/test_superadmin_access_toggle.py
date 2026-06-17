@@ -142,6 +142,7 @@ def test_superadmin_aggregates_hide_disabled_space():
 
 def test_superadmin_cannot_reach_disabled_space_per_makerspace_reports():
     hidden_space = make_space("access-hidden-direct")
+    make_member("access-hidden-direct-manager", hidden_space)
     hidden_space.superadmin_access_enabled = False
     hidden_space.save(update_fields=["superadmin_access_enabled"])
     superadmin = make_superadmin("access-direct-super")
@@ -199,6 +200,7 @@ def test_audit_list_hides_disabled_space_even_with_explicit_filter():
 
 def test_makerspace_list_uses_slim_serializer_for_disabled_space_for_superadmin():
     hidden_space = make_space("access-hidden-list")
+    make_member("access-hidden-list-manager", hidden_space)
     hidden_space.superadmin_access_enabled = False
     hidden_space.save(update_fields=["superadmin_access_enabled"])
     visible_space = make_space("access-visible-list")

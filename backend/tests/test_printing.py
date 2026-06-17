@@ -1064,6 +1064,7 @@ def test_manage_rbac_requester_manager_scope_cross_tenant_and_superadmin():
 def test_superadmin_managed_print_list_hides_disabled_space_unless_explicit():
     visible_space = make_space("manage-visible-superadmin")
     hidden_space = make_space("manage-hidden-superadmin")
+    make_member("manage-hidden-superadmin-manager", hidden_space)
     hidden_space.superadmin_access_enabled = False
     hidden_space.save(update_fields=["superadmin_access_enabled"])
     visible_bucket = make_bucket(visible_space)

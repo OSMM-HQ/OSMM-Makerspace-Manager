@@ -2,6 +2,7 @@ from urllib.parse import urlsplit
 
 from rest_framework import serializers
 
+from apps.accounts import rbac
 from apps.accounts.models import User
 from apps.apiclients.models import ApiClient, ApiKeyRequest
 from apps.makerspaces.models import Makerspace
@@ -66,7 +67,12 @@ class ApiClientSerializer(serializers.ModelSerializer):
         is_superadmin = bool(
             actor and (actor.is_superuser or getattr(actor, "role", None) == User.Role.SUPERADMIN)
         )
-        if not is_superadmin:
+        makerspace_id = getattr(self.instance, "makerspace_id", None) or self.context.get("makerspace_id")
+        hidden_ids = rbac.superadmin_hidden_makerspace_ids() if is_superadmin and makerspace_id else set()
+        has_global_privilege = is_superadmin and (
+            makerspace_id is None or int(makerspace_id) not in hidden_ids
+        )
+        if not has_global_privilege:
             for field in ("client_type", "scopes", "rate_limit_tier"):
                 attrs.pop(field, None)
         client_type = attrs.get("client_type") or getattr(self.instance, "client_type", "server")

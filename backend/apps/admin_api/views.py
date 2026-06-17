@@ -23,12 +23,14 @@ from apps.admin_api.views_makerspaces import (
     TenantFrontendDetailView,
     TenantFrontendListCreateView,
 )
-from apps.admin_api.views_users import (
-    AuditLogListView,
-    AuditLogPagination,
+from apps.admin_api.views_user_access import (
     ResetUserPasswordView,
     RestoreUserAccessView,
     RestrictUserView,
+)
+from apps.admin_api.views_users import (
+    AuditLogListView,
+    AuditLogPagination,
     StaffListCreateView,
     _can_create_staff_role,
     _global_role_for_membership,

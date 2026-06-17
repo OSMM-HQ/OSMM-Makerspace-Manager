@@ -164,10 +164,12 @@ def superadmin_hidden_makerspace_ids():
     from apps.makerspaces.models import Makerspace
 
     return set(
-        Makerspace.objects.filter(superadmin_access_enabled=False).values_list(
-            "id",
-            flat=True,
+        Makerspace.objects.filter(
+            superadmin_access_enabled=False,
+            memberships__role=MakerspaceMembership.Role.SPACE_MANAGER,
         )
+        .distinct()
+        .values_list("id", flat=True)
     )
 
 

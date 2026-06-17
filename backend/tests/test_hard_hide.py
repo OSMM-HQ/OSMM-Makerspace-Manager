@@ -30,8 +30,32 @@ def make_superadmin(username, **kwargs):
 
 
 def hide_makerspace(makerspace):
+    if not makerspace.memberships.filter(
+        role=MakerspaceMembership.Role.SPACE_MANAGER,
+    ).exists():
+        manager = make_user(
+            f"{makerspace.slug}-setup-manager",
+            role=User.Role.SPACE_MANAGER,
+            access_status=User.AccessStatus.ACTIVE,
+        )
+        MakerspaceMembership.objects.create(
+            user=manager,
+            makerspace=makerspace,
+            role=MakerspaceMembership.Role.SPACE_MANAGER,
+        )
     makerspace.superadmin_access_enabled = False
     makerspace.save(update_fields=["superadmin_access_enabled"])
+
+
+def test_superadmin_keeps_setup_access_until_space_manager_exists():
+    setup_space = make_space("hard-hide-setup-window")
+    setup_space.superadmin_access_enabled = False
+    setup_space.save(update_fields=["superadmin_access_enabled"])
+    superadmin = make_superadmin("hard-hide-setup-window-super")
+
+    assert rbac.can(superadmin, rbac.Action.MANAGE_MAKERSPACE, setup_space.id) is True
+    assert rbac.can(superadmin, rbac.Action.EDIT_INVENTORY, setup_space.id) is True
+    assert rbac.resolve_scope(superadmin) is rbac.ALL
 
 
 def test_superadmin_rbac_hard_hides_disabled_makerspace():

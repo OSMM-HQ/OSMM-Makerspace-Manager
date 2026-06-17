@@ -85,7 +85,7 @@ class StocktakeApproveView(APIView):
 
     @extend_schema(tags=["Stocktake"], summary="Approve stocktake", request=EmptySerializer, responses={200: StocktakeSerializer})
     def post(self, request, pk, *args, **kwargs):
-        stocktake = get_object_or_404(StocktakeSession, pk=pk)
+        stocktake = _stocktake_for_action(request.user, pk, rbac.Action.EDIT_INVENTORY)
         return Response(StocktakeSerializer(services.approve_stocktake(request.user, stocktake)).data)
 
 
@@ -95,7 +95,7 @@ class StocktakeApplyAdjustmentsView(APIView):
 
     @extend_schema(tags=["Stocktake"], summary="Apply stocktake adjustments", request=EmptySerializer, responses={200: StocktakeSerializer})
     def post(self, request, pk, *args, **kwargs):
-        stocktake = get_object_or_404(StocktakeSession, pk=pk)
+        stocktake = _stocktake_for_action(request.user, pk, rbac.Action.EDIT_INVENTORY)
         return Response(StocktakeSerializer(services.apply_stocktake_adjustments(request.user, stocktake)).data)
 
 

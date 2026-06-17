@@ -168,6 +168,30 @@ def test_cross_makerspace_transfer_denied_for_non_superadmin_with_no_side_effect
     assert StockTransfer.objects.count() == 0
 
 
+def test_cross_makerspace_transfer_denies_hidden_source_or_destination():
+    source = make_space("ops-xfer-hidden-src")
+    dest = make_space("ops-xfer-hidden-dst")
+    make_member("ops-xfer-hidden-src-manager", source)
+    make_member("ops-xfer-hidden-dst-manager", dest)
+    source.superadmin_access_enabled = False
+    source.save(update_fields=["superadmin_access_enabled"])
+    superadmin = make_user("ops-xfer-hidden-super", role=User.Role.SUPERADMIN, access_status=User.AccessStatus.ACTIVE)
+    product = make_product(source, name="Hidden Heat Gun", total_quantity=10, available_quantity=10)
+
+    hidden_source = _cross_transfer(superadmin, source, dest, product, 2)
+    source.superadmin_access_enabled = True
+    source.save(update_fields=["superadmin_access_enabled"])
+    dest.superadmin_access_enabled = False
+    dest.save(update_fields=["superadmin_access_enabled"])
+    hidden_dest = _cross_transfer(superadmin, source, dest, product, 2)
+
+    assert hidden_source.status_code == 403
+    assert hidden_dest.status_code == 403
+    product.refresh_from_db()
+    assert product.available_quantity == 10
+    assert InventoryProduct.objects.filter(makerspace=dest, name="Hidden Heat Gun").count() == 0
+
+
 def test_stocktake_lifecycle_applies_superadmin_adjustment():
     makerspace = make_space("ops-stocktake")
     manager = make_member("ops-stocktake-manager", makerspace, membership_role="inventory_manager", role=User.Role.REQUESTER)
@@ -200,6 +224,28 @@ def test_stocktake_lifecycle_applies_superadmin_adjustment():
     product.refresh_from_db()
     assert product.available_quantity == 8
     assert StocktakeSession.objects.get(pk=stocktake_id).status == StocktakeSession.Status.APPLIED
+
+
+def test_superadmin_cannot_approve_or_apply_hidden_makerspace_stocktake():
+    makerspace = make_space("ops-stocktake-hidden")
+    make_member("ops-stocktake-hidden-manager", makerspace)
+    makerspace.superadmin_access_enabled = False
+    makerspace.save(update_fields=["superadmin_access_enabled"])
+    superadmin = make_user("ops-stocktake-hidden-super", role=User.Role.SUPERADMIN, access_status=User.AccessStatus.ACTIVE)
+    stocktake = StocktakeSession.objects.create(
+        makerspace=makerspace,
+        started_by=superadmin,
+        status=StocktakeSession.Status.COMPLETED,
+    )
+    client = authenticated_client(superadmin)
+
+    approved = client.post(f"/api/v1/admin/stocktakes/{stocktake.id}/approve")
+    stocktake.status = StocktakeSession.Status.APPROVED
+    stocktake.save(update_fields=["status"])
+    applied = client.post(f"/api/v1/admin/stocktakes/{stocktake.id}/apply-adjustments")
+
+    assert approved.status_code == 404
+    assert applied.status_code == 404
 
 
 def test_reports_export_csv_and_xlsx():

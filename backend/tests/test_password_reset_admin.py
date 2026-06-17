@@ -101,6 +101,30 @@ def test_superadmin_break_glass_blocked_when_also_enabled_space_manager():
     assert response.status_code == 403
 
 
+def test_superadmin_cannot_reset_hidden_non_space_manager():
+    hidden_space = make_space("admin-reset-hidden-inventory")
+    make_member("admin-reset-hidden-inventory-manager", hidden_space)
+    hidden_space.superadmin_access_enabled = False
+    hidden_space.save(update_fields=["superadmin_access_enabled"])
+    target = make_member(
+        "admin-reset-hidden-inventory-target",
+        hidden_space,
+        membership_role=MakerspaceMembership.Role.INVENTORY_MANAGER,
+        role=User.Role.REQUESTER,
+    )
+    superadmin = make_superadmin("admin-reset-hidden-inventory-super")
+
+    response = authenticated_client(superadmin).post(
+        reset_password_url(target),
+        {},
+        format="json",
+    )
+
+    assert response.status_code == 403
+    target.refresh_from_db()
+    assert target.must_change_password is False
+
+
 def test_non_superadmin_cannot_reset_peer_space_manager():
     space = make_space("admin-reset-peer")
     actor = make_member("admin-reset-peer-actor", space)

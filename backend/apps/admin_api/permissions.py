@@ -1,4 +1,5 @@
 from rest_framework.permissions import BasePermission
+from rest_framework.exceptions import PermissionDenied
 
 from apps.accounts import rbac
 from apps.accounts.models import User
@@ -45,6 +46,37 @@ class IsActiveSuperAdmin(BasePermission):
 
 def require_action(user, action, makerspace_id):
     if not rbac.can(user, action, makerspace_id):
-        from rest_framework.exceptions import PermissionDenied
-
         raise PermissionDenied()
+
+
+def require_user_access_mutation(actor, target):
+    hidden_memberships = target.makerspace_memberships.filter(
+        makerspace__superadmin_access_enabled=False,
+    ).values_list("makerspace_id", flat=True)
+    for makerspace_id in hidden_memberships:
+        if not rbac.can(actor, rbac.Action.MANAGE_MAKERSPACE, makerspace_id):
+            raise PermissionDenied(
+                "This user belongs to a makerspace that turned off superadmin access."
+            )
+
+
+def hidden_space_manager_reset_break_glass(target):
+    from apps.makerspaces.models import MakerspaceMembership
+
+    memberships = list(target.makerspace_memberships.select_related("makerspace"))
+    hidden = [
+        membership
+        for membership in memberships
+        if not membership.makerspace.superadmin_access_enabled
+    ]
+    if not hidden:
+        return False
+    allowed = len(hidden) == len(memberships) and all(
+        membership.role == MakerspaceMembership.Role.SPACE_MANAGER
+        for membership in memberships
+    )
+    if not allowed:
+        raise PermissionDenied(
+            "Cannot reset a user who belongs to a makerspace that turned off superadmin access."
+        )
+    return True

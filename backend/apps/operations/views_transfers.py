@@ -1,7 +1,6 @@
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import generics, status
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from apps.accounts import rbac
@@ -43,10 +42,12 @@ class StockTransferListCreateView(generics.ListCreateAPIView):
         )
         is_cross = destination_makerspace_id != makerspace.id
         if is_cross:
-            if not (request.user.is_superuser or request.user.role == request.user.Role.SUPERADMIN):
-                raise PermissionDenied(
-                    "Only a superadmin can transfer stock between makerspaces."
-                )
+            require_action(request.user, rbac.Action.TRANSFER_STOCK, makerspace.id)
+            require_action(
+                request.user,
+                rbac.Action.TRANSFER_STOCK,
+                destination_makerspace_id,
+            )
         else:
             require_action(request.user, rbac.Action.EDIT_INVENTORY, makerspace.id)
         transfer = services.apply_stock_transfer(request.user, makerspace, serializer.validated_data)

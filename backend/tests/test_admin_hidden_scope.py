@@ -5,7 +5,7 @@ from django.test import RequestFactory
 
 from apps.accounts.models import User
 from apps.inventory.models import InventoryProduct
-from apps.makerspaces.models import Makerspace, TenantFrontend
+from apps.makerspaces.models import Makerspace, MakerspaceMembership, TenantFrontend
 from config.admin_access import GLOBAL_ADMIN_MODELS
 
 pytestmark = pytest.mark.django_db
@@ -90,6 +90,17 @@ def test_inventory_product_admin_hides_disabled_makerspace_rows():
         name="Hidden",
         slug="hidden-admin-scope",
         superadmin_access_enabled=False,
+    )
+    hidden_manager = get_user_model().objects.create_user(
+        username="hidden-admin-scope-manager",
+        email="hidden-admin-scope-manager@example.com",
+        role=User.Role.SPACE_MANAGER,
+        access_status=User.AccessStatus.ACTIVE,
+    )
+    MakerspaceMembership.objects.create(
+        user=hidden_manager,
+        makerspace=hidden_space,
+        role=MakerspaceMembership.Role.SPACE_MANAGER,
     )
     visible_space = Makerspace.objects.create(
         name="Visible",
