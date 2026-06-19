@@ -16,6 +16,7 @@ SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 PUBLIC_APP_BASE_URL = env("PUBLIC_APP_BASE_URL", default="").rstrip("/")
+MANAGED_POSTGRES = env.bool("MANAGED_POSTGRES", default=False)
 
 INSTALLED_APPS = [
     "unfold",
@@ -86,6 +87,10 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 
 DATABASES = {"default": env.db()}
+DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=0)
+DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = env.bool(
+    "DISABLE_SERVER_SIDE_CURSORS", default=False
+)
 
 AUTH_PASSWORD_VALIDATORS = [
     {

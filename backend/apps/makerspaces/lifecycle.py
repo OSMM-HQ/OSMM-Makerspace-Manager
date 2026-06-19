@@ -129,7 +129,14 @@ def _delete_object_graph(makerspace):
         # not crash-safe.) Django's ORM performs every CASCADE/SET_NULL fixup in Python
         # and the comprehensive purge test asserts no orphans survive, so losing DB-level
         # FK enforcement for this one transaction is safe.
-        cursor.execute("SET LOCAL session_replication_role = 'replica'")
+        if settings.MANAGED_POSTGRES:
+            # Managed Postgres (e.g. Supabase) forbids session_replication_role (needs
+            # superuser). Use a custom transaction-scoped GUC that our immutability
+            # triggers honor to allow DELETE only; FK triggers stay ON (Django collects
+            # the graph in dependency order). Auto-resets on commit/rollback.
+            cursor.execute("SET LOCAL app.allow_immutable_delete = 'on'")
+        else:
+            cursor.execute("SET LOCAL session_replication_role = 'replica'")
 
         QrPrintBatch.objects.filter(makerspace=makerspace).delete()
         StockTransfer.objects.filter(

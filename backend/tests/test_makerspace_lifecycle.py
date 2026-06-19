@@ -2,7 +2,13 @@ from decimal import Decimal
 
 import pytest
 from django.core.exceptions import ValidationError
-from django.db import DatabaseError, connection, transaction
+from django.db import (
+    DatabaseError,
+    InternalError,
+    ProgrammingError,
+    connection,
+    transaction,
+)
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -472,6 +478,50 @@ def test_comprehensive_purge_removes_entire_makerspace_graph_and_preserves_survi
         makerspace__isnull=True,
         meta__makerspace_id=space_id,
     ).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_comprehensive_purge_under_managed_postgres(monkeypatch):
+    monkeypatch.setattr("django.conf.settings.MANAGED_POSTGRES", True)
+    actor = make_superadmin("lifecycle-managed-super")
+    makerspace = make_space("lifecycle-managed")
+    survivor = make_space("lifecycle-managed-survivor")
+    refs = populate_full_purge_graph(makerspace, survivor, actor)
+    space_id = makerspace.id
+    survivor_id = survivor.id
+    survivor_adjustment_id = refs["survivor_adjustment"].id
+    monkeypatch.setattr(lifecycle, "_delete_storage_keys", lambda keys: None)
+
+    archived = archive_space(makerspace, actor)
+    lifecycle.purge(archived, actor)
+
+    assert_purged_makerspace_graph(space_id)
+    assert not Makerspace.objects.filter(pk=space_id).exists()
+    assert Makerspace.objects.filter(pk=survivor_id).exists()
+
+    survivor_adjustment = InventoryAdjustment.objects.get(pk=survivor_adjustment_id)
+    assert survivor_adjustment.makerspace_id == survivor_id
+    assert survivor_adjustment.transfer_id is None
+    assert AuditLog.objects.filter(
+        action="makerspace.purged",
+        makerspace__isnull=True,
+        meta__makerspace_id=space_id,
+    ).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_immutable_update_still_blocked_under_purge_guard():
+    actor = make_superadmin("lifecycle-managed-update-super")
+    audit_log = AuditLog.objects.create(actor=actor, action="managed.before_update")
+
+    with pytest.raises((InternalError, ProgrammingError)):
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                cursor.execute("SET LOCAL app.allow_immutable_delete = 'on'")
+                cursor.execute(
+                    "UPDATE audit_auditlog SET action = %s WHERE id = %s",
+                    ["managed.mutated", audit_log.id],
+                )
 
 
 @pytest.mark.django_db(transaction=True)
