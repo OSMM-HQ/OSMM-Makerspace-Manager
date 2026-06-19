@@ -2,6 +2,45 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — pink dark theme + brand logos + recipient toggles + manual-log hours + nav/reports (2026-06-20)
+
+Phase-by-phase batch (commit-per-green, each with tests where applicable); branch `feat/lean-paid-production`.
+Codex did the Settings-UI + responsive phases (Stage-2), Claude verified each diff; Codex Stage-4 review run
+over `d385301..HEAD`. Backend **682 passing** (the 1 failure `test_global_csp_img_src_does_not_allow_s3_public_origin`
+is a dev-container env artifact — that container sets `PUBLIC_IMAGE_BASE_URL` to the same `localhost:9000` as
+`AWS_S3_PUBLIC_ENDPOINT_URL`, so the global `img-src` legitimately contains it; CSP code is untouched).
+
+- **Dark theme → rose/pink accent (frontend).** `:root.dark` `--color-accent` `#facc15`→**rose `#fb7185`**,
+  `--color-accent-bright`→`#fda4af`, and `--color-on-accent` flipped to **dark `#0c0d0e`** (white-on-rose was
+  2.7:1; dark-on-rose is 7.2:1 — the Codex Stage-4 P2 from the first pass). Light mode unchanged (blue). All
+  accent surfaces cascade from the tokens.
+- **Brand logos on all public pages.** `MakerspaceBrand` (logo, else Clash wordmark) added to the public
+  inventory list, item detail, print-request, and self-checkout headers. `TenantBootstrap.makerspace` type
+  gained `logo_url`/`cover_image_url` (already in the backend payload).
+- **Status-box polish.** Filled status boxes already existed app-wide (prior batch); this batch made
+  `AvailabilityBadge` a filled themed box (was tinted `bg-success/10` — fixes dark "Available"), and humanized
+  raw labels (`checked_out`→"Lent", print statuses).
+- **Handover modal container picker.** New `BoxCodeField` in `QueuesModals.tsx` (assign-issue + return modals):
+  manual entry **+ camera scan** (resolves a box QR to its code) **+ active-container dropdown**.
+- **Manual print log time → report hours.** `ManualPrintLog.duration_minutes` (PositiveInteger, migration
+  `printing/0013`) collected in the staff form; `printing.reports._printer_hours` now sums completed-request
+  `estimated_minutes` **plus** manual-log `duration_minutes` per printer (manual-only printers get a row).
+- **Nav reorg.** `StaffApp.tsx` `TAB_GROUPS`: **To Buy + Transfers + Stocktake** moved into **Operate**
+  (permissions unchanged — gating is per-tab).
+- **Per-makerspace email recipient selection.** `MakerspaceMembership.receives_notifications` (Boolean default
+  True, migration `makerspaces/0021`); `staff_emails_for_stream` filters to it. New
+  `GET/PATCH /admin/makerspace/<id>/notification-recipients` (`views_notification_recipients.py`,
+  MANAGE_MAKERSPACE, audited, tenant-scoped) lists the space/inventory/print managers with a per-person
+  toggle. Settings UI: SMTP setup **moved from "API access" → Settings** (`MakerspaceEmailSettings.tsx`;
+  Telegram + API clients stay in `ApiClientsPanel`), plus the recipient checklist. Master
+  `staff_notifications_enabled` remains the kill-switch.
+- **Reports correctness fix.** `operations.reports._taken_items`/`_most_lent` grouped by `product__name`
+  only — distinct products sharing a name merged. Now grouped by `product_id` (name stays the display column);
+  regression test `tests/test_reports_duplicate_names.py`. Printing-report math audited clean.
+- **Responsive + hover.** Surgical pass (modals `max-h`/scroll, table/row `overflow-x-auto` + `flex-wrap` +
+  `min-w-0`, mobile grid collapse) and guaranteed button hover contrast in shared `desk-*` classes (explicit
+  `hover:text-*`). Tests: `test_printing_manual_logs.py` (+duration), `test_staff_notifications.py` (+recipients).
+
 ## Recent batch — status boxes + theme/hover/responsive + per-makerspace staff emails (2026-06-20)
 
 Frontend polish + a new staff-notification feature. Codex Stage-1 plan-reviewed APPROVED (1 revision
