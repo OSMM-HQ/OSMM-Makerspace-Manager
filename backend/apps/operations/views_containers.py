@@ -1,3 +1,4 @@
+from django.db.models import OuterRef, Subquery
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import generics
@@ -31,7 +32,13 @@ class ContainerListCreateView(generics.ListCreateAPIView):
         makerspace_id = self.kwargs["makerspace_id"]
         require_module(makerspace_id, "containers")
         require_action(self.request.user, rbac.Action.VIEW_INVENTORY, makerspace_id)
-        return Box.objects.filter(makerspace_id=makerspace_id).order_by("label")
+        active_qr = QrCode.objects.filter(
+            makerspace_id=OuterRef("makerspace_id"),
+            target_type=QrCode.TargetType.BOX,
+            target_id=OuterRef("pk"),
+            status=QrCode.Status.ACTIVE,
+        ).order_by("id").values("id")[:1]
+        return Box.objects.filter(makerspace_id=makerspace_id).annotate(_active_qr_code_id=Subquery(active_qr)).order_by("label")
 
     def perform_create(self, serializer):
         makerspace_id = self.kwargs["makerspace_id"]

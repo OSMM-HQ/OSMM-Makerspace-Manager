@@ -21,7 +21,11 @@ class PublicToolLoanSerializer(serializers.Serializer):
 
     @extend_schema_field(PublicToolLoanItemSerializer(many=True))
     def get_items(self, obj) -> list[dict[str, object]]:
+        if "items" in getattr(obj.request, "_prefetched_objects_cache", {}):
+            items = sorted(obj.request.items.all(), key=lambda item: item.product.name)
+        else:
+            items = obj.request.items.select_related("product").order_by("product__name")
         return [
             {"product_name": item.product.name, "quantity": item.issued_quantity}
-            for item in obj.request.items.select_related("product").order_by("product__name")
+            for item in items
         ]

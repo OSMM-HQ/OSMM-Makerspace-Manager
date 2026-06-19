@@ -28,6 +28,8 @@ class BoxSerializer(serializers.ModelSerializer):
         # Every box gets an active BOX QrCode at creation. Surfacing its id lets
         # QR-management flows (e.g. adding a box to a print batch) reference the
         # code directly instead of going through the scanner-gated resolve view.
+        if hasattr(obj, "_active_qr_code_id"):
+            return obj._active_qr_code_id
         qr = (
             QrCode.objects.filter(
                 makerspace_id=obj.makerspace_id,
