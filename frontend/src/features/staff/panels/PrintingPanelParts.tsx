@@ -1,6 +1,11 @@
 import type React from "react";
 
-import { API_V1_URL, getAccessToken } from "../../../lib/api";
+import {
+  API_V1_URL,
+  expireStaffAuthSession,
+  getAccessToken,
+  refreshAccessToken,
+} from "../../../lib/api";
 
 
 export type FilamentSpool = {
@@ -80,15 +85,31 @@ export type SpoolPayload = {
 };
 
 export async function printingRequest<T>(path: string, options: RequestInit = {}) {
-  const token = getAccessToken();
-  const response = await fetch(`${API_V1_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers ?? {}),
-    },
-  });
+  const makeRequest = () => {
+    const token = getAccessToken();
+    return fetch(`${API_V1_URL}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers ?? {}),
+      },
+    });
+  };
+
+  let response = await makeRequest();
+  if (response.status === 401) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      response = await makeRequest();
+      if (response.status === 401) {
+        expireStaffAuthSession();
+      }
+    } else {
+      expireStaffAuthSession();
+    }
+  }
+
   if (response.ok) {
     if (response.status === 204) return undefined as T;
     return (await response.json()) as T;

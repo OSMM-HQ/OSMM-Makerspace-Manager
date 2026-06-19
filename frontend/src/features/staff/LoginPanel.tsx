@@ -8,10 +8,12 @@ const RESET_SENT_MESSAGE =
 export function LoginPanel({
   error,
   guestOnly,
+  isPending,
   onSubmit,
 }: {
   error?: string;
   guestOnly: boolean;
+  isPending: boolean;
   onSubmit: (payload: { username: string; password: string }) => void;
 }) {
   const [mode, setMode] = useState<"login" | "forgot">("login");
@@ -89,6 +91,7 @@ export function LoginPanel({
         className="desk-panel w-full max-w-md p-6"
         onSubmit={(event) => {
           event.preventDefault();
+          if (isPending) return;
           onSubmit({ username, password });
         }}
       >
@@ -117,8 +120,15 @@ export function LoginPanel({
           onChange={(e) => setPassword(e.target.value)}
         />
         {error ? <p className="mt-3 text-sm text-danger">{error}</p> : null}
-        <button className="desk-button-primary mt-5 w-full" type="submit">
-          Sign in
+        <button
+          className="desk-button-primary mt-5 flex w-full items-center justify-center gap-2 disabled:cursor-not-allowed disabled:opacity-50"
+          type="submit"
+          disabled={isPending}
+        >
+          {isPending ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-bg/40 border-t-bg" />
+          ) : null}
+          {isPending ? "Signing in..." : "Sign in"}
         </button>
         <button
           className="mt-3 w-full text-sm font-semibold text-accent hover:text-accent/80"

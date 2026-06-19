@@ -40,6 +40,7 @@ export function Inventory({ makerspace, canViewAudit = false }: { makerspace: Ma
   const [addOpen, setAddOpen] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<AdminProduct | null>(null);
   const [qrConfirm, setQrConfirm] = useState<boolean | null>(null);
+  const [bulkQrMessage, setBulkQrMessage] = useState("");
   useEffect(() => {
     setSearch(localStorage.getItem(`inventory.view.${makerspace.id}`) ?? "");
     setSelectedIds([]);
@@ -49,6 +50,7 @@ export function Inventory({ makerspace, canViewAudit = false }: { makerspace: Ma
     setAddOpen(false);
     setArchiveTarget(null);
     setQrConfirm(null);
+    setBulkQrMessage("");
   }, [makerspace.id]);
   const products = useStaffGet<{ results: AdminProduct[] }>(["inventory", makerspace.id], `/admin/makerspace/${makerspace.id}/inventory`);
   const categories = useStaffGet<CategoryListResponse>(["categories", makerspace.id], `/admin/makerspace/${makerspace.id}/categories`);
@@ -73,8 +75,27 @@ export function Inventory({ makerspace, canViewAudit = false }: { makerspace: Ma
     onSuccess: () => { setArchiveTarget(null); invalidate(); },
   });
   const bulkQr = useMutation({
-    mutationFn: (enabled: boolean) => Promise.all(selectedIds.map((id) => staffRequest(`/admin/inventory/${String(id)}`, { method: "PATCH", body: JSON.stringify({ public_self_checkout_enabled: enabled }) }))),
-    onSuccess: () => { setQrConfirm(null); invalidate(); },
+    mutationFn: async (enabled: boolean) => {
+      const ids = [...selectedIds];
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          staffRequest(`/admin/inventory/${String(id)}`, {
+            method: "PATCH",
+            body: JSON.stringify({ public_self_checkout_enabled: enabled }),
+          }),
+        ),
+      );
+      return {
+        total: ids.length,
+        succeeded: results.filter((result) => result.status === "fulfilled").length,
+        failed: results.filter((result) => result.status === "rejected").length,
+      };
+    },
+    onSuccess: (result) => {
+      setQrConfirm(null);
+      setBulkQrMessage(`${result.succeeded} of ${result.total} items updated. ${result.failed} failed.`);
+      invalidate();
+    },
   });
   const rows = (products.data?.results ?? []).filter((product) =>
     [product.name, product.description, product.tracking_mode, product.storage_location].join(" ").toLowerCase().includes(search.toLowerCase()),
@@ -111,12 +132,13 @@ export function Inventory({ makerspace, canViewAudit = false }: { makerspace: Ma
             <>
               <button className="desk-button" type="button" onClick={() => { setForm(emptyForm); setAddOpen(true); }}>Add item</button>
               <button className="desk-button" type="button" onClick={() => localStorage.setItem(storageKey, search)}>Save view</button>
-              <button className="desk-button" type="button" disabled={!selectedIds.length || bulkQr.isPending} onClick={() => setQrConfirm(true)}>Enable QR</button>
-              <button className="desk-button" type="button" disabled={!selectedIds.length || bulkQr.isPending} onClick={() => setQrConfirm(false)}>Disable QR</button>
+              <button className="desk-button" type="button" disabled={!selectedIds.length || bulkQr.isPending} onClick={() => { setBulkQrMessage(""); setQrConfirm(true); }}>Enable QR</button>
+              <button className="desk-button" type="button" disabled={!selectedIds.length || bulkQr.isPending} onClick={() => { setBulkQrMessage(""); setQrConfirm(false); }}>Disable QR</button>
             </>
           )}
         />
         <DataTable<AdminProduct> columns={columns} data={rows} getRowId={(row) => row.id} selectedIds={selectedIds} onSelectionChange={setSelectedIds} loading={products.isLoading} emptyTitle="No inventory" />
+        {bulkQrMessage ? <p className="text-sm text-muted">{bulkQrMessage}</p> : null}
       </div>
       <ItemModal title="Add item" open={addOpen} onClose={() => setAddOpen(false)} form={form} setForm={setForm} categories={categoryRows} includeQuantities pending={create.isPending} error={create.error?.message} onSubmit={() => create.mutate()} />
       <ItemModal title={editing?.name ?? "Edit item"} open={Boolean(editing)} onClose={() => setEditing(null)} form={form} setForm={setForm} categories={categoryRows} pending={update.isPending} error={update.error?.message} onSubmit={() => update.mutate()}>

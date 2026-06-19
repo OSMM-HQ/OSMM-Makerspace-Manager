@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
+  addAuthExpiredListener,
   clearAccessToken,
   fetchMe,
   logout as logoutStaff,
@@ -51,6 +52,15 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     const superadmin = nextUser.is_superuser || nextUser.role === "superadmin";
     setSelected(superadmin ? null : nextUser.makerspaces[0]?.id ?? null);
   }, [tenant.makerspaceId, tenant.mode]);
+
+  const expireSession = useCallback(() => {
+    setUser(null);
+    setSelected(null);
+    setTab("requests");
+    queryClient.clear();
+  }, [queryClient]);
+
+  useEffect(() => addAuthExpiredListener(expireSession), [expireSession]);
 
   useEffect(() => {
     let active = true;
@@ -123,6 +133,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
       <LoginPanel
         error={login.error?.message}
         guestOnly={guestOnly}
+        isPending={login.isPending}
         onSubmit={login.mutate}
       />
     );
@@ -235,6 +246,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   // EDIT_INVENTORY roles only (guest admins can't repair/scrap stock).
   const canEditInventory = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
   const canViewAudit = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
+  const canManageQr = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
   // MANAGE_MAKERSPACE holders (Space Manager + superadmin) manage custom domains,
   // API clients, and makerspace settings.
   // Declared before allowedTabs because the filter callback below reads it immediately.
@@ -242,7 +254,16 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   const allowedTabs: readonly string[] = (fullAccess ? ALL_TABS : PRINTING_TABS).filter((tabName) => {
     if (tabName === "tobuy") return canUseToBuy;
     if (tabName === "needsfix") return canEditInventory;
-    if (tabName === "containers") return canEditInventory; // MANAGE_QR roles (space/inventory mgr + superadmin)
+    if (tabName === "categories") return canEditInventory;
+    if (tabName === "bulk") return canEditInventory;
+    if (tabName === "stocktake") return canEditInventory;
+    if (tabName === "direct") return canEditInventory;
+    if (tabName === "transfers") return canEditInventory || isSuperadmin;
+    if (tabName === "containers") return canManageQr;
+    if (tabName === "qr") return canManageQr;
+    if (tabName === "scanner") return canManageQr;
+    if (tabName === "audit") return canViewAudit;
+    if (tabName === "users") return canManageMakerspace;
     if (tabName === "settings") return canManageMakerspace;
     if (tabName === "platform") return isSuperadmin && !singleTenantLocked;
     if (tabName === "printing") return canSeePrinting; // hide printer/spool mgmt from inventory managers
@@ -346,6 +367,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
             printingOnly={printingOnly}
             canChooseToBuyKind={canChooseToBuyKind}
             canEditInventory={canEditInventory}
+            canManageQr={canManageQr}
             canManageMakerspace={canManageMakerspace}
             canSeeHardware={canSeeHardware}
             canSeePrinting={canSeePrinting}

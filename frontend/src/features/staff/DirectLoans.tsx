@@ -116,6 +116,10 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["direct-loans", makerspace.id] });
+      queryClient.invalidateQueries({ queryKey: ["inventory-all", makerspace.id] });
+      queryClient.invalidateQueries({ queryKey: ["inventory", makerspace.id] });
+      queryClient.invalidateQueries({ queryKey: ["ledger", makerspace.id] });
+      queryClient.invalidateQueries({ queryKey: ["ledger", "all"] });
       setLineRows([{ key: 1, productId: "", quantity: "1" }]);
       setNextLineKey(2);
       setScanned([]);

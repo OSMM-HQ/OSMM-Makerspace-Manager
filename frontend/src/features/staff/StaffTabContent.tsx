@@ -32,6 +32,7 @@ export function StaffTabContent({
   printingOnly,
   canChooseToBuyKind,
   canEditInventory,
+  canManageQr,
   canManageMakerspace,
   canSeeHardware,
   canSeePrinting,
@@ -45,6 +46,7 @@ export function StaffTabContent({
   printingOnly: boolean;
   canChooseToBuyKind: boolean;
   canEditInventory: boolean;
+  canManageQr: boolean;
   canManageMakerspace: boolean;
   canSeeHardware: boolean;
   canSeePrinting: boolean;
@@ -72,8 +74,8 @@ export function StaffTabContent({
           canViewAudit={canViewAudit}
         />
       ) : null}
-      {activeTab === "needsfix" ? <NeedsFixShelf key={makerspaceKey} makerspace={activeMakerspace} /> : null}
-      {activeTab === "categories" ? <Categories key={makerspaceKey} makerspace={activeMakerspace} /> : null}
+      {activeTab === "needsfix" && canEditInventory ? <NeedsFixShelf key={makerspaceKey} makerspace={activeMakerspace} /> : null}
+      {activeTab === "categories" && canEditInventory ? <Categories key={makerspaceKey} makerspace={activeMakerspace} /> : null}
       {activeTab === "printing" ? <PrintingPanel key={makerspaceKey} makerspace={activeMakerspace} /> : null}
       {activeTab === "tobuy" ? (
         <ProcurementPanel
@@ -82,7 +84,7 @@ export function StaffTabContent({
           canChooseKind={canChooseToBuyKind}
         />
       ) : null}
-      {activeTab === "transfers" ? (
+      {activeTab === "transfers" && (canEditInventory || isSuperadmin) ? (
         <StockTransferPanel
           key={makerspaceKey}
           makerspace={activeMakerspace}
@@ -91,8 +93,8 @@ export function StaffTabContent({
           canEditInventory={canEditInventory}
         />
       ) : null}
-      {activeTab === "stocktake" ? <StocktakePanel key={makerspaceKey} makerspace={activeMakerspace} /> : null}
-      {activeTab === "containers" ? <ContainersPanel key={makerspaceKey} makerspace={activeMakerspace} /> : null}
+      {activeTab === "stocktake" && canEditInventory ? <StocktakePanel key={makerspaceKey} makerspace={activeMakerspace} /> : null}
+      {activeTab === "containers" && canManageQr ? <ContainersPanel key={makerspaceKey} makerspace={activeMakerspace} /> : null}
       {activeTab === "ledger" ? (
         <Ledger
           key={makerspaceKey}
@@ -108,10 +110,10 @@ export function StaffTabContent({
           printingOnly={printingOnly}
         />
       ) : null}
-      {activeTab === "direct" ? <DirectLoans key={makerspaceKey} makerspace={activeMakerspace} /> : null}
-      {activeTab === "bulk" ? <BulkImport key={makerspaceKey} makerspace={activeMakerspace} /> : null}
-      {activeTab === "qr" ? <QrTools key={makerspaceKey} makerspace={activeMakerspace} /> : null}
-      {activeTab === "scanner" ? (
+      {activeTab === "direct" && canEditInventory ? <DirectLoans key={makerspaceKey} makerspace={activeMakerspace} /> : null}
+      {activeTab === "bulk" && canEditInventory ? <BulkImport key={makerspaceKey} makerspace={activeMakerspace} /> : null}
+      {activeTab === "qr" && canManageQr ? <QrTools key={makerspaceKey} makerspace={activeMakerspace} /> : null}
+      {activeTab === "scanner" && canManageQr ? (
         <ScannerPanel
           key={makerspaceKey}
           makerspace={activeMakerspace}
@@ -135,10 +137,10 @@ export function StaffTabContent({
         />
       ) : null}
       {activeTab === "platform" ? <PlatformEmailPanel /> : null}
-      {activeTab === "users" ? (
+      {activeTab === "users" && canManageMakerspace ? (
         <Users makerspaces={makerspaces} isSuperadmin={isSuperadmin} />
       ) : null}
-      {activeTab === "audit" ? <AuditLog /> : null}
+      {activeTab === "audit" && canViewAudit ? <AuditLog /> : null}
     </>
   );
 }

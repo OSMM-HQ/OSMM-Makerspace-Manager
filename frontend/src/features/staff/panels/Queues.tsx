@@ -85,7 +85,9 @@ export function Queues({ makerspace, guestOnly }: { makerspace: Makerspace; gues
   const action = useMutation({
     mutationFn: ({ path, body }: { path: string; body?: object }) =>
       staffRequest(path, { method: "POST", body: JSON.stringify(body ?? {}) }),
-    onSuccess: () => queryClient.invalidateQueries(),
+    onSuccess: (_data, { path }) => {
+      invalidateRequestQueues(queryClient, makerspace.id, actionInvalidationScope(path));
+    },
   });
   const savePolicy = useMutation({
     mutationFn: () =>
@@ -136,11 +138,13 @@ export function Queues({ makerspace, guestOnly }: { makerspace: Makerspace; gues
   const submitAssignIssue = async (values: AssignIssueValues) => {
     if (!assignIssueRow) return;
     setModalError("");
+    let boxAssigned = false;
     try {
       await action.mutateAsync({
         path: `/admin/requests/${assignIssueRow.id}/assign-box`,
         body: { box_code: values.boxCode },
       });
+      boxAssigned = true;
       await action.mutateAsync({
         path: `/admin/requests/${assignIssueRow.id}/issue`,
         body: {
@@ -152,7 +156,12 @@ export function Queues({ makerspace, guestOnly }: { makerspace: Makerspace; gues
       });
       closeModals();
     } catch (error) {
-      setModalError(error instanceof Error ? error.message : "Action failed.");
+      const message = error instanceof Error ? error.message : "Action failed.";
+      setModalError(
+        boxAssigned
+          ? `Box assigned, but issue failed: ${message} The request still needs the issue step; retry with the assigned box.`
+          : message,
+      );
     }
   };
   const submitReturn = (values: ReturnRequestValues) => {
@@ -294,4 +303,40 @@ function localDateTimeValue(value: string) {
   const date = new Date(value);
   const offset = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
+
+type InvalidationScope = {
+  inventory: boolean;
+  needsFix: boolean;
+  ledger: boolean;
+};
+
+function actionInvalidationScope(path: string): InvalidationScope {
+  const inventory = path.endsWith("/accept") || path.endsWith("/issue") || path.endsWith("/return");
+  const ledger = path.endsWith("/issue") || path.endsWith("/return");
+  const needsFix = path.endsWith("/issue") || path.endsWith("/return");
+  return { inventory, ledger, needsFix };
+}
+
+function invalidateRequestQueues(
+  queryClient: ReturnType<typeof useQueryClient>,
+  makerspaceId: number,
+  scope: InvalidationScope,
+) {
+  queryClient.invalidateQueries({ queryKey: ["pending", makerspaceId] });
+  queryClient.invalidateQueries({ queryKey: ["accepted", makerspaceId] });
+  queryClient.invalidateQueries({ queryKey: ["active", makerspaceId] });
+  queryClient.invalidateQueries({ queryKey: ["request-history", makerspaceId] });
+
+  if (scope.inventory) {
+    queryClient.invalidateQueries({ queryKey: ["inventory", makerspaceId] });
+    queryClient.invalidateQueries({ queryKey: ["inventory-all", makerspaceId] });
+  }
+  if (scope.needsFix) {
+    queryClient.invalidateQueries({ queryKey: ["needs-fix-shelf", makerspaceId] });
+  }
+  if (scope.ledger) {
+    queryClient.invalidateQueries({ queryKey: ["ledger", makerspaceId] });
+    queryClient.invalidateQueries({ queryKey: ["ledger", "all"] });
+  }
 }

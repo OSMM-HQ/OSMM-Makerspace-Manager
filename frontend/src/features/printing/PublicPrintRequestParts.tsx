@@ -124,7 +124,11 @@ export function FilePicker({
 }
 
 function printTimeLeftLabel(status: PrintStatus, now: number): string | null {
-  if (status.status !== "printing" || !status.started_at || !status.estimated_minutes) {
+  if (
+    status.status !== "printing" ||
+    !status.started_at ||
+    status.estimated_minutes == null
+  ) {
     return null;
   }
   const finish = new Date(status.started_at).getTime() + status.estimated_minutes * 60_000;

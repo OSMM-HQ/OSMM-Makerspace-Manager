@@ -47,6 +47,7 @@ export function AuditLog() {
         <input className="desk-input" placeholder="target id" value={targetId} onChange={(e) => updateTargetId(e.target.value)} />
       </div>
       <div className="grid gap-2 text-sm">
+        {logs.error ? <p className="text-sm text-danger">{logs.error.message}</p> : null}
         {logs.data?.results?.map((log) => (
           <div key={log.id} className="rounded-md border border-line bg-surface p-2">
             <span className="font-semibold">{log.action}</span>

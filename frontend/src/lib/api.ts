@@ -8,7 +8,9 @@ const ACCESS_TOKEN_KEY = "makerspace.access";
 const REFRESH_CSRF_HEADER = "X-Refresh-CSRF";
 let runtimePublishableKey = import.meta.env.VITE_PUBLIC_API_KEY ?? "";
 let accessToken = "";
+let accessRefreshPromise: Promise<boolean> | null = null;
 const tenantPublishableKeys = new Map<string, string>();
+const authExpiredListeners = new Set<() => void>();
 
 export type TenantBootstrap = {
   makerspace: {
@@ -87,6 +89,22 @@ export function cleanupLegacyAccessToken() {
 
 export function authHeaders(): HeadersInit {
   return accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
+}
+
+export function addAuthExpiredListener(listener: () => void) {
+  authExpiredListeners.add(listener);
+  return () => {
+    authExpiredListeners.delete(listener);
+  };
+}
+
+export function expireStaffAuthSession() {
+  clearAccessToken();
+  authExpiredListeners.forEach((listener) => listener());
+}
+
+function canRefreshAfterUnauthorized(path: string) {
+  return !["/auth/login", "/auth/refresh", "/auth/logout"].includes(path);
 }
 
 export async function fetchJson<T>(url: string): Promise<T> {
@@ -170,25 +188,33 @@ export function clearAccessToken() {
 }
 
 export async function refreshAccessToken(): Promise<boolean> {
-  const response = await fetch(`${API_V1_URL}/auth/refresh`, {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      [REFRESH_CSRF_HEADER]: "1",
-    },
-  }).catch(() => null);
+  if (!accessRefreshPromise) {
+    accessRefreshPromise = (async () => {
+      const response = await fetch(`${API_V1_URL}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          [REFRESH_CSRF_HEADER]: "1",
+        },
+      }).catch(() => null);
 
-  if (!response?.ok) {
-    return false;
+      if (!response?.ok) {
+        return false;
+      }
+
+      const body = (await response.json().catch(() => ({}))) as { access?: string };
+      if (!body.access) {
+        return false;
+      }
+
+      setAccessToken(body.access);
+      return true;
+    })().finally(() => {
+      accessRefreshPromise = null;
+    });
   }
 
-  const body = (await response.json().catch(() => ({}))) as { access?: string };
-  if (!body.access) {
-    return false;
-  }
-
-  setAccessToken(body.access);
-  return true;
+  return accessRefreshPromise;
 }
 
 export async function logout(): Promise<void> {
@@ -213,14 +239,29 @@ export async function staffRequest<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const response = await fetch(`${API_V1_URL}${path}`, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...authHeaders(),
-      ...(options.headers ?? {}),
-    },
-  });
+  const makeRequest = () =>
+    fetch(`${API_V1_URL}${path}`, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders(),
+        ...(options.headers ?? {}),
+      },
+    });
+
+  let response = await makeRequest();
+
+  if (response.status === 401 && canRefreshAfterUnauthorized(path)) {
+    const refreshed = await refreshAccessToken();
+    if (refreshed) {
+      response = await makeRequest();
+      if (response.status === 401) {
+        expireStaffAuthSession();
+      }
+    } else {
+      expireStaffAuthSession();
+    }
+  }
 
   if (!response.ok) {
     const body: unknown = await response.json().catch(() => ({}));

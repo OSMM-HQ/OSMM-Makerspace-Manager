@@ -30,13 +30,23 @@ export function StocktakePanel({ makerspace }: { makerspace: Makerspace }) {
   });
   const action = useMutation({
     mutationFn: (path: string) => staffRequest(path, { method: "POST", body: JSON.stringify({}) }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["stocktakes", makerspace.id] }),
+    onSuccess: (_data, path) => {
+      queryClient.invalidateQueries({ queryKey: ["stocktakes", makerspace.id] });
+      if (path.endsWith("/apply-adjustments")) {
+        queryClient.invalidateQueries({ queryKey: ["inventory", makerspace.id] });
+        queryClient.invalidateQueries({ queryKey: ["needs-fix-shelf", makerspace.id] });
+      }
+    },
   });
+  const createError = create.error instanceof Error ? create.error.message : undefined;
   const actionError = action.error instanceof Error ? action.error.message : undefined;
 
   return (
     <Panel title="Stocktake">
-      <button onClick={() => create.mutate()}>Start stocktake</button>
+      <button disabled={create.isPending} onClick={() => create.mutate()}>
+        {create.isPending ? "Starting..." : "Start stocktake"}
+      </button>
+      {createError ? <p className="mt-2 text-sm text-danger">{createError}</p> : null}
       {actionError ? <p className="mt-2 text-sm text-danger">{actionError}</p> : null}
       <div className="mt-3 grid gap-2">
         {stocktakes.data?.results?.map((row) => (
@@ -45,9 +55,9 @@ export function StocktakePanel({ makerspace }: { makerspace: Makerspace }) {
               <strong>#{row.id}</strong>
               <span className="rounded-md border border-line bg-bg px-2 py-0.5 text-xs text-muted">{row.status}</span>
               <button onClick={() => setOpenId((id) => (id === row.id ? null : row.id))}>{openId === row.id ? "Hide counts" : "Count items"}</button>
-              <button onClick={() => action.mutate(`/admin/stocktakes/${row.id}/complete`)}>Complete</button>
-              <button onClick={() => action.mutate(`/admin/stocktakes/${row.id}/approve`)}>Approve</button>
-              <button onClick={() => action.mutate(`/admin/stocktakes/${row.id}/apply-adjustments`)}>Apply</button>
+              <button disabled={action.isPending} onClick={() => action.mutate(`/admin/stocktakes/${row.id}/complete`)}>Complete</button>
+              <button disabled={action.isPending} onClick={() => action.mutate(`/admin/stocktakes/${row.id}/approve`)}>Approve</button>
+              <button disabled={action.isPending} onClick={() => action.mutate(`/admin/stocktakes/${row.id}/apply-adjustments`)}>Apply</button>
             </div>
             <p className="mt-1 text-muted">{row.notes}</p>
             {openId === row.id ? <CountSection makerspace={makerspace} stocktakeId={row.id} /> : null}

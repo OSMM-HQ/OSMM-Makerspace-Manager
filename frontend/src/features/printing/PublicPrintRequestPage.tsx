@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -37,6 +37,7 @@ export function PublicPrintRequestPage() {
   const [screenshotFiles, setScreenshotFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState("");
   const [submittedToken, setSubmittedToken] = useState("");
+  const [activeStatusToken, setActiveStatusToken] = useState("");
   const [statusEmail, setStatusEmail] = useState("");
   const statusLinkHandledRef = useRef(false);
   // Anti-spam honeypot: hidden from real users; a bot that autofills it triggers the
@@ -45,13 +46,22 @@ export function PublicPrintRequestPage() {
 
   const bootstrapQuery = useTenantBootstrap(makerspaceSlug, tenant.mode === "central");
   const bootstrap = tenant.mode === "single" ? tenant.bootstrap : bootstrapQuery.data;
+  const modules = useMemo(
+    () => (tenant.mode === "single" ? tenant.modules : new Set(bootstrap?.modules ?? [])),
+    [bootstrap?.modules, tenant],
+  );
+  const enabled = modules.has("printing");
   const spoolsQuery = useQuery({
     queryKey: ["public-print-spools", makerspaceSlug],
     queryFn: () => fetchPublicSpools(makerspaceSlug),
-    enabled: Boolean(makerspaceSlug),
+    enabled: Boolean(makerspaceSlug) && enabled,
   });
-  const statusMutation = useMutation({
-    mutationFn: (token: string) => fetchPrintStatus(token.trim()),
+  const statusQuery = useQuery({
+    queryKey: ["public-print-status", activeStatusToken],
+    queryFn: () => fetchPrintStatus(activeStatusToken),
+    enabled: Boolean(activeStatusToken) && enabled,
+    refetchInterval: (query) =>
+      query.state.data?.status === "printing" ? 30_000 : false,
   });
   const statusByEmailMutation = useMutation({
     mutationFn: (email: string) =>
@@ -64,9 +74,9 @@ export function PublicPrintRequestPage() {
     statusLinkHandledRef.current = true;
     const token = new URLSearchParams(window.location.search).get("token")?.trim();
     if (token) {
-      statusMutation.mutate(token);
+      setActiveStatusToken(token);
     }
-  }, [statusMutation]);
+  }, []);
   const verifyMutation = useMutation({
     mutationFn: (id: string) => verifyPrintCheckin(makerspaceSlug, id),
     onSuccess: (data, id) => {
@@ -133,7 +143,7 @@ export function PublicPrintRequestPage() {
     onSuccess: (response) => {
       setUploadProgress("");
       setSubmittedToken(response.public_token);
-      statusMutation.mutate(response.public_token);
+      setActiveStatusToken(response.public_token);
     },
     onError: () => setUploadProgress(""),
   });
@@ -179,7 +189,32 @@ export function PublicPrintRequestPage() {
         </div>
       </header>
 
-      <section className="mx-auto grid max-w-screen-xl gap-5 px-5 py-6 lg:grid-cols-[minmax(0,1fr)_360px] sm:px-8">
+      {bootstrapQuery.isLoading ? (
+        <section className="mx-auto max-w-screen-sm px-5 py-6 sm:px-8">
+          <Card>
+            <p className="text-sm text-muted">Loading printing access...</p>
+          </Card>
+        </section>
+      ) : null}
+
+      {!bootstrapQuery.isLoading && !enabled ? (
+        <section className="mx-auto max-w-screen-sm px-5 py-6 sm:px-8">
+          <Card>
+            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+              3D printing
+            </p>
+            <h2 className="mt-2 text-xl font-semibold text-ink">
+              3D printing is not enabled for this makerspace.
+            </h2>
+            <Link className="desk-button mt-4" to={tenantPath()}>
+              Back to inventory
+            </Link>
+          </Card>
+        </section>
+      ) : null}
+
+      {!bootstrapQuery.isLoading && enabled ? (
+        <section className="mx-auto grid max-w-screen-xl gap-5 px-5 py-6 lg:grid-cols-[minmax(0,1fr)_360px] sm:px-8">
         <div className="space-y-4">
           <Card>
             <p className="text-xs font-semibold uppercase tracking-wide text-accent">
@@ -262,9 +297,9 @@ export function PublicPrintRequestPage() {
             </form>
             <div className="mt-4">
               <StatusResult
-                error={statusMutation.error}
-                isPending={statusMutation.isPending}
-                status={statusMutation.data}
+                error={statusQuery.error}
+                isPending={Boolean(activeStatusToken) && statusQuery.isPending}
+                status={statusQuery.data}
               />
             </div>
             <div className="mt-4 space-y-4">
@@ -289,7 +324,8 @@ export function PublicPrintRequestPage() {
             </div>
           </Card>
         </aside>
-      </section>
+        </section>
+      ) : null}
     </main>
   );
 }
