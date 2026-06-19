@@ -55,8 +55,18 @@ class StaffCreateSerializer(serializers.Serializer):
     def validate_password(self, value):
         if not value:
             return value
+        # Build an unsaved User from the submitted fields so
+        # UserAttributeSimilarityValidator (enabled in settings) can reject a
+        # password derived from the username/email/name. Without user context that
+        # validator is silently skipped.
+        candidate_user = User(
+            username=self.initial_data.get("username", "") or "",
+            email=self.initial_data.get("email", "") or "",
+            first_name=self.initial_data.get("first_name", "") or "",
+            last_name=self.initial_data.get("last_name", "") or "",
+        )
         try:
-            validate_password(value)
+            validate_password(value, user=candidate_user)
         except DjangoValidationError as exc:
             raise serializers.ValidationError(exc.messages)
         return value
