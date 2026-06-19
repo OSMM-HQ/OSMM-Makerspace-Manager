@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation } from "@tanstack/react-query";
 
+import { MakerspaceBrand } from "../../components/MakerspaceBrand";
 import { Card } from "../../components/ui/Card";
 import QrScanner from "../../components/ui/QrScanner";
 import { useTenant, useTenantPath } from "../../lib/tenant";
@@ -92,10 +93,12 @@ export function PublicSelfCheckoutPage() {
             Public Tool Checkout
           </p>
           <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h1 className="text-3xl font-bold text-ink sm:text-4xl">
-                {displayName}
-              </h1>
+            <div className="min-w-0">
+              <MakerspaceBrand
+                name={displayName}
+                logoUrl={bootstrap?.makerspace.logo_url}
+                size="lg"
+              />
               <p className="mt-2 text-sm text-muted">
                 Scan a physical tool label to check it out or return it.
               </p>

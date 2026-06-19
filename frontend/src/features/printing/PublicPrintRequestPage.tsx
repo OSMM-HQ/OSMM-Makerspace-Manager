@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
+import { MakerspaceBrand } from "../../components/MakerspaceBrand";
 import { Card } from "../../components/ui/Card";
 import { useTenant, useTenantPath } from "../../lib/tenant";
 import { formatSlug } from "../inventory/PublicInventoryParts";
@@ -178,9 +179,11 @@ export function PublicPrintRequestPage() {
           </p>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="break-words text-3xl font-bold text-ink sm:text-4xl">
-                {displayName}
-              </h1>
+              <MakerspaceBrand
+                name={displayName}
+                logoUrl={bootstrap?.makerspace.logo_url}
+                size="lg"
+              />
               <p className="mt-2 text-sm text-muted">
                 Submit print files — check status anytime with your email.
               </p>

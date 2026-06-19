@@ -61,12 +61,12 @@ const TAB_LABELS: Record<string, string> = {
 // each section only renders the tabs the active role is allowed; empty sections
 // are hidden). Reduces scan cost without changing what a role can reach.
 const TAB_GROUPS: { label: string; tabs: string[] }[] = [
-  { label: "Operate", tabs: ["requests", "direct", "ledger"] },
+  { label: "Operate", tabs: ["requests", "direct", "ledger", "transfers", "stocktake", "tobuy"] },
   {
     label: "Inventory",
-    tabs: ["inventory", "categories", "needsfix", "stocktake", "transfers", "containers", "bulk", "qr", "scanner"],
+    tabs: ["inventory", "categories", "needsfix", "containers", "bulk", "qr", "scanner"],
   },
-  { label: "3D Printing", tabs: ["printing", "tobuy"] },
+  { label: "3D Printing", tabs: ["printing"] },
   { label: "Insights", tabs: ["reports", "audit"] },
   // Rarely-used admin tabs collapsed behind one expander by default.
   { label: "Admin", tabs: ["users", "settings", "api", "platform"] },

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 
+import { MakerspaceBrand } from "../../components/MakerspaceBrand";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Card } from "../../components/ui/Card";
 import { useTenant, useTenantPath } from "../../lib/tenant";
@@ -54,7 +55,6 @@ export function PublicInventoryPage() {
     bootstrap?.makerspace.name ||
     formatSlug(makerspaceSlug) ||
     "Makerspace";
-  const title = `${displayName} Inventory`;
   const modules = tenant.mode === "single" ? tenant.modules : new Set(bootstrap?.modules ?? []);
   const requestEnabled = modules.has("request_workflow");
   const categories = categoriesQuery.data ?? [];
@@ -134,7 +134,11 @@ export function PublicInventoryPage() {
           </p>
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="min-w-0">
-              <h1 className="break-words text-3xl font-bold text-ink sm:text-4xl">{title}</h1>
+              <MakerspaceBrand
+                name={displayName}
+                logoUrl={bootstrap?.makerspace.logo_url}
+                size="lg"
+              />
               <p className="mt-2 text-sm text-muted">
                 Shared tools and equipment published by this makerspace.
               </p>

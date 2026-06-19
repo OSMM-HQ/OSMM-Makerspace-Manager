@@ -19,6 +19,8 @@ export type TenantBootstrap = {
     slug: string;
     public_code: string;
     location: string;
+    logo_url?: string | null;
+    cover_image_url?: string | null;
   };
   frontend: {
     type: string;

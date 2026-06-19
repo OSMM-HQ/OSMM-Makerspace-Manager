@@ -1,5 +1,6 @@
 import { Link, useParams } from "react-router-dom";
 
+import { MakerspaceBrand } from "../../components/MakerspaceBrand";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Card } from "../../components/ui/Card";
 import { Spinner } from "../../components/ui/Spinner";
@@ -25,11 +26,13 @@ export function PublicItemDetailPage() {
     <main className="desk-shell">
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
-              {displayName}
-            </p>
-            <h1 className="text-2xl font-bold text-ink">Item detail</h1>
+          <div className="min-w-0">
+            <MakerspaceBrand
+              name={displayName}
+              logoUrl={bootstrapData?.makerspace.logo_url}
+              size="md"
+            />
+            <h1 className="mt-1 text-2xl font-bold text-ink">Item detail</h1>
           </div>
           <div className="flex gap-2">
             <ThemeToggle />

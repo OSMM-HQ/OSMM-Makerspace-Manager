@@ -61,10 +61,10 @@
   :root.dark {
     color-scheme: dark;
     /* Upgraded "night workshop" — brutalism translated to dark */
-    --color-accent: 250 204 21; /* yellow #facc15 (primary) */
-    --color-accent-bright: 253 224 71; /* #fde047 hover */
+    --color-accent: 251 113 133; /* rose #fb7185 (primary) */
+    --color-accent-bright: 253 164 175; /* #fda4af hover */
     --color-secondary: 59 130 246; /* blue #3b82f6 */
-    --color-on-accent: 12 13 14; /* NEW: dark text on yellow accent */
+    --color-on-accent: 12 13 14; /* dark text on rose accent — 7.2:1 contrast (white was 2.7:1) */
     --color-ink: 244 244 245; /* #f4f4f5 */
     --color-bg: 10 10 11; /* black #0a0a0b */
     --color-surface: 22 22 24; /* #161618 */
