@@ -79,6 +79,22 @@ class HardwareRequest(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["makerspace", "status"]),
+            models.Index(
+                fields=["makerspace", "status", "-created_at"],
+                name="hwreq_ms_status_created_idx",
+            ),
+            models.Index(
+                fields=["makerspace", "status", "-issued_at", "-created_at"],
+                name="hwreq_ms_status_issued_idx",
+            ),
+            models.Index(
+                fields=["makerspace", "status", "-updated_at", "-created_at"],
+                name="hwreq_ms_status_updated_idx",
+            ),
+            models.Index(
+                fields=["makerspace", "status", "-closed_at"],
+                name="hwreq_ms_status_closed_idx",
+            ),
         ]
         constraints = [
             models.UniqueConstraint(

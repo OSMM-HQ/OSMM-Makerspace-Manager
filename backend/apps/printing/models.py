@@ -297,6 +297,20 @@ class PrintRequest(models.Model):
     contact_phone = models.CharField(max_length=40, blank=True)
 
     class Meta:
+        indexes = [
+            models.Index(
+                fields=["requester", "-created_at"],
+                name="printreq_requester_created_idx",
+            ),
+            models.Index(
+                fields=["bucket", "status", "-created_at"],
+                name="printreq_bucket_status_idx",
+            ),
+            models.Index(
+                fields=["bucket", "payment_status", "status"],
+                name="printreq_bucket_payment_idx",
+            ),
+        ]
         ordering = ["-created_at"]
 
     @property

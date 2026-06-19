@@ -23,6 +23,14 @@ class StockTransfer(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     applied_at = models.DateTimeField(null=True, blank=True)
 
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["makerspace", "-created_at"],
+                name="stocktransfer_ms_created_idx",
+            ),
+        ]
+
 
 class StockTransferLine(models.Model):
     transfer = models.ForeignKey(StockTransfer, on_delete=models.CASCADE, related_name="lines")
@@ -56,6 +64,14 @@ class StocktakeSession(models.Model):
     completed_at = models.DateTimeField(null=True, blank=True)
     approved_at = models.DateTimeField(null=True, blank=True)
     notes = models.TextField(blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["makerspace", "status", "-started_at"],
+                name="stktake_ms_status_start_idx",
+            ),
+        ]
 
 
 class StocktakeLine(models.Model):
@@ -138,6 +154,14 @@ class QrPrintBatch(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
     printed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["makerspace", "-created_at"],
+                name="qrbatch_ms_created_idx",
+            ),
+        ]
 
 
 class QrPrintBatchItem(models.Model):
