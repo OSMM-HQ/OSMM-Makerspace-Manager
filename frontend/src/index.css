@@ -207,19 +207,19 @@
   }
 
   .desk-button {
-    @apply inline-flex items-center justify-center gap-2 rounded-sm border-2 border-ink bg-panel px-3 py-2 font-mono text-sm font-semibold uppercase tracking-tight text-ink transition-all hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40;
+    @apply inline-flex items-center justify-center gap-2 rounded-sm border-2 border-ink bg-panel px-3 py-2 font-mono text-sm font-semibold uppercase tracking-tight text-ink transition-all hover:bg-surface hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40;
   }
 
   .desk-button-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-sm border-2 border-ink bg-accent px-3 py-2 font-mono text-sm font-semibold uppercase tracking-tight text-on-accent shadow-brutal-sm transition-all hover:-translate-y-0.5 hover:bg-accent-bright hover:shadow-brutal focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40;
+    @apply inline-flex items-center justify-center gap-2 rounded-sm border-2 border-ink bg-accent px-3 py-2 font-mono text-sm font-semibold uppercase tracking-tight text-on-accent shadow-brutal-sm transition-all hover:-translate-y-0.5 hover:bg-accent-bright hover:text-on-accent hover:shadow-brutal focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40;
   }
 
   .desk-nav-item {
-    @apply flex w-full min-w-0 items-center justify-between gap-2 rounded-sm border-l-2 border-transparent px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30;
+    @apply flex w-full min-w-0 items-center justify-between gap-2 rounded-sm border-l-2 border-transparent px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-surface hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30;
   }
 
   .desk-nav-item-active {
-    @apply border-accent bg-accent text-on-accent;
+    @apply border-accent bg-accent text-on-accent hover:bg-accent hover:text-on-accent;
   }
 
   .desk-tab {
@@ -227,7 +227,7 @@
   }
 
   .desk-tab-active {
-    @apply border-ink bg-accent text-on-accent shadow-brutal-sm;
+    @apply border-ink bg-accent text-on-accent shadow-brutal-sm hover:bg-accent hover:text-on-accent;
   }
 
   .desk-actions button {
@@ -239,7 +239,23 @@
   }
 
   .desk-actions button:not([class*="text-"]) {
-    @apply text-ink;
+    @apply text-ink hover:text-ink;
+  }
+
+  .desk-actions button[class*="text-danger"] {
+    @apply hover:text-danger;
+  }
+
+  .desk-actions button[class*="text-accent"] {
+    @apply hover:text-accent;
+  }
+
+  .desk-actions button[class*="text-muted"] {
+    @apply hover:text-muted;
+  }
+
+  .desk-actions button[class*="text-ink"] {
+    @apply hover:text-ink;
   }
 
   /* Primary fallback for panel buttons that DON'T define their own colour/variant.
@@ -250,6 +266,6 @@
   .desk-panel-body
     > div:not(.desk-actions)
     > button:not([class*="desk-"]):not([class*="text-"]):not([class*="bg-"]) {
-    @apply inline-flex items-center justify-center gap-2 rounded-sm border-2 border-ink bg-accent px-3 py-2 font-mono text-sm font-semibold uppercase tracking-tight text-on-accent shadow-brutal-sm transition-all hover:-translate-y-0.5 hover:bg-accent-bright hover:shadow-brutal focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40;
+    @apply inline-flex items-center justify-center gap-2 rounded-sm border-2 border-ink bg-accent px-3 py-2 font-mono text-sm font-semibold uppercase tracking-tight text-on-accent shadow-brutal-sm transition-all hover:-translate-y-0.5 hover:bg-accent-bright hover:text-on-accent hover:shadow-brutal focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40;
   }
 }

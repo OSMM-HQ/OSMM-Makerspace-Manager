@@ -173,9 +173,9 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
           ))}
         </div>
         {!printers.isLoading && !printerRows.length ? <p className="text-sm text-muted">No printers yet.</p> : null}
-        <div className="mt-4 grid gap-2 md:grid-cols-[1fr_1fr_auto]">
-          <input className="desk-input" placeholder="Printer name" value={printerName} onChange={(event) => setPrinterName(event.target.value)} />
-          <input className="desk-input" placeholder="Model" value={printerModel} onChange={(event) => setPrinterModel(event.target.value)} />
+        <div className="mt-4 grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <input className="desk-input min-w-0" placeholder="Printer name" value={printerName} onChange={(event) => setPrinterName(event.target.value)} />
+          <input className="desk-input min-w-0" placeholder="Model" value={printerModel} onChange={(event) => setPrinterModel(event.target.value)} />
           <button disabled={!printerName.trim() || createPrinter.isPending} onClick={() => createPrinter.mutate()}>
             {createPrinter.isPending ? "Adding..." : "Add printer"}
           </button>
@@ -187,15 +187,15 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
 
       <Panel title="Filament spools">
         {spools.isLoading ? <p className="text-sm text-muted">Loading spools...</p> : null}
-        <div className="grid gap-2 md:grid-cols-[1fr_1fr_1fr_1fr_auto]">
-          <select className="desk-input" value={spoolPrinter} onChange={(event) => setSpoolPrinter(event.target.value)}>
+        <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto]">
+          <select className="desk-input min-w-0" value={spoolPrinter} onChange={(event) => setSpoolPrinter(event.target.value)}>
             <option value="">Unassigned printer</option>
             {printerRows.map((printer) => <option key={printer.id} value={printer.id}>{printer.name}</option>)}
           </select>
-          <input className="desk-input" placeholder="Material" value={spoolMaterial} onChange={(event) => setSpoolMaterial(event.target.value)} />
-          <SpoolColorInput value={spoolColor} onChange={setSpoolColor} />
-          <input className="desk-input" placeholder="Brand" value={spoolBrand} onChange={(event) => setSpoolBrand(event.target.value)} />
-          <input className="desk-input" placeholder="Weight g (1000 = 1kg)" type="number" min="0" value={spoolWeight} onChange={(event) => setSpoolWeight(event.target.value)} />
+          <input className="desk-input min-w-0" placeholder="Material" value={spoolMaterial} onChange={(event) => setSpoolMaterial(event.target.value)} />
+          <SpoolColorInput className="desk-input min-w-0" value={spoolColor} onChange={setSpoolColor} />
+          <input className="desk-input min-w-0" placeholder="Brand" value={spoolBrand} onChange={(event) => setSpoolBrand(event.target.value)} />
+          <input className="desk-input min-w-0" placeholder="Weight g (1000 = 1kg)" type="number" min="0" value={spoolWeight} onChange={(event) => setSpoolWeight(event.target.value)} />
           <button disabled={!spoolMaterial.trim() || !spoolWeight || createSpool.isPending} onClick={() => createSpool.mutate()}>
             {createSpool.isPending ? "Adding..." : "Add spool"}
           </button>
