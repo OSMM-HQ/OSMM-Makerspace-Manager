@@ -71,13 +71,17 @@ def _summary(makerspace_id):
 
 
 def _taken_items(makerspace_id, aggregate):
-    values = ["product__name"]
+    # Group by product_id (not name) so two distinct products sharing a name are not
+    # merged — there is no unique (makerspace, name) constraint. Name stays the display column.
+    group = ["product_id", "product__name"]
+    display = ["product__name"]
     header = ["product", "issued_quantity"]
     if aggregate:
-        values = ["request__makerspace_id", *values]
+        group = ["request__makerspace_id", *group]
+        display = ["request__makerspace_id", *display]
         header = ["makerspace_id", *header]
-    qs = _items(makerspace_id).values(*values).annotate(quantity=Sum("issued_quantity")).order_by("-quantity")
-    return [header, *[[_value(row, key) for key in values] + [row["quantity"] or 0] for row in qs]]
+    qs = _items(makerspace_id).values(*group).annotate(quantity=Sum("issued_quantity")).order_by("-quantity")
+    return [header, *[[_value(row, key) for key in display] + [row["quantity"] or 0] for row in qs]]
 
 
 def _active_loans(makerspace_id, aggregate):
@@ -127,15 +131,19 @@ def _qr_scans(makerspace_id, aggregate):
 
 
 def _most_lent(makerspace_id, aggregate):
-    values = ["product__name"]
+    # Group by product_id (not name) so distinct products sharing a name keep separate
+    # lend counts; name remains the display column.
+    group = ["product_id", "product__name"]
+    display = ["product__name"]
     header = ["product_name", "times_lent", "total_quantity_lent"]
     if aggregate:
-        values = ["request__makerspace_id", *values]
+        group = ["request__makerspace_id", *group]
+        display = ["request__makerspace_id", *display]
         header = ["makerspace_id", *header]
     qs = (
         _items(makerspace_id)
         .filter(issued_quantity__gt=0)
-        .values(*values)
+        .values(*group)
         .annotate(
             times_lent=Count("request_id", distinct=True),
             total_quantity_lent=Sum("issued_quantity"),
@@ -145,7 +153,7 @@ def _most_lent(makerspace_id, aggregate):
     return [
         header,
         *[
-            [_value(row, key) for key in values]
+            [_value(row, key) for key in display]
             + [row["times_lent"], row["total_quantity_lent"] or 0]
             for row in qs
         ],
