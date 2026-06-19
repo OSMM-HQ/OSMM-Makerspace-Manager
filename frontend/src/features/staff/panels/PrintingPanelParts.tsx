@@ -235,6 +235,28 @@ function printStatusClassName(status: string) {
   }
 }
 
+function printStatusLabel(status: string) {
+  switch (status) {
+    case "pending":
+      return "Pending";
+    case "accepted":
+      return "Approved";
+    case "printing":
+    case "in_progress":
+      return "Printing";
+    case "completed":
+      return "Ready to collect";
+    case "collected":
+      return "Collected";
+    case "rejected":
+      return "Rejected";
+    case "failed":
+      return "Failed";
+    default:
+      return status.replace(/_/g, " ");
+  }
+}
+
 function PaymentBadge({ request }: { request: PrintRequest }) {
   if (request.payment_status === undefined) return null;
   const price = request.price ?? "0";
@@ -322,7 +344,7 @@ export function PrintRows({
           <article key={row.id} className="border-b border-line p-3 last:border-b-0">
             <div className="flex flex-wrap items-center gap-2">
               <strong className="text-ink">#{row.id} {row.title}</strong>
-              <span className={`status-box ${printStatusClassName(row.status)}`}>{row.status}</span>
+              <span className={`status-box ${printStatusClassName(row.status)}`}>{printStatusLabel(row.status)}</span>
               <PaymentBadge request={row} />
               <div className="desk-actions ml-auto flex flex-wrap gap-2 text-sm">{action(row)}</div>
             </div>

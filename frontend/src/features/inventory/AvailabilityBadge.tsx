@@ -1,13 +1,24 @@
-import { Badge } from "../../components/ui/Badge";
 import type { Availability } from "../../types/inventory";
 
 type AvailabilityBadgeProps = {
   availability: Availability;
 };
 
+type Tone = "success" | "warn" | "danger" | "neutral";
+
+// Filled status-box styling (theme-token fills, `text-bg` label) so the availability
+// pill matches the rest of the status boxes and stays legible in BOTH light and dark
+// modes — the old tinted `bg-success/10 text-success` washed out in dark "Available".
+const TONE_CLASS: Record<Tone, string> = {
+  success: "border-ink bg-success text-bg",
+  warn: "border-ink bg-warn text-bg",
+  danger: "border-ink bg-danger text-bg",
+  neutral: "border-outline bg-surface text-muted",
+};
+
 function toneForAvailability(
   label: NonNullable<Availability>["label"],
-): "success" | "warn" | "danger" | "neutral" {
+): Tone {
   if (label === "Limited") {
     return "warn";
   }
@@ -47,8 +58,10 @@ export function AvailabilityBadge({ availability }: AvailabilityBadgeProps) {
   }
 
   return (
-    <Badge tone={toneForAvailability(availability.label)}>
+    <span
+      className={`inline-flex items-center rounded-sm border-2 px-2 py-0.5 font-mono text-xs font-semibold uppercase tracking-tight ${TONE_CLASS[toneForAvailability(availability.label)]}`}
+    >
       {textForAvailability(availability)}
-    </Badge>
+    </span>
   );
 }

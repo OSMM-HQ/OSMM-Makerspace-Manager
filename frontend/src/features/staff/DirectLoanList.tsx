@@ -31,7 +31,7 @@ export function DirectLoanList({
                 <h3 className="font-semibold text-ink">{loan.target_label}</h3>
                 <p className="mt-1 flex flex-wrap items-center gap-1 text-xs text-muted">
                   <span className={`status-box ${directLoanStatusClassName(loan.status)}`}>
-                    {loan.status}
+                    {directLoanStatusLabel(loan.status)}
                   </span>
                   {loan.container_label ? <span>given in: {loan.container_label}</span> : null}
                   {loan.due_at ? <span>due {new Date(loan.due_at).toLocaleString()}</span> : null}
@@ -70,6 +70,17 @@ function directLoanStatusClassName(status: string) {
       return "status-box-done";
     default:
       return "";
+  }
+}
+
+function directLoanStatusLabel(status: string) {
+  switch (status) {
+    case "checked_out":
+      return "Lent";
+    case "returned":
+      return "Returned";
+    default:
+      return status.replace(/_/g, " ");
   }
 }
 
