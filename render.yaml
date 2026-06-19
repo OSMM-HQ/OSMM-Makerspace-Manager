@@ -1,0 +1,113 @@
+# Render Blueprint for the lean-paid always-on path.
+# Migrations are a documented ONE-OFF run against the Supabase direct/session URL,
+# not part of deploy. See docs/deploy-production.md. The app runtime uses the
+# transaction pooler URL. VPS deployment via docker-compose.prod.yml is the alternative.
+
+envVarGroups:
+  - name: makerspace-prod
+    envVars:
+      - key: SECRET_KEY
+        sync: false
+      - key: API_CLIENT_ENC_KEY
+        sync: false
+      - key: DEBUG
+        value: "False"
+      - key: ALLOWED_HOSTS
+        sync: false
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: CSRF_TRUSTED_ORIGINS
+        sync: false
+      - key: ENABLE_HTTPS
+        value: "true"
+      - key: TRUST_X_FORWARDED_PROTO
+        value: "true"
+      - key: SECURE_HSTS_SECONDS
+        value: "0"
+      - key: DATABASE_URL
+        sync: false
+      - key: MANAGED_POSTGRES
+        value: "True"
+      - key: CONN_MAX_AGE
+        value: "0"
+      - key: DISABLE_SERVER_SIDE_CURSORS
+        value: "True"
+      - key: AWS_STORAGE_BUCKET_NAME
+        sync: false
+      - key: AWS_S3_ENDPOINT_URL
+        sync: false
+      - key: AWS_S3_PUBLIC_ENDPOINT_URL
+        sync: false
+      - key: AWS_ACCESS_KEY_ID
+        sync: false
+      - key: AWS_SECRET_ACCESS_KEY
+        sync: false
+      - key: AWS_S3_REGION_NAME
+        value: auto
+      - key: STORAGE_PRESIGN_METHOD
+        value: put
+      - key: EMAIL_BACKEND
+        sync: false
+      - key: EMAIL_HOST
+        sync: false
+      - key: EMAIL_PORT
+        value: "587"
+      - key: EMAIL_HOST_USER
+        sync: false
+      - key: EMAIL_HOST_PASSWORD
+        sync: false
+      - key: EMAIL_USE_TLS
+        value: "True"
+      - key: DEFAULT_FROM_EMAIL
+        sync: false
+      - key: CRON_SECRET
+        sync: false
+      - key: PUBLIC_APP_BASE_URL
+        sync: false
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: TELEGRAM_WEBHOOK_SECRET
+        sync: false
+
+services:
+  - type: web
+    name: makerspace-backend
+    env: docker
+    plan: starter
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    healthCheckPath: /api/v1/health/readiness/
+    # collectstatic runs at START (not preDeploy) so the populated STATIC_ROOT lives in
+    # the SAME container that serves traffic — Render's preDeploy runs in a separate
+    # instance whose filesystem is discarded. collectstatic needs no DB, so it is safe
+    # here; migrations are NOT run at start (they are a one-off against the direct/session
+    # pooler — see docs/deploy-production.md), because the runtime DATABASE_URL is the
+    # transaction pooler which can't run migration prepared statements.
+    startCommand: python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 60
+    envVars:
+      - fromGroup: makerspace-prod
+
+  - type: web
+    name: makerspace-frontend
+    env: static
+    buildCommand: cd frontend && npm ci && npm run build
+    staticPublishPath: ./frontend/dist
+    envVars:
+      # sync:false so Render PROMPTS for the real backend API root at deploy time.
+      # VITE_API_URL is a BUILD-TIME var baked into the static bundle by Vite — a
+      # concrete placeholder here would ship an invalid URL until someone edits it
+      # and rebuilds (Codex Stage-4 P2). Set it to https://<backend-host>/api .
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_TENANT_TOKEN
+        sync: false
+      - key: VITE_PUBLIC_API_KEY
+        sync: false
+      - key: VITE_PUBLIC_CLIENT_ID
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    # If you serve a runtime config.js instead of Vite envs, set config.js apiUrl
+    # to the backend API root above.

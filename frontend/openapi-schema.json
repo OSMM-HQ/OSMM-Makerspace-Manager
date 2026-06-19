@@ -5923,6 +5923,30 @@
                 }
             }
         },
+        "/api/v1/config": {
+            "get": {
+                "operationId": "api_v1_config_retrieve",
+                "summary": "Return frontend-safe platform configuration",
+                "tags": [
+                    "Platform"
+                ],
+                "security": [
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PublicConfig"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/guest-admin/makerspace/{makerspace_id}/active-loans": {
             "get": {
                 "operationId": "api_v1_guest_admin_makerspace_active_loans_list",
@@ -14140,6 +14164,17 @@
                     "name",
                     "product_count",
                     "slug"
+                ]
+            },
+            "PublicConfig": {
+                "type": "object",
+                "properties": {
+                    "email_enabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "email_enabled"
                 ]
             },
             "PublicFilamentSpool": {

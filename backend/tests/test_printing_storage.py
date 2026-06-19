@@ -46,9 +46,11 @@ def test_presigned_print_upload_put_mode_returns_method_and_headers(monkeypatch,
     class FakePublicClient:
         def generate_presigned_url(self, operation, Params, ExpiresIn):
             assert operation == "put_object"
+            # PUT mode signs the STAGING key; the final key is written server-side
+            # at finalize (write-once), never handed to the client.
             assert Params == {
                 "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
-                "Key": "print/1/stl/object",
+                "Key": "staging/print/1/stl/object",
                 "ContentType": "application/octet-stream",
             }
             assert ExpiresIn == settings.PRINT_URL_TTL_SECONDS

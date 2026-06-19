@@ -28,18 +28,24 @@ def return_items(actor, request, evidence_id, remark, box_code, resolutions):
         raise ReturnValidationError("Return remark is required.")
 
     evidence = _return_evidence(request, evidence_id)
-    if not storage.object_exists(evidence.object_key):
-        raise EvidenceNotUploaded("Return evidence has not been uploaded.")
-    if settings.STORAGE_PRESIGN_METHOD == "put":
-        size = storage.object_size(evidence.object_key)
-        if size is None or not (1 <= size <= settings.EVIDENCE_MAX_BYTES):
-            raise ReturnValidationError(
-                "Return evidence is invalid or exceeds the size limit."
-            )
 
     with transaction.atomic():
         locked = locked_request(request)
         _require_returnable(locked)
+        # Finalize evidence UNDER the request row lock so concurrent finalizers can't both
+        # promote the staging upload over an already-finalized immutable key (Codex Stage-4
+        # P2). PUT mode promotes staging->final + validates size; POST mode (MinIO) checks
+        # existence only.
+        if settings.STORAGE_PRESIGN_METHOD == "put":
+            size = storage.finalize_upload(evidence.object_key, settings.EVIDENCE_MAX_BYTES)
+            if size is None:
+                raise EvidenceNotUploaded("Return evidence has not been uploaded.")
+            if not (1 <= size <= settings.EVIDENCE_MAX_BYTES):
+                raise ReturnValidationError(
+                    "Return evidence is invalid or exceeds the size limit."
+                )
+        elif not storage.object_exists(evidence.object_key):
+            raise EvidenceNotUploaded("Return evidence has not been uploaded.")
         box = _matching_box(locked, box_code)
         scan = _record_scan(actor, locked, box)
         validated_resolutions = build_resolutions(locked, resolutions)

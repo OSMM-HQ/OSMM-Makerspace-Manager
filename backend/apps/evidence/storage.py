@@ -1,9 +1,13 @@
+import logging
 import uuid
 
 import boto3
 from botocore.client import Config
 from botocore.exceptions import BotoCoreError, ClientError
 from django.conf import settings
+
+
+logger = logging.getLogger(__name__)
 
 
 class StorageUnavailable(Exception):
@@ -36,6 +40,62 @@ def evidence_object_key(makerspace_id, evidence_type):
     return f"evidence/{makerspace_id}/{evidence_type}/{uuid.uuid4().hex}"
 
 
+def staging_key(final_key):
+    return f"staging/{final_key}"
+
+
+def delete_object(object_key):
+    try:
+        _client().delete_object(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=object_key,
+        )
+    except (BotoCoreError, ClientError):
+        logger.exception("Failed to delete storage object %s.", object_key)
+
+
+def copy_object(source_key, dest_key):
+    try:
+        _client().copy_object(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            CopySource={
+                "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                "Key": source_key,
+            },
+            Key=dest_key,
+        )
+    except (BotoCoreError, ClientError) as exc:
+        raise StorageUnavailable from exc
+
+
+def finalize_upload(object_key, max_bytes):
+    if settings.STORAGE_PRESIGN_METHOD != "put":
+        return object_size(object_key)
+
+    if object_exists(object_key):
+        delete_object(staging_key(object_key))
+        return object_size(object_key)
+
+    upload_staging_key = staging_key(object_key)
+    size = object_size(upload_staging_key)
+    if size is None:
+        return None
+    if not (1 <= size <= max_bytes):
+        return size
+
+    copy_object(upload_staging_key, object_key)
+    delete_object(upload_staging_key)
+    # Re-validate the ACTUAL finalized object. The staging key stays client-writable
+    # until its presigned PUT URL expires, so a racing oversized PUT between the size
+    # HEAD above and this copy could promote an oversized object while the small size
+    # was recorded (Codex Stage-4 P2 TOCTOU). The final key is never client-writable,
+    # so its post-copy size is authoritative; reject + delete it if it drifted.
+    final_size = object_size(object_key)
+    if final_size is None or not (1 <= final_size <= max_bytes):
+        delete_object(object_key)
+    return final_size
+
+
 def presigned_upload(object_key, content_type):
     try:
         if settings.STORAGE_PRESIGN_METHOD == "put":
@@ -43,7 +103,7 @@ def presigned_upload(object_key, content_type):
                 "put_object",
                 Params={
                     "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
-                    "Key": object_key,
+                    "Key": staging_key(object_key),
                     "ContentType": content_type,
                 },
                 ExpiresIn=settings.EVIDENCE_URL_TTL_SECONDS,

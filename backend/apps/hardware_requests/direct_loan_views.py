@@ -1,3 +1,4 @@
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
@@ -17,7 +18,7 @@ from apps.hardware_requests.direct_loan_serializers import (
     StaffCheckinVerifyRequestSerializer,
     StaffCheckinVerifyResponseSerializer,
 )
-from apps.hardware_requests.models import PublicToolLoan
+from apps.hardware_requests.models import HardwareRequestItem, PublicToolLoan
 from apps.hardware_requests.permissions import CanIssueDirectLoan, CanReturnDirectLoan
 from apps.hardware_requests.view_helpers import ACTION_ERROR_RESPONSES
 from apps.makerspaces.guards import require_module
@@ -36,6 +37,11 @@ class DirectLoanListCreateView(generics.ListAPIView):
         _require(self.request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace_id)
         queryset = PublicToolLoan.objects.select_related(
             "container", "request", "request__issued_by", "requester"
+        ).prefetch_related(
+            Prefetch(
+                "request__items",
+                queryset=HardwareRequestItem.objects.select_related("product").order_by("product__name"),
+            )
         ).filter(makerspace_id=makerspace_id, source=PublicToolLoan.Source.ADMIN_DIRECT)
         status_filter = self.request.query_params.get("status")
         if status_filter:

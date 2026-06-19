@@ -13,7 +13,7 @@ from apps.printing.models import (
     PrintRequest,
     PrintRequestFile,
 )
-from apps.printing.storage import print_object_size
+from apps.printing.storage import print_finalize_upload, print_object_size
 
 
 def _resolve_public_bucket(makerspace, bucket_id):
@@ -111,7 +111,14 @@ def submit_public_print_request(makerspace, data, result):
 
             now = timezone.now()
             for upload in locked:
-                size = print_object_size(upload.object_key)
+                # PUT mode promotes staging->final (write-once); POST mode heads the
+                # final key directly. Both then range-check (printing always has).
+                if settings.STORAGE_PRESIGN_METHOD == "put":
+                    size = print_finalize_upload(
+                        upload.object_key, settings.PRINT_UPLOAD_MAX_BYTES
+                    )
+                else:
+                    size = print_object_size(upload.object_key)
                 if size is None:
                     raise ValidationError(
                         {"file_ids": "An uploaded file was not found in storage."}

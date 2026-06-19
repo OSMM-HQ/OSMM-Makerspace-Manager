@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { publicV1Request } from "../../lib/api";
 
@@ -20,8 +20,27 @@ export function LoginPanel({
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
+  const [emailEnabled, setEmailEnabled] = useState(false);
   const [forgotPending, setForgotPending] = useState(false);
   const [forgotMessage, setForgotMessage] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    publicV1Request<{ email_enabled: boolean }>("/config")
+      .then((config) => {
+        if (active) {
+          setEmailEnabled(config.email_enabled === true);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setEmailEnabled(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   if (mode === "forgot") {
     return (
@@ -130,13 +149,15 @@ export function LoginPanel({
           ) : null}
           {isPending ? "Signing in..." : "Sign in"}
         </button>
-        <button
-          className="mt-3 w-full text-sm font-semibold text-accent hover:text-accent/80"
-          type="button"
-          onClick={() => setMode("forgot")}
-        >
-          Forgot password?
-        </button>
+        {emailEnabled ? (
+          <button
+            className="mt-3 w-full text-sm font-semibold text-accent hover:text-accent/80"
+            type="button"
+            onClick={() => setMode("forgot")}
+          >
+            Forgot password?
+          </button>
+        ) : null}
       </form>
     </main>
   );

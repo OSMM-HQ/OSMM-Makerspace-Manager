@@ -1,5 +1,6 @@
 from urllib.parse import urlparse
 
+from apps.integrations.email import email_enabled
 from apps.makerspaces.models import Makerspace, default_branding_config, default_theme_config
 
 
@@ -99,6 +100,7 @@ def bootstrap_payload(makerspace):
         "workflows": workflows,
         "theme": theme,
         "branding": branding,
+        "email_enabled": email_enabled(),
         "public_api": {
             "base_url": "/api/v1",
             "publishable_key": makerspace.public_api_key,

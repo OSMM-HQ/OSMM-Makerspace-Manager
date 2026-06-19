@@ -2,6 +2,15 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch - lean-paid production deploy + perf hardening (2026-06-19)
+
+Added production deployment artifacts for the recommended always-on single-makerspace path:
+Supabase Pro Postgres, Render Starter, Cloudflare R2, optional Brevo SMTP, static frontend hosting,
+and free cron (`.env.production.example`, `render.yaml`, `docs/deploy-production.md`). This batch
+also covers the recent hardening work: composite indexes plus printer/direct-loan/box N+1 fixes,
+`email_enabled()` with the `/api/v1/config` gate, and PUT-mode immutable finalize. Worker queues and
+automatic immutable-row pruning remain deliberately de-scoped for single-makerspace scale.
+
 ## Recent batch — Supabase free-tier dual-mode (env-toggled; localhost default unchanged) (2026-06-19)
 
 Made the backend runnable on **Supabase free tier** (managed Postgres + Supabase Storage) while

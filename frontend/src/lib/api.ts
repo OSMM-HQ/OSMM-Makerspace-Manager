@@ -29,6 +29,7 @@ export type TenantBootstrap = {
   workflows: string[];
   theme: Record<string, string>;
   branding: Record<string, string>;
+  email_enabled: boolean;
   public_api: {
     base_url: string;
     publishable_key: string;

@@ -5,7 +5,15 @@ from botocore.exceptions import BotoCoreError, ClientError
 from django.conf import settings
 from django.utils.http import content_disposition_header
 
-from apps.evidence.storage import _client, _public_client, StorageUnavailable, object_exists
+from apps.evidence.storage import (
+    _client,
+    _public_client,
+    StorageUnavailable,
+    copy_object,
+    delete_object,
+    object_exists,
+    staging_key,
+)
 
 
 SCREENSHOT_MIME_BY_EXT = {
@@ -55,7 +63,7 @@ def presigned_print_upload(object_key, content_type):
                 "put_object",
                 Params={
                     "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
-                    "Key": object_key,
+                    "Key": staging_key(object_key),
                     "ContentType": content_type,
                 },
                 ExpiresIn=settings.PRINT_URL_TTL_SECONDS,
@@ -169,3 +177,31 @@ def print_object_size(object_key):
         raise StorageUnavailable from exc
 
     return int(response["ContentLength"])
+
+
+def print_finalize_upload(object_key, max_bytes):
+    if settings.STORAGE_PRESIGN_METHOD != "put":
+        return print_object_size(object_key)
+
+    if object_exists(object_key):
+        delete_object(staging_key(object_key))
+        return print_object_size(object_key)
+
+    upload_staging_key = staging_key(object_key)
+    size = print_object_size(upload_staging_key)
+    if size is None:
+        return None
+    if not (1 <= size <= max_bytes):
+        return size
+
+    copy_object(upload_staging_key, object_key)
+    delete_object(upload_staging_key)
+    # Re-validate the ACTUAL finalized object. The staging key stays client-writable
+    # until its presigned PUT URL expires, so a racing oversized PUT between the size
+    # HEAD above and this copy could promote an oversized object while the small size
+    # was recorded (Codex Stage-4 P2 TOCTOU). The final key is never client-writable,
+    # so its post-copy size is authoritative; reject + delete it if it drifted.
+    final_size = print_object_size(object_key)
+    if final_size is None or not (1 <= final_size <= max_bytes):
+        delete_object(object_key)
+    return final_size

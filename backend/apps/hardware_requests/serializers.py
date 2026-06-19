@@ -86,7 +86,7 @@ class AdminRequestItemSerializer(serializers.Serializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
     # Exposed so the staff issue UI knows which accepted units require a scanned asset QR.
     # individual-mode products must be issued with one AVAILABLE asset QR per accepted unit
-    # (handover_workflow._issue_individual_assets), so the modal must collect scans for them.
+    # (handover_issue_helpers.issue_individual_assets), so the modal must collect scans for them.
     tracking_mode = serializers.CharField(source="product.tracking_mode", read_only=True)
     requires_asset_qr = serializers.SerializerMethodField()
     requested_quantity = serializers.IntegerField(read_only=True)

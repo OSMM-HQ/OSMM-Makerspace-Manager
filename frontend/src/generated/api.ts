@@ -133,6 +133,7 @@ export const openApiPaths = [
   "/api/v1/auth/refresh",
   "/api/v1/auth/reset-password",
   "/api/v1/bootstrap",
+  "/api/v1/config",
   "/api/v1/guest-admin/makerspace/{makerspace_id}/active-loans",
   "/api/v1/guest-admin/requests/{id}/return",
   "/api/v1/health/",

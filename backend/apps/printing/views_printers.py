@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
@@ -7,10 +7,23 @@ from rest_framework.response import Response
 from apps.accounts import rbac
 from apps.audit import services as audit
 from apps.makerspaces.guards import require_module
-from apps.printing.models import PrintPrinter, PrintRequest
+from apps.printing.models import FilamentSpool, PrintPrinter, PrintRequest
 from apps.printing.permissions import CanManagePrinting
 from apps.printing.serializers import PrintPrinterSerializer
 from apps.printing.views_common import ERROR_RESPONSES, _int_query_param
+
+
+def _printer_queryset():
+    active_spools = FilamentSpool.objects.filter(is_active=True).order_by(
+        "-opened_at", "-created_at"
+    )
+    queue = PrintRequest.objects.filter(
+        status__in=[PrintRequest.Status.ACCEPTED, PrintRequest.Status.PRINTING]
+    )
+    return PrintPrinter.objects.prefetch_related(
+        Prefetch("filament_spools", queryset=active_spools, to_attr="_active_spools"),
+        Prefetch("print_requests", queryset=queue, to_attr="_queue_requests"),
+    )
 
 
 class ManagedPrinterMixin:
@@ -41,9 +54,7 @@ class ManagedPrinterListCreateView(ManagedPrinterMixin, generics.ListCreateAPIVi
     serializer_class = PrintPrinterSerializer
 
     def get_queryset(self):
-        return self.scope_queryset(
-            PrintPrinter.objects.prefetch_related("filament_spools", "print_requests")
-        )
+        return self.scope_queryset(_printer_queryset())
 
     def perform_create(self, serializer):
         makerspace_id = serializer.validated_data["makerspace_id"]
@@ -70,9 +81,7 @@ class ManagedPrinterDetailView(ManagedPrinterMixin, generics.RetrieveUpdateDestr
     serializer_class = PrintPrinterSerializer
 
     def get_queryset(self):
-        return self.scope_queryset(
-            PrintPrinter.objects.prefetch_related("filament_spools", "print_requests")
-        )
+        return self.scope_queryset(_printer_queryset())
 
     def perform_update(self, serializer):
         makerspace_id = serializer.validated_data.get(

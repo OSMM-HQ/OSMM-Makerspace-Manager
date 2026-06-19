@@ -192,6 +192,18 @@ class QrScanEvent(models.Model):
     context = models.CharField(max_length=32, choices=Context.choices)
     created_at = models.DateTimeField(auto_now_add=True)
 
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["makerspace", "qr_code", "-created_at"],
+                name="qrscan_ms_qrcode_created_idx",
+            ),
+            models.Index(
+                fields=["makerspace", "context"],
+                name="qrscan_ms_context_idx",
+            ),
+        ]
+
     def save(self, *args, **kwargs):
         if self.pk is not None:
             raise RuntimeError("QrScanEvent rows are immutable.")
