@@ -295,6 +295,31 @@ def test_issue_storage_unavailable_returns_503(monkeypatch):
     assert response.data["code"] == "evidence_storage_unavailable"
 
 
+@pytest.mark.parametrize("size", [0, 101])
+def test_issue_put_mode_rejects_invalid_evidence_size(monkeypatch, settings, size):
+    settings.STORAGE_PRESIGN_METHOD = "put"
+    settings.EVIDENCE_MAX_BYTES = 100
+    makerspace = make_space(f"issue-put-size-{size}")
+    admin = make_member(f"issue-put-size-admin-{size}", makerspace)
+    product = make_product(makerspace)
+    hardware_request = make_accepted_request(makerspace, product, 1)
+    box = make_box(makerspace)
+    assign_scanned_box(hardware_request, box, admin)
+    evidence = make_issue_evidence(makerspace, admin)
+    monkeypatch.setattr("apps.evidence.storage.object_exists", Mock(return_value=True))
+    monkeypatch.setattr("apps.evidence.storage.object_size", Mock(return_value=size))
+
+    response = authenticated_client(admin).post(
+        issue_url(hardware_request),
+        issue_payload(evidence),
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.data["code"] == "validation_error"
+    assert response.data["detail"] == "Issue evidence is invalid or exceeds the size limit."
+
+
 def test_issue_with_cross_tenant_or_wrong_type_evidence_returns_400_without_storage_call(
     monkeypatch,
 ):

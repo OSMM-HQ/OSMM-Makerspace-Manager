@@ -102,9 +102,12 @@ class EvidenceUploadUrlView(StaffAPIView):
         data = {
             "evidence_id": photo.pk,
             "upload_url": upload["url"],
-            "fields": upload["fields"],
+            "fields": upload.get("fields", {}),
             "object_key": object_key,
         }
+        if upload.get("method"):
+            data["method"] = upload["method"]
+            data["headers"] = upload.get("headers", {})
         return Response(EvidenceUrlResponseSerializer(data).data, status=201)
 
 

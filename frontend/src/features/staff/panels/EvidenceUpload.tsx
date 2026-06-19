@@ -7,6 +7,8 @@ type UploadResponse = {
   upload_url: string;
   fields: Record<string, string>;
   object_key: string;
+  method?: string;
+  headers?: Record<string, string>;
 };
 
 /**
@@ -44,13 +46,22 @@ export function EvidenceUpload({
           body: JSON.stringify({ evidence_type: evidenceType, content_type: file.type }),
         },
       );
-      const formData = new FormData();
-      Object.entries(presigned.fields).forEach(([key, value]) => formData.append(key, value));
-      formData.append("file", file);
-      // Direct presigned POST to object storage — no auth header, and we must NOT
-      // set Content-Type so the browser adds the multipart boundary itself.
-      const upload = await fetch(presigned.upload_url, { method: "POST", body: formData });
-      if (!upload.ok) throw new Error(`Storage upload failed (${upload.status})`);
+      if (presigned.method === "PUT") {
+        const upload = await fetch(presigned.upload_url, {
+          method: "PUT",
+          body: file,
+          headers: presigned.headers,
+        });
+        if (!upload.ok) throw new Error(`Storage upload failed (${upload.status})`);
+      } else {
+        const formData = new FormData();
+        Object.entries(presigned.fields).forEach(([key, value]) => formData.append(key, value));
+        formData.append("file", file);
+        // Direct presigned POST to object storage — no auth header, and we must NOT
+        // set Content-Type so the browser adds the multipart boundary itself.
+        const upload = await fetch(presigned.upload_url, { method: "POST", body: formData });
+        if (!upload.ok) throw new Error(`Storage upload failed (${upload.status})`);
+      }
       setStatus("done");
       onUploaded(presigned.evidence_id);
     } catch (err) {

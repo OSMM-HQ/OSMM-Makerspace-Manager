@@ -19,6 +19,8 @@ class EvidenceUrlResponseSerializer(serializers.Serializer):
     upload_url = serializers.URLField()
     fields = serializers.DictField()
     object_key = serializers.CharField()
+    method = serializers.CharField(required=False)
+    headers = serializers.DictField(required=False)
 
 
 class EvidenceGetResponseSerializer(serializers.Serializer):

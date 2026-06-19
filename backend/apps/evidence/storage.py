@@ -38,6 +38,21 @@ def evidence_object_key(makerspace_id, evidence_type):
 
 def presigned_upload(object_key, content_type):
     try:
+        if settings.STORAGE_PRESIGN_METHOD == "put":
+            url = _public_client().generate_presigned_url(
+                "put_object",
+                Params={
+                    "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                    "Key": object_key,
+                    "ContentType": content_type,
+                },
+                ExpiresIn=settings.EVIDENCE_URL_TTL_SECONDS,
+            )
+            return {
+                "url": url,
+                "method": "PUT",
+                "headers": {"Content-Type": content_type},
+            }
         return _public_client().generate_presigned_post(
             Bucket=settings.AWS_STORAGE_BUCKET_NAME,
             Key=object_key,
@@ -78,3 +93,24 @@ def object_exists(object_key):
     except BotoCoreError as exc:
         raise StorageUnavailable from exc
     return True
+
+
+def object_size(object_key):
+    if not object_exists(object_key):
+        return None
+
+    try:
+        response = _client().head_object(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=object_key,
+        )
+    except ClientError as exc:
+        status = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+        code = exc.response.get("Error", {}).get("Code")
+        if status == 404 or code in {"404", "NoSuchKey", "NotFound"}:
+            return None
+        raise StorageUnavailable from exc
+    except BotoCoreError as exc:
+        raise StorageUnavailable from exc
+
+    return int(response["ContentLength"])

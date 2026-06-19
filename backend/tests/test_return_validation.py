@@ -79,6 +79,29 @@ def test_return_storage_unavailable_returns_503(monkeypatch):
     assert response.data["code"] == "evidence_storage_unavailable"
 
 
+@pytest.mark.parametrize("size", [0, 101])
+def test_return_put_mode_rejects_invalid_evidence_size(monkeypatch, settings, size):
+    settings.STORAGE_PRESIGN_METHOD = "put"
+    settings.EVIDENCE_MAX_BYTES = 100
+    makerspace = make_space(f"return-put-size-{size}")
+    admin = make_member(f"return-put-size-admin-{size}", makerspace)
+    product = make_product(makerspace)
+    hardware_request = make_issued_request(makerspace, admin, [(product, 1)])
+    evidence = make_return_evidence(makerspace, admin)
+    monkeypatch.setattr("apps.evidence.storage.object_exists", Mock(return_value=True))
+    monkeypatch.setattr("apps.evidence.storage.object_size", Mock(return_value=size))
+
+    response = authenticated_client(admin).post(
+        return_url(hardware_request),
+        return_payload(hardware_request, evidence),
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.data["code"] == "return_validation_error"
+    assert response.data["detail"] == "Return evidence is invalid or exceeds the size limit."
+
+
 def test_return_with_cross_tenant_evidence_returns_400_without_storage_call(monkeypatch):
     makerspace = make_space("return-invalid-evidence")
     other_space = make_space("return-invalid-evidence-other")

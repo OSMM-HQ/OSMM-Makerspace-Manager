@@ -3,7 +3,11 @@ import re
 import pytest
 
 from apps.printing.models import PrintRequestFile
-from apps.printing.storage import print_object_key, validate_print_upload
+from apps.printing.storage import (
+    presigned_print_upload,
+    print_object_key,
+    validate_print_upload,
+)
 from tests.test_printing import make_bucket, make_request, make_space, make_user
 
 pytestmark = pytest.mark.django_db
@@ -34,6 +38,34 @@ def test_validate_print_upload_accepts_allowed_model_and_screenshot():
 def test_validate_print_upload_rejects_bad_input(kind, filename, content_type):
     with pytest.raises(ValueError):
         validate_print_upload(kind, filename, content_type)
+
+
+def test_presigned_print_upload_put_mode_returns_method_and_headers(monkeypatch, settings):
+    settings.STORAGE_PRESIGN_METHOD = "put"
+
+    class FakePublicClient:
+        def generate_presigned_url(self, operation, Params, ExpiresIn):
+            assert operation == "put_object"
+            assert Params == {
+                "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                "Key": "print/1/stl/object",
+                "ContentType": "application/octet-stream",
+            }
+            assert ExpiresIn == settings.PRINT_URL_TTL_SECONDS
+            return "http://minio/print-put"
+
+    monkeypatch.setattr(
+        "apps.printing.storage._public_client",
+        lambda: FakePublicClient(),
+    )
+
+    upload = presigned_print_upload("print/1/stl/object", "application/octet-stream")
+
+    assert upload == {
+        "url": "http://minio/print-put",
+        "method": "PUT",
+        "headers": {"Content-Type": "application/octet-stream"},
+    }
 
 
 def test_print_request_file_can_be_created_unattached():

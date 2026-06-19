@@ -34,6 +34,8 @@ export type PrintUploadBody = {
 export type PrintUpload = {
   url: string;
   fields: Record<string, string>;
+  method?: string;
+  headers?: Record<string, string>;
 };
 
 export type PrintRequestPayload = {
@@ -86,6 +88,16 @@ export function presignPrintUpload(slug: string, body: PrintUploadBody) {
 }
 
 export async function uploadToStorage(upload: PrintUpload, file: File) {
+  if (upload.method === "PUT") {
+    const res = await fetch(upload.url, {
+      method: "PUT",
+      body: file,
+      headers: upload.headers,
+    });
+    if (!res.ok) throw new Error(`Upload failed (${res.status})`);
+    return;
+  }
+
   const formData = new FormData();
   for (const [key, value] of Object.entries(upload.fields)) {
     formData.append(key, value);

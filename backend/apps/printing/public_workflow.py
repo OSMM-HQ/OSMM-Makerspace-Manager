@@ -116,7 +116,7 @@ def submit_public_print_request(makerspace, data, result):
                     raise ValidationError(
                         {"file_ids": "An uploaded file was not found in storage."}
                     )
-                if size > settings.PRINT_UPLOAD_MAX_BYTES:
+                if not (1 <= size <= settings.PRINT_UPLOAD_MAX_BYTES):
                     raise ValidationError(
                         {"file_ids": "An uploaded file exceeds the size limit."}
                     )

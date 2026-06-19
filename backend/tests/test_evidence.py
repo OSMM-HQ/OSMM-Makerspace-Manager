@@ -119,6 +119,36 @@ def test_admin_member_can_request_upload_url(monkeypatch):
     assert audit.makerspace == makerspace
 
 
+def test_admin_member_can_request_put_upload_url(monkeypatch, settings):
+    settings.STORAGE_PRESIGN_METHOD = "put"
+    makerspace = make_space("upload-put-admin")
+    user = make_member("upload-put-admin-user", makerspace)
+
+    class FakePublicClient:
+        def generate_presigned_url(self, operation, Params, ExpiresIn):
+            assert operation == "put_object"
+            assert Params["Bucket"] == settings.AWS_STORAGE_BUCKET_NAME
+            assert Params["ContentType"] == "image/png"
+            assert ExpiresIn == settings.EVIDENCE_URL_TTL_SECONDS
+            return "http://minio/evidence-put"
+
+    monkeypatch.setattr(
+        "apps.evidence.storage._public_client",
+        lambda: FakePublicClient(),
+    )
+
+    response = authenticated_client(user).post(
+        upload_url(makerspace),
+        {"evidence_type": "issue", "content_type": "image/png"},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.data["method"] == "PUT"
+    assert response.data["headers"] == {"Content-Type": "image/png"}
+    assert isinstance(response.data["upload_url"], str)
+
+
 def test_guest_admin_member_can_request_upload_url(monkeypatch):
     mock_upload(monkeypatch)
     makerspace = make_space("upload-guest")

@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -99,6 +100,12 @@ def issue_request(actor, request, evidence_id, remark="", asset_qr_payloads=None
         raise RequestValidationError("Invalid issue evidence.")
     if not storage.object_exists(evidence.object_key):
         raise EvidenceNotUploaded("Issue evidence has not been uploaded.")
+    if settings.STORAGE_PRESIGN_METHOD == "put":
+        size = storage.object_size(evidence.object_key)
+        if size is None or not (1 <= size <= settings.EVIDENCE_MAX_BYTES):
+            raise RequestValidationError(
+                "Issue evidence is invalid or exceeds the size limit."
+            )
 
     with transaction.atomic():
         locked = locked_request(request)

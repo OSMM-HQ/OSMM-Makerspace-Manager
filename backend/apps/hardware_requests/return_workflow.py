@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import IntegrityError, transaction
 
 from apps.audit import services as audit
@@ -29,6 +30,12 @@ def return_items(actor, request, evidence_id, remark, box_code, resolutions):
     evidence = _return_evidence(request, evidence_id)
     if not storage.object_exists(evidence.object_key):
         raise EvidenceNotUploaded("Return evidence has not been uploaded.")
+    if settings.STORAGE_PRESIGN_METHOD == "put":
+        size = storage.object_size(evidence.object_key)
+        if size is None or not (1 <= size <= settings.EVIDENCE_MAX_BYTES):
+            raise ReturnValidationError(
+                "Return evidence is invalid or exceeds the size limit."
+            )
 
     with transaction.atomic():
         locked = locked_request(request)

@@ -50,6 +50,21 @@ def validate_print_upload(kind, filename, content_type):
 
 def presigned_print_upload(object_key, content_type):
     try:
+        if settings.STORAGE_PRESIGN_METHOD == "put":
+            url = _public_client().generate_presigned_url(
+                "put_object",
+                Params={
+                    "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                    "Key": object_key,
+                    "ContentType": content_type,
+                },
+                ExpiresIn=settings.PRINT_URL_TTL_SECONDS,
+            )
+            return {
+                "url": url,
+                "method": "PUT",
+                "headers": {"Content-Type": content_type},
+            }
         return _public_client().generate_presigned_post(
             Bucket=settings.AWS_STORAGE_BUCKET_NAME,
             Key=object_key,

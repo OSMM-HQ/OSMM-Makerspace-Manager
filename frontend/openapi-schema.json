@@ -10809,6 +10809,13 @@
                     },
                     "object_key": {
                         "type": "string"
+                    },
+                    "method": {
+                        "type": "string"
+                    },
+                    "headers": {
+                        "type": "object",
+                        "additionalProperties": {}
                     }
                 },
                 "required": [

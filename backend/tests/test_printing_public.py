@@ -538,6 +538,37 @@ def test_submit_attaches_owned_file(monkeypatch):
     assert upload.size_bytes == 123
 
 
+def test_public_submit_rejects_zero_byte_upload(monkeypatch):
+    makerspace = make_space("public-print-zero-byte")
+    enable_printing(makerspace)
+    bucket = make_bucket(makerspace)
+    upload = PrintRequestFile.objects.create(
+        makerspace=makerspace,
+        kind=PrintRequestFile.Kind.STL,
+        object_key=f"print/{makerspace.id}/stl/zero",
+        content_type="application/octet-stream",
+        owner_checkin_user_id="u@e.com",
+    )
+    monkeypatch.setattr("apps.printing.public_workflow.print_object_size", lambda key: 0)
+
+    response = public_client().post(
+        submit_url(makerspace),
+        {
+            "identifier": "u@e.com",
+            "bucket_id": bucket.id,
+            "title": "Bracket",
+            "file_ids": [upload.id],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.data["file_ids"] == "An uploaded file exceeds the size limit."
+    upload.refresh_from_db()
+    assert upload.print_request is None
+    assert upload.attached_at is None
+
+
 def test_public_submit_emails_contact_email(settings, django_capture_on_commit_callbacks):
     settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
     mail.outbox.clear()
