@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "../../components/ui";
 import { staffRequest } from "../../lib/api";
 import { ImageUploader } from "./ImageUploader";
+import { MakerspaceEmailSettings } from "./MakerspaceEmailSettings";
 import { Panel, type Makerspace, useStaffGet } from "./StaffPanels";
 
 type Props = {
@@ -190,6 +191,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
             </label>
           </div>
         </div>
+        <MakerspaceEmailSettings makerspace={makerspace} />
         <div className="rounded-md border border-line bg-bg p-4">
           <form
             className="grid gap-4"
