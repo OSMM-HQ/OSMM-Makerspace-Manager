@@ -244,7 +244,7 @@ class PublicPrintStatusByEmailView(APIView):
         requests = PrintRequest.objects.filter(
             bucket__makerspace=makerspace,
             contact_email__iexact=serializer.validated_data["email"],
-        ).order_by("-created_at")[:20]
+        ).order_by("-created_at", "-id")[:20]
         return Response(
             {"results": PublicPrintStatusSerializer(requests, many=True).data}
         )

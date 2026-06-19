@@ -1,3 +1,5 @@
+import importlib
+
 import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -7,6 +9,12 @@ from apps.makerspaces.models import Makerspace
 from tests.return_helpers import authenticated_client, make_member, make_space
 
 pytestmark = pytest.mark.django_db
+
+# The data migration's host-resolution logic is pure (no ORM) so its fail-loud
+# branches are unit-testable without a migration rewind.
+_host_migration = importlib.import_module(
+    "apps.makerspaces.migrations.0016_migrate_tenant_frontend_hosts"
+)
 
 
 def makerspace_detail_url(makerspace):
@@ -128,3 +136,37 @@ def test_serializer_rejects_duplicate_frontend_domain_case_insensitively():
     assert "frontend_domain" in response.data
     target.refresh_from_db()
     assert target.frontend_domain is None
+
+
+def test_migration_resolves_single_host_per_makerspace():
+    rows = [
+        (1, "Alpha.COM", []),
+        (1, None, ["https://alpha.com/"]),  # same host (case/path/origin) dedupes
+        (2, None, ["https://beta.com"]),
+    ]
+
+    assert _host_migration.resolve_frontend_domains(rows) == {
+        1: "alpha.com",
+        2: "beta.com",
+    }
+
+
+def test_migration_raises_on_ambiguous_hosts_for_one_makerspace():
+    with pytest.raises(RuntimeError):
+        _host_migration.resolve_frontend_domains([(1, "a.com", []), (1, None, ["https://b.com"])])
+
+
+def test_migration_raises_on_cross_makerspace_host_collision():
+    with pytest.raises(RuntimeError):
+        _host_migration.resolve_frontend_domains([(1, "x.com", []), (2, "x.com", [])])
+
+
+def test_migration_raises_on_invalid_origin():
+    with pytest.raises(RuntimeError):
+        _host_migration.resolve_frontend_domains([(1, None, ["not-a-url"])])
+    with pytest.raises(RuntimeError):
+        _host_migration.resolve_frontend_domains([(1, None, ["https://host/some/path"])])
+
+
+def test_migration_skips_makerspace_without_hosts():
+    assert _host_migration.resolve_frontend_domains([(1, None, [])]) == {}

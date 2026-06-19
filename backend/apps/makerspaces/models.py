@@ -78,11 +78,12 @@ class Makerspace(models.Model):
     location = models.CharField(max_length=200, blank=True)
     public_inventory_enabled = models.BooleanField(default=True)
     superadmin_access_enabled = models.BooleanField(default=True)
+    # Case-insensitive uniqueness is enforced by the Lower() UniqueConstraint in Meta
+    # (which also covers exact duplicates); no field-level unique index needed.
     frontend_domain = models.CharField(
         max_length=255,
         null=True,
         blank=True,
-        unique=True,
     )
     hidden_from_central_directory = models.BooleanField(default=False)
     public_api_key = models.CharField(
