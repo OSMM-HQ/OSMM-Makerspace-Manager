@@ -177,58 +177,6 @@ class Makerspace(models.Model):
         return decrypt_value(self.smtp_password)
 
 
-class TenantFrontend(models.Model):
-    class FrontendType(models.TextChoices):
-        PUBLIC_PORTAL = "public_portal", "Public Portal"
-        STAFF_ADMIN = "staff_admin", "Staff Admin"
-        GUEST_HANDOVER = "guest_handover", "Guest Handover"
-        SCANNER = "scanner", "Scanner"
-        KIOSK = "kiosk", "Kiosk"
-        SUPERADMIN_CONSOLE = "superadmin_console", "Superadmin Console"
-        THIRD_PARTY = "third_party", "Third Party"
-
-    makerspace = models.ForeignKey(
-        Makerspace,
-        on_delete=models.CASCADE,
-        related_name="frontends",
-    )
-    token = models.CharField(max_length=64, unique=True, db_index=True, default=generate_publishable_key)
-    hostname = models.CharField(max_length=255, blank=True, null=True, unique=True)
-    frontend_type = models.CharField(
-        max_length=32,
-        choices=FrontendType.choices,
-        default=FrontendType.PUBLIC_PORTAL,
-    )
-    allowed_origins = models.JSONField(default=list, blank=True)
-    enabled_modules = models.JSONField(default=list, blank=True)
-    theme_config = models.JSONField(default=dict, blank=True)
-    branding_config = models.JSONField(default=dict, blank=True)
-    is_primary = models.BooleanField(default=False)
-    is_active = models.BooleanField(default=True)
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="created_tenant_frontends",
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        indexes = [
-            models.Index(fields=["makerspace", "frontend_type", "is_active"]),
-        ]
-
-    def save(self, *args, **kwargs):
-        self.hostname = ((self.hostname or "").lower().strip()) or None
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        label = self.hostname or self.token
-        return f"{label} ({self.frontend_type})"
-
-
 class MakerspaceMembership(models.Model):
     # Role is per-makerspace: this membership is what grants a user space-manager/guest-admin
     # rights for THIS makerspace. Global User.role stays for superadmin. Enforcement

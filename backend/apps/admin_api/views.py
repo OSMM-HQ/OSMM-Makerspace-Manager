@@ -20,8 +20,6 @@ from apps.admin_api.views_makerspaces import (
     MakerspaceDetailView,
     MakerspaceListCreateView,
     ReturnPolicyView,
-    TenantFrontendDetailView,
-    TenantFrontendListCreateView,
 )
 from apps.admin_api.views_user_access import (
     ResetUserPasswordView,
@@ -56,8 +54,6 @@ __all__ = [
     "RestrictUserView",
     "ReturnPolicyView",
     "StaffListCreateView",
-    "TenantFrontendDetailView",
-    "TenantFrontendListCreateView",
     "_assert_box_in_makerspace",
     "_assert_category_in_makerspace",
     "_can_create_staff_role",

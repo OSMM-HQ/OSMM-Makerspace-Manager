@@ -32,7 +32,7 @@ from apps.hardware_requests.models import (
     ReturnEvent,
 )
 from apps.inventory.models import Category, InventoryAsset, InventoryProduct
-from apps.makerspaces.models import Makerspace, MakerspaceMembership, TenantFrontend
+from apps.makerspaces.models import Makerspace, MakerspaceMembership
 from apps.operations.models import (
     InventoryAdjustment,
     QrPrintBatch,
@@ -52,7 +52,6 @@ def test_core_models_are_registered_in_django_admin():
     registered_models = {
         Makerspace,
         MakerspaceMembership,
-        TenantFrontend,
         Category,
         InventoryProduct,
         InventoryAsset,

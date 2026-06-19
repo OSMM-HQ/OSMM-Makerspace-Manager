@@ -5,7 +5,7 @@ from django.test import RequestFactory
 
 from apps.accounts.models import User
 from apps.inventory.models import InventoryProduct
-from apps.makerspaces.models import Makerspace, MakerspaceMembership, TenantFrontend
+from apps.makerspaces.models import Makerspace, MakerspaceMembership
 from config.admin_access import GLOBAL_ADMIN_MODELS
 
 pytestmark = pytest.mark.django_db
@@ -165,12 +165,7 @@ def test_makerspace_admin_lists_superadmin_status_and_frontend_mode():
         name="Mode Visible",
         slug="mode-visible",
         superadmin_access_enabled=False,
-    )
-    TenantFrontend.objects.create(
-        makerspace=makerspace,
-        frontend_type=TenantFrontend.FrontendType.STAFF_ADMIN,
-        hostname="mode-visible.example",
-        is_active=True,
+        frontend_domain="mode-visible.example",
     )
     model_admin = admin.site._registry[Makerspace]
 

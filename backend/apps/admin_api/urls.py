@@ -18,16 +18,6 @@ urlpatterns = [
         name="admin-return-policy",
     ),
     path(
-        "makerspace/<int:makerspace_id>/frontends",
-        views.TenantFrontendListCreateView.as_view(),
-        name="admin-tenant-frontends",
-    ),
-    path(
-        "frontends/<int:pk>",
-        views.TenantFrontendDetailView.as_view(),
-        name="admin-tenant-frontend",
-    ),
-    path(
         "makerspace/<int:makerspace_id>/inventory",
         views.InventoryListCreateView.as_view(),
         name="admin-inventory",

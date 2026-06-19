@@ -111,7 +111,7 @@ def _delete_object_graph(makerspace):
     from apps.hardware_requests.models import ReturnEvent
     from apps.hardware_requests.asset_link_models import HardwareRequestItemAsset
     from apps.inventory.models import Category, InventoryAsset, InventoryProduct
-    from apps.makerspaces.models import MakerspaceMembership, TenantFrontend
+    from apps.makerspaces.models import MakerspaceMembership
     from apps.operations.models import InventoryAdjustment, QrPrintBatch
     from apps.operations.models import StocktakeSession, StockTransfer
     from apps.printing.models import FilamentSpool, ManualPrintLog, PrintBucket
@@ -167,7 +167,6 @@ def _delete_object_graph(makerspace):
         ApiClient.objects.filter(makerspace=makerspace).delete()
         ApiKeyRequest.objects.filter(makerspace=makerspace).delete()
         MakerspaceMembership.objects.filter(makerspace=makerspace).delete()
-        TenantFrontend.objects.filter(makerspace=makerspace).delete()
         AuditLog.objects.filter(makerspace=makerspace).delete()
         makerspace.delete()
 

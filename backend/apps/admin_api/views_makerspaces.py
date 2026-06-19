@@ -11,11 +11,9 @@ from apps.admin_api.serializers_makerspaces import (
     MakerspaceSerializer,
     MakerspaceSwitcherSerializer,
     ReturnPolicySerializer,
-    TenantFrontendSerializer,
 )
 from apps.audit import services as audit
-from apps.makerspaces.guards import require_module
-from apps.makerspaces.models import Makerspace, TenantFrontend
+from apps.makerspaces.models import Makerspace
 from apps.makerspaces.origin_scope import origin_scoped_makerspace_id
 
 
@@ -148,51 +146,4 @@ class ReturnPolicyView(generics.RetrieveUpdateAPIView):
             makerspace=instance,
             target=instance,
             meta={"default_loan_days": instance.default_loan_days},
-        )
-
-
-@extend_schema(tags=["Tenant bootstrap"], summary="List or create registered tenant frontends")
-class TenantFrontendListCreateView(generics.ListCreateAPIView):
-    serializer_class = TenantFrontendSerializer
-    permission_classes = [IsActiveStaff]
-
-    def get_queryset(self):
-        makerspace_id = self.kwargs["makerspace_id"]
-        require_module(makerspace_id, "staff_admin")
-        require_action(self.request.user, rbac.Action.MANAGE_MAKERSPACE, makerspace_id)
-        return TenantFrontend.objects.filter(makerspace_id=makerspace_id).order_by("frontend_type", "hostname")
-
-    def perform_create(self, serializer):
-        makerspace_id = self.kwargs["makerspace_id"]
-        require_module(makerspace_id, "staff_admin")
-        require_action(self.request.user, rbac.Action.MANAGE_MAKERSPACE, makerspace_id)
-        frontend = serializer.save(makerspace_id=makerspace_id, created_by=self.request.user)
-        audit.record(
-            self.request.user,
-            "tenant_frontend.created",
-            makerspace=frontend.makerspace,
-            target=frontend,
-        )
-
-
-@extend_schema(tags=["Tenant bootstrap"], summary="Retrieve or update registered tenant frontend")
-class TenantFrontendDetailView(generics.RetrieveUpdateAPIView):
-    serializer_class = TenantFrontendSerializer
-    permission_classes = [IsActiveStaff]
-    http_method_names = ["get", "patch", "head", "options"]
-
-    def get_queryset(self):
-        return rbac.scope_by_action(
-            self.request.user,
-            rbac.Action.MANAGE_MAKERSPACE,
-            TenantFrontend.objects.select_related("makerspace"),
-        )
-
-    def perform_update(self, serializer):
-        frontend = serializer.save()
-        audit.record(
-            self.request.user,
-            "tenant_frontend.updated",
-            makerspace=frontend.makerspace,
-            target=frontend,
         )

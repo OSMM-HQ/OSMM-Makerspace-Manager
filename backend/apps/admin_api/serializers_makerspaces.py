@@ -1,11 +1,9 @@
-from urllib.parse import urlsplit
-
 from django.db import transaction
 from rest_framework import serializers
 
 from apps.accounts.models import User
 from apps.integrations.email import platform_email_configured
-from apps.makerspaces.models import Makerspace, TenantFrontend
+from apps.makerspaces.models import Makerspace
 
 
 class MakerspaceSerializer(serializers.ModelSerializer):
@@ -205,52 +203,3 @@ class ReturnPolicySerializer(serializers.ModelSerializer):
         if value < 1:
             raise serializers.ValidationError("Default loan days must be at least 1.")
         return value
-
-
-class TenantFrontendSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = TenantFrontend
-        fields = [
-            "id",
-            "makerspace",
-            "token",
-            "hostname",
-            "frontend_type",
-            "allowed_origins",
-            "enabled_modules",
-            "theme_config",
-            "branding_config",
-            "is_primary",
-            "is_active",
-            "created_at",
-            "updated_at",
-        ]
-        read_only_fields = ["id", "makerspace", "token", "created_at", "updated_at"]
-
-    def validate_hostname(self, value):
-        value = (value or "").strip().lower()
-        if not value:
-            return None
-        parts = urlsplit(value if "://" in value else f"//{value}")
-        if not parts.hostname or parts.path not in ("", "/") or parts.query or parts.fragment:
-            raise serializers.ValidationError(
-                "Enter a bare hostname or origin, not a path. Use alphamakerspace.com or https://alphamakerspace.com."
-            )
-        return parts.hostname
-
-    def validate_allowed_origins(self, value):
-        if len(value or []) > 1:
-            raise serializers.ValidationError("Register one origin per frontend entry.")
-        normalized = []
-        for origin in value or []:
-            if not isinstance(origin, str):
-                raise serializers.ValidationError("Origin must be an exact http(s) URL.")
-            parts = urlsplit(origin.strip())
-            if parts.scheme not in ("http", "https") or not parts.netloc:
-                raise serializers.ValidationError("Origin must be an exact http(s) URL.")
-            if parts.path not in ("", "/") or parts.query or parts.fragment:
-                raise serializers.ValidationError(
-                    "Origin must be scheme://host[:port] only. Do not include /admin or other paths."
-                )
-            normalized.append(f"{parts.scheme}://{parts.netloc.lower()}")
-        return normalized

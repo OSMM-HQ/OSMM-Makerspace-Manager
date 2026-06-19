@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.template.response import TemplateResponse
 from unfold.admin import ModelAdmin, TabularInline
 
-from apps.makerspaces.models import Makerspace, MakerspaceMembership, TenantFrontend
+from apps.makerspaces.models import Makerspace, MakerspaceMembership
 from config.admin_access import SuperuserOnlyModelAdmin
 
 
@@ -124,11 +124,7 @@ class MakerspaceAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
 
     @admin.display(description="Frontend mode")
     def frontend_mode(self, obj):
-        has_staff_site = obj.frontends.filter(
-            frontend_type=TenantFrontend.FrontendType.STAFF_ADMIN,
-            is_active=True,
-        ).exists()
-        return "single-tenant" if has_staff_site else "central"
+        return "single-tenant" if obj.frontend_domain else "central"
 
     @admin.action(description="Archive selected makerspaces")
     def archive_makerspaces(self, request, queryset):
@@ -225,12 +221,3 @@ class MakerspaceMembershipAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     search_fields = ("user__username", "user__email")
     autocomplete_fields = ("user", "makerspace")
     readonly_fields = ("created_at",)
-
-
-@admin.register(TenantFrontend)
-class TenantFrontendAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
-    list_display = ("makerspace", "frontend_type", "hostname", "is_primary", "is_active", "updated_at")
-    list_filter = ("makerspace", "frontend_type", "is_primary", "is_active")
-    search_fields = ("makerspace__name", "makerspace__slug", "hostname", "token")
-    autocomplete_fields = ("makerspace", "created_by")
-    readonly_fields = ("token", "created_at", "updated_at")

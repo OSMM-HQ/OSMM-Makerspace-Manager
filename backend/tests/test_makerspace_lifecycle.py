@@ -18,7 +18,7 @@ from apps.hardware_requests.return_models import RequesterAccountability, Return
 from apps.hardware_requests.self_checkout_models import PublicToolLoan
 from apps.inventory.models import Category, InventoryAsset, InventoryProduct
 from apps.makerspaces import lifecycle
-from apps.makerspaces.models import Makerspace, MakerspaceMembership, TenantFrontend
+from apps.makerspaces.models import Makerspace, MakerspaceMembership
 from apps.operations.models import (
     InventoryAdjustment,
     QrPrintBatch,
@@ -380,11 +380,6 @@ def populate_full_purge_graph(makerspace, survivor, actor):
         label="Lifecycle API key",
         reason="Testing purge.",
     )
-    TenantFrontend.objects.create(
-        makerspace=makerspace,
-        token="lifecycle-frontend-token",
-        hostname="lifecycle.example.com",
-    )
     HardwareEmailTemplate.objects.create(
         makerspace=makerspace,
         key=HardwareEmailTemplate.Key.REQUEST_RECEIVED,
@@ -446,7 +441,6 @@ def assert_purged_makerspace_graph(space_id):
     assert StockTransferLine.objects.filter(transfer__makerspace_id=space_id).count() == 0
     assert ApiClient.objects.filter(makerspace_id=space_id).count() == 0
     assert ApiKeyRequest.objects.filter(makerspace_id=space_id).count() == 0
-    assert TenantFrontend.objects.filter(makerspace_id=space_id).count() == 0
     assert HardwareEmailTemplate.objects.filter(makerspace_id=space_id).count() == 0
     assert MakerspaceMembership.objects.filter(makerspace_id=space_id).count() == 0
     assert AuditLog.objects.filter(makerspace_id=space_id).count() == 0
@@ -605,11 +599,6 @@ def test_archived_makerspace_is_excluded_from_api_scopes(monkeypatch, settings):
         completed_at=timezone.now(),
         contact_email="visible-print@example.com",
     )
-    TenantFrontend.objects.create(
-        makerspace=archived_space,
-        token="archived-bootstrap-token",
-        is_primary=True,
-    )
     AuditLog.objects.create(actor=actor, action="archived.scope", makerspace=archived_space)
     AuditLog.objects.create(actor=actor, action="visible.scope", makerspace=visible_space)
 
@@ -648,7 +637,7 @@ def test_archived_makerspace_is_excluded_from_api_scopes(monkeypatch, settings):
     assert audit_logs.status_code == 200
     assert audit_logs.data["results"] == []
 
-    bootstrap = public_client.get("/api/v1/bootstrap?tenant=archived-bootstrap-token")
+    bootstrap = public_client.get(f"/api/v1/bootstrap?tenant={archived.public_code}")
     assert bootstrap.status_code == 404
 
     public_inventory = public_client.get(

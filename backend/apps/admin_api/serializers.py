@@ -7,7 +7,6 @@ from apps.admin_api.serializers_inventory import (
 from apps.admin_api.serializers_makerspaces import (
     MakerspaceSerializer,
     ReturnPolicySerializer,
-    TenantFrontendSerializer,
 )
 from apps.admin_api.serializers_users import (
     AuditLogSerializer,
@@ -28,6 +27,5 @@ __all__ = [
     "ReturnPolicySerializer",
     "StaffCreateSerializer",
     "StaffMembershipSerializer",
-    "TenantFrontendSerializer",
     "UserSerializer",
 ]

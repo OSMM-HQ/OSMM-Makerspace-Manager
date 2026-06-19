@@ -2,10 +2,9 @@ import pytest
 from django.test import override_settings
 from rest_framework.test import APIClient, APIRequestFactory
 
-from apps.admin_api.serializers_makerspaces import TenantFrontendSerializer
 from apps.accounts.models import User
 from apps.makerspaces.cors import origin_is_registered, staff_origin_is_registered
-from apps.makerspaces.models import MakerspaceMembership, TenantFrontend
+from apps.makerspaces.models import MakerspaceMembership
 from apps.makerspaces.origin_scope import NO_STAFF_ORIGIN_SCOPE, staff_origin_scope
 from tests.return_helpers import make_member, make_product, make_space, make_user
 
@@ -35,19 +34,6 @@ def test_bootstrap_resolves_public_code_without_private_fields():
     assert response.data["public_api"]["publishable_key"] == makerspace.public_api_key
     assert "telegram_bot_token" not in response.data
     assert "request_submit" in response.data["workflows"]
-
-
-def test_bootstrap_ignores_tenant_frontend_token():
-    makerspace = make_space("platform-token-ignored")
-    TenantFrontend.objects.create(
-        makerspace=makerspace,
-        token="legacy-token",
-        is_active=True,
-    )
-
-    response = APIClient().get("/api/v1/bootstrap?tenant=legacy-token")
-
-    assert response.status_code == 404
 
 
 def test_bootstrap_resolves_by_frontend_domain_origin():
@@ -132,56 +118,7 @@ def test_disabled_request_module_blocks_public_submit():
     assert "request_workflow" in str(response.data)
 
 
-def test_tenant_frontend_serializer_accepts_one_bare_origin():
-    makerspace = make_space("platform-origin-one")
-    serializer = TenantFrontendSerializer(
-        data={
-            "makerspace": makerspace.id,
-            "frontend_type": TenantFrontend.FrontendType.STAFF_ADMIN,
-            "hostname": "https://AlphaMakerspace.com",
-            "allowed_origins": ["https://AlphaMakerspace.com"],
-        }
-    )
-
-    assert serializer.is_valid(), serializer.errors
-    assert serializer.validated_data["hostname"] == "alphamakerspace.com"
-    assert serializer.validated_data["allowed_origins"] == ["https://alphamakerspace.com"]
-
-
-def test_tenant_frontend_serializer_rejects_path_origins():
-    makerspace = make_space("platform-origin-path")
-    serializer = TenantFrontendSerializer(
-        data={
-            "makerspace": makerspace.id,
-            "frontend_type": TenantFrontend.FrontendType.STAFF_ADMIN,
-            "hostname": "alphamakerspace.com",
-            "allowed_origins": ["https://alphamakerspace.com/admin"],
-        }
-    )
-
-    assert not serializer.is_valid()
-    assert "allowed_origins" in serializer.errors
-
-
-def test_tenant_frontend_serializer_rejects_multiple_origins():
-    makerspace = make_space("platform-origin-many")
-    serializer = TenantFrontendSerializer(
-        data={
-            "makerspace": makerspace.id,
-            "frontend_type": TenantFrontend.FrontendType.STAFF_ADMIN,
-            "hostname": "alphamakerspace.com",
-            "allowed_origins": [
-                "https://alphamakerspace.com",
-                "https://staff.alphamakerspace.com",
-            ],
-        }
-    )
-
-    assert not serializer.is_valid()
-    assert "allowed_origins" in serializer.errors
-
-
-def test_space_manager_can_register_frontend_for_superadmin_hidden_makerspace():
+def test_space_manager_can_update_frontend_domain_for_superadmin_hidden_makerspace():
     makerspace = make_space("platform-hidden-self-serve")
     makerspace.superadmin_access_enabled = False
     makerspace.save(update_fields=["superadmin_access_enabled"])
@@ -189,24 +126,21 @@ def test_space_manager_can_register_frontend_for_superadmin_hidden_makerspace():
     client = APIClient()
     client.force_authenticate(manager)
 
-    response = client.post(
-        f"/api/v1/admin/makerspace/{makerspace.id}/frontends",
+    response = client.patch(
+        f"/api/v1/admin/makerspaces/{makerspace.id}",
         {
-            "frontend_type": TenantFrontend.FrontendType.STAFF_ADMIN,
-            "hostname": "hidden.example",
-            "allowed_origins": ["https://hidden.example"],
-            "enabled_modules": [],
-            "is_primary": True,
-            "is_active": True,
+            "frontend_domain": "hidden.example",
+            "hidden_from_central_directory": True,
         },
         format="json",
     )
 
-    assert response.status_code == 201
-    assert response.data["token"]
+    assert response.status_code == 200
+    assert response.data["frontend_domain"] == "hidden.example"
+    assert response.data["hidden_from_central_directory"] is True
 
 
-def test_superadmin_cannot_register_frontend_for_superadmin_hidden_makerspace():
+def test_superadmin_cannot_update_frontend_domain_for_superadmin_hidden_makerspace():
     makerspace = make_space("platform-hidden-superadmin-blocked")
     make_member("platform-hidden-superadmin-blocked-manager", makerspace)
     makerspace.superadmin_access_enabled = False
@@ -221,20 +155,17 @@ def test_superadmin_cannot_register_frontend_for_superadmin_hidden_makerspace():
     client = APIClient()
     client.force_authenticate(superadmin)
 
-    response = client.post(
-        f"/api/v1/admin/makerspace/{makerspace.id}/frontends",
+    response = client.patch(
+        f"/api/v1/admin/makerspaces/{makerspace.id}",
         {
-            "frontend_type": TenantFrontend.FrontendType.STAFF_ADMIN,
-            "hostname": "hidden-superadmin.example",
-            "allowed_origins": ["https://hidden-superadmin.example"],
-            "enabled_modules": [],
-            "is_primary": True,
-            "is_active": True,
+            "frontend_domain": "hidden-superadmin.example",
         },
         format="json",
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 404
+    makerspace.refresh_from_db()
+    assert makerspace.frontend_domain is None
 
 
 def test_staff_origin_scope_filters_makerspace_list_and_blocks_cross_tenant_targets():

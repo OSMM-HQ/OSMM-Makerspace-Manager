@@ -159,7 +159,6 @@ _PRINT_ACTIONS = {
     "managed-request-reprint",
 }
 _MODEL_LOOKUPS = {
-    "admin-tenant-frontend": ("makerspaces.TenantFrontend", "makerspace_id"),
     "admin-inventory-detail": ("inventory.InventoryProduct", "makerspace_id"),
     "admin-inventory-adjust-quantity": ("inventory.InventoryProduct", "makerspace_id"),
     "admin-inventory-lending-history": ("inventory.InventoryProduct", "makerspace_id"),
