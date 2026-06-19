@@ -1,10 +1,15 @@
 from django.urls import path
 
-from apps.hardware_requests import views
+from apps.hardware_requests import cron_views, views
 
 app_name = "hardware_requests"
 
 urlpatterns = [
+    path(
+        "internal/cron/return-reminders",
+        cron_views.ReturnReminderCronView.as_view(),
+        name="cron-return-reminders",
+    ),
     path(
         "public/<slug:makerspace_slug>/checkin/verify",
         views.CheckinVerifyView.as_view(),

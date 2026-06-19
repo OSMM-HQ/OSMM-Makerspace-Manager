@@ -6220,6 +6220,32 @@
                 }
             }
         },
+        "/api/v1/internal/cron/return-reminders": {
+            "post": {
+                "operationId": "api_v1_internal_cron_return_reminders_create",
+                "tags": [
+                    "Health"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReturnReminderCronResponse"
+                                }
+                            }
+                        },
+                        "description": "Return reminder run result."
+                    },
+                    "403": {
+                        "description": "Invalid cron secret."
+                    },
+                    "404": {
+                        "description": "Cron endpoint is not configured."
+                    }
+                }
+            }
+        },
         "/api/v1/printing/admin/makerspace/{makerspace_id}/printing/reports": {
             "get": {
                 "operationId": "api_v1_printing_admin_makerspace_printing_reports_retrieve",
@@ -15099,6 +15125,21 @@
                 },
                 "required": [
                     "id"
+                ]
+            },
+            "ReturnReminderCronResponse": {
+                "type": "object",
+                "properties": {
+                    "sent": {
+                        "type": "integer"
+                    },
+                    "skipped": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "sent",
+                    "skipped"
                 ]
             },
             "ReturnRequest": {

@@ -18,6 +18,7 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 PUBLIC_APP_BASE_URL = env("PUBLIC_APP_BASE_URL", default="").rstrip("/")
 MANAGED_POSTGRES = env.bool("MANAGED_POSTGRES", default=False)
 STORAGE_PRESIGN_METHOD = env("STORAGE_PRESIGN_METHOD", default="post")
+CRON_SECRET = env("CRON_SECRET", default="")
 
 INSTALLED_APPS = [
     "unfold",

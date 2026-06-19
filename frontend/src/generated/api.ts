@@ -139,6 +139,7 @@ export const openApiPaths = [
   "/api/v1/health/readiness/",
   "/api/v1/integrations/telegram/test-alert",
   "/api/v1/integrations/telegram/webhook",
+  "/api/v1/internal/cron/return-reminders",
   "/api/v1/printing/admin/makerspace/{makerspace_id}/printing/reports",
   "/api/v1/printing/admin/printing/reports",
   "/api/v1/printing/buckets/",

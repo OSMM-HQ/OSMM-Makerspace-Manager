@@ -2,6 +2,50 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — Supabase free-tier dual-mode (env-toggled; localhost default unchanged) (2026-06-19)
+
+Made the backend runnable on **Supabase free tier** (managed Postgres + Supabase Storage) while
+keeping the bundled Docker stack (local Postgres superuser + MinIO) behaving **identically by
+default** — every switch is an env var defaulting to the current behavior. Codex Stage-1
+plan-reviewed (APPROVED after 3 rounds), built in 3 commit-per-green phases (06a2176, 341cab2, +
+this). Driven by `docs/performance-and-supabase-report.md` (verdict: free tier = demo/pilot, not
+dependable prod; Supabase can't host Django — run it on Render/PythonAnywhere). Operator runbook:
+**`docs/supabase-deployment.md`**. New env vars (all default to self-hosted): `MANAGED_POSTGRES`
+(False), `STORAGE_PRESIGN_METHOD` (post), `CONN_MAX_AGE` (0), `DISABLE_SERVER_SIDE_CURSORS`
+(False), `CRON_SECRET` ("").
+
+- **Purge trigger-suspension (phase 1).** The 5 append-only/immutability reject FUNCTIONS
+  (audit/evidence/boxscan/qrscanevent/return-records) were rewritten (migrations audit 0003,
+  evidence 0003, boxes 0008, hardware_requests 0014 — **function-body CREATE OR REPLACE only,
+  triggers untouched, reverse restores original**) to allow DELETE **only** when the
+  transaction-scoped custom GUC `current_setting('app.allow_immutable_delete', true) = 'on'` is
+  set; UPDATE stays blocked unconditionally. `lifecycle.py` purge now branches on
+  `settings.MANAGED_POSTGRES`: False → `SET LOCAL session_replication_role='replica'` (unchanged
+  localhost path, all triggers incl. FK off); True → `SET LOCAL app.allow_immutable_delete='on'`
+  (no superuser needed — Supabase forbids `session_replication_role`; only OUR immutability
+  triggers are bypassed, FK triggers stay ON, Django collects the graph in dependency order).
+  `settings.py` also applies `CONN_MAX_AGE`/`DISABLE_SERVER_SIDE_CURSORS` to `DATABASES["default"]`
+  (set both for the Supabase transaction pooler; migrate via the direct/session-pooler URL).
+- **Storage presign POST↔PUT (phase 2).** `STORAGE_PRESIGN_METHOD` toggles `evidence.storage`
+  + `printing.storage` presign between the legacy `generate_presigned_post` (`post`, MinIO,
+  byte-identical response/flow) and `generate_presigned_url("put_object", ...)` (`put`, Supabase).
+  POST response shape is **preserved exactly** (the evidence view adds `method`/`headers` only in
+  PUT mode; serializer fields are `required=False` so they're omitted under POST). The frontend
+  (`EvidenceUpload.tsx`, printing `publicApi.ts`) branches on `method==="PUT"` → `fetch PUT` with
+  the **backend-returned** `headers` (not `file.type`, which may be blank). Because PUT loses the
+  upload-time `content-length-range`, size is re-validated server-side **PUT-mode-only** at attach
+  (`evidence.storage.object_size`; `1 ≤ size ≤ EVIDENCE_MAX_BYTES` in handover/return; printing
+  attach now also rejects 0 bytes). **Known PUT-mode limitation** (documented, not fixed — only
+  relevant in demo/pilot Supabase mode): the PUT key is overwritable until TTL, so the recorded
+  `size_bytes` can drift from the stored object — keep TTLs short + monitor the 1 GB cap.
+- **Cron return-reminder endpoint (phase 3).** `send_return_reminders` core extracted to
+  `services_return_reminders.run_return_reminders()`; new `POST /api/v1/internal/cron/return-reminders`
+  (`cron_views.py`) is `authentication_classes=[]` + no throttle for **deterministic fail-closed
+  status**: **404** while `CRON_SECRET` unset, **403** on wrong `X-Cron-Secret` (via
+  `secrets.compare_digest`), else runs and returns `{sent, skipped}`. The management command still
+  works for manual runs. `docker-compose.yml` + `docker-compose.prod.yml` now pass through all five
+  new env toggles. OpenAPI snapshot + generated TS client regenerated.
+
 ## Recent batch — one domain per makerspace (replaces TenantFrontend registry) (2026-06-19)
 
 Replaced the per-type `TenantFrontend` frontend registry (7-type dropdown, per-page rows) with a

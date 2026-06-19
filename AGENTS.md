@@ -65,6 +65,16 @@ authorized staff physically issue items.
   configurability, no error handling for impossible scenarios. Every changed line should trace to the
   request.
 
+## Deployment modes (env-toggled)
+
+The backend runs self-hosted (local Postgres + MinIO) by default, or on **managed platforms**
+(Supabase free tier) via env vars that all default to the self-hosted behavior — see
+`docs/supabase-deployment.md`. Toggles: `MANAGED_POSTGRES` (purge GUC vs `session_replication_role`),
+`STORAGE_PRESIGN_METHOD` (`post` MinIO ↔ `put` Supabase Storage), `CONN_MAX_AGE` /
+`DISABLE_SERVER_SIDE_CURSORS` (transaction pooler), `CRON_SECRET` (enables the fail-closed
+`POST /api/v1/internal/cron/return-reminders` endpoint). **Do not change these defaults** — they
+keep localhost identical; only managed deployments set them.
+
 ## Local development
 
 ```bash
