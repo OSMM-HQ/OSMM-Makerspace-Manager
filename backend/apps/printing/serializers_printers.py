@@ -67,23 +67,36 @@ class PrintPrinterSerializer(serializers.ModelSerializer):
             instance.makerspace_id = validated_data.pop("makerspace_id")
         return super().update(instance, validated_data)
 
-    def get_active_spool(self, obj) -> dict | None:
-        spool = (
+    def _active_spool_obj(self, obj):
+        if hasattr(obj, "_active_spools"):
+            return obj._active_spools[0] if obj._active_spools else None
+        return (
             obj.filament_spools.filter(is_active=True)
             .order_by("-opened_at", "-created_at")
             .first()
         )
+
+    def _queue_list(self, obj):
+        if hasattr(obj, "_queue_requests"):
+            return obj._queue_requests
+        return list(
+            obj.print_requests.filter(
+                status__in=[PrintRequest.Status.ACCEPTED, PrintRequest.Status.PRINTING]
+            )
+        )
+
+    def get_active_spool(self, obj) -> dict | None:
+        spool = self._active_spool_obj(obj)
         if not spool:
             return None
         return FilamentSpoolSummarySerializer(spool).data
 
-    def _queue(self, obj):
-        return obj.print_requests.filter(
-            status__in=[PrintRequest.Status.ACCEPTED, PrintRequest.Status.PRINTING]
-        )
-
     def get_current_request(self, obj) -> dict | None:
-        current = self._queue(obj).filter(status=PrintRequest.Status.PRINTING).first()
+        current = None
+        for request in self._queue_list(obj):
+            if request.status == PrintRequest.Status.PRINTING:
+                current = request
+                break
         if not current:
             return None
         return {
@@ -95,25 +108,23 @@ class PrintPrinterSerializer(serializers.ModelSerializer):
     def get_is_free(self, obj) -> bool:
         if not obj.is_active or obj.status != PrintPrinter.Status.ACTIVE:
             return False
-        return not self._queue(obj).filter(status=PrintRequest.Status.PRINTING).exists()
+        return not any(
+            request.status == PrintRequest.Status.PRINTING
+            for request in self._queue_list(obj)
+        )
 
     def get_pending_estimated_minutes(self, obj) -> int:
-        return sum(request.estimated_minutes for request in self._queue(obj))
+        return sum(request.estimated_minutes for request in self._queue_list(obj))
 
     def get_estimated_spool_remaining_after_queue_grams(self, obj) -> str | None:
-        spool = (
-            obj.filament_spools.filter(is_active=True)
-            .order_by("-opened_at", "-created_at")
-            .first()
-        )
+        spool = self._active_spool_obj(obj)
         if not spool:
             return None
         pending_grams = sum(
             request.estimated_filament_grams
-            for request in self._queue(obj).filter(
-                filament_spool=spool,
-                status=PrintRequest.Status.ACCEPTED,
-            )
+            for request in self._queue_list(obj)
+            if request.filament_spool_id == spool.id
+            and request.status == PrintRequest.Status.ACCEPTED
         )
         estimated = max(spool.remaining_weight_grams - pending_grams, 0)
         return f"{estimated:.2f}"
