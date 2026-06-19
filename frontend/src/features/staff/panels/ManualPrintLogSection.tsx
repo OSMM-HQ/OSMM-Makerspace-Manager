@@ -96,15 +96,15 @@ export function ManualPrintLogSection({
           if (canSubmit) createLog.mutate();
         }}
       >
-        <div className="grid gap-2 md:grid-cols-[1.2fr_1fr_1fr_auto_auto]">
+        <div className="grid gap-2 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto]">
           <input
-            className="desk-input"
+            className="desk-input min-w-0"
             placeholder="Print title"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
           />
           <select
-            className="desk-input"
+            className="desk-input min-w-0"
             value={printerId}
             onChange={(event) => {
               setPrinterId(event.target.value);
@@ -117,7 +117,7 @@ export function ManualPrintLogSection({
             ))}
           </select>
           <select
-            className="desk-input"
+            className="desk-input min-w-0"
             value={spoolId}
             onChange={(event) => setSpoolId(event.target.value)}
           >
@@ -130,7 +130,7 @@ export function ManualPrintLogSection({
             ))}
           </select>
           <input
-            className="desk-input"
+            className="desk-input min-w-0"
             placeholder="Grams used"
             type="number"
             min="0.01"
@@ -139,7 +139,7 @@ export function ManualPrintLogSection({
             onChange={(event) => setGramsUsed(event.target.value)}
           />
           <input
-            className="desk-input"
+            className="desk-input min-w-0"
             placeholder="Print time (min)"
             type="number"
             min="0"

@@ -25,13 +25,13 @@ export function RequestList({ rows, actions }: { rows: HardwareRequest[]; action
   return (
     <div className="overflow-hidden rounded-md border border-line">
       {rows.map((row) => (
-        <article key={row.id} className="border-b border-line bg-surface/50 p-3 last:border-b-0">
+        <article key={row.id} className="min-w-0 border-b border-line bg-surface/50 p-3 last:border-b-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-semibold text-ink">#{row.id} {row.requester_username}</h3>
+            <h3 className="min-w-0 break-words font-semibold text-ink">#{row.id} {row.requester_username}</h3>
             <span className={`status-box ${statusBadgeClassName(row.status)}`}>
               {statusStageLabel(row.status)}
             </span>
-            <div className="desk-actions ml-auto flex flex-wrap gap-2 text-sm">
+            <div className="desk-actions ml-0 flex w-full flex-wrap gap-2 text-sm sm:ml-auto sm:w-auto">
               {actions(row)}
             </div>
           </div>

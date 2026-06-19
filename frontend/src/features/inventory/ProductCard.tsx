@@ -89,7 +89,7 @@ export function ProductCard({
           <div className="flex items-center border-2 border-ink bg-bg">
             <button
               aria-label={`Remove ${product.name}`}
-              className="h-9 w-9 font-mono text-lg font-semibold text-ink transition hover:bg-surface disabled:cursor-not-allowed disabled:text-muted"
+                className="h-9 w-9 font-mono text-lg font-semibold text-ink transition hover:bg-surface hover:text-ink disabled:cursor-not-allowed disabled:text-muted"
               disabled={quantity === 0}
               type="button"
               onClick={onDecrement}
@@ -101,7 +101,7 @@ export function ProductCard({
             </span>
             <button
               aria-label={`Add ${product.name}`}
-              className="h-9 w-9 font-mono text-lg font-semibold text-ink transition hover:bg-surface disabled:cursor-not-allowed disabled:text-muted"
+                className="h-9 w-9 font-mono text-lg font-semibold text-ink transition hover:bg-surface hover:text-ink disabled:cursor-not-allowed disabled:text-muted"
               disabled={disabled}
               type="button"
               onClick={onIncrement}

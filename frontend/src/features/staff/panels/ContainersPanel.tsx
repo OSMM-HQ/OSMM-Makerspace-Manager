@@ -60,12 +60,12 @@ function ContainerRow({ container, makerspaceId }: { container: Container; maker
   const togglePanel = (next: "contents" | "history") => setPanel((current) => (current === next ? null : next));
 
   return (
-    <div className="rounded-md border border-line bg-surface p-3 text-sm">
+    <div className="min-w-0 rounded-md border border-line bg-surface p-3 text-sm">
       <div className="flex flex-wrap items-center gap-2">
-        <strong className="text-ink">{container.label}</strong>
+        <strong className="min-w-0 break-words text-ink">{container.label}</strong>
         {container.location ? <span className="text-xs text-muted">{container.location}</span> : null}
         {container.is_active === false ? <span className="rounded-md bg-warn/15 px-2 py-0.5 text-xs text-warn">Inactive</span> : null}
-        <div className="desk-actions ml-auto flex flex-wrap gap-2">
+        <div className="desk-actions ml-0 flex w-full flex-wrap gap-2 sm:ml-auto sm:w-auto">
           <button type="button" onClick={() => setEditing((value) => !value)}>{editing ? "Cancel" : "Edit"}</button>
           <button type="button" onClick={() => togglePanel("contents")}>{panel === "contents" ? "Hide contents" : "Contents"}</button>
           <button type="button" onClick={() => togglePanel("history")}>{panel === "history" ? "Hide history" : "History"}</button>
@@ -73,9 +73,9 @@ function ContainerRow({ container, makerspaceId }: { container: Container; maker
       </div>
 
       {editing ? (
-        <div className="mt-3 grid gap-2 md:grid-cols-[1fr_1fr_auto_auto] md:items-end">
-          <label className="grid gap-1 text-xs text-muted"><span>Label</span><input className="desk-input" value={label} onChange={(event) => setLabel(event.target.value)} /></label>
-          <label className="grid gap-1 text-xs text-muted"><span>Location</span><input className="desk-input" value={location} onChange={(event) => setLocation(event.target.value)} /></label>
+        <div className="mt-3 grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] md:items-end">
+          <label className="grid min-w-0 gap-1 text-xs text-muted"><span>Label</span><input className="desk-input min-w-0" value={label} onChange={(event) => setLabel(event.target.value)} /></label>
+          <label className="grid min-w-0 gap-1 text-xs text-muted"><span>Location</span><input className="desk-input min-w-0" value={location} onChange={(event) => setLocation(event.target.value)} /></label>
           <label className="flex items-center gap-2 text-xs text-muted"><input type="checkbox" checked={isActive} onChange={(event) => setIsActive(event.target.checked)} /> Active</label>
           <button disabled={!label.trim() || save.isPending} onClick={() => save.mutate()}>{save.isPending ? "Saving..." : "Save"}</button>
         </div>

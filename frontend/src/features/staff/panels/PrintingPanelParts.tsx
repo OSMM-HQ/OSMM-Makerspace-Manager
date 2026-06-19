@@ -189,11 +189,11 @@ export function PrinterCard({
   onDelete: () => void;
 }) {
   return (
-    <div className="rounded-md border border-line bg-surface p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="font-semibold text-ink">{printer.name}</h3>
-          <p className="text-xs text-muted">{printer.model || "No model"}</p>
+    <div className="min-w-0 rounded-md border border-line bg-surface p-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h3 className="break-words font-semibold text-ink">{printer.name}</h3>
+          <p className="break-words text-xs text-muted">{printer.model || "No model"}</p>
         </div>
         <span className={`rounded-md px-2 py-1 text-xs font-semibold ${printer.is_free ? "bg-success/15 text-success" : "bg-warn/15 text-warn"}`}>
           {printer.is_free ? "Free" : "Busy"}
@@ -216,7 +216,7 @@ export function PrinterCard({
 }
 
 function Row({ label, value }: { label: string; value: string }) {
-  return <div className="flex justify-between gap-2"><dt>{label}</dt><dd className="text-right">{value}</dd></div>;
+  return <div className="flex min-w-0 justify-between gap-2"><dt>{label}</dt><dd className="min-w-0 break-words text-right">{value}</dd></div>;
 }
 
 function printStatusClassName(status: string) {
@@ -293,13 +293,13 @@ export function SpoolRow({
   );
   const usedLabel = Number.isFinite(usedGrams) ? `${usedGrams}g used` : "—";
   return (
-    <div className="rounded-md border border-line bg-surface px-3 py-2">
+    <div className="min-w-0 rounded-md border border-line bg-surface px-3 py-2">
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-        <span className="font-medium text-ink">
+        <span className="min-w-0 break-words font-medium text-ink">
           {[spool.brand, spool.material, spool.color].filter(Boolean).join(" ") || spool.material}
         </span>
-        <span className="text-muted">{spool.printer_name ?? "Unassigned"}</span>
-        <span className="text-muted">{usedLabel} · {spool.remaining_weight_grams}g left of {spool.initial_weight_grams}g</span>
+        <span className="min-w-0 break-words text-muted">{spool.printer_name ?? "Unassigned"}</span>
+        <span className="min-w-0 break-words text-muted">{usedLabel} · {spool.remaining_weight_grams}g left of {spool.initial_weight_grams}g</span>
         <span
           className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
             spool.is_active ? "bg-success/15 text-success" : "bg-warn/15 text-warn"
@@ -343,10 +343,10 @@ export function PrintRows({
         {rows.length ? rows.map((row) => (
           <article key={row.id} className="border-b border-line p-3 last:border-b-0">
             <div className="flex flex-wrap items-center gap-2">
-              <strong className="text-ink">#{row.id} {row.title}</strong>
+              <strong className="min-w-0 break-words text-ink">#{row.id} {row.title}</strong>
               <span className={`status-box ${printStatusClassName(row.status)}`}>{printStatusLabel(row.status)}</span>
               <PaymentBadge request={row} />
-              <div className="desk-actions ml-auto flex flex-wrap gap-2 text-sm">{action(row)}</div>
+              <div className="desk-actions ml-0 flex w-full flex-wrap gap-2 text-sm sm:ml-auto sm:w-auto">{action(row)}</div>
             </div>
             <p className="mt-2 text-xs text-muted">
               {row.requester_name || row.requester_username} - {row.material || "material n/a"} {row.color || ""} - {row.estimated_minutes || 0} min - {row.estimated_filament_grams || "0.00"}g
