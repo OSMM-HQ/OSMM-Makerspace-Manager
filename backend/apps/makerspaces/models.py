@@ -219,6 +219,10 @@ class MakerspaceMembership(models.Model):
         limit_choices_to={"is_active": True},
     )
     role = models.CharField(max_length=32, choices=Role.choices, default=Role.SPACE_MANAGER)
+    # Per-makerspace opt-in for staff lifecycle email notifications. Default True keeps
+    # existing behavior (every relevant manager is notified); the space manager can turn
+    # an individual manager off in Settings without removing their access.
+    receives_notifications = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

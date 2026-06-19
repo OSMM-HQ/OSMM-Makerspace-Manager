@@ -731,3 +731,41 @@ def test_staff_notification_toggle_disables_staff_but_keeps_requester_email(
     assert response.status_code == 200
     assert recipient_addresses() == ["toggle-disabled-requester@example.com"]
     assert staff.email not in recipient_addresses()
+
+
+def test_staff_emails_excludes_opted_out_manager():
+    makerspace = make_space("notif-optout")
+    keep = make_staff_user("notif-keep", makerspace, MakerspaceMembership.Role.SPACE_MANAGER)
+    drop = make_staff_user("notif-drop", makerspace, MakerspaceMembership.Role.INVENTORY_MANAGER)
+    MakerspaceMembership.objects.filter(makerspace=makerspace, user=drop).update(
+        receives_notifications=False,
+    )
+
+    emails = staff_emails_for_stream(makerspace, "hardware")
+
+    assert keep.email in emails
+    assert drop.email not in emails
+
+
+def test_notification_recipients_endpoint_lists_and_toggles():
+    makerspace = make_space("notif-endpoint")
+    manager = make_staff_user("notif-mgr", makerspace, MakerspaceMembership.Role.SPACE_MANAGER)
+    other = make_staff_user("notif-other", makerspace, MakerspaceMembership.Role.PRINT_MANAGER)
+    client = hardware_authenticated_client(manager)
+    url = f"/api/v1/admin/makerspace/{makerspace.id}/notification-recipients"
+
+    listed = client.get(url)
+    assert listed.status_code == 200
+    by_user = {row["username"]: row for row in listed.data}
+    assert by_user["notif-other"]["receives_notifications"] is True
+    other_membership_id = by_user["notif-other"]["id"]
+
+    patched = client.patch(
+        url,
+        {"recipients": [{"id": other_membership_id, "receives_notifications": False}]},
+        format="json",
+    )
+    assert patched.status_code == 200
+    membership = MakerspaceMembership.objects.get(id=other_membership_id)
+    assert membership.receives_notifications is False
+    assert other.email not in staff_emails_for_stream(makerspace, "printing")

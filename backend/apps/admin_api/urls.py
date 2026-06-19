@@ -1,6 +1,7 @@
 from django.urls import path
 
 from apps.admin_api import api_client_views, views
+from apps.admin_api.views_notification_recipients import NotificationRecipientsView
 from apps.admin_api.views_platform import PlatformEmailSettingsView
 from apps.makerspaces.models import MakerspaceMembership
 
@@ -87,6 +88,11 @@ urlpatterns = [
         "makerspace/<int:makerspace_id>/api-settings",
         api_client_views.ApiIntegrationSettingsView.as_view(),
         name="admin-api-settings",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/notification-recipients",
+        NotificationRecipientsView.as_view(),
+        name="admin-notification-recipients",
     ),
     path(
         "api-clients/<int:pk>",

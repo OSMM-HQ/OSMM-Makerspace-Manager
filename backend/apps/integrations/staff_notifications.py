@@ -38,6 +38,7 @@ def staff_emails_for_stream(makerspace, stream) -> list[str]:
             MakerspaceMembership.objects.filter(
                 makerspace=makerspace,
                 role__in=roles,
+                receives_notifications=True,
                 user__is_active=True,
                 user__access_status=User.AccessStatus.ACTIVE,
             )

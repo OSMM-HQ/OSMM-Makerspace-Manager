@@ -3276,6 +3276,103 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/notification-recipients": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_notification_recipients_list",
+                "description": "Space-manager control over which of the makerspace's managers receive the staff\nlifecycle emails. Toggling a manager off clears `receives_notifications` without\ntouching their access/role.",
+                "summary": "List or toggle staff email notification recipients",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Makerspaces"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/NotificationRecipient"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "api_v1_admin_makerspace_notification_recipients_partial_update",
+                "description": "Space-manager control over which of the makerspace's managers receive the staff\nlifecycle emails. Toggling a manager off clears `receives_notifications` without\ntouching their access/role.",
+                "summary": "List or toggle staff email notification recipients",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Makerspaces"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedNotificationRecipientsPatch"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedNotificationRecipientsPatch"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedNotificationRecipientsPatch"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/NotificationRecipient"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/pending-requests": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_pending_requests_list",
@@ -12460,6 +12557,53 @@
                     "quantity"
                 ]
             },
+            "NotificationRecipient": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "username": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "readOnly": true
+                    },
+                    "role": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "receives_notifications": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "email",
+                    "id",
+                    "receives_notifications",
+                    "role",
+                    "username"
+                ]
+            },
+            "NotificationRecipientUpdate": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "receives_notifications": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "id",
+                    "receives_notifications"
+                ]
+            },
             "PaginatedAdminRequestList": {
                 "type": "object",
                 "required": [
@@ -13536,6 +13680,17 @@
                         "type": "string",
                         "format": "date-time",
                         "readOnly": true
+                    }
+                }
+            },
+            "PatchedNotificationRecipientsPatch": {
+                "type": "object",
+                "properties": {
+                    "recipients": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/NotificationRecipientUpdate"
+                        }
                     }
                 }
             },
