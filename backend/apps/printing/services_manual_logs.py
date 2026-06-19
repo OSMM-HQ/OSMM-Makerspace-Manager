@@ -16,6 +16,7 @@ def log_manual_print(
     grams_used,
     title,
     note,
+    duration_minutes=0,
 ):
     with transaction.atomic():
         try:
@@ -28,6 +29,8 @@ def log_manual_print(
             raise InvalidTransition("Printer is not active.")
         if grams_used <= 0:
             raise InvalidTransition("Filament used must be greater than zero.")
+        if duration_minutes is None or duration_minutes < 0:
+            raise InvalidTransition("Print time minutes cannot be negative.")
         spool = FilamentSpool.objects.select_for_update().get(pk=filament_spool.pk)
         if spool.makerspace_id != makerspace.id:
             raise InvalidTransition("Filament spool must belong to this makerspace.")
@@ -50,6 +53,7 @@ def log_manual_print(
             printer=printer,
             filament_spool=spool,
             grams_used=grams_used,
+            duration_minutes=duration_minutes or 0,
             title=title,
             note=note,
             logged_by=actor,

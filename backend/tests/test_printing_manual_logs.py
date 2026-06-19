@@ -253,6 +253,94 @@ def test_manual_print_log_rejects_over_bound_grams():
     assert spool.remaining_weight_grams == Decimal("1000.00")
 
 
+def test_manual_print_log_stores_duration_minutes():
+    makerspace = make_space("manual-log-duration")
+    manager = make_print_manager("manual-log-duration-manager", makerspace)
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Prusa MK4")
+    spool = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        printer=printer,
+        material="PLA",
+        initial_weight_grams=1000,
+        remaining_weight_grams=1000,
+    )
+
+    response = authenticated_client(manager).post(
+        manual_log_url(),
+        {
+            "makerspace_id": makerspace.id,
+            "printer_id": printer.id,
+            "filament_spool_id": spool.id,
+            "grams_used": "20.00",
+            "duration_minutes": 45,
+            "title": "Timed print",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.data["duration_minutes"] == 45
+    log = ManualPrintLog.objects.get(pk=response.data["id"])
+    assert log.duration_minutes == 45
+
+
+def test_printing_report_printer_hours_include_manual_duration():
+    makerspace = make_space("manual-log-hours")
+    bucket = make_bucket(makerspace)
+    requester = make_user("manual-hours-requester", access_status=User.AccessStatus.ACTIVE)
+    manager = make_print_manager("manual-hours-manager", makerspace)
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="A printer")
+    manual_only = PrintPrinter.objects.create(makerspace=makerspace, name="B printer")
+    spool = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        printer=printer,
+        material="PLA",
+        initial_weight_grams=1000,
+        remaining_weight_grams=900,
+    )
+    PrintRequest.objects.create(
+        bucket=bucket,
+        requester=requester,
+        title="Queued print",
+        quantity=1,
+        status=PrintRequest.Status.COMPLETED,
+        printer=printer,
+        filament_spool=spool,
+        estimated_minutes=60,
+        filament_grams_used=Decimal("50.00"),
+        completed_at=timezone.now(),
+    )
+    # 30 min manual added to the printer that already has 60 min of completed work -> 1.5h.
+    ManualPrintLog.objects.create(
+        makerspace=makerspace,
+        printer=printer,
+        filament_spool=spool,
+        grams_used=Decimal("10.00"),
+        duration_minutes=30,
+        title="Manual add",
+        logged_by=manager,
+    )
+    # 90 min manual on a printer with no completed requests -> manual-only 1.5h row.
+    ManualPrintLog.objects.create(
+        makerspace=makerspace,
+        printer=manual_only,
+        filament_spool=spool,
+        grams_used=Decimal("10.00"),
+        duration_minutes=90,
+        title="Manual only",
+        logged_by=manager,
+    )
+
+    response = authenticated_client(manager).get(makerspace_report_url(makerspace))
+
+    assert response.status_code == 200
+    hours = {row["printer_id"]: row for row in response.data["printer_hours"]}
+    assert hours[printer.id]["hours"] == 1.5
+    assert hours[printer.id]["completed_requests"] == 1
+    assert hours[manual_only.id]["hours"] == 1.5
+    assert hours[manual_only.id]["completed_requests"] == 0
+
+
 def test_printing_report_merges_manual_logs_and_includes_manual_only_printers():
     makerspace = make_space("manual-log-report")
     bucket = make_bucket(makerspace)

@@ -14,6 +14,12 @@ class ManualPrintLogSerializer(serializers.ModelSerializer):
         decimal_places=2,
         max_value=Decimal("999999.99"),
     )
+    duration_minutes = serializers.IntegerField(
+        min_value=0,
+        max_value=100000,
+        required=False,
+        default=0,
+    )
     printer_name = serializers.CharField(
         source="printer.name",
         read_only=True,
@@ -34,6 +40,7 @@ class ManualPrintLogSerializer(serializers.ModelSerializer):
             "printer_id",
             "filament_spool_id",
             "grams_used",
+            "duration_minutes",
             "title",
             "note",
             "created_at",

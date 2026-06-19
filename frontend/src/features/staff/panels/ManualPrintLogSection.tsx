@@ -15,6 +15,7 @@ type ManualPrintLog = {
   printer_name: string | null;
   spool_label: string | null;
   grams_used: string;
+  duration_minutes: number;
   logged_by_username: string | null;
   created_at: string;
 };
@@ -35,6 +36,7 @@ export function ManualPrintLogSection({
   const [printerId, setPrinterId] = useState("");
   const [spoolId, setSpoolId] = useState("");
   const [gramsUsed, setGramsUsed] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState("");
   const [note, setNote] = useState("");
   const logs = useStaffGet<ManualLogsResponse>(
     ["manual-print-logs", makerspace.id],
@@ -65,6 +67,7 @@ export function ManualPrintLogSection({
           printer_id: Number(printerId),
           filament_spool_id: Number(spoolId),
           grams_used: gramsUsed,
+          duration_minutes: Number(durationMinutes) || 0,
           title: title.trim(),
           note: note.trim(),
         }),
@@ -74,6 +77,7 @@ export function ManualPrintLogSection({
       setPrinterId("");
       setSpoolId("");
       setGramsUsed("");
+      setDurationMinutes("");
       setNote("");
       queryClient.invalidateQueries({ queryKey: ["print-spools", makerspace.id] });
       // The deduction also feeds printer cards (active spool remaining), so refresh them too.
@@ -92,7 +96,7 @@ export function ManualPrintLogSection({
           if (canSubmit) createLog.mutate();
         }}
       >
-        <div className="grid gap-2 md:grid-cols-[1.2fr_1fr_1fr_auto]">
+        <div className="grid gap-2 md:grid-cols-[1.2fr_1fr_1fr_auto_auto]">
           <input
             className="desk-input"
             placeholder="Print title"
@@ -134,6 +138,15 @@ export function ManualPrintLogSection({
             value={gramsUsed}
             onChange={(event) => setGramsUsed(event.target.value)}
           />
+          <input
+            className="desk-input"
+            placeholder="Print time (min)"
+            type="number"
+            min="0"
+            step="1"
+            value={durationMinutes}
+            onChange={(event) => setDurationMinutes(event.target.value)}
+          />
         </div>
         <textarea
           className="desk-input min-h-20"
@@ -155,7 +168,10 @@ export function ManualPrintLogSection({
           <article key={log.id} className="rounded-md border border-line bg-surface px-3 py-2 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <strong className="text-ink">{log.title}</strong>
-              <span className="text-muted">{Number(log.grams_used).toFixed(2)}g</span>
+              <span className="text-muted">
+                {Number(log.grams_used).toFixed(2)}g
+                {log.duration_minutes ? ` · ${log.duration_minutes} min` : ""}
+              </span>
             </div>
             <p className="mt-1 text-xs text-muted">
               {[log.printer_name, log.spool_label].filter(Boolean).join(" - ") || "No printer"}

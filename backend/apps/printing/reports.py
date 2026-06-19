@@ -39,7 +39,9 @@ def build_printing_report(makerspace_id=None, *, include_makerspace=False):
 
     return {
         "totals": _totals(requests),
-        "printer_hours": _printer_hours(requests, include_makerspace),
+        # Printer hours combine completed-request estimated minutes AND manual-log
+        # durations so ad-hoc prints logged manually are not missing from the hours.
+        "printer_hours": _printer_hours(requests, include_makerspace, manual_logs),
         # Per-printer activity axis: completed request grams are estimate-based
         # because workflow.complete reconciles filament_grams_used from
         # estimated_filament_grams. ManualPrintLog grams are added here as
@@ -77,7 +79,7 @@ def _totals(requests):
     return totals
 
 
-def _printer_hours(requests, include_makerspace):
+def _printer_hours(requests, include_makerspace, manual_logs=None):
     completed = requests.filter(
         status__in=COMPLETED_STATUSES,
         printer__isnull=False,
@@ -96,16 +98,48 @@ def _printer_hours(requests, include_makerspace):
     )
 
     data = []
+    by_printer = {}
     for row in rows:
         item = {
             "printer_id": row["printer_id"],
             "printer_name": row["printer__name"],
             "completed_requests": row["completed_requests"],
-            "hours": round((row["minutes"] or 0) / 60, 1),
+            # Track raw minutes so manual durations can be added before rounding.
+            "_minutes": row["minutes"] or 0,
         }
         if include_makerspace:
             item["makerspace_id"] = row["printer__makerspace_id"]
         data.append(item)
+        by_printer[row["printer_id"]] = item
+
+    # Add manual-log durations as printer activity (a manual print still ran on the
+    # machine). Printers with only manual logs and no completed requests get a row.
+    if manual_logs is not None:
+        manual_rows = (
+            manual_logs.filter(printer__isnull=False)
+            .values(*values)
+            .annotate(manual_minutes=Sum("duration_minutes"))
+            .order_by("printer__makerspace_id", "printer__name", "printer_id")
+        )
+        for row in manual_rows:
+            printer_id = row["printer_id"]
+            manual_minutes = row["manual_minutes"] or 0
+            if printer_id in by_printer:
+                by_printer[printer_id]["_minutes"] += manual_minutes
+                continue
+            item = {
+                "printer_id": printer_id,
+                "printer_name": row["printer__name"],
+                "completed_requests": 0,
+                "_minutes": manual_minutes,
+            }
+            if include_makerspace:
+                item["makerspace_id"] = row["printer__makerspace_id"]
+            data.append(item)
+            by_printer[printer_id] = item
+
+    for item in data:
+        item["hours"] = round(item.pop("_minutes") / 60, 1)
     return data
 
 

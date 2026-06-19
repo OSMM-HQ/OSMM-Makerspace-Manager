@@ -129,6 +129,9 @@ class ManualPrintLog(models.Model):
         related_name="manual_print_logs",
     )
     grams_used = models.DecimalField(max_digits=8, decimal_places=2)
+    # Print run time so manual logs contribute to per-printer hours in reports
+    # (0 = unknown/not entered, excluded from hour totals).
+    duration_minutes = models.PositiveIntegerField(default=0)
     title = models.CharField(max_length=200)
     note = models.TextField(blank=True)
     logged_by = models.ForeignKey(
