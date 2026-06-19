@@ -163,6 +163,15 @@ previously stored tokens/passwords can no longer be decrypted.
 | `AXES_FAILURE_LIMIT` | no (default 5) | Failed admin logins before lockout |
 | `HTTP_PORT` | no (default 80) | Published frontend port |
 | `EMAIL_*`, `DEFAULT_FROM_EMAIL` | no | Global fallback SMTP (per-makerspace SMTP overrides it) |
+| `MANAGED_POSTGRES` | no (default `False`) | `True` on managed Postgres (Supabase): purge suspends immutability triggers via a custom GUC instead of `session_replication_role` (which needs superuser) |
+| `CONN_MAX_AGE` | no (default `0`) | Persistent DB connection lifetime; keep `0` on the Supabase transaction pooler |
+| `DISABLE_SERVER_SIDE_CURSORS` | no (default `False`) | Set `True` on the Supabase transaction pooler (no server-side cursors) |
+| `STORAGE_PRESIGN_METHOD` | no (default `post`) | `put` for Supabase Storage presigned PUT uploads (server re-validates size at attach) |
+| `CRON_SECRET` | no (default empty) | Enables `POST /api/v1/internal/cron/return-reminders` (header `X-Cron-Secret`); 404s while unset |
+
+> **Supabase free-tier deployment** (managed Postgres + Storage, env-toggled, demo/pilot scope):
+> see **[supabase-deployment.md](supabase-deployment.md)** for the full runbook. All five vars
+> above default to the self-hosted behavior, so this Compose stack is unaffected unless you set them.
 
 ## Object Storage
 

@@ -168,6 +168,36 @@ DATABASE_URL=postgres://postgres.<project-ref>:<password>@aws-0-<region>.pooler.
 If you later adopt Supabase Auth/Storage, keep `SUPABASE_SERVICE_ROLE_KEY` on the **backend only** —
 never expose it to the frontend.
 
+#### Managed-Postgres mode (env-toggled — full Supabase free-tier setup)
+
+The backend has a **managed mode** for Supabase (Postgres **+** Storage), switched entirely by
+env vars that all default to the self-hosted behavior — so the bundled Docker stack is unchanged
+unless you set them. The full runbook (bucket/CORS, pooler, cron, email, caps, limitations) is in
+**[docs/supabase-deployment.md](docs/supabase-deployment.md)**. The toggles:
+
+| Variable | Default (self-hosted) | Supabase |
+|----------|----------------------|----------|
+| `MANAGED_POSTGRES` | `False` | `True` |
+| `STORAGE_PRESIGN_METHOD` | `post` (MinIO/S3) | `put` (Supabase Storage) |
+| `CONN_MAX_AGE` | `0` | `0` on the transaction pooler |
+| `DISABLE_SERVER_SIDE_CURSORS` | `False` | `True` on the transaction pooler |
+| `CRON_SECRET` | `""` (reminder endpoint disabled) | a long random secret |
+
+Two things to know going in: Supabase **can't host Django** (run it on Render / PythonAnywhere /
+similar — Supabase is DB + Storage only), and a 100%-free deployment is realistic as a **demo /
+small pilot**, not dependable production (`docs/performance-and-supabase-report.md`). Run
+`manage.py migrate` against the **direct/session-pooler** URL (the transaction pooler can't run
+the prepared statements migrations need), then point the app at the transaction pooler.
+
+> **Why `MANAGED_POSTGRES`?** Superadmin makerspace **purge** must briefly suspend the
+> append-only/immutability triggers to hard-delete a tenant's graph. Self-hosted Postgres does
+> this with `SET LOCAL session_replication_role='replica'` (needs DB superuser). Supabase never
+> grants superuser, so managed mode instead sets a transaction-scoped custom GUC
+> (`app.allow_immutable_delete`) that those triggers honor **for DELETE only** (UPDATE stays
+> blocked; FK triggers stay enabled and Django deletes the graph in dependency order). Both are
+> transaction-scoped and auto-reset on commit/rollback — a crash mid-purge can never leave the
+> immutability triggers durably disabled.
+
 ---
 
 ## Development
@@ -232,6 +262,12 @@ cd backend && pytest
   publishable keys + `/api/v1/bootstrap`, never HMAC secrets.
 - **Security hardening** — django-axes admin-login lockout, login + public-submit throttles,
   honeypot, and TLS headers (`ENABLE_HTTPS`). A `pip-audit` CI job guards dependencies.
+- **Managed-Postgres / Supabase mode** — `MANAGED_POSTGRES`, `STORAGE_PRESIGN_METHOD`,
+  `CONN_MAX_AGE`, `DISABLE_SERVER_SIDE_CURSORS`, `CRON_SECRET` (all default to self-hosted
+  behavior). See [docs/supabase-deployment.md](docs/supabase-deployment.md).
+- **Scheduled return reminders** — run `manage.py send_return_reminders` from cron, or (when you
+  can't schedule a command, e.g. on Supabase) `POST /api/v1/internal/cron/return-reminders` with
+  an `X-Cron-Secret` header; the endpoint 404s until `CRON_SECRET` is set.
 
 See [docs/self-hosting.md](docs/self-hosting.md) for the full environment reference.
 
