@@ -331,6 +331,11 @@ function invalidateRequestQueues(
   if (scope.inventory) {
     queryClient.invalidateQueries({ queryKey: ["inventory", makerspaceId] });
     queryClient.invalidateQueries({ queryKey: ["inventory-all", makerspaceId] });
+    // Report metrics (summary, most-lent, top-borrowers, damaged-lost) derive from
+    // request + inventory quantities, so refresh them too. Prefix-invalidating
+    // ["operations-report"] covers every scopeKey (per-makerspace and the superadmin
+    // "all" aggregate); it also touches the printing report, a negligible over-refetch.
+    queryClient.invalidateQueries({ queryKey: ["operations-report"] });
   }
   if (scope.needsFix) {
     queryClient.invalidateQueries({ queryKey: ["needs-fix-shelf", makerspaceId] });
