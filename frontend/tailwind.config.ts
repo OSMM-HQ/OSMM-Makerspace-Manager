@@ -20,6 +20,7 @@ export default {
         success: "rgb(var(--color-success) / <alpha-value>)",
         danger: "rgb(var(--color-danger) / <alpha-value>)",
         warn: "rgb(var(--color-warn) / <alpha-value>)",
+        info: "rgb(var(--color-info) / <alpha-value>)",
       },
       fontFamily: {
         // Headings — Clash Display (self-hosted). `display` is the explicit utility;
