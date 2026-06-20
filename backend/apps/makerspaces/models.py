@@ -93,6 +93,7 @@ class Makerspace(models.Model):
     )
     location = models.CharField(max_length=200, blank=True)
     public_inventory_enabled = models.BooleanField(default=True)
+    public_stats_enabled = models.BooleanField(default=False)
     superadmin_access_enabled = models.BooleanField(default=True)
     staff_notifications_enabled = models.BooleanField(default=True)
     logo_key = models.CharField(max_length=300, blank=True, default="")

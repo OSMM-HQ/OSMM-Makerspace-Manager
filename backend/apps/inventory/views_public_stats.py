@@ -34,9 +34,13 @@ class PublicMakerspaceStatsView(APIView):
 
     def get(self, request, makerspace_slug):
         makerspace = get_public_makerspace(makerspace_slug)
-        if not makerspace.public_inventory_enabled or not module_enabled(
-            makerspace,
-            "public_inventory",
+        if (
+            not makerspace.public_inventory_enabled
+            or not makerspace.public_stats_enabled
+            or not module_enabled(
+                makerspace,
+                "public_inventory",
+            )
         ):
             raise Http404
 

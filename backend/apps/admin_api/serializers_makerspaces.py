@@ -47,6 +47,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "slug",
             "location",
             "public_inventory_enabled",
+            "public_stats_enabled",
             "superadmin_access_enabled",
             "staff_notifications_enabled",
             "logo_key",

@@ -65,7 +65,7 @@ export function PublicStatsPage() {
       <section className="mx-auto max-w-screen-2xl space-y-5 px-5 py-6 sm:px-8">
         {statsQuery.isLoading ? <LoadingState /> : null}
 
-        {statsQuery.isError ? <ErrorState error={statsQuery.error} /> : null}
+        {statsQuery.isError ? <ErrorState /> : null}
 
         {statsQuery.data && isEmptyStats(statsQuery.data) ? <EmptyState /> : null}
 
@@ -91,12 +91,12 @@ function LoadingState() {
   );
 }
 
-function ErrorState({ error }: { error: Error }) {
+function ErrorState() {
   return (
     <Card className="mx-auto max-w-lg text-center">
-      <h1 className="text-xl font-semibold text-ink">{error.message}</h1>
+      <h1 className="text-xl font-semibold text-ink">Stats not available</h1>
       <p className="mt-2 text-sm leading-6 text-muted">
-        This makerspace may not exist or its public inventory is disabled.
+        This makerspace has its public stats page turned off, or it may not exist.
       </p>
     </Card>
   );

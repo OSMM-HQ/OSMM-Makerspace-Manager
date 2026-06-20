@@ -13,10 +13,10 @@ from apps.accounts.models import User
 from apps.boxes.models import Box, QrCode
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
 from apps.hardware_requests.self_checkout_models import PublicToolLoan
-from apps.inventory.models import InventoryAsset, InventoryProduct
+from apps.inventory.models import InventoryAsset, InventoryProduct, PublicAvailabilityMode
 from apps.inventory.public_stats import build_public_stats, public_display_name
 from apps.inventory.views_public_stats import PublicMakerspaceStatsView
-from apps.makerspaces.models import Makerspace
+from apps.makerspaces.models import Makerspace, MakerspaceMembership
 from apps.printing.models import (
     FilamentSpool,
     ManualPrintLog,
@@ -78,6 +78,7 @@ def make_space(slug="public-stats", *, printing=False):
         name=slug,
         slug=slug,
         public_inventory_enabled=True,
+        public_stats_enabled=True,
         enabled_modules=modules,
     )
 
@@ -99,6 +100,8 @@ def make_product(makerspace, name, **overrides):
         "is_archived": False,
         "total_quantity": 5,
         "available_quantity": 5,
+        "show_public_count": True,
+        "public_availability_mode": PublicAvailabilityMode.EXACT_COUNT,
     }
     defaults.update(overrides)
     return InventoryProduct.objects.create(**defaults)
@@ -394,6 +397,56 @@ def test_non_public_products_are_excluded_from_hardware_stats_and_current_loans(
     assert [row["item_name"] for row in stats["current_loans"]] == ["Public Drill"]
 
 
+def test_public_stats_exact_count_tiles_exclude_hidden_and_status_only_products():
+    makerspace = make_space("stats-count-visibility")
+    make_product(
+        makerspace,
+        "Exact Counter",
+        available_quantity=2,
+        issued_quantity=1,
+        public_availability_mode=PublicAvailabilityMode.EXACT_COUNT,
+        show_public_count=True,
+    )
+    make_product(
+        makerspace,
+        "Status Only",
+        total_quantity=10,
+        available_quantity=6,
+        issued_quantity=4,
+        public_availability_mode=PublicAvailabilityMode.STATUS_ONLY,
+        show_public_count=True,
+    )
+    make_product(
+        makerspace,
+        "Hidden Count",
+        total_quantity=10,
+        available_quantity=8,
+        issued_quantity=2,
+        public_availability_mode=PublicAvailabilityMode.HIDDEN,
+        show_public_count=True,
+    )
+    make_product(
+        makerspace,
+        "Exact Mode Without Count",
+        total_quantity=12,
+        available_quantity=9,
+        issued_quantity=3,
+        public_availability_mode=PublicAvailabilityMode.EXACT_COUNT,
+        show_public_count=False,
+    )
+
+    stats = build_public_stats(makerspace)
+
+    assert stats["hardware"]["tools_out"] == [
+        {"name": "Exact Counter", "quantity_out": 1}
+    ]
+    assert stats["hardware"]["library"] == {
+        "currently_out_count": 1,
+        "library_size": 4,
+        "available_count": 2,
+    }
+
+
 def test_printing_hours_this_month_uses_activity_dates_not_request_creation():
     makerspace = make_space("stats-printing-month", printing=True)
     bucket = PrintBucket.objects.create(makerspace=makerspace, name="PLA")
@@ -544,6 +597,17 @@ def test_public_stats_endpoint_returns_200_with_full_schema(monkeypatch):
     assert response.data["current_loans"][0]["holder_name"] == "Endpoint Holder"
 
 
+def test_public_stats_endpoint_returns_404_when_stats_toggle_is_disabled():
+    client = APIClient()
+    makerspace = make_space("stats-toggle-off")
+    makerspace.public_stats_enabled = False
+    makerspace.save(update_fields=["public_stats_enabled"])
+
+    response = client.get(public_stats_url(makerspace))
+
+    assert response.status_code == 404
+
+
 def test_public_stats_returns_404_for_archived_unknown_and_disabled_makerspaces():
     client = APIClient()
     archived = make_space("stats-archived")
@@ -555,11 +619,46 @@ def test_public_stats_returns_404_for_archived_unknown_and_disabled_makerspaces(
     module_off = make_space("stats-module-off")
     module_off.enabled_modules = []
     module_off.save(update_fields=["enabled_modules"])
+    stats_off = make_space("stats-feature-off")
+    stats_off.public_stats_enabled = False
+    stats_off.save(update_fields=["public_stats_enabled"])
 
     assert client.get(public_stats_url(archived)).status_code == 404
     assert client.get(public_stats_url("missing-stats-space")).status_code == 404
     assert client.get(public_stats_url(disabled)).status_code == 404
     assert client.get(public_stats_url(module_off)).status_code == 404
+    assert client.get(public_stats_url(stats_off)).status_code == 404
+
+
+def test_public_stats_toggle_round_trips_through_admin_serializer_and_bootstrap():
+    makerspace = make_space("stats-toggle-roundtrip")
+    makerspace.public_stats_enabled = False
+    makerspace.save(update_fields=["public_stats_enabled"])
+    manager = make_user(
+        "stats-toggle-manager",
+        role=User.Role.SPACE_MANAGER,
+    )
+    MakerspaceMembership.objects.create(
+        makerspace=makerspace,
+        user=manager,
+        role=MakerspaceMembership.Role.SPACE_MANAGER,
+    )
+    client = APIClient()
+    client.force_authenticate(manager)
+
+    response = client.patch(
+        f"/api/v1/admin/makerspaces/{makerspace.id}",
+        {"public_stats_enabled": True},
+        format="json",
+    )
+    bootstrap_response = APIClient().get(f"/api/v1/bootstrap?slug={makerspace.slug}")
+
+    assert response.status_code == 200
+    assert response.data["public_stats_enabled"] is True
+    makerspace.refresh_from_db()
+    assert makerspace.public_stats_enabled is True
+    assert bootstrap_response.status_code == 200
+    assert bootstrap_response.data["makerspace"]["public_stats_enabled"] is True
 
 
 def test_public_stats_response_has_no_leaky_values_or_forbidden_keys():

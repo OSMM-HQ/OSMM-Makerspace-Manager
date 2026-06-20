@@ -24,6 +24,8 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
     settings.data?.superadmin_access_enabled ?? makerspace.superadmin_access_enabled ?? true;
   const staffNotificationsEnabled =
     settings.data?.staff_notifications_enabled ?? makerspace.staff_notifications_enabled ?? true;
+  const publicStatsEnabled =
+    settings.data?.public_stats_enabled ?? makerspace.public_stats_enabled ?? false;
   const reEnableBlocked = isSuperadmin && !superadminAccessEnabled;
 
   const updateAccess = useMutation({
@@ -44,6 +46,19 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
       staffRequest<Makerspace>(`/admin/makerspaces/${makerspace.id}`, {
         method: "PATCH",
         body: JSON.stringify({ staff_notifications_enabled: next }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["makerspace-settings", makerspace.id] });
+      queryClient.invalidateQueries({ queryKey: ["makerspaces"] });
+      queryClient.invalidateQueries({ queryKey: ["staff", "makerspaces"] });
+    },
+  });
+
+  const updatePublicStats = useMutation({
+    mutationFn: (next: boolean) =>
+      staffRequest<Makerspace>(`/admin/makerspaces/${makerspace.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ public_stats_enabled: next }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["makerspace-settings", makerspace.id] });
@@ -189,6 +204,36 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
                 onChange={(event) => updateStaffNotifications.mutate(event.target.checked)}
               />
               <span className="font-semibold">Send staff emails</span>
+            </label>
+          </div>
+        </div>
+        <div className="rounded-md border border-line bg-bg p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="grid max-w-2xl gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-base font-semibold text-ink">Public stats page</h3>
+                <Badge tone={publicStatsEnabled ? "success" : "neutral"}>
+                  {publicStatsEnabled ? "On" : "Off"}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted">
+                Publish a public activity page (print hours, popular hardware, who currently has tools
+                out by name) at <code>/m/{makerspace.slug}/stats</code>. When off, the page and its API
+                return 404 and the link is hidden.
+              </p>
+              {updatePublicStats.error ? (
+                <p className="text-sm text-danger">{updatePublicStats.error.message}</p>
+              ) : null}
+            </div>
+            <label className="flex items-start gap-3 text-sm text-ink">
+              <input
+                className="mt-1 h-4 w-4"
+                type="checkbox"
+                checked={publicStatsEnabled}
+                disabled={updatePublicStats.isPending}
+                onChange={(event) => updatePublicStats.mutate(event.target.checked)}
+              />
+              <span className="font-semibold">Publish public stats</span>
             </label>
           </div>
         </div>

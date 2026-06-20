@@ -5,7 +5,7 @@ from django.utils import timezone
 
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
 from apps.hardware_requests.self_checkout_models import PublicToolLoan
-from apps.inventory.models import InventoryProduct
+from apps.inventory.models import InventoryProduct, PublicAvailabilityMode
 from apps.makerspaces.platform import module_enabled
 from apps.printing.models import ManualPrintLog, PrintRequest
 from apps.printing.reports import build_printing_report
@@ -122,13 +122,16 @@ def _printing_hours_this_month(makerspace_id):
 
 def _hardware_stats(makerspace):
     products = _public_products(makerspace)
+    exact_count_products = _public_exact_count_products(products)
     return {
         "most_popular": _most_popular(makerspace),
         "tools_out": [
             {"name": product.name, "quantity_out": product.issued_quantity}
-            for product in products.filter(issued_quantity__gt=0).order_by("name", "id")
+            for product in exact_count_products.filter(issued_quantity__gt=0).order_by(
+                "name", "id"
+            )
         ],
-        "library": _library_counts(products),
+        "library": _library_counts(products, exact_count_products),
         "recently_added": _recently_added(products),
     }
 
@@ -158,8 +161,8 @@ def _most_popular(makerspace):
     ]
 
 
-def _library_counts(products):
-    totals = products.aggregate(
+def _library_counts(products, exact_count_products):
+    totals = exact_count_products.aggregate(
         currently_out_count=Sum("issued_quantity"),
         available_count=Sum("available_quantity"),
     )
@@ -228,6 +231,13 @@ def _public_products(makerspace):
         makerspace=makerspace,
         is_public=True,
         is_archived=False,
+    )
+
+
+def _public_exact_count_products(products):
+    return products.filter(
+        public_availability_mode=PublicAvailabilityMode.EXACT_COUNT,
+        show_public_count=True,
     )
 
 

@@ -13,6 +13,7 @@ export type Makerspace = {
   hidden_from_central_directory: boolean;
   superadmin_access_enabled?: boolean;
   staff_notifications_enabled?: boolean;
+  public_stats_enabled?: boolean;
   logo_url?: string | null;
   cover_image_url?: string | null;
 };
