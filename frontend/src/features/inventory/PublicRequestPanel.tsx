@@ -82,10 +82,11 @@ export function PublicRequestPanel({
   }
 
   function tabClass(tab: ActiveTab) {
-    // Tabs reuse the brutalist status-box rectangle (matches the status steppers):
-    // filled accent when active, bordered panel box otherwise.
+    // Tabs use the brutalist status-box rectangle but filled with the brand ACCENT
+    // (red), not the blue "in-progress" status colour — a selected tab is navigation,
+    // not a request status.
     return activeTab === tab
-      ? "status-box status-box-active w-full py-2"
+      ? "status-box border-ink bg-accent text-on-accent shadow-brutal-sm w-full py-2"
       : "status-box w-full py-2 hover:bg-surface hover:text-ink";
   }
 
