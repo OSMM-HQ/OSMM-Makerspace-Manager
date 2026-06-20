@@ -1,20 +1,73 @@
 from datetime import timedelta
 from decimal import Decimal
+import json
+import re
 from types import SimpleNamespace
 
 import pytest
+from django.urls import reverse
 from django.utils import timezone
+from rest_framework.test import APIClient
 
 from apps.accounts.models import User
+from apps.boxes.models import Box, QrCode
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
 from apps.hardware_requests.self_checkout_models import PublicToolLoan
-from apps.inventory.models import InventoryProduct
+from apps.inventory.models import InventoryAsset, InventoryProduct
 from apps.inventory.public_stats import build_public_stats, public_display_name
+from apps.inventory.views_public_stats import PublicMakerspaceStatsView
 from apps.makerspaces.models import Makerspace
-from apps.printing.models import ManualPrintLog, PrintBucket, PrintPrinter, PrintRequest
+from apps.printing.models import (
+    FilamentSpool,
+    ManualPrintLog,
+    PrintBucket,
+    PrintPrinter,
+    PrintRequest,
+)
 
 
 pytestmark = pytest.mark.django_db
+
+DATE_VALUE_KEYS = {"period", "due", "since", "created_at"}
+PHONE_SHAPED_RE = re.compile(r"\d{7,}")
+FORBIDDEN_RESPONSE_KEYS = {
+    "email",
+    "phone",
+    "contact_email",
+    "contact_phone",
+    "printer_id",
+    "spool_id",
+    "product_id",
+    "request_id",
+    "makerspace_id",
+    "reference_id",
+    "asset_tag",
+    "serial_number",
+    "units",
+    "target_label",
+    "remaining_grams",
+    "price",
+    "payment_status",
+    "paid_at",
+    "damaged_quantity",
+    "missing_quantity",
+    "assets",
+    "location",
+    "storage_location",
+    "box",
+    "qr",
+    "scan",
+    "evidence",
+}
+FORBIDDEN_RESPONSE_KEY_PREFIXES = (
+    "payment",
+    "damaged",
+    "missing",
+    "box",
+    "qr",
+    "scan",
+    "evidence",
+)
 
 
 def make_space(slug="public-stats", *, printing=False):
@@ -49,6 +102,11 @@ def make_product(makerspace, name, **overrides):
     }
     defaults.update(overrides)
     return InventoryProduct.objects.create(**defaults)
+
+
+def public_stats_url(makerspace_or_slug):
+    slug = getattr(makerspace_or_slug, "slug", makerspace_or_slug)
+    return reverse("v1:public-makerspace-stats", kwargs={"makerspace_slug": slug})
 
 
 def make_request_item(
@@ -99,6 +157,97 @@ def make_public_tool_loan(makerspace, request, requester, *, source):
     loan.checked_out_at = timezone.now() - timedelta(hours=4)
     loan.save(update_fields=["checked_out_at"])
     return loan
+
+
+def assert_public_stats_schema(payload):
+    assert set(payload) == {"printing", "hardware", "current_loans"}
+    if payload["printing"] is not None:
+        assert set(payload["printing"]) == {
+            "hours_all_time",
+            "hours_this_month",
+            "busiest_printer",
+            "grams_all_time",
+            "by_brand",
+            "jobs",
+            "filament_trend",
+        }
+        if payload["printing"]["busiest_printer"] is not None:
+            assert set(payload["printing"]["busiest_printer"]) == {
+                "name",
+                "hours",
+                "completed",
+            }
+        assert all(set(row) == {"brand", "grams"} for row in payload["printing"]["by_brand"])
+        assert set(payload["printing"]["jobs"]) == {"completed", "status_counts", "queue"}
+        assert set(payload["printing"]["jobs"]["status_counts"]) == {
+            "pending",
+            "printing",
+            "completed",
+            "collected",
+            "failed",
+            "rejected",
+        }
+        assert set(payload["printing"]["jobs"]["queue"]) == {"pending", "printing"}
+        assert all(
+            set(row) == {"period", "grams"}
+            for row in payload["printing"]["filament_trend"]
+        )
+    assert set(payload["hardware"]) == {
+        "most_popular",
+        "tools_out",
+        "library",
+        "recently_added",
+    }
+    assert all(
+        set(row) == {"name", "times_lent", "total_quantity_lent"}
+        for row in payload["hardware"]["most_popular"]
+    )
+    assert all(
+        set(row) == {"name", "quantity_out"}
+        for row in payload["hardware"]["tools_out"]
+    )
+    assert set(payload["hardware"]["library"]) == {
+        "currently_out_count",
+        "library_size",
+        "available_count",
+    }
+    assert all(
+        set(row) == {"name", "created_at"}
+        for row in payload["hardware"]["recently_added"]
+    )
+    assert all(set(row) == {"item_name", "holder_name", "due", "since"} for row in payload["current_loans"])
+
+
+def assert_no_public_stats_value_leaks(value, parent_key=""):
+    if isinstance(value, dict):
+        for key, child in value.items():
+            assert_no_public_stats_value_leaks(child, key)
+        return
+    if isinstance(value, list):
+        for child in value:
+            assert_no_public_stats_value_leaks(child, parent_key)
+        return
+    if not isinstance(value, str):
+        return
+
+    assert "@" not in value
+    assert "checkin_" not in value.lower()
+    if parent_key not in DATE_VALUE_KEYS:
+        assert not PHONE_SHAPED_RE.search(value)
+
+
+def assert_no_forbidden_public_stats_keys(value):
+    if isinstance(value, dict):
+        for key, child in value.items():
+            normalized = key.lower()
+            assert normalized not in FORBIDDEN_RESPONSE_KEYS
+            assert not normalized.endswith("_id")
+            assert not normalized.startswith(FORBIDDEN_RESPONSE_KEY_PREFIXES)
+            assert_no_forbidden_public_stats_keys(child)
+        return
+    if isinstance(value, list):
+        for child in value:
+            assert_no_forbidden_public_stats_keys(child)
 
 
 def test_build_public_stats_returns_exact_schema(monkeypatch):
@@ -334,3 +483,239 @@ def test_self_checkout_and_direct_handout_borrowers_appear_in_current_loans():
         "Thermal Camera": "Direct Borrower",
     }
     assert all(set(row) == {"item_name", "holder_name", "due", "since"} for row in rows)
+
+
+def test_public_stats_endpoint_returns_200_with_full_schema(monkeypatch):
+    client = APIClient()
+    makerspace = make_space("stats-endpoint", printing=True)
+    product = make_product(
+        makerspace,
+        "Public Drill",
+        total_quantity=5,
+        available_quantity=3,
+        issued_quantity=2,
+    )
+    make_request_item(makerspace, product, "endpoint-holder", display_name="Endpoint Holder")
+
+    def fake_report(makerspace_id):
+        assert makerspace_id == makerspace.id
+        return {
+            "totals": {
+                "pending": 1,
+                "printing": 1,
+                "completed": 2,
+                "collected": 1,
+                "failed": 0,
+                "rejected": 0,
+            },
+            "printer_hours": [
+                {
+                    "printer_id": 42,
+                    "printer_name": "Voron",
+                    "hours": 4.25,
+                    "completed_requests": 2,
+                }
+            ],
+            "total_grams_used": 200,
+            "filament_by_brand": [{"brand": "Overture", "grams_used": 200}],
+            "filament_estimated_by_period": {
+                "by_month": [{"period": "2026-06", "grams": 200}]
+            },
+            "top_requesters": [{"requester": "hidden@example.com"}],
+            "payments": {"paid_amount": "100.00"},
+        }
+
+    monkeypatch.setattr("apps.inventory.public_stats.build_printing_report", fake_report)
+
+    response = client.get(public_stats_url(makerspace))
+
+    assert response.status_code == 200
+    assert_public_stats_schema(response.data)
+    assert response.data["printing"]["busiest_printer"] == {
+        "name": "Voron",
+        "hours": 4.25,
+        "completed": 2,
+    }
+    assert response.data["hardware"]["library"] == {
+        "currently_out_count": 2,
+        "library_size": 1,
+        "available_count": 3,
+    }
+    assert response.data["current_loans"][0]["holder_name"] == "Endpoint Holder"
+
+
+def test_public_stats_returns_404_for_archived_unknown_and_disabled_makerspaces():
+    client = APIClient()
+    archived = make_space("stats-archived")
+    archived.archived_at = timezone.now()
+    archived.save(update_fields=["archived_at"])
+    disabled = make_space("stats-disabled")
+    disabled.public_inventory_enabled = False
+    disabled.save(update_fields=["public_inventory_enabled"])
+    module_off = make_space("stats-module-off")
+    module_off.enabled_modules = []
+    module_off.save(update_fields=["enabled_modules"])
+
+    assert client.get(public_stats_url(archived)).status_code == 404
+    assert client.get(public_stats_url("missing-stats-space")).status_code == 404
+    assert client.get(public_stats_url(disabled)).status_code == 404
+    assert client.get(public_stats_url(module_off)).status_code == 404
+
+
+def test_public_stats_response_has_no_leaky_values_or_forbidden_keys():
+    client = APIClient()
+    makerspace = make_space("stats-no-leaks", printing=True)
+    product = make_product(
+        makerspace,
+        "Thermal Camera",
+        total_quantity=3,
+        available_quantity=2,
+        issued_quantity=1,
+    )
+    unsafe_user = make_user("checkin_" + "a" * 16, email="unsafe@example.com")
+    make_request_item(
+        makerspace,
+        product,
+        "checkin-user",
+        display_name="leaky@example.com",
+        requester=unsafe_user,
+    )
+    bucket = PrintBucket.objects.create(makerspace=makerspace, name="PLA")
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="MK4")
+    PrintRequest.objects.create(
+        bucket=bucket,
+        requester=unsafe_user,
+        title="Private print",
+        status=PrintRequest.Status.COMPLETED,
+        printer=printer,
+        estimated_minutes=30,
+        estimated_filament_grams=Decimal("12.50"),
+        completed_at=timezone.now(),
+    )
+
+    response = client.get(public_stats_url(makerspace))
+
+    assert response.status_code == 200
+    assert_no_public_stats_value_leaks(response.data)
+    assert_no_forbidden_public_stats_keys(response.data)
+
+
+def test_public_stats_seeded_sentinels_never_appear_in_response_body():
+    client = APIClient()
+    makerspace = make_space("stats-sentinels", printing=True)
+    sentinels = [
+        "SENTINELEMAIL@x.com",
+        "SENTINELPHONE5551234",
+        "SENTINELSTORAGE",
+        "SENTINELASSETTAG",
+        "SENTINELSERIAL",
+        "SENTINELBOX",
+        "SENTINELQR",
+        "SENTINELPRINTERNOTE",
+        "SENTINELSPOOLLOT",
+        "SENTINELMANUALNOTE",
+    ]
+    box = Box.objects.create(
+        makerspace=makerspace,
+        label="SENTINELBOX",
+        location="SENTINELSTORAGE",
+    )
+    product = make_product(
+        makerspace,
+        "Safe Public Tool",
+        box=box,
+        storage_location="SENTINELSTORAGE",
+        total_quantity=4,
+        available_quantity=3,
+        issued_quantity=1,
+    )
+    InventoryAsset.objects.create(
+        makerspace=makerspace,
+        product=product,
+        box=box,
+        asset_tag="SENTINELASSETTAG",
+        serial_number="SENTINELSERIAL",
+    )
+    QrCode.objects.create(
+        makerspace=makerspace,
+        payload="SENTINELQR",
+        target_type=QrCode.TargetType.PRODUCT,
+        target_id=product.id,
+    )
+    requester = make_user(
+        "SENTINELEMAIL@x.com",
+        email="SENTINELEMAIL@x.com",
+        first_name="",
+        last_name="",
+    )
+    make_request_item(
+        makerspace,
+        product,
+        "SENTINELEMAIL@x.com",
+        display_name="SENTINELPHONE5551234",
+        requester=requester,
+    )
+    bucket = PrintBucket.objects.create(makerspace=makerspace, name="Safe Bucket")
+    printer = PrintPrinter.objects.create(
+        makerspace=makerspace,
+        name="Safe Printer",
+        notes="SENTINELPRINTERNOTE",
+    )
+    spool = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        printer=printer,
+        material="PLA",
+        brand="Safe Brand",
+        lot_code="SENTINELSPOOLLOT",
+        initial_weight_grams=Decimal("1000.00"),
+        remaining_weight_grams=Decimal("900.00"),
+    )
+    PrintRequest.objects.create(
+        bucket=bucket,
+        requester=requester,
+        title="Safe Print",
+        status=PrintRequest.Status.COMPLETED,
+        printer=printer,
+        filament_spool=spool,
+        estimated_minutes=60,
+        estimated_filament_grams=Decimal("25.00"),
+        filament_grams_used=Decimal("25.00"),
+        price=Decimal("12.34"),
+        payment_status=PrintRequest.PaymentStatus.PAID,
+        paid_at=timezone.now(),
+        completed_at=timezone.now(),
+        contact_email="SENTINELEMAIL@x.com",
+        contact_phone="SENTINELPHONE5551234",
+    )
+    ManualPrintLog.objects.create(
+        makerspace=makerspace,
+        printer=printer,
+        filament_spool=spool,
+        grams_used=Decimal("10.00"),
+        duration_minutes=15,
+        title="Safe Manual Log",
+        note="SENTINELMANUALNOTE",
+        logged_by=requester,
+    )
+
+    response = client.get(public_stats_url(makerspace))
+
+    assert response.status_code == 200
+    body = response.content.decode()
+    for sentinel in sentinels:
+        assert sentinel not in body
+    assert_no_public_stats_value_leaks(json.loads(body))
+    assert_no_forbidden_public_stats_keys(response.data)
+
+
+def test_public_stats_view_uses_public_stats_throttle_scope():
+    assert PublicMakerspaceStatsView.throttle_scope == "public_stats"
+
+
+def test_openapi_schema_includes_public_stats_path():
+    client = APIClient()
+    response = client.get(reverse("schema"))
+
+    assert response.status_code == 200
+    schema_text = response.content.decode()
+    assert "/api/v1/public/{makerspace_slug}/stats/" in schema_text

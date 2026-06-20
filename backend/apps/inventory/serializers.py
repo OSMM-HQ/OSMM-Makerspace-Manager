@@ -78,3 +78,99 @@ class PublicMakerspaceSerializer(serializers.Serializer):
     @extend_schema_field({"type": "string", "format": "uri", "nullable": True})
     def get_cover_image_url(self, makerspace):
         return public_image_storage.public_url(makerspace.cover_image_key) or None
+
+
+class PublicStatsBusiestPrinterSerializer(serializers.Serializer):
+    name = serializers.CharField(read_only=True)
+    hours = serializers.FloatField(read_only=True)
+    completed = serializers.IntegerField(read_only=True)
+
+
+class PublicStatsBrandSerializer(serializers.Serializer):
+    brand = serializers.CharField(read_only=True)
+    grams = serializers.FloatField(read_only=True)
+
+
+class PublicStatsStatusCountsSerializer(serializers.Serializer):
+    pending = serializers.IntegerField(read_only=True)
+    printing = serializers.IntegerField(read_only=True)
+    completed = serializers.IntegerField(read_only=True)
+    collected = serializers.IntegerField(read_only=True)
+    failed = serializers.IntegerField(read_only=True)
+    rejected = serializers.IntegerField(read_only=True)
+
+
+class PublicStatsQueueSerializer(serializers.Serializer):
+    pending = serializers.IntegerField(read_only=True)
+    printing = serializers.IntegerField(read_only=True)
+
+
+class PublicStatsJobsSerializer(serializers.Serializer):
+    completed = serializers.IntegerField(read_only=True)
+    status_counts = PublicStatsStatusCountsSerializer(read_only=True)
+    queue = PublicStatsQueueSerializer(read_only=True)
+
+
+class PublicStatsFilamentTrendSerializer(serializers.Serializer):
+    period = serializers.CharField(read_only=True)
+    grams = serializers.FloatField(read_only=True)
+
+
+class PublicStatsPrintingSerializer(serializers.Serializer):
+    hours_all_time = serializers.FloatField(read_only=True)
+    hours_this_month = serializers.FloatField(read_only=True)
+    busiest_printer = PublicStatsBusiestPrinterSerializer(
+        read_only=True,
+        required=False,
+        allow_null=True,
+    )
+    grams_all_time = serializers.FloatField(read_only=True)
+    by_brand = PublicStatsBrandSerializer(many=True, read_only=True)
+    jobs = PublicStatsJobsSerializer(read_only=True)
+    filament_trend = PublicStatsFilamentTrendSerializer(many=True, read_only=True)
+
+
+class PublicStatsPopularHardwareSerializer(serializers.Serializer):
+    name = serializers.CharField(read_only=True)
+    times_lent = serializers.IntegerField(read_only=True)
+    total_quantity_lent = serializers.IntegerField(read_only=True)
+
+
+class PublicStatsToolsOutSerializer(serializers.Serializer):
+    name = serializers.CharField(read_only=True)
+    quantity_out = serializers.IntegerField(read_only=True)
+
+
+class PublicStatsLibrarySerializer(serializers.Serializer):
+    currently_out_count = serializers.IntegerField(read_only=True)
+    library_size = serializers.IntegerField(read_only=True)
+    available_count = serializers.IntegerField(read_only=True)
+
+
+class PublicStatsRecentlyAddedSerializer(serializers.Serializer):
+    name = serializers.CharField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+
+
+class PublicStatsHardwareSerializer(serializers.Serializer):
+    most_popular = PublicStatsPopularHardwareSerializer(many=True, read_only=True)
+    tools_out = PublicStatsToolsOutSerializer(many=True, read_only=True)
+    library = PublicStatsLibrarySerializer(read_only=True)
+    recently_added = PublicStatsRecentlyAddedSerializer(many=True, read_only=True)
+
+
+class PublicStatsCurrentLoanSerializer(serializers.Serializer):
+    item_name = serializers.CharField(read_only=True)
+    holder_name = serializers.CharField(read_only=True)
+    due = serializers.DateTimeField(read_only=True, allow_null=True)
+    since = serializers.DateTimeField(read_only=True, allow_null=True)
+
+
+class PublicStatsSerializer(serializers.Serializer):
+    printing = PublicStatsPrintingSerializer(
+        read_only=True,
+        required=False,
+        allow_null=True,
+    )
+    hardware = PublicStatsHardwareSerializer(read_only=True)
+    current_loans = PublicStatsCurrentLoanSerializer(many=True, read_only=True)
