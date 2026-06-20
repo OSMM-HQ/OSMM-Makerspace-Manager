@@ -1,0 +1,266 @@
+import re
+
+from django.db.models import Count, F, Sum
+from django.utils import timezone
+
+from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
+from apps.hardware_requests.self_checkout_models import PublicToolLoan
+from apps.inventory.models import InventoryProduct
+from apps.makerspaces.platform import module_enabled
+from apps.printing.models import ManualPrintLog, PrintRequest
+from apps.printing.reports import build_printing_report
+
+
+PHONE_SHAPED_RE = re.compile(r"\d{7,}")
+PRINT_STATUS_KEYS = ("pending", "printing", "completed", "collected", "failed", "rejected")
+ACTIVE_LOAN_STATUSES = (
+    HardwareRequest.Status.ISSUED,
+    HardwareRequest.Status.PARTIALLY_RETURNED,
+)
+COMPLETED_PRINT_STATUSES = (
+    PrintRequest.Status.COMPLETED,
+    PrintRequest.Status.COLLECTED,
+)
+
+
+def public_display_name(*, request=None, requester=None) -> str:
+    candidates = []
+    if request is not None:
+        candidates.append(getattr(request, "requester_username", ""))
+        requester = requester or getattr(request, "requester", None)
+    if requester is not None:
+        get_full_name = getattr(requester, "get_full_name", None)
+        if callable(get_full_name):
+            candidates.append(get_full_name())
+        candidates.append(getattr(requester, "username", ""))
+
+    for value in candidates:
+        label = _clean_label(value)
+        if _safe_public_name(label):
+            return label
+    return "Member"
+
+
+def build_public_stats(makerspace) -> dict:
+    return {
+        "printing": _printing_stats(makerspace),
+        "hardware": _hardware_stats(makerspace),
+        "current_loans": _current_loans(makerspace),
+    }
+
+
+def _printing_stats(makerspace):
+    if not module_enabled(makerspace, "printing"):
+        return None
+    report = build_printing_report(makerspace.id)
+    stats = _project_printing(report)
+    stats["hours_this_month"] = _printing_hours_this_month(makerspace.id)
+    return stats
+
+
+def _project_printing(report):
+    totals = report.get("totals") or {}
+    printer_hours = report.get("printer_hours") or []
+    busiest = max(printer_hours, key=lambda row: row.get("hours") or 0, default=None)
+    status_counts = {key: totals.get(key, 0) for key in PRINT_STATUS_KEYS}
+
+    return {
+        "hours_all_time": _float(sum(row.get("hours") or 0 for row in printer_hours)),
+        "hours_this_month": 0.0,
+        "busiest_printer": _public_printer_row(busiest),
+        "grams_all_time": _float(report.get("total_grams_used")),
+        "by_brand": [
+            {"brand": row.get("brand") or "Unbranded", "grams": _float(row.get("grams_used"))}
+            for row in report.get("filament_by_brand") or []
+        ],
+        "jobs": {
+            "completed": totals.get("completed", 0),
+            "status_counts": status_counts,
+            "queue": {
+                "pending": totals.get("pending", 0),
+                "printing": totals.get("printing", 0),
+            },
+        },
+        "filament_trend": [
+            {"period": row.get("period"), "grams": _float(row.get("grams"))}
+            for row in (report.get("filament_estimated_by_period") or {}).get("by_month", [])
+        ],
+    }
+
+
+def _public_printer_row(row):
+    if row is None:
+        return None
+    return {
+        "name": row.get("printer_name") or "",
+        "hours": _float(row.get("hours")),
+        "completed": row.get("completed_requests") or 0,
+    }
+
+
+def _printing_hours_this_month(makerspace_id):
+    start, end = _current_month_window()
+    request_minutes = (
+        PrintRequest.objects.filter(
+            bucket__makerspace_id=makerspace_id,
+            status__in=COMPLETED_PRINT_STATUSES,
+            completed_at__gte=start,
+            completed_at__lt=end,
+        ).aggregate(total=Sum("estimated_minutes"))["total"]
+        or 0
+    )
+    manual_minutes = (
+        ManualPrintLog.objects.filter(
+            makerspace_id=makerspace_id,
+            created_at__gte=start,
+            created_at__lt=end,
+        ).aggregate(total=Sum("duration_minutes"))["total"]
+        or 0
+    )
+    return _float((request_minutes + manual_minutes) / 60)
+
+
+def _hardware_stats(makerspace):
+    products = _public_products(makerspace)
+    return {
+        "most_popular": _most_popular(makerspace),
+        "tools_out": [
+            {"name": product.name, "quantity_out": product.issued_quantity}
+            for product in products.filter(issued_quantity__gt=0).order_by("name", "id")
+        ],
+        "library": _library_counts(products),
+        "recently_added": _recently_added(products),
+    }
+
+
+def _most_popular(makerspace):
+    rows = (
+        HardwareRequestItem.objects.filter(
+            request__makerspace=makerspace,
+            product__is_public=True,
+            product__is_archived=False,
+            issued_quantity__gt=0,
+        )
+        .values("product_id", "product__name")
+        .annotate(
+            times_lent=Count("request_id", distinct=True),
+            total_quantity_lent=Sum("issued_quantity"),
+        )
+        .order_by("-times_lent", "-total_quantity_lent", "product__name", "product_id")
+    )
+    return [
+        {
+            "name": row["product__name"],
+            "times_lent": row["times_lent"],
+            "total_quantity_lent": row["total_quantity_lent"] or 0,
+        }
+        for row in rows
+    ]
+
+
+def _library_counts(products):
+    totals = products.aggregate(
+        currently_out_count=Sum("issued_quantity"),
+        available_count=Sum("available_quantity"),
+    )
+    return {
+        "currently_out_count": totals["currently_out_count"] or 0,
+        "library_size": products.count(),
+        "available_count": totals["available_count"] or 0,
+    }
+
+
+def _recently_added(products):
+    start, end = _current_month_window()
+    return [
+        {"name": product.name, "created_at": product.created_at}
+        for product in products.filter(created_at__gte=start, created_at__lt=end).order_by(
+            "-created_at", "-id"
+        )
+    ]
+
+
+def _current_loans(makerspace):
+    queryset = (
+        HardwareRequestItem.objects.select_related(
+            "product",
+            "request",
+            "request__requester",
+            "request__public_tool_loan",
+            "request__public_tool_loan__requester",
+        )
+        .filter(
+            request__makerspace=makerspace,
+            request__status__in=ACTIVE_LOAN_STATUSES,
+            product__is_public=True,
+            product__is_archived=False,
+        )
+        .annotate(
+            outstanding=(
+                F("issued_quantity")
+                - F("returned_quantity")
+                - F("damaged_quantity")
+                - F("missing_quantity")
+            )
+        )
+        .filter(outstanding__gt=0)
+        .order_by("-request__issued_at", "request_id", "id")
+    )
+    rows = []
+    for item in queryset:
+        loan = _public_tool_loan(item.request)
+        rows.append(
+            {
+                "item_name": item.product.name,
+                "holder_name": public_display_name(
+                    request=item.request,
+                    requester=(loan.requester if loan else item.request.requester),
+                ),
+                "due": (loan.due_at if loan else None) or item.request.return_due_at,
+                "since": (loan.checked_out_at if loan else None) or item.request.issued_at,
+            }
+        )
+    return rows
+
+
+def _public_products(makerspace):
+    return InventoryProduct.objects.filter(
+        makerspace=makerspace,
+        is_public=True,
+        is_archived=False,
+    )
+
+
+def _public_tool_loan(request):
+    try:
+        loan = request.public_tool_loan
+    except PublicToolLoan.DoesNotExist:
+        return None
+    return loan if loan.status == PublicToolLoan.Status.CHECKED_OUT else None
+
+
+def _current_month_window():
+    now = timezone.localtime(timezone.now())
+    start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    if start.month == 12:
+        end = start.replace(year=start.year + 1, month=1)
+    else:
+        end = start.replace(month=start.month + 1)
+    return start, end
+
+
+def _clean_label(value):
+    return str(value or "").strip()
+
+
+def _safe_public_name(value):
+    return (
+        bool(value)
+        and "@" not in value
+        and not PHONE_SHAPED_RE.search(value)
+        and not value.lower().startswith("checkin_")
+    )
+
+
+def _float(value):
+    return round(float(value or 0), 2)
