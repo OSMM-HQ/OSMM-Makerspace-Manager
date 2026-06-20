@@ -286,6 +286,7 @@ REST_FRAMEWORK = {
         "request_submit": env("THROTTLE_REQUEST_SUBMIT", default="10/min"),
         "request_status": env("THROTTLE_REQUEST_STATUS", default="60/min"),
         "public_read": env("THROTTLE_PUBLIC_READ", default="120/min"),
+        "public_stats": env("THROTTLE_PUBLIC_STATS", default="30/min"),
         "client_public": env("THROTTLE_CLIENT_PUBLIC", default="30/min"),
         "client_standard": env("THROTTLE_CLIENT_STANDARD", default="120/min"),
         "client_trusted": env("THROTTLE_CLIENT_TRUSTED", default="600/min"),

@@ -43,6 +43,7 @@ export const openApiPaths = [
   "/api/public/{makerspace_slug}/inventory/",
   "/api/public/{makerspace_slug}/inventory/categories/",
   "/api/public/{makerspace_slug}/inventory/{id}/",
+  "/api/public/{makerspace_slug}/stats/",
   "/api/v1/admin/analytics/{report_key}",
   "/api/v1/admin/api-clients/{id}",
   "/api/v1/admin/api-key-requests",
@@ -185,6 +186,7 @@ export const openApiPaths = [
   "/api/v1/public/{makerspace_slug}/inventory/{id}/",
   "/api/v1/public/{makerspace_slug}/requests",
   "/api/v1/public/{makerspace_slug}/requests/status",
+  "/api/v1/public/{makerspace_slug}/stats/",
   "/api/v1/public/{makerspace_slug}/tools/checkout",
   "/api/v1/public/{makerspace_slug}/tools/return"
 ] as const;

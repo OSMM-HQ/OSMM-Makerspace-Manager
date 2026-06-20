@@ -192,6 +192,53 @@
                 }
             }
         },
+        "/api/public/{makerspace_slug}/stats/": {
+            "get": {
+                "operationId": "api_public_stats_retrieve",
+                "description": "Get public activity stats for a public makerspace.",
+                "summary": "Get public makerspace stats",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "X-Publishable-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Public API key for a makerspace public client. Required when API_CLIENT_AUTH_REQUIRED is enabled."
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Public makerspace code (for example TSEL) or slug.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Public inventory"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PublicStats"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/public/makerspaces/": {
             "get": {
                 "operationId": "api_public_makerspaces_list",
@@ -9878,6 +9925,53 @@
                 }
             }
         },
+        "/api/v1/public/{makerspace_slug}/stats/": {
+            "get": {
+                "operationId": "api_v1_public_stats_retrieve",
+                "description": "Get public activity stats for a public makerspace.",
+                "summary": "Get public makerspace stats",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "X-Publishable-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Public API key for a makerspace public client. Required when API_CLIENT_AUTH_REQUIRED is enabled."
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Public makerspace code (for example TSEL) or slug.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Public inventory"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PublicStats"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/public/{makerspace_slug}/tools/checkout": {
             "post": {
                 "operationId": "api_v1_public_tools_checkout_create",
@@ -15316,6 +15410,393 @@
                     "items",
                     "rejection_reason",
                     "status"
+                ]
+            },
+            "PublicStats": {
+                "type": "object",
+                "properties": {
+                    "printing": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PublicStatsPrinting"
+                            }
+                        ],
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "hardware": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PublicStatsHardware"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "current_loans": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PublicStatsCurrentLoan"
+                        },
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "current_loans",
+                    "hardware",
+                    "printing"
+                ]
+            },
+            "PublicStatsBrand": {
+                "type": "object",
+                "properties": {
+                    "brand": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "grams": {
+                        "type": "number",
+                        "format": "double",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "brand",
+                    "grams"
+                ]
+            },
+            "PublicStatsBusiestPrinter": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "hours": {
+                        "type": "number",
+                        "format": "double",
+                        "readOnly": true
+                    },
+                    "completed": {
+                        "type": "integer",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "completed",
+                    "hours",
+                    "name"
+                ]
+            },
+            "PublicStatsCurrentLoan": {
+                "type": "object",
+                "properties": {
+                    "item_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "holder_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "due": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "since": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "due",
+                    "holder_name",
+                    "item_name",
+                    "since"
+                ]
+            },
+            "PublicStatsFilamentTrend": {
+                "type": "object",
+                "properties": {
+                    "period": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "grams": {
+                        "type": "number",
+                        "format": "double",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "grams",
+                    "period"
+                ]
+            },
+            "PublicStatsHardware": {
+                "type": "object",
+                "properties": {
+                    "most_popular": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PublicStatsPopularHardware"
+                        },
+                        "readOnly": true
+                    },
+                    "tools_out": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PublicStatsToolsOut"
+                        },
+                        "readOnly": true
+                    },
+                    "library": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PublicStatsLibrary"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "recently_added": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PublicStatsRecentlyAdded"
+                        },
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "library",
+                    "most_popular",
+                    "recently_added",
+                    "tools_out"
+                ]
+            },
+            "PublicStatsJobs": {
+                "type": "object",
+                "properties": {
+                    "completed": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "status_counts": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PublicStatsStatusCounts"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "queue": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PublicStatsQueue"
+                            }
+                        ],
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "completed",
+                    "queue",
+                    "status_counts"
+                ]
+            },
+            "PublicStatsLibrary": {
+                "type": "object",
+                "properties": {
+                    "currently_out_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "library_size": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "available_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "available_count",
+                    "currently_out_count",
+                    "library_size"
+                ]
+            },
+            "PublicStatsPopularHardware": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "times_lent": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "total_quantity_lent": {
+                        "type": "integer",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "name",
+                    "times_lent",
+                    "total_quantity_lent"
+                ]
+            },
+            "PublicStatsPrinting": {
+                "type": "object",
+                "properties": {
+                    "hours_all_time": {
+                        "type": "number",
+                        "format": "double",
+                        "readOnly": true
+                    },
+                    "hours_this_month": {
+                        "type": "number",
+                        "format": "double",
+                        "readOnly": true
+                    },
+                    "busiest_printer": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PublicStatsBusiestPrinter"
+                            }
+                        ],
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "grams_all_time": {
+                        "type": "number",
+                        "format": "double",
+                        "readOnly": true
+                    },
+                    "by_brand": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PublicStatsBrand"
+                        },
+                        "readOnly": true
+                    },
+                    "jobs": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PublicStatsJobs"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "filament_trend": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PublicStatsFilamentTrend"
+                        },
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "busiest_printer",
+                    "by_brand",
+                    "filament_trend",
+                    "grams_all_time",
+                    "hours_all_time",
+                    "hours_this_month",
+                    "jobs"
+                ]
+            },
+            "PublicStatsQueue": {
+                "type": "object",
+                "properties": {
+                    "pending": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "printing": {
+                        "type": "integer",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "pending",
+                    "printing"
+                ]
+            },
+            "PublicStatsRecentlyAdded": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "name"
+                ]
+            },
+            "PublicStatsStatusCounts": {
+                "type": "object",
+                "properties": {
+                    "pending": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "printing": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "completed": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "collected": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "failed": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "rejected": {
+                        "type": "integer",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "collected",
+                    "completed",
+                    "failed",
+                    "pending",
+                    "printing",
+                    "rejected"
+                ]
+            },
+            "PublicStatsToolsOut": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "quantity_out": {
+                        "type": "integer",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "name",
+                    "quantity_out"
                 ]
             },
             "PublicToolLoan": {
