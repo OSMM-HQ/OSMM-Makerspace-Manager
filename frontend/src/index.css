@@ -40,10 +40,10 @@
        the theme — without this, dark mode renders white/light form fields. */
     color-scheme: light;
     /* Blueprint Creative Lab — light "bright workshop" palette */
-    --color-accent: 29 78 216; /* blue #1d4ed8 (primary) */
-    --color-accent-bright: 37 99 235; /* #2563eb hover */
-    --color-secondary: 30 58 138; /* navy #1e3a8a */
-    --color-on-accent: 255 255 255; /* NEW: text on accent (white on blue) */
+    --color-accent: 220 38 38; /* red #dc2626 (primary) */
+    --color-accent-bright: 185 28 28; /* #b91c1c hover */
+    --color-secondary: 153 27 27; /* dark red #991b1b — card lines + DETAILS link */
+    --color-on-accent: 255 255 255; /* text on accent (white on red) */
     --color-ink: 30 41 59; /* slate #1e293b */
     --color-bg: 246 248 251; /* #f6f8fb */
     --color-surface: 230 234 240; /* grey #e6eaf0 */
@@ -61,10 +61,10 @@
   :root.dark {
     color-scheme: dark;
     /* Upgraded "night workshop" — brutalism translated to dark */
-    --color-accent: 251 113 133; /* rose #fb7185 (primary) */
-    --color-accent-bright: 253 164 175; /* #fda4af hover */
-    --color-secondary: 59 130 246; /* blue #3b82f6 */
-    --color-on-accent: 12 13 14; /* dark text on rose accent — 7.2:1 contrast (white was 2.7:1) */
+    --color-accent: 248 113 113; /* red #f87171 (primary) — light enough for dark on-accent text */
+    --color-accent-bright: 252 165 165; /* #fca5a5 hover */
+    --color-secondary: 239 68 68; /* red #ef4444 — card lines + DETAILS link */
+    --color-on-accent: 12 13 14; /* dark text on light-red accent — keeps high contrast */
     --color-ink: 244 244 245; /* #f4f4f5 */
     --color-bg: 10 10 11; /* black #0a0a0b */
     --color-surface: 22 22 24; /* #161618 */
@@ -72,7 +72,7 @@
     --color-muted: 161 161 170; /* #a1a1aa */
     --color-line: 63 63 70; /* #3f3f46 */
     --color-outline: 82 82 91; /* #52525b */
-    --color-success: 34 197 94;
+    --color-success: 22 163 74; /* green-600 #16a34a — toned down from bright #22c55e */
     --color-danger: 248 113 113;
     --color-warn: 245 158 11;
     /* On dark, the offset block is a light outline so the sticker effect stays visible. */
