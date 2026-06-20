@@ -40,26 +40,17 @@ services:
     depends_on:
       minio:
         condition: service_healthy
+    # MinIO already echoes the requesting Origin in its default CORS response (verified:
+    # OPTIONS preflight returns Access-Control-Allow-Origin for http://localhost), so no
+    # explicit `mc cors set` is needed for local dev. It was also failing on this mc release
+    # (`cors set` expects S3 XML, not the JSON we wrote → "decoding xml: EOF", exit 1).
     entrypoint: |
       /bin/sh -c '
       until mc alias set local http://minio:9000 minioadmin minioadmin; do sleep 1; done;
       mc mb --ignore-existing local/evidence;
       mc anonymous set none local/evidence;
-      cat > /tmp/cors.json <<EOF
-      [
-        {
-          "AllowedOrigins": ["http://localhost", "http://localhost:5000", "http://localhost:5173"],
-          "AllowedMethods": ["PUT", "POST", "GET", "HEAD"],
-          "AllowedHeaders": ["*"],
-          "ExposeHeaders": ["ETag"],
-          "MaxAgeSeconds": 3000
-        }
-      ]
-      EOF
-      mc cors set local/evidence /tmp/cors.json;
       mc mb --ignore-existing local/public-images;
       mc anonymous set download local/public-images;
-      mc cors set local/public-images /tmp/cors.json;
       '
 
   # Backend is wired to MinIO for dev: it SIGNS presigned upload/view URLs with the
