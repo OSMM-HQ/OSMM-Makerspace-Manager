@@ -15201,6 +15201,21 @@
                     },
                     "estimated_minutes": {
                         "type": "integer"
+                    },
+                    "queue_position": {
+                        "type": "integer",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "queue_approved_ahead": {
+                        "type": "integer",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "queue_awaiting_review_ahead": {
+                        "type": "integer",
+                        "nullable": true,
+                        "readOnly": true
                     }
                 },
                 "required": [
@@ -15209,6 +15224,9 @@
                     "created_at",
                     "estimated_minutes",
                     "public_token",
+                    "queue_approved_ahead",
+                    "queue_awaiting_review_ahead",
+                    "queue_position",
                     "started_at",
                     "status",
                     "title"

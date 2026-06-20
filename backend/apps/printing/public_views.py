@@ -16,6 +16,7 @@ from apps.makerspaces.lookup import get_public_makerspace
 from apps.makerspaces.platform import module_enabled
 from apps.printing import public_workflow
 from apps.printing.models import FilamentSpool, PrintBucket, PrintRequest, PrintRequestFile
+from apps.printing.queue_position import queue_counts_for
 from apps.printing.public_serializers import (
     PrintCheckinVerifyRequestSerializer,
     PrintCheckinVerifyResponseSerializer,
@@ -203,7 +204,7 @@ class PublicPrintStatusView(generics.RetrieveAPIView):
     lookup_field = "public_token"
     queryset = PrintRequest.objects.filter(
         bucket__makerspace__archived_at__isnull=True
-    )
+    ).select_related("bucket__makerspace")
 
     @extend_schema(
         tags=["Public printing"],
@@ -211,7 +212,13 @@ class PublicPrintStatusView(generics.RetrieveAPIView):
         responses={200: PublicPrintStatusSerializer},
     )
     def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
+        obj = self.get_object()
+        counts = queue_counts_for(obj.bucket.makerspace, [obj])
+        serializer = PublicPrintStatusSerializer(
+            obj,
+            context={"request": request, "queue_counts": counts},
+        )
+        return Response(serializer.data)
 
 
 class PublicPrintStatusByEmailView(APIView):
@@ -241,10 +248,21 @@ class PublicPrintStatusByEmailView(APIView):
         _require_module(makerspace)
         serializer = PublicPrintStatusByEmailRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        requests = PrintRequest.objects.filter(
-            bucket__makerspace=makerspace,
-            contact_email__iexact=serializer.validated_data["email"],
-        ).order_by("-created_at", "-id")[:20]
+        requests = list(
+            PrintRequest.objects.filter(
+                bucket__makerspace=makerspace,
+                contact_email__iexact=serializer.validated_data["email"],
+            )
+            .select_related("bucket__makerspace")
+            .order_by("-created_at", "-id")[:20]
+        )
+        counts = queue_counts_for(makerspace, requests)
         return Response(
-            {"results": PublicPrintStatusSerializer(requests, many=True).data}
+            {
+                "results": PublicPrintStatusSerializer(
+                    requests,
+                    many=True,
+                    context={"queue_counts": counts},
+                ).data
+            }
         )

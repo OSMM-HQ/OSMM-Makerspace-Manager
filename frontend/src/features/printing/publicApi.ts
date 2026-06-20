@@ -22,6 +22,9 @@ export type PrintStatus = {
   started_at: string | null;
   completed_at: string | null;
   estimated_minutes: number;
+  queue_position: number | null;
+  queue_approved_ahead: number | null;
+  queue_awaiting_review_ahead: number | null;
 };
 
 export type PrintUploadBody = {

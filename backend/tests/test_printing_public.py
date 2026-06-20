@@ -362,6 +362,9 @@ def test_status_lookup_by_token_hides_pii():
         "started_at",
         "completed_at",
         "estimated_minutes",
+        "queue_position",
+        "queue_approved_ahead",
+        "queue_awaiting_review_ahead",
     }
 
 

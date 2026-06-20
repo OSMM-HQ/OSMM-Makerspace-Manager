@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 
@@ -85,3 +86,22 @@ class PublicPrintStatusSerializer(serializers.Serializer):
     # Lets the public page show a live "time left" while printing
     # (estimated finish = started_at + estimated_minutes).
     estimated_minutes = serializers.IntegerField()
+    # Populated only while the request is pending/accepted; null otherwise.
+    queue_position = serializers.SerializerMethodField()
+    queue_approved_ahead = serializers.SerializerMethodField()
+    queue_awaiting_review_ahead = serializers.SerializerMethodField()
+
+    @extend_schema_field({"type": "integer", "nullable": True})
+    def get_queue_position(self, obj):
+        counts = self.context.get("queue_counts", {}).get(obj.id)
+        return counts["position"] if counts else None
+
+    @extend_schema_field({"type": "integer", "nullable": True})
+    def get_queue_approved_ahead(self, obj):
+        counts = self.context.get("queue_counts", {}).get(obj.id)
+        return counts["approved_ahead"] if counts else None
+
+    @extend_schema_field({"type": "integer", "nullable": True})
+    def get_queue_awaiting_review_ahead(self, obj):
+        counts = self.context.get("queue_counts", {}).get(obj.id)
+        return counts["awaiting_review_ahead"] if counts else None

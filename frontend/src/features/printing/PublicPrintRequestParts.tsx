@@ -142,6 +142,18 @@ function printTimeLeftLabel(status: PrintStatus, now: number): string | null {
   return hours > 0 ? `~${hours}h ${minutes}m left` : `~${minutes}m left`;
 }
 
+function queuePositionDetail(status: PrintStatus): string {
+  const approvedAhead = status.queue_approved_ahead ?? 0;
+  const awaitingReviewAhead = status.queue_awaiting_review_ahead ?? 0;
+  if (approvedAhead === 0 && awaitingReviewAhead === 0) {
+    return "You're next in line";
+  }
+  return [
+    `${approvedAhead} approved job${approvedAhead === 1 ? "" : "s"} ahead`,
+    `${awaitingReviewAhead} awaiting review`,
+  ].join(" · ");
+}
+
 export function StatusStepper({ status }: { status: PrintStatus }) {
   const currentIndex = steps.findIndex((step) => step.key === status.status);
   const terminalError = status.status === "rejected" || status.status === "failed";
@@ -183,6 +195,19 @@ export function StatusStepper({ status }: { status: PrintStatus }) {
           );
         })}
       </div>
+      {status.queue_position != null ? (
+        <div
+          aria-live="polite"
+          className="rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-center"
+        >
+          <p className="text-sm font-semibold text-accent">
+            #{status.queue_position} in the queue
+          </p>
+          <p className="mt-1 text-xs text-accent">
+            {queuePositionDetail(status)}
+          </p>
+        </div>
+      ) : null}
       {timeLeft ? (
         <p className="rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-center text-sm font-semibold text-accent">
           {timeLeft}
