@@ -93,6 +93,7 @@ class PublicStatsBrandSerializer(serializers.Serializer):
 
 class PublicStatsStatusCountsSerializer(serializers.Serializer):
     pending = serializers.IntegerField(read_only=True)
+    accepted = serializers.IntegerField(read_only=True)
     printing = serializers.IntegerField(read_only=True)
     completed = serializers.IntegerField(read_only=True)
     collected = serializers.IntegerField(read_only=True)
@@ -102,6 +103,7 @@ class PublicStatsStatusCountsSerializer(serializers.Serializer):
 
 class PublicStatsQueueSerializer(serializers.Serializer):
     pending = serializers.IntegerField(read_only=True)
+    accepted = serializers.IntegerField(read_only=True)
     printing = serializers.IntegerField(read_only=True)
 
 

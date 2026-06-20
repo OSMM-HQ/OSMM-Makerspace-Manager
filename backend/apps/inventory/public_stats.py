@@ -11,7 +11,15 @@ from apps.printing.models import ManualPrintLog, PrintRequest
 from apps.printing.reports import build_printing_report
 
 
-PRINT_STATUS_KEYS =("pending", "printing", "completed", "collected", "failed", "rejected")
+PRINT_STATUS_KEYS = (
+    "pending",
+    "accepted",
+    "printing",
+    "completed",
+    "collected",
+    "failed",
+    "rejected",
+)
 ACTIVE_LOAN_STATUSES = (
     HardwareRequest.Status.ISSUED,
     HardwareRequest.Status.PARTIALLY_RETURNED,
@@ -77,6 +85,7 @@ def _project_printing(report):
             "status_counts": status_counts,
             "queue": {
                 "pending": totals.get("pending", 0),
+                "accepted": totals.get("accepted", 0),
                 "printing": totals.get("printing", 0),
             },
         },

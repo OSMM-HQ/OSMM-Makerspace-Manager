@@ -22,6 +22,7 @@ export type PublicStatsPrinting = {
     completed: number;
     status_counts: {
       pending: number;
+      accepted: number;
       printing: number;
       completed: number;
       collected: number;
@@ -30,6 +31,7 @@ export type PublicStatsPrinting = {
     };
     queue: {
       pending: number;
+      accepted: number;
       printing: number;
     };
   };

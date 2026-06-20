@@ -184,13 +184,18 @@ def assert_public_stats_schema(payload):
         assert set(payload["printing"]["jobs"]) == {"completed", "status_counts", "queue"}
         assert set(payload["printing"]["jobs"]["status_counts"]) == {
             "pending",
+            "accepted",
             "printing",
             "completed",
             "collected",
             "failed",
             "rejected",
         }
-        assert set(payload["printing"]["jobs"]["queue"]) == {"pending", "printing"}
+        assert set(payload["printing"]["jobs"]["queue"]) == {
+            "pending",
+            "accepted",
+            "printing",
+        }
         assert all(
             set(row) == {"period", "grams"}
             for row in payload["printing"]["filament_trend"]
@@ -312,13 +317,20 @@ def test_build_public_stats_returns_exact_schema(monkeypatch):
     assert set(stats["printing"]["jobs"]) == {"completed", "status_counts", "queue"}
     assert set(stats["printing"]["jobs"]["status_counts"]) == {
         "pending",
+        "accepted",
         "printing",
         "completed",
         "collected",
         "failed",
         "rejected",
     }
-    assert set(stats["printing"]["jobs"]["queue"]) == {"pending", "printing"}
+    assert stats["printing"]["jobs"]["status_counts"]["accepted"] == 4
+    assert set(stats["printing"]["jobs"]["queue"]) == {
+        "pending",
+        "accepted",
+        "printing",
+    }
+    assert stats["printing"]["jobs"]["queue"]["accepted"] == 4
     assert set(stats["printing"]["filament_trend"][0]) == {"period", "grams"}
     assert set(stats["hardware"]) == {
         "most_popular",

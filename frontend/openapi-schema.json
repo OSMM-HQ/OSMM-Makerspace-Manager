@@ -15723,12 +15723,17 @@
                         "type": "integer",
                         "readOnly": true
                     },
+                    "accepted": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
                     "printing": {
                         "type": "integer",
                         "readOnly": true
                     }
                 },
                 "required": [
+                    "accepted",
                     "pending",
                     "printing"
                 ]
@@ -15758,6 +15763,10 @@
                         "type": "integer",
                         "readOnly": true
                     },
+                    "accepted": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
                     "printing": {
                         "type": "integer",
                         "readOnly": true
@@ -15780,6 +15789,7 @@
                     }
                 },
                 "required": [
+                    "accepted",
                     "collected",
                     "completed",
                     "failed",

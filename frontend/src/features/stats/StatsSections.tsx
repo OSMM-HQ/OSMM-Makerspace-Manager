@@ -13,7 +13,10 @@ import {
 } from "./StatsParts";
 
 export function PrintingSection({ printing }: { printing: PublicStatsPrinting }) {
-  const queueTotal = printing.jobs.queue.pending + printing.jobs.queue.printing;
+  const queueTotal =
+    printing.jobs.queue.pending +
+    printing.jobs.queue.accepted +
+    printing.jobs.queue.printing;
 
   return (
     <Section title="Printing">
@@ -57,6 +60,9 @@ export function PrintingSection({ printing }: { printing: PublicStatsPrinting })
           <div className="mt-3 flex flex-wrap gap-2">
             <span className="status-box status-box-active">
               {printing.jobs.queue.pending} pending
+            </span>
+            <span className="status-box">
+              {printing.jobs.queue.accepted} accepted
             </span>
             <span className="status-box">
               {printing.jobs.queue.printing} printing
