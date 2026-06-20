@@ -147,6 +147,9 @@ export function PublicInventoryPage() {
               <div className="rounded-md border border-line bg-surface px-3 py-2 text-sm text-muted">
                 {inventoryQuery.data?.count ?? "-"} listed items
               </div>
+              <Link className="desk-button" to={tenantPath("stats")}>
+                Stats
+              </Link>
               {modules.has("printing") ? (
                 <Link className="desk-button" to={tenantPath("print")}>
                   Request a 3D print
