@@ -12,6 +12,7 @@ import { PublicPrintRequestPage } from "./features/printing/PublicPrintRequestPa
 import { KioskPage, ScannerPage, SuperadminPage } from "./features/staff/PlatformApps";
 import { ResetPasswordPage } from "./features/staff/ResetPasswordPage";
 import { StaffApp } from "./features/staff/StaffApp";
+import { PublicStatsPage } from "./features/stats/PublicStatsPage";
 import { useTenant } from "./lib/tenant";
 
 function LandingPage() {
@@ -203,6 +204,7 @@ export default function App() {
         <Route path="/items/:id" element={<PublicItemDetailPage />} />
         <Route path="/checkout" element={<PublicSelfCheckoutPage />} />
         <Route path="/print" element={<PublicPrintRequestPage />} />
+        <Route path="/stats" element={<PublicStatsPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/admin" element={<StaffApp />} />
         <Route path="/guest-admin" element={<StaffApp guestOnly />} />
@@ -219,6 +221,7 @@ export default function App() {
       <Route path="/m/:slug/items/:id" element={<PublicItemDetailPage />} />
       <Route path="/m/:slug/checkout" element={<PublicSelfCheckoutPage />} />
       <Route path="/m/:slug/print" element={<PublicPrintRequestPage />} />
+      <Route path="/m/:slug/stats" element={<PublicStatsPage />} />
       <Route path="/kiosk/:slug" element={<KioskPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/admin" element={<StaffApp />} />
