@@ -351,10 +351,42 @@ def test_public_display_name_masks_unsafe_names_and_prefers_request_username():
     assert public_display_name(
         request=SimpleNamespace(requester_username="member 9876543210"),
     ) == "Member"
+    # Phone digits separated by common separators must still be masked.
+    assert public_display_name(
+        request=SimpleNamespace(requester_username="555-123-4567"),
+    ) == "Member"
+    assert public_display_name(
+        request=SimpleNamespace(requester_username="(555) 123 4567"),
+    ) == "Member"
     assert public_display_name(
         request=SimpleNamespace(requester_username="checkin_" + "a" * 64),
     ) == "Member"
     assert public_display_name(requester=make_user("accepted_name")) == "accepted_name"
+
+
+def test_current_loans_excludes_hidden_availability_products():
+    makerspace = make_space("stats-hidden-loans")
+    shown = make_product(
+        makerspace,
+        "Shown Tool",
+        available_quantity=2,
+        issued_quantity=1,
+    )
+    hidden = make_product(
+        makerspace,
+        "Hidden Tool",
+        available_quantity=2,
+        issued_quantity=1,
+        public_availability_mode=PublicAvailabilityMode.HIDDEN,
+    )
+    make_request_item(makerspace, shown, "shown-holder")
+    make_request_item(makerspace, hidden, "hidden-holder")
+
+    loans = build_public_stats(makerspace)["current_loans"]
+
+    names = [row["item_name"] for row in loans]
+    assert "Shown Tool" in names
+    assert "Hidden Tool" not in names
 
 
 def test_non_public_products_are_excluded_from_hardware_stats_and_current_loans():

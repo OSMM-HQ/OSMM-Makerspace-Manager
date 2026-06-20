@@ -11,8 +11,7 @@ from apps.printing.models import ManualPrintLog, PrintRequest
 from apps.printing.reports import build_printing_report
 
 
-PHONE_SHAPED_RE = re.compile(r"\d{7,}")
-PRINT_STATUS_KEYS = ("pending", "printing", "completed", "collected", "failed", "rejected")
+PRINT_STATUS_KEYS =("pending", "printing", "completed", "collected", "failed", "rejected")
 ACTIVE_LOAN_STATUSES = (
     HardwareRequest.Status.ISSUED,
     HardwareRequest.Status.PARTIALLY_RETURNED,
@@ -198,6 +197,7 @@ def _current_loans(makerspace):
             product__is_public=True,
             product__is_archived=False,
         )
+        .exclude(product__public_availability_mode=PublicAvailabilityMode.HIDDEN)
         .annotate(
             outstanding=(
                 F("issued_quantity")
@@ -264,12 +264,11 @@ def _clean_label(value):
 
 
 def _safe_public_name(value):
-    return (
-        bool(value)
-        and "@" not in value
-        and not PHONE_SHAPED_RE.search(value)
-        and not value.lower().startswith("checkin_")
-    )
+    if not value or "@" in value or value.lower().startswith("checkin_"):
+        return False
+    # Reject phone-shaped labels even when digits are separated by spaces / ()+-
+    # (e.g. "555-123-4567") by normalizing to digits before counting.
+    return len(re.sub(r"\D", "", value)) < 7
 
 
 def _float(value):
