@@ -22,7 +22,9 @@ FROM nginx:1.27-alpine
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker-entrypoint.d/30-write-config.sh /docker-entrypoint.d/30-write-config.sh
-RUN chmod +x /docker-entrypoint.d/30-write-config.sh
+# Strip any CRLF the host may have introduced (git autocrlf on Windows) so the
+# `#!/bin/sh` shebang resolves — a trailing `\r` makes the kernel look for `/bin/sh\r` (exit 127).
+RUN sed -i 's/\r$//' /docker-entrypoint.d/30-write-config.sh && chmod +x /docker-entrypoint.d/30-write-config.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80
