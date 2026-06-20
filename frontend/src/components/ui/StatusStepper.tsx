@@ -31,10 +31,10 @@ function StepBox({
 }: {
   step: number;
   label: string;
-  state: "completed" | "current" | "upcoming";
+  state: "completed" | "current" | "upcoming" | "issue";
   rejected: boolean;
 }) {
-  const className = rejected && step === 0
+  const className = (rejected && step === 0) || state === "issue"
     ? "status-box status-box-danger"
     : state === "completed"
       ? "status-box status-box-done"
@@ -43,8 +43,11 @@ function StepBox({
         : "status-box";
 
   return (
-    <span className={className} aria-current={state === "current" ? "step" : undefined}>
-      <span>{step + 1}</span>
+    <span
+      className={`${className} w-full flex-col leading-tight`}
+      aria-current={state === "current" ? "step" : undefined}
+    >
+      <span className="font-bold opacity-70">{step + 1}</span>
       <span className="min-w-0 break-words">{label}</span>
     </span>
   );
@@ -57,36 +60,36 @@ function RejectedBadge() {
 export function StatusStepper({ status }: { status: string }) {
   const rejected = status === "rejected";
   const activeIndex = rejected ? 0 : statusStageIndex(status);
+  // A clean fully-returned request shows the final step as DONE (green) — the
+  // flow is finished. A closure WITH an issue (lost/damaged) must NOT read as a
+  // clean success: its final step renders as danger (red) instead.
+  const complete = status === "returned";
+  const closedWithIssue = status === "closed_with_issue";
 
   return (
     <nav
       aria-label={`Request status: ${statusStageLabel(status)}`}
       className="w-full"
     >
-      <ol className="grid grid-cols-2 items-start gap-2 sm:grid-cols-4">
+      <ol className="grid grid-cols-[repeat(auto-fit,minmax(120px,1fr))] items-start gap-2">
         {STAGES.map((stage, index) => {
           const state =
             index < activeIndex
               ? "completed"
               : index === activeIndex
-                ? "current"
+                ? closedWithIssue
+                  ? "issue"
+                  : complete
+                    ? "completed"
+                    : "current"
                 : "upcoming";
-          const lineActive = index < activeIndex;
 
           return (
             <li
-              className="relative flex min-w-0 flex-col items-center text-center"
+              className="flex min-w-0 flex-col items-center text-center"
               key={stage}
             >
-              {index < STAGES.length - 1 ? (
-                <span
-                  aria-hidden="true"
-                  className={`absolute left-1/2 top-4 hidden w-full border-t-2 sm:block ${
-                    lineActive ? "border-success" : "border-line"
-                  }`}
-                />
-              ) : null}
-              <span className="relative z-10 flex min-w-0 max-w-full flex-col items-center gap-1 bg-surface px-1">
+              <span className="flex w-full min-w-0 flex-col items-center gap-1">
                 <StepBox
                   step={index}
                   label={stage}

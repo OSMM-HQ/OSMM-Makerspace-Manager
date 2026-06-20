@@ -215,7 +215,7 @@
   }
 
   .desk-nav-item {
-    @apply flex w-full min-w-0 items-center justify-between gap-2 rounded-sm border-l-2 border-transparent px-3 py-2 text-sm font-medium text-ink transition-colors hover:bg-surface hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30;
+    @apply flex w-full min-w-0 items-center justify-between gap-2 rounded-sm border-l-2 border-transparent px-3 py-2 text-sm font-medium text-ink transition-colors hover:border-accent hover:bg-accent/15 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30;
   }
 
   .desk-nav-item-active {

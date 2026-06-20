@@ -125,7 +125,8 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
             <ImageUploader
               endpoint={`/admin/makerspace/${makerspace.id}/cover`}
               currentUrl={settings.data?.cover_image_url}
-              label="Cover image"
+              label="Cover image (wide banner)"
+              shape="wide"
               onChanged={refreshBranding}
             />
           </div>

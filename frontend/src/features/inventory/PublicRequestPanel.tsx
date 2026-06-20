@@ -82,7 +82,11 @@ export function PublicRequestPanel({
   }
 
   function tabClass(tab: ActiveTab) {
-    return activeTab === tab ? "desk-tab desk-tab-active" : "desk-tab";
+    // Tabs reuse the brutalist status-box rectangle (matches the status steppers):
+    // filled accent when active, bordered panel box otherwise.
+    return activeTab === tab
+      ? "status-box status-box-active w-full py-2"
+      : "status-box w-full py-2 hover:bg-surface hover:text-ink";
   }
 
   const canSubmit =
@@ -145,7 +149,7 @@ export function PublicRequestPanel({
 
           <div
             aria-label="Request actions"
-            className="desk-panel flex shrink-0 flex-wrap gap-1 p-1"
+            className="grid shrink-0 grid-cols-3 gap-2"
             role="tablist"
           >
             <button

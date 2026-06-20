@@ -21,6 +21,8 @@ type ImageUploaderProps = {
   disabled?: boolean;
   /** object-contain (logos) vs object-cover (photos). */
   fit?: "cover" | "contain";
+  /** square preview (logos/thumbnails) vs wide banner preview (cover images). */
+  shape?: "square" | "wide";
 };
 
 /**
@@ -36,7 +38,11 @@ export function ImageUploader({
   onChanged,
   disabled = false,
   fit = "cover",
+  shape = "square",
 }: ImageUploaderProps) {
+  // Cover images are wide banners — give them a rectangular preview that matches
+  // how they render publicly, instead of cropping into an 80×80 square.
+  const previewBox = shape === "wide" ? "h-20 w-44" : "h-20 w-20";
   const [status, setStatus] = useState<"idle" | "uploading" | "error">("idle");
   const [error, setError] = useState("");
 
@@ -98,7 +104,7 @@ export function ImageUploader({
     <div className="space-y-2">
       <p className="font-mono text-xs uppercase tracking-tight text-muted">{label}</p>
       <div className="flex items-center gap-3">
-        <div className="h-20 w-20 shrink-0 overflow-hidden border-2 border-ink bg-surface">
+        <div className={`${previewBox} shrink-0 overflow-hidden border-2 border-ink bg-surface`}>
           {currentUrl ? (
             <img
               src={currentUrl}
