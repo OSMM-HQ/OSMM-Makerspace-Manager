@@ -198,12 +198,12 @@ export function StatusStepper({ status }: { status: PrintStatus }) {
       {status.queue_position != null ? (
         <div
           aria-live="polite"
-          className="rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-center"
+          className="rounded border-2 border-ink bg-panel px-3 py-2 text-center shadow-brutal-sm"
         >
-          <p className="text-sm font-semibold text-accent">
+          <p className="text-sm font-semibold text-ink">
             #{status.queue_position} in the queue
           </p>
-          <p className="mt-1 text-xs text-accent">
+          <p className="mt-1 text-xs text-muted">
             {queuePositionDetail(status)}
           </p>
         </div>
