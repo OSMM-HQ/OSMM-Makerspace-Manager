@@ -77,8 +77,9 @@
     --color-info: 37 99 235; /* blue #2563eb — "in progress" status (distinct from red error) */
     --color-danger: 248 113 113;
     --color-warn: 245 158 11;
-    /* On dark, the offset block is a light outline so the sticker effect stays visible. */
-    --shadow-color: 63 63 70; /* #3f3f46 */
+    /* On dark, the offset block must contrast with the black page background or
+       raised controls flatten into plain outlines. */
+    --shadow-color: 161 161 170; /* #a1a1aa */
   }
 
   body {
