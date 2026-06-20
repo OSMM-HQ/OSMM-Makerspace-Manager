@@ -221,6 +221,7 @@ function Row({ label, value }: { label: string; value: string }) {
 
 function printStatusClassName(status: string) {
   switch (status) {
+    case "accepted":
     case "printing":
     case "in_progress":
       return "status-box-active";
@@ -230,6 +231,8 @@ function printStatusClassName(status: string) {
     case "rejected":
     case "failed":
       return "status-box-danger";
+    case "pending":
+      return "status-box-pending";
     default:
       return "";
   }

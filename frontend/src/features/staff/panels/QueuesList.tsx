@@ -116,6 +116,7 @@ function statusBadgeClassName(status: string) {
       return "status-box-danger";
     case "draft":
     case "pending_approval":
+      return "status-box-pending";
     default:
       return "";
   }

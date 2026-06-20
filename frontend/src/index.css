@@ -54,6 +54,7 @@
     --color-success: 21 128 61; /* #15803d */
     --color-danger: 186 26 26; /* #ba1a1a */
     --color-warn: 180 83 9; /* #b45309 */
+    --color-info: 29 78 216; /* blue #1d4ed8 — "in progress" status (distinct from red error) */
     /* The hard "sticker" shadow block colour. */
     --shadow-color: 30 41 59; /* #1e293b */
   }
@@ -73,6 +74,7 @@
     --color-line: 63 63 70; /* #3f3f46 */
     --color-outline: 82 82 91; /* #52525b */
     --color-success: 22 163 74; /* green-600 #16a34a — toned down from bright #22c55e */
+    --color-info: 37 99 235; /* blue #2563eb — "in progress" status (distinct from red error) */
     --color-danger: 248 113 113;
     --color-warn: 245 158 11;
     /* On dark, the offset block is a light outline so the sticker effect stays visible. */
@@ -182,12 +184,19 @@
   .status-box {
     @apply inline-flex min-w-0 max-w-full items-center justify-center gap-1 rounded-sm border-2 border-ink bg-panel px-2 py-1 text-center font-mono text-xs font-semibold uppercase leading-tight tracking-tight text-muted break-words;
   }
+  /* In-progress / current — blue, kept distinct from the red error state so a
+     live request never looks like a failed one. */
   .status-box-active {
-    @apply border-ink bg-accent text-on-accent shadow-brutal-sm;
+    @apply border-ink bg-info text-white shadow-brutal-sm;
+  }
+  /* Waiting on staff action. */
+  .status-box-pending {
+    @apply border-ink bg-warn text-bg;
   }
   .status-box-done {
     @apply border-ink bg-success text-bg;
   }
+  /* Reserved for problems only (rejected / failed / closed-with-issue / overdue). */
   .status-box-danger {
     @apply border-ink bg-danger text-bg;
   }
