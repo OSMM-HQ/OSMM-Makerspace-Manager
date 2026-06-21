@@ -127,6 +127,13 @@ def render(makerspace, stream, audience, key, context):
     )
 
 
+def render_preview(stream, audience, key, subject, text_body, html_body):
+    entry = get_entry(stream, audience, key)
+    if entry is None:
+        raise KeyError(f"Unknown email template: {stream}/{audience}/{key}")
+    return _render_strings(subject, text_body, html_body, entry.sample_context)
+
+
 def _render_strings(subject, text_body, html_body, context):
     return {
         "subject": _render_string(subject, context).strip(),

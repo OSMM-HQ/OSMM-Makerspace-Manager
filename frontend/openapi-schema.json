@@ -2889,6 +2889,293 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/email-templates": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_email_templates_list",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email templates"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/EmailTemplateListItem"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/email-templates/{stream}/{audience}/{key}": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_email_templates_retrieve",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "audience",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "stream",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email templates"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailTemplateDetail"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "api_v1_admin_makerspace_email_templates_partial_update",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "audience",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "stream",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email templates"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedEmailTemplateUpdate"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedEmailTemplateUpdate"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedEmailTemplateUpdate"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailTemplateDetail"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/email-templates/{stream}/{audience}/{key}/reset": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_email_templates_reset_create",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "audience",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "stream",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email templates"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailTemplateDetail"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/email-templates/preview": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_email_templates_preview_create",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email templates"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailTemplatePreviewRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailTemplatePreviewRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailTemplatePreviewRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailTemplatePreviewResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/inventory": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_inventory_list",
@@ -11475,6 +11762,180 @@
                 "type": "string",
                 "description": "* `needs_fix` - needs_fix\n* `remove` - remove"
             },
+            "EmailTemplateDetail": {
+                "type": "object",
+                "properties": {
+                    "stream": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "audience": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "key": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "fields": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "readOnly": true
+                    },
+                    "subject": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "text_body": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "html_body": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "is_overridden": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "default_subject": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "default_text": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "default_html": {
+                        "type": "string",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "audience",
+                    "default_html",
+                    "default_subject",
+                    "default_text",
+                    "description",
+                    "fields",
+                    "html_body",
+                    "is_active",
+                    "is_overridden",
+                    "key",
+                    "label",
+                    "stream",
+                    "subject",
+                    "text_body"
+                ]
+            },
+            "EmailTemplateListItem": {
+                "type": "object",
+                "properties": {
+                    "stream": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "audience": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "key": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "is_overridden": {
+                        "type": "boolean",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "audience",
+                    "is_active",
+                    "is_overridden",
+                    "key",
+                    "label",
+                    "stream"
+                ]
+            },
+            "EmailTemplatePreviewRequest": {
+                "type": "object",
+                "properties": {
+                    "stream": {
+                        "type": "string"
+                    },
+                    "audience": {
+                        "type": "string"
+                    },
+                    "key": {
+                        "type": "string"
+                    },
+                    "subject": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "text_body": {
+                        "type": "string"
+                    },
+                    "html_body": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "audience",
+                    "html_body",
+                    "key",
+                    "stream",
+                    "subject",
+                    "text_body"
+                ]
+            },
+            "EmailTemplatePreviewResponse": {
+                "type": "object",
+                "properties": {
+                    "subject": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "text_body": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "html_body": {
+                        "type": "string",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "html_body",
+                    "subject",
+                    "text_body"
+                ]
+            },
             "Error": {
                 "type": "object",
                 "properties": {
@@ -12177,6 +12638,11 @@
                     },
                     "location": {
                         "type": "string",
+                        "maxLength": 200
+                    },
+                    "map_url": {
+                        "type": "string",
+                        "format": "uri",
                         "maxLength": 200
                     },
                     "public_inventory_enabled": {
@@ -13481,6 +13947,24 @@
                     }
                 }
             },
+            "PatchedEmailTemplateUpdate": {
+                "type": "object",
+                "properties": {
+                    "subject": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "text_body": {
+                        "type": "string"
+                    },
+                    "html_body": {
+                        "type": "string"
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    }
+                }
+            },
             "PatchedFilamentSpool": {
                 "type": "object",
                 "properties": {
@@ -13672,6 +14156,11 @@
                     },
                     "location": {
                         "type": "string",
+                        "maxLength": 200
+                    },
+                    "map_url": {
+                        "type": "string",
+                        "format": "uri",
                         "maxLength": 200
                     },
                     "public_inventory_enabled": {
@@ -15126,6 +15615,10 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "map_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
                     "logo_url": {
                         "type": "string",
                         "format": "uri",
@@ -15143,6 +15636,7 @@
                     "cover_image_url",
                     "location",
                     "logo_url",
+                    "map_url",
                     "name",
                     "public_code",
                     "slug"
