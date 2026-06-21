@@ -51,7 +51,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
             {title}
           </h2>
         </div>
-        <div className="desk-panel-body overflow-y-auto p-4">{children}</div>
+        <div className="desk-panel-body overflow-y-auto overflow-x-hidden min-w-0 p-4">{children}</div>
         {footer ? <div className="shrink-0 border-t border-line px-4 py-3">{footer}</div> : null}
       </div>
     </div>

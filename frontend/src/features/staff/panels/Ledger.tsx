@@ -7,6 +7,7 @@ type LedgerSource = "request" | "self_checkout" | "direct_handout";
 type LedgerRow = {
   source: LedgerSource;
   item_name: string;
+  container: string | null;
   units: Array<{ asset_tag: string; serial_number: string }>;
   target_label: string | null;
   holder: string;
@@ -121,6 +122,7 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
                     <tr key={`${row.source}-${row.reference_id}-${row.makerspace_id}-${row.item_name}`} className={overdue ? "bg-danger/10" : ""}>
                       <td className="px-3 py-2 align-top">
                         <div className="max-w-56 break-words font-medium text-ink">{row.item_name}</div>
+                        {row.container ? <div className="mt-0.5 break-words text-xs text-muted">Box: {row.container}</div> : null}
                         <UnitLines row={row} />
                       </td>
                       <td className="px-3 py-2 align-top text-ink"><span className="block max-w-48 break-words">{row.holder}</span></td>

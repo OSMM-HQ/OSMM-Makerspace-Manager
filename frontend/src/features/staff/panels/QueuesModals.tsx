@@ -358,7 +358,7 @@ export function ReturnRequestModal({ row, open, pending, error, onClose, onSubmi
       >
         <div className="grid gap-3 sm:grid-cols-2">
           {issueUrl ? (
-            <div className="grid gap-1 text-sm">
+            <div className="grid min-w-0 gap-1 text-sm">
               <span className="font-medium text-ink">Issue photo (for comparison)</span>
               <img
                 src={issueUrl}
@@ -367,12 +367,12 @@ export function ReturnRequestModal({ row, open, pending, error, onClose, onSubmi
               />
             </div>
           ) : null}
-          <div className="grid gap-1 text-sm">
+          <div className="grid min-w-0 gap-1 text-sm">
             <span className="font-medium text-ink">Return photo</span>
             <EvidenceUpload makerspaceId={makerspaceId} evidenceType="return" disabled={pending} onUploaded={setEvidenceId} />
           </div>
-          <BoxCodeField value={boxCode} onChange={setBoxCode} makerspaceId={makerspaceId} pending={pending} />
         </div>
+        <BoxCodeField value={boxCode} onChange={setBoxCode} makerspaceId={makerspaceId} pending={pending} />
         <label className="grid gap-1 text-sm">
           <span className="font-medium text-ink">Remark</span>
           <textarea className="desk-input min-h-20 w-full resize-y" value={remark} disabled={pending} onChange={(event) => setRemark(event.target.value)} />
@@ -388,7 +388,7 @@ export function ReturnRequestModal({ row, open, pending, error, onClose, onSubmi
                   {(["returned", "damaged", "missing"] as const).map((key) => (
                     <label key={key} className="grid gap-1 text-xs text-muted">
                       <span className="capitalize">{key}</span>
-                      <input className="desk-input" type="number" min="0" value={resolution?.[key] ?? 0} disabled={pending} onChange={(event) => updateResolution(item.id, key, event.target.value)} />
+                      <input className="desk-input min-w-0" type="number" min="0" value={resolution?.[key] ?? 0} disabled={pending} onChange={(event) => updateResolution(item.id, key, event.target.value)} />
                     </label>
                   ))}
                 </div>
@@ -451,7 +451,7 @@ function BoxCodeField({ value, onChange, makerspaceId, pending }: { value: strin
       <span className="font-medium text-ink">Box QR code</span>
       <div className="flex flex-wrap gap-2">
         <input className="desk-input min-w-0 flex-1" value={value} disabled={pending} onChange={(event) => onChange(event.target.value)} />
-        <button className="desk-button" type="button" disabled={pending} onClick={() => setScanOpen(true)}>Scan</button>
+        <button className="desk-button shrink-0" type="button" disabled={pending} onClick={() => setScanOpen(true)}>Scan</button>
       </div>
       {containers.length ? (
         <select

@@ -5,11 +5,11 @@ import { Panel, type Makerspace, useStaffGet } from "./shared";
 import {
   ErrorText,
   type FilamentSpool,
-  PrintRows,
   type PrintPrinter,
   type PrintRequest,
   printingRequest,
 } from "./PrintingPanelParts";
+import { PrintRows } from "./PrintingPanelCards";
 import { AcceptPrintDialog, FailPrintDialog } from "./PrintingPanelDialogs";
 
 // The print queue lives here so it can be shown inside the unified "Requests" tab

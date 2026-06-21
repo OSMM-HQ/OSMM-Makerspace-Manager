@@ -12425,6 +12425,10 @@
                     "item_name": {
                         "type": "string"
                     },
+                    "container": {
+                        "type": "string",
+                        "nullable": true
+                    },
                     "holder": {
                         "type": "string"
                     },

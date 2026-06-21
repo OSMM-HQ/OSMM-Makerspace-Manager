@@ -8,13 +8,12 @@ import {
   ErrorText,
   type FilamentSpool,
   type PrintPrinter,
-  PrinterCard,
   type PrinterPayload,
   printingRequest,
   SpoolColorInput,
   type SpoolPayload,
-  SpoolRow,
 } from "./PrintingPanelParts";
+import { PrinterCard, SpoolRow } from "./PrintingPanelCards";
 import { PrinterEditDialog, SpoolEditDialog } from "./PrintingPanelDialogs";
 
 type DeactivateTarget =

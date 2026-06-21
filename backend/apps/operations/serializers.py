@@ -86,6 +86,7 @@ class LedgerUnitSerializer(serializers.Serializer):
 class LedgerRowSerializer(serializers.Serializer):
     source = serializers.ChoiceField(choices=["request", "self_checkout", "direct_handout"])
     item_name = serializers.CharField()
+    container = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     holder = serializers.CharField(allow_blank=True)
     quantity = serializers.IntegerField()
     units = LedgerUnitSerializer(many=True)

@@ -2,6 +2,33 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — Phase 1: ledger container column + return-modal overflow + spool colour swatches (2026-06-21)
+
+First phase of a multi-phase "snappy + email" batch (Codex Stage-1 APPROVED, Stage-4 review clean, 15
+ledger tests + `tsc -b` green). Three small, infra-free, no-migration fixes:
+
+- **Ledger shows the container/box per row.** `operations.ledger._request_item_rows` now
+  `select_related("request__assigned_box", "request__public_tool_loan__container")` and a new
+  `_container_label(item, loan)` helper resolves the box: direct-loan `loan.container.label` first,
+  else reviewed-request `request.assigned_box.label`, else `None` (no N+1; reuses the existing
+  `_safe_loan` reverse-O2O guard). `LedgerRowSerializer` gains a nullable `container` field (response
+  `{count, results}` shape unchanged); OpenAPI snapshot regenerated (generated `api.ts` is paths-only
+  so untouched). `Ledger.tsx` renders `Box: <label>` as its own muted line under the item name
+  (UnitLines/`target_label` behaviour unchanged). Test: `test_reports_ledger.py`
+  `test_ledger_includes_container_labels_for_reviewed_requests_and_direct_loans`.
+- **Return/assign modal horizontal-overflow fix.** Shared `components/ui/Modal.tsx` body adds
+  `overflow-x-hidden min-w-0` (since `overflow-y-auto` forces `overflow-x:auto`). In
+  `QueuesModals.tsx` `BoxCodeField` moved OUT of the 2-col photo grid into its own full-width row;
+  `min-w-0` on photo wrappers + the resolution-quantity number inputs; the shared `BoxCodeField` Scan
+  button gets `shrink-0` (fixes both the Return and Assign+issue modals).
+- **Filament spool colour picker upgrade (frontend only — `color` is already a free-text CharField).**
+  `SpoolColorInput` (`PrintingPanelParts.tsx`) is now a swatch palette (`SPOOL_COLOR_SWATCHES`
+  name→hex; real `<button>`s with `aria-label`/`aria-pressed`/focus+selected rings, borders on
+  White/Transparent/Natural) **plus** the existing preset `<select>` **plus** a custom-colour control
+  (native `<input type=color>` with a valid-`#rrggbb` regex fallback + a free-text input for arbitrary
+  names). `onChange(string)` contract + `className` prop preserved so the 3 call sites are unaffected.
+  `PrinterCard`/`SpoolRow`/`PrintRows` split out into new `PrintingPanelCards.tsx` to keep files tidy.
+
 ## Recent batch — pink dark theme + brand logos + recipient toggles + manual-log hours + nav/reports (2026-06-20)
 
 Phase-by-phase batch (commit-per-green, each with tests where applicable); branch `feat/lean-paid-production`.

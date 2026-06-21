@@ -4,6 +4,7 @@ import pytest
 from django.utils import timezone
 
 from apps.accounts.models import User
+from apps.boxes.models import Box
 from apps.hardware_requests.models import (
     HardwareRequest,
     HardwareRequestItem,
@@ -25,6 +26,7 @@ def _request_loan(
     returned=0,
     status=None,
     requester=None,
+    assigned_box=None,
 ):
     requester = requester or make_user(username, access_status=User.AccessStatus.ACTIVE)
     issued_at = timezone.now() - timedelta(days=2)
@@ -33,6 +35,7 @@ def _request_loan(
         requester=requester,
         requester_username=requester.username,
         status=status or HardwareRequest.Status.ISSUED,
+        assigned_box=assigned_box,
         issued_at=issued_at,
         return_due_at=issued_at + timedelta(days=7),
     )
@@ -47,7 +50,14 @@ def _request_loan(
     return hardware_request
 
 
-def _self_checkout_loan(makerspace, product, username):
+def _self_checkout_loan(
+    makerspace,
+    product,
+    username,
+    *,
+    container=None,
+    source=PublicToolLoan.Source.PUBLIC_SELF_CHECKOUT,
+):
     requester = make_user(username, access_status=User.AccessStatus.ACTIVE)
     issued_at = timezone.now() - timedelta(days=1)
     hardware_request = HardwareRequest.objects.create(
@@ -68,10 +78,12 @@ def _self_checkout_loan(makerspace, product, username):
         makerspace=makerspace,
         request=hardware_request,
         requester=requester,
+        container=container,
         target_type="product",
         target_id=product.id,
         target_label=product.name,
         status=PublicToolLoan.Status.CHECKED_OUT,
+        source=source,
         due_at=issued_at + timedelta(days=3),
     )
     loan.checked_out_at = issued_at
@@ -107,6 +119,42 @@ def test_ledger_returns_outstanding_request_and_self_checkout_scoped_to_makerspa
     assert rows[("self_checkout", "Logic Analyzer")]["quantity"] == 1
     assert rows[("self_checkout", "Logic Analyzer")]["reference_id"] == self_loan.id
     assert {row["makerspace_id"] for row in response.data["results"]} == {makerspace.id}
+
+
+def test_ledger_includes_container_labels_for_reviewed_requests_and_direct_loans():
+    makerspace = make_space("ledger-containers")
+    manager = make_member("ledger-containers-manager", makerspace)
+    reviewed_product = make_product(makerspace, name="Review Kit")
+    direct_product = make_product(makerspace, name="Direct Kit")
+    loose_product = make_product(makerspace, name="Loose Kit")
+    reviewed_box = Box.objects.create(makerspace=makerspace, label="Reviewed Box")
+    direct_box = Box.objects.create(makerspace=makerspace, label="Direct Box")
+    _request_loan(
+        makerspace,
+        reviewed_product,
+        "ledger-container-reviewed-holder",
+        assigned_box=reviewed_box,
+    )
+    _self_checkout_loan(
+        makerspace,
+        direct_product,
+        "ledger-container-direct-holder",
+        container=direct_box,
+        source=PublicToolLoan.Source.ADMIN_DIRECT,
+    )
+    _request_loan(makerspace, loose_product, "ledger-container-loose-holder")
+
+    response = authenticated_client(manager).get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/ledger"
+    )
+
+    assert response.status_code == 200
+    rows = {row["item_name"]: row for row in response.data["results"]}
+    assert rows["Review Kit"]["source"] == "request"
+    assert rows["Review Kit"]["container"] == "Reviewed Box"
+    assert rows["Direct Kit"]["source"] == "direct_handout"
+    assert rows["Direct Kit"]["container"] == "Direct Box"
+    assert rows["Loose Kit"]["container"] is None
 
 
 def test_ledger_excludes_fully_returned_loans():

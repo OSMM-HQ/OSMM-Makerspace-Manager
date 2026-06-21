@@ -25,8 +25,10 @@ def _request_item_rows(makerspace_id):
         HardwareRequestItem.objects.select_related(
             "product",
             "request",
+            "request__assigned_box",
             "request__requester",
             "request__public_tool_loan",
+            "request__public_tool_loan__container",
             "request__public_tool_loan__requester",
         )
         .filter(
@@ -75,6 +77,7 @@ def _request_item_rows(makerspace_id):
             {
                 "source": _source(loan),
                 "item_name": item.product.name,
+                "container": _container_label(item, loan),
                 "holder": _request_holder(item.request),
                 "quantity": item.outstanding,
                 "units": _units_for_item(item, loan, asset_map),
@@ -87,6 +90,14 @@ def _request_item_rows(makerspace_id):
             }
         )
     return rows
+
+
+def _container_label(item, loan):
+    if loan is not None and loan.container_id:
+        return loan.container.label
+    if item.request.assigned_box_id:
+        return item.request.assigned_box.label
+    return None
 
 
 def _loan_asset_map(item_loans):
