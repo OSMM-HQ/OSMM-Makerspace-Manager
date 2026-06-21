@@ -38,12 +38,12 @@ export function MakerspaceBrand({
         <img
           src={logoUrl}
           alt={`${name} logo`}
-          className={`${LOGO_SIZE[size]} shrink-0 border-2 border-ink object-contain bg-panel`}
+          className={`${LOGO_SIZE[size]} shrink-0 rounded-lg border border-line object-contain bg-panel`}
         />
       ) : null}
       {!hideName || !logoUrl ? (
         <span
-          className={`font-display font-bold uppercase tracking-tight text-ink ${NAME_SIZE[size]}`}
+          className={`font-display font-bold tracking-tight text-ink ${NAME_SIZE[size]}`}
         >
           {name}
         </span>

@@ -48,7 +48,7 @@ function LandingPage() {
 
       <section className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-5 py-8 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="desk-panel h-fit p-5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+          <p className="text-xs font-semibold tracking-wide text-accent-ink">
             Inventory Directory
           </p>
           <h1 className="mt-3 text-3xl font-bold text-ink">Makerspaces</h1>
@@ -63,7 +63,7 @@ function LandingPage() {
               <p className="text-xs text-muted">Public spaces</p>
             </div>
             <div className="rounded-md border border-line bg-surface p-3">
-              <p className="text-2xl font-bold text-accent">Live</p>
+              <p className="text-2xl font-bold text-accent-ink">Live</p>
               <p className="text-xs text-muted">Status access</p>
             </div>
           </div>
@@ -75,7 +75,7 @@ function LandingPage() {
               <h2 className="text-lg font-semibold text-ink">Available public catalogs</h2>
               <p className="text-sm text-muted">Select a makerspace to view shared equipment.</p>
             </div>
-            <span className="rounded-md border border-line bg-surface px-3 py-1 text-xs font-medium text-muted">
+            <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-muted">
               Standard public portal
             </span>
           </div>
@@ -113,9 +113,9 @@ function LandingPage() {
             {makerspacesQuery.data.map((makerspace) => (
               <article
                 key={makerspace.slug}
-                className="group relative flex flex-col border-2 border-ink bg-panel transition-transform duration-150 hover:-translate-y-1 hover:shadow-brutal"
+                className="group relative flex flex-col rounded-xl border border-line bg-panel shadow-soft transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-soft-lg"
               >
-                <div className="relative h-40 overflow-hidden border-b-2 border-secondary bg-surface">
+                <div className="relative h-40 overflow-hidden rounded-t-xl border-b border-line bg-surface">
                   {makerspace.cover_image_url ? (
                     <img
                       src={makerspace.cover_image_url}
@@ -139,14 +139,14 @@ function LandingPage() {
                   <MakerspaceMapLink
                     makerspace={makerspace}
                     className="relative z-10 mt-2"
-                    locationClassName="break-words font-mono text-xs uppercase text-muted"
+                    locationClassName="break-words font-mono text-xs text-muted"
                   />
                   <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-5">
-                    <span className="min-w-0 truncate font-mono text-xs uppercase text-muted">
+                    <span className="min-w-0 truncate font-mono text-xs text-muted">
                       {makerspace.public_code}
                     </span>
                     <Link
-                      className="inline-flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-tight text-secondary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 after:absolute after:inset-0 after:content-['']"
+                      className="inline-flex items-center gap-2 font-mono text-xs font-semibold tracking-tight text-secondary-ink hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 after:absolute after:inset-0 after:content-['']"
                       to={`/m/${makerspace.slug}`}
                       aria-label={`Open ${makerspace.name} catalog`}
                     >
@@ -168,7 +168,7 @@ function NotFoundPage() {
   return (
     <main className="grid min-h-screen place-items-center bg-bg px-6">
       <div className="text-center">
-        <p className="text-sm font-semibold uppercase tracking-wide text-muted">
+        <p className="text-sm font-semibold tracking-wide text-muted">
           404
         </p>
         <h1 className="mt-2 text-3xl font-bold text-ink">Page not found</h1>

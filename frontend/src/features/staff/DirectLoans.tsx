@@ -38,6 +38,8 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   const [showScanner, setShowScanner] = useState(false);
   const [qrPayloads, setQrPayloads] = useState("");
   const [containerId, setContainerId] = useState("");
+  const [showContainerScanner, setShowContainerScanner] = useState(false);
+  const [containerScanError, setContainerScanError] = useState("");
   // Track WHICH identifier was verified, not just a boolean: editing the field
   // mid-flight must never approve a stale, mismatched identity.
   const [verifiedIdentifier, setVerifiedIdentifier] = useState("");
@@ -53,6 +55,8 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
     setShowScanner(false);
     setQrPayloads("");
     setContainerId("");
+    setShowContainerScanner(false);
+    setContainerScanError("");
     setVerifiedIdentifier("");
     setVerifiedUsername("");
     setReturningLoan(null);
@@ -123,6 +127,8 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
       setScanned([]);
       setQrPayloads("");
       setContainerId("");
+      setShowContainerScanner(false);
+      setContainerScanError("");
     },
   });
   const returnLoan = useMutation({
@@ -200,6 +206,29 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
         : [...items, { payload: cleanPayload, label }],
     );
   };
+  const handleContainerScan = async (payload: string) => {
+    try {
+      const result = await staffRequest<QrResolveResponse>("/admin/qr/resolve", {
+        method: "POST",
+        body: JSON.stringify({ payload }),
+      });
+      const target = result.target;
+      if (target.type !== "box") {
+        setContainerScanError("Scanned QR is not a container.");
+        return;
+      }
+      if (!containerOptions.some((container) => container.id === target.id)) {
+        setContainerScanError("That container isn't available for handout (inactive or not found).");
+        return;
+      }
+      setContainerId(String(target.id));
+      setContainerScanError("");
+    } catch {
+      setContainerScanError("Could not resolve the scanned QR.");
+    } finally {
+      setShowContainerScanner(false);
+    }
+  };
 
   return (
     <div className="grid gap-4">
@@ -213,18 +242,31 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
         {isVerified && verifiedUsername ? <p className="mt-2 text-sm text-success">Verified as {verifiedUsername}</p> : null}
         {verify.error ? <p className="mt-2 text-sm text-danger">{verify.error.message}</p> : null}
         <label className="mt-4 block text-sm font-medium text-ink" htmlFor="direct-loan-container">Container (optional)</label>
-        <select
-          id="direct-loan-container"
-          className="desk-input mt-1 w-full"
-          value={containerId}
-          disabled={containers.isLoading}
-          onChange={(e) => setContainerId(e.target.value)}
-        >
-          <option value="">No container</option>
-          {containerOptions.map((container) => (
-            <option key={container.id} value={container.id}>{container.label}</option>
-          ))}
-        </select>
+        <div className="mt-1 flex flex-col gap-2 md:flex-row">
+          <select
+            id="direct-loan-container"
+            className="desk-input w-full"
+            value={containerId}
+            disabled={containers.isLoading}
+            onChange={(e) => setContainerId(e.target.value)}
+          >
+            <option value="">No container</option>
+            {containerOptions.map((container) => (
+              <option key={container.id} value={container.id}>{container.label}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="desk-button"
+            onClick={() => {
+              setContainerScanError("");
+              setShowContainerScanner(true);
+            }}
+          >
+            Scan container
+          </button>
+        </div>
+        {containerScanError ? <p className="mt-1 text-sm text-danger">{containerScanError}</p> : null}
         <div className="mt-4">
           <div className="mb-2 flex items-center justify-between gap-3">
             <h3 className="text-sm font-semibold text-ink">Items</h3>
@@ -276,6 +318,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
         {products.error ? <p className="mt-3 text-sm text-danger">{products.error.message}</p> : null}
         {containers.error ? <p className="mt-3 text-sm text-danger">{containers.error.message}</p> : null}
         {showScanner ? <QrScanner onScan={handleScan} onClose={() => setShowScanner(false)} /> : null}
+        {showContainerScanner ? <QrScanner onScan={handleContainerScan} onClose={() => setShowContainerScanner(false)} /> : null}
       </Panel>
       <DirectLoanList loans={loans.data?.results ?? []} onReturn={openReturnModal} />
       <DirectLoanReturnModal
