@@ -35,6 +35,7 @@ export function StaffTabContent({
   printingOnly,
   canChooseToBuyKind,
   canEditInventory,
+  canUseToBuy,
   canManageQr,
   canManageMakerspace,
   canSeeHardware,
@@ -49,6 +50,7 @@ export function StaffTabContent({
   printingOnly: boolean;
   canChooseToBuyKind: boolean;
   canEditInventory: boolean;
+  canUseToBuy: boolean;
   canManageQr: boolean;
   canManageMakerspace: boolean;
   canSeeHardware: boolean;
@@ -75,6 +77,7 @@ export function StaffTabContent({
           key={makerspaceKey}
           makerspace={activeMakerspace}
           canViewAudit={canViewAudit}
+          canUseToBuy={canUseToBuy}
         />
       ) : null}
       {activeTab === "needsfix" && canEditInventory ? <NeedsFixShelf key={makerspaceKey} makerspace={activeMakerspace} /> : null}

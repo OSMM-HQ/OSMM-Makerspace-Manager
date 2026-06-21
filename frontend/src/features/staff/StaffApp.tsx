@@ -460,6 +460,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
             printingOnly={printingOnly}
             canChooseToBuyKind={canChooseToBuyKind}
             canEditInventory={canEditInventory}
+            canUseToBuy={canUseToBuy}
             canManageQr={canManageQr}
             canManageMakerspace={canManageMakerspace}
             canSeeHardware={canSeeHardware}

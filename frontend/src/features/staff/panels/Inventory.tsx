@@ -31,7 +31,7 @@ const emptyForm: ItemForm = {
 };
 const emptyAdjust: AdjustmentForm = { delta_available: "0", delta_damaged: "0", delta_lost: "0", reason: "" };
 
-export function Inventory({ makerspace, canViewAudit = false }: { makerspace: Makerspace; canViewAudit?: boolean }) {
+export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = false }: { makerspace: Makerspace; canViewAudit?: boolean; canUseToBuy?: boolean }) {
   const queryClient = useQueryClient();
   const storageKey = `inventory.view.${makerspace.id}`;
   const [search, setSearch] = useState(() => localStorage.getItem(storageKey) ?? "");
@@ -39,6 +39,9 @@ export function Inventory({ makerspace, canViewAudit = false }: { makerspace: Ma
   const [form, setForm] = useState<ItemForm>(emptyForm);
   const [adjustForm, setAdjustForm] = useState<AdjustmentForm>(emptyAdjust);
   const [editing, setEditing] = useState<AdminProduct | null>(null);
+  const [toBuyTarget, setToBuyTarget] = useState<AdminProduct | null>(null);
+  const [toBuyQty, setToBuyQty] = useState("1");
+  const [toBuyMessage, setToBuyMessage] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<AdminProduct | null>(null);
   const [qrConfirm, setQrConfirm] = useState<boolean | null>(null);
@@ -50,6 +53,9 @@ export function Inventory({ makerspace, canViewAudit = false }: { makerspace: Ma
     setForm(emptyForm);
     setAdjustForm(emptyAdjust);
     setEditing(null);
+    setToBuyTarget(null);
+    setToBuyQty("1");
+    setToBuyMessage("");
     setAddOpen(false);
     setArchiveTarget(null);
     setQrConfirm(null);
@@ -100,6 +106,28 @@ export function Inventory({ makerspace, canViewAudit = false }: { makerspace: Ma
       invalidate();
     },
   });
+  const openToBuy = (product: AdminProduct) => {
+    setToBuyTarget(product);
+    setToBuyQty("1");
+    setToBuyMessage("");
+  };
+  const toBuy = useMutation({
+    mutationFn: () => {
+      if (!toBuyTarget) {
+        return Promise.reject(new Error("Select an item first."));
+      }
+      return staffRequest(`/procurement/makerspace/${makerspace.id}/to-buy`, {
+        method: "POST",
+        body: JSON.stringify({ name: toBuyTarget.name, quantity: Number(toBuyQty) || 1, link: "", estimated_unit_cost: "" }),
+      });
+    },
+    onSuccess: () => {
+      setToBuyMessage(toBuyTarget ? `${toBuyTarget.name} added to To Buy.` : "Item added to To Buy.");
+      setToBuyTarget(null);
+      setToBuyQty("1");
+      queryClient.invalidateQueries({ queryKey: ["procurement", makerspace.id] });
+    },
+  });
   const rows = useMemo(() => {
     const normalizedSearch = debouncedSearch.toLowerCase();
     return (products.data?.results ?? []).filter((product) =>
@@ -121,7 +149,7 @@ export function Inventory({ makerspace, canViewAudit = false }: { makerspace: Ma
     { key: "name", header: "Name", sortable: true, render: (product) => <button type="button" className="text-left font-semibold text-ink hover:text-accent-ink" onClick={() => openEdit(product)}>{product.name}</button> },
     { key: "tracking_mode", header: "Mode", sortable: true },
     { key: "total_quantity", header: "Total", sortable: true },
-    { key: "available_quantity", header: "Available", sortable: true, render: (product) => <InventoryAvailability product={product} /> },
+    { key: "available_quantity", header: "Available", sortable: true, render: (product) => <InventoryAvailability product={product} canUseToBuy={canUseToBuy} onAddToBuy={openToBuy} /> },
     { key: "issued_quantity", header: "Issued", sortable: true },
     { key: "damaged_quantity", header: "Damaged", sortable: true },
     { key: "lost_quantity", header: "Lost", sortable: true },
@@ -129,6 +157,7 @@ export function Inventory({ makerspace, canViewAudit = false }: { makerspace: Ma
       <div className="desk-actions flex flex-wrap gap-2">
         <button className="desk-button" type="button" onClick={() => openEdit(product)}>Edit</button>
         <button className="desk-button" type="button" onClick={() => setArchiveTarget(product)}>Archive</button>
+        {canUseToBuy ? <button className="desk-button" type="button" onClick={() => openToBuy(product)}>To Buy</button> : null}
       </div>
     ) },
   ];
@@ -149,6 +178,7 @@ export function Inventory({ makerspace, canViewAudit = false }: { makerspace: Ma
           )}
         />
         <DataTable<AdminProduct> columns={columns} data={rows} getRowId={(row) => row.id} selectedIds={selectedIds} onSelectionChange={setSelectedIds} loading={products.isLoading} emptyTitle="No inventory" skeletonCols={columns.length + 1} />
+        {toBuyMessage ? <p className="text-sm text-muted">{toBuyMessage}</p> : null}
         {bulkQrMessage ? <p className="text-sm text-muted">{bulkQrMessage}</p> : null}
       </div>
       <ItemModal title="Add item" open={addOpen} onClose={() => setAddOpen(false)} form={form} setForm={setForm} categories={categoryRows} includeQuantities pending={create.isPending} error={create.error?.message} onSubmit={() => create.mutate()} />
@@ -157,6 +187,15 @@ export function Inventory({ makerspace, canViewAudit = false }: { makerspace: Ma
         {editing ? <QuantityAdjust product={editing} form={adjustForm} setForm={setAdjustForm} pending={adjust.isPending} error={adjust.error?.message} onSubmit={() => adjust.mutate()} /> : null}
         {editing && canViewAudit ? <LendingHistory productId={editing.id} /> : null}
       </ItemModal>
+      {canUseToBuy ? (
+        <Modal open={Boolean(toBuyTarget)} onClose={() => setToBuyTarget(null)} title="Add to To Buy" footer={<div className="desk-actions flex flex-wrap justify-end gap-2"><button className="desk-button" type="button" disabled={toBuy.isPending} onClick={() => setToBuyTarget(null)}>Cancel</button><button className="desk-button" type="button" disabled={toBuy.isPending} onClick={() => toBuy.mutate()}>Add</button></div>}>
+          <div className="grid gap-3 text-sm">
+            <p className="font-semibold text-ink">{toBuyTarget?.name}</p>
+            <input className="desk-input" type="number" min="1" value={toBuyQty} onChange={(e) => setToBuyQty(e.target.value)} />
+            {toBuy.error ? <p className="text-sm text-danger">{toBuy.error.message}</p> : null}
+          </div>
+        </Modal>
+      ) : null}
       <ConfirmDialog open={Boolean(archiveTarget)} title="Archive item" message={archiveTarget ? `Archive ${archiveTarget.name}? It will be hidden from active inventory views.` : ""} confirmLabel="Archive" tone="danger" pending={archive.isPending} onCancel={() => setArchiveTarget(null)} onConfirm={() => { if (archiveTarget) archive.mutate(archiveTarget); }} />
       <ConfirmDialog open={qrConfirm !== null} title={qrConfirm ? "Enable public QR" : "Disable public QR"} message={`${qrConfirm ? "Enable" : "Disable"} public self-checkout QR for ${selectedIds.length} selected items?`} confirmLabel={qrConfirm ? "Enable" : "Disable"} pending={bulkQr.isPending} onCancel={() => setQrConfirm(null)} onConfirm={() => { if (qrConfirm !== null) bulkQr.mutate(qrConfirm); }} />
     </Panel>
@@ -246,9 +285,9 @@ function formFromProduct(product: AdminProduct): ItemForm {
   return { name: product.name, tracking_mode: product.tracking_mode, category: product.category ? String(product.category) : "", description: product.description, total_quantity: String(product.total_quantity), available_quantity: String(product.available_quantity), storage_location: product.storage_location ?? "", is_public: product.is_public, public_self_checkout_enabled: product.public_self_checkout_enabled, show_public_count: product.show_public_count, public_availability_mode: product.public_availability_mode };
 }
 
-function InventoryAvailability({ product }: { product: AdminProduct }) {
+function InventoryAvailability({ product, canUseToBuy = false, onAddToBuy }: { product: AdminProduct; canUseToBuy?: boolean; onAddToBuy: (product: AdminProduct) => void }) {
   const badge = product.available_quantity <= 0 ? <StatusBadge status="lost" label="Unavailable" /> : product.available_quantity <= Math.ceil(product.total_quantity * 0.2) ? <StatusBadge status="limited" label="Limited" /> : <StatusBadge status="available" label="Available" />;
-  return <span className="inline-flex items-center gap-2"><span className="font-medium text-ink">{product.available_quantity}</span>{badge}</span>;
+  return <span className="inline-flex items-center gap-2"><span className="font-medium text-ink">{product.available_quantity}</span>{badge}{canUseToBuy && product.available_quantity <= 0 ? <button className="text-xs font-semibold text-accent-ink hover:text-ink" type="button" onClick={() => onAddToBuy(product)}>Add to To Buy</button> : null}</span>;
 }
 
 function InventoryMetric({ label, value }: { label: string; value: number }) {
