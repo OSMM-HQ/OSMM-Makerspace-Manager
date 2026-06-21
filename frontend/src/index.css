@@ -2,9 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ── Self-hosted fonts (no CDN/CSP dependency) ───────────────────────────────
-   Clash Display (Fontshare) for headings · Instrument Sans (body, variable) ·
-   JetBrains Mono (technical labels, variable). Latin subsets only. */
+/* Self-hosted fonts: Clash Display headings, Instrument Sans body, JetBrains Mono labels. */
 @font-face {
   font-family: "Clash Display";
   src: url("/fonts/ClashDisplay-Semibold.woff2") format("woff2");
@@ -36,50 +34,71 @@
 
 @layer base {
   :root {
-    /* Make native controls (select popups, date/number spinners, autofill) follow
-       the theme — without this, dark mode renders white/light form fields. */
     color-scheme: light;
-    /* Blueprint Creative Lab — light "bright workshop" palette */
-    --color-accent: 220 38 38; /* red #dc2626 (primary) */
-    --color-accent-bright: 185 28 28; /* #b91c1c hover */
-    --color-secondary: 153 27 27; /* dark red #991b1b — card lines + DETAILS link */
-    --color-on-accent: 255 255 255; /* text on accent (white on red) */
-    --color-ink: 30 41 59; /* slate #1e293b */
-    --color-bg: 246 248 251; /* #f6f8fb */
-    --color-surface: 230 234 240; /* grey #e6eaf0 */
-    --color-panel: 255 255 255; /* #ffffff */
-    --color-muted: 100 116 139; /* slate grey #64748b */
-    --color-line: 51 65 85; /* slate border #334155 */
-    --color-outline: 148 163 184; /* #94a3b8 */
-    --color-success: 21 128 61; /* #15803d */
-    --color-danger: 186 26 26; /* #ba1a1a */
-    --color-warn: 180 83 9; /* #b45309 */
-    --color-info: 29 78 216; /* blue #1d4ed8 — "in progress" status (distinct from red error) */
-    /* The hard "sticker" shadow block colour. */
-    --shadow-color: 30 41 59; /* #1e293b */
+    --color-accent: 125 211 252;
+    --color-accent-ink: 0 55 74;
+    --color-accent-bright: 56 189 248;
+    --color-secondary: 249 168 212;
+    --color-secondary-ink: 90 22 51;
+    --color-on-accent: 0 55 74;
+    --color-ink: 31 46 53;
+    --color-bg: 250 249 244;
+    --color-surface: 239 238 233;
+    --color-panel: 255 255 255;
+    --color-muted: 107 119 128;
+    --color-line: 227 225 216;
+    --color-outline: 196 193 182;
+    --color-success: 116 221 156;
+    --color-success-ink: 0 50 27;
+    --color-warn: 252 223 70;
+    --color-warn-ink: 61 52 0;
+    --color-info: 125 211 252;
+    --color-info-ink: 0 55 74;
+    --color-danger: 164 36 59;
+    --color-danger-ink: 90 22 32;
+    --color-tone-blue: 125 211 252;
+    --color-tone-blue-ink: 0 55 74;
+    --color-tone-yellow: 252 223 70;
+    --color-tone-yellow-ink: 61 52 0;
+    --color-tone-mint: 116 221 156;
+    --color-tone-mint-ink: 0 50 27;
+    --color-tone-pink: 249 168 212;
+    --color-tone-pink-ink: 90 22 51;
+    --shadow-color: 31 46 53;
   }
 
   :root.dark {
     color-scheme: dark;
-    /* Upgraded "night workshop" — brutalism translated to dark */
-    --color-accent: 248 113 113; /* red #f87171 (primary) — light enough for dark on-accent text */
-    --color-accent-bright: 252 165 165; /* #fca5a5 hover */
-    --color-secondary: 239 68 68; /* red #ef4444 — card lines + DETAILS link */
-    --color-on-accent: 12 13 14; /* dark text on light-red accent — keeps high contrast */
-    --color-ink: 244 244 245; /* #f4f4f5 */
-    --color-bg: 10 10 11; /* black #0a0a0b */
-    --color-surface: 22 22 24; /* #161618 */
-    --color-panel: 18 18 20; /* #121214 */
-    --color-muted: 161 161 170; /* #a1a1aa */
-    --color-line: 63 63 70; /* #3f3f46 */
-    --color-outline: 82 82 91; /* #52525b */
-    --color-success: 22 163 74; /* green-600 #16a34a — toned down from bright #22c55e */
-    --color-info: 37 99 235; /* blue #2563eb — "in progress" status (distinct from red error) */
-    --color-danger: 248 113 113;
-    --color-warn: 245 158 11;
-    /* On dark, the offset block must contrast with the black page background or
-       raised controls flatten into plain outlines. */
-    --shadow-color: 161 161 170; /* #a1a1aa */
+    --color-accent: 125 211 252;
+    --color-accent-ink: 0 55 74;
+    --color-accent-bright: 56 189 248;
+    --color-secondary: 249 168 212;
+    --color-secondary-ink: 90 22 51;
+    --color-on-accent: 0 55 74;
+    --color-ink: 236 234 242;
+    --color-bg: 22 22 28;
+    --color-surface: 38 40 51;
+    --color-panel: 29 30 38;
+    --color-muted: 154 160 173;
+    --color-line: 51 52 63;
+    --color-outline: 71 73 86;
+    --color-success: 116 221 156;
+    --color-success-ink: 0 50 27;
+    --color-warn: 252 223 70;
+    --color-warn-ink: 61 52 0;
+    --color-info: 125 211 252;
+    --color-info-ink: 0 55 74;
+    --color-danger: 244 114 127;
+    --color-danger-ink: 90 22 32;
+    --color-tone-blue: 125 211 252;
+    --color-tone-blue-ink: 0 55 74;
+    --color-tone-yellow: 252 223 70;
+    --color-tone-yellow-ink: 61 52 0;
+    --color-tone-mint: 116 221 156;
+    --color-tone-mint-ink: 0 50 27;
+    --color-tone-pink: 249 168 212;
+    --color-tone-pink-ink: 90 22 51;
+    --shadow-color: 0 0 0;
   }
 
   body {
@@ -87,20 +106,17 @@
     font-family:
       "Instrument Sans", ui-sans-serif, system-ui, -apple-system,
       BlinkMacSystemFont, "Segoe UI", sans-serif;
-    /* 32px blueprint grid across the whole app (base background layer). Panels
-       sit on bg-panel, so the grid only shows in the gutters. */
     background-image:
-      linear-gradient(to right, rgb(var(--color-ink) / 0.05) 1px, transparent 1px),
-      linear-gradient(to bottom, rgb(var(--color-ink) / 0.05) 1px, transparent 1px);
+      linear-gradient(to right, rgb(var(--color-ink) / 0.045) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(var(--color-ink) / 0.045) 1px, transparent 1px);
     background-size: 32px 32px;
   }
   :root.dark body {
     background-image:
-      linear-gradient(to right, rgb(255 255 255 / 0.04) 1px, transparent 1px),
-      linear-gradient(to bottom, rgb(255 255 255 / 0.04) 1px, transparent 1px);
+      linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
   }
 
-  /* Headings ride Clash Display by default — tight, editorial. */
   h1, h2, h3, h4, h5, h6 {
     font-family: "Clash Display", ui-sans-serif, system-ui, sans-serif;
     letter-spacing: -0.01em;
@@ -114,8 +130,6 @@
     @apply bg-accent text-on-accent;
   }
 
-  /* Browser autofill ignores bg-* utilities and paints its own light background
-     (the white/blue field seen in dark mode). Repaint it with the theme tokens. */
   input:-webkit-autofill,
   input:-webkit-autofill:hover,
   input:-webkit-autofill:focus {
@@ -139,109 +153,98 @@
 }
 
 @layer components {
-  /* ── Blueprint structure ───────────────────────────────────────────────── */
-
-  /* 32px hairline grid — only on base background layers. */
   .blueprint-bg {
     background-image:
-      linear-gradient(to right, rgb(var(--color-ink) / 0.05) 1px, transparent 1px),
-      linear-gradient(to bottom, rgb(var(--color-ink) / 0.05) 1px, transparent 1px);
+      linear-gradient(to right, rgb(var(--color-ink) / 0.045) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(var(--color-ink) / 0.045) 1px, transparent 1px);
     background-size: 32px 32px;
     background-position: center top;
   }
   :root.dark .blueprint-bg {
     background-image:
-      linear-gradient(to right, rgb(255 255 255 / 0.04) 1px, transparent 1px),
-      linear-gradient(to bottom, rgb(255 255 255 / 0.04) 1px, transparent 1px);
+      linear-gradient(to right, rgb(255 255 255 / 0.035) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(255 255 255 / 0.035) 1px, transparent 1px);
   }
 
-  /* Bold borders instead of shadows. */
   .brutal-border {
-    @apply border-2 border-ink;
+    @apply border border-line;
   }
   .brutal-border-light {
-    @apply border border-ink;
+    @apply border border-line;
   }
-  /* Hover lift for "sticker" cards/buttons. */
   .brutal-hover {
     @apply transition-all duration-150;
   }
   .brutal-hover:hover {
-    box-shadow: 6px 6px 0 0 rgb(var(--shadow-color));
-    transform: translate(-2px, -2px);
+    box-shadow: 0 8px 22px rgb(var(--shadow-color) / 0.12);
+    transform: translateY(-2px);
   }
 
-  /* Mono technical chip/badge. */
   .chip {
-    @apply inline-flex items-center gap-1 border border-outline bg-surface px-2 py-1 font-mono text-xs font-medium uppercase text-ink;
+    @apply inline-flex items-center gap-1 rounded-full border border-outline bg-surface px-2 py-1 font-mono text-xs font-medium text-ink;
   }
   .chip-available {
-    @apply border-ink bg-success text-bg;
+    @apply border-success bg-success text-success-ink;
   }
   .chip-active {
-    @apply border-ink bg-accent text-on-accent;
+    @apply border-accent bg-accent text-on-accent;
   }
 
   .status-box {
-    @apply inline-flex min-w-0 max-w-full items-center justify-center gap-1 rounded-sm border-2 border-ink bg-panel px-2 py-1 text-center font-mono text-xs font-semibold uppercase leading-tight tracking-tight text-muted break-words;
+    @apply inline-flex min-w-0 max-w-full items-center justify-center gap-1 rounded-lg border border-line bg-panel px-2 py-1 text-center font-mono text-xs font-semibold leading-tight tracking-tight text-muted break-words;
   }
-  /* In-progress / current — blue, kept distinct from the red error state so a
-     live request never looks like a failed one. */
   .status-box-active {
-    @apply border-ink bg-info text-white shadow-brutal-sm;
+    @apply bg-info text-info-ink shadow-soft;
   }
-  /* Waiting on staff action. */
   .status-box-pending {
-    @apply border-ink bg-warn text-bg;
+    @apply bg-warn text-warn-ink;
   }
   .status-box-done {
-    @apply border-ink bg-success text-bg;
+    @apply bg-success text-success-ink;
   }
-  /* Reserved for problems only (rejected / failed / closed-with-issue / overdue). */
   .status-box-danger {
-    @apply border-ink bg-danger text-bg;
+    @apply bg-danger text-bg;
   }
 
-  /* ── Desk shell (staff console + shared) — reskinned to Blueprint ───────── */
   .desk-shell {
     @apply min-h-screen min-w-0 bg-bg text-ink;
     background: rgb(var(--color-bg));
   }
 
   .desk-panel {
-    @apply min-w-0 rounded border-2 border-ink bg-panel shadow-brutal-sm;
+    @apply min-w-0 rounded-xl border border-line bg-panel shadow-soft;
   }
 
   .desk-input {
-    @apply rounded-sm border border-ink bg-bg px-3 py-2 text-sm text-ink outline-none transition placeholder:text-muted focus:border-secondary focus:ring-2 focus:ring-secondary/25;
+    @apply rounded-lg border border-line bg-bg px-3 py-2 text-sm text-ink outline-none transition placeholder:text-muted focus:border-accent focus:ring-2 focus:ring-accent/25;
   }
 
   .desk-button {
-    @apply inline-flex items-center justify-center gap-2 rounded-sm border-2 border-ink bg-panel px-3 py-2 font-mono text-sm font-semibold uppercase tracking-tight text-ink transition-all hover:bg-surface hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/40;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-panel px-3 py-2 text-sm font-medium text-ink transition-all hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40;
   }
 
   .desk-button-primary {
-    @apply inline-flex items-center justify-center gap-2 rounded-sm border-2 border-ink bg-accent px-3 py-2 font-mono text-sm font-semibold uppercase tracking-tight text-on-accent shadow-brutal-sm transition-all hover:-translate-y-0.5 hover:bg-accent-bright hover:text-on-accent hover:shadow-brutal focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-accent px-3 py-2 text-sm font-semibold text-on-accent shadow-soft transition-all hover:-translate-y-0.5 hover:bg-accent-bright hover:text-on-accent hover:shadow-soft-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40;
   }
 
   .desk-nav-item {
-    @apply flex w-full min-w-0 items-center justify-between gap-2 rounded-sm border-l-2 border-transparent px-3 py-2 text-sm font-medium text-ink transition-colors hover:border-accent hover:bg-accent/15 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30;
+    @apply flex w-full min-w-0 items-center justify-between gap-2 rounded-lg border-l border-transparent px-3 py-2 text-sm font-medium text-ink transition-colors hover:border-accent hover:bg-accent/15 hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30;
   }
 
   .desk-nav-item-active {
-    @apply border-accent bg-accent text-on-accent hover:bg-accent hover:text-on-accent;
+    @apply rounded-lg border-accent bg-accent text-on-accent hover:bg-accent hover:text-on-accent;
   }
 
   .desk-tab {
-    @apply flex-1 rounded-sm border-2 border-transparent px-3 py-1.5 font-mono text-sm font-semibold uppercase tracking-tight text-muted transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30;
+    @apply flex-1 rounded-lg border border-transparent px-3 py-1.5 text-sm font-medium text-muted transition-colors hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30;
   }
 
   .desk-tab-active {
-    @apply border-ink bg-accent text-on-accent shadow-brutal-sm hover:bg-accent hover:text-on-accent;
+    @apply rounded-lg border-line bg-accent text-on-accent shadow-soft hover:bg-accent hover:text-on-accent;
   }
 
   .desk-actions button {
-    @apply inline-flex items-center justify-center rounded-sm border border-ink px-2 py-1 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-secondary/30;
+    @apply inline-flex items-center justify-center rounded-lg border border-line px-2 py-1 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30;
   }
 
   .desk-actions button:not([class*="bg-"]) {
@@ -268,14 +271,10 @@
     @apply hover:text-ink;
   }
 
-  /* Primary fallback for panel buttons that DON'T define their own colour/variant.
-     Excluding any button that carries a `desk-*`, `text-*`, or `bg-*` class prevents
-     this catch-all from clobbering ghost/secondary buttons (the accent-text-on-accent-bg
-     "vanish on hover" bug) while still styling layout-only buttons (e.g. `w-full`). */
   .desk-panel-body > button:not([class*="desk-"]):not([class*="text-"]):not([class*="bg-"]),
   .desk-panel-body
     > div:not(.desk-actions)
     > button:not([class*="desk-"]):not([class*="text-"]):not([class*="bg-"]) {
-    @apply inline-flex items-center justify-center gap-2 rounded-sm border-2 border-ink bg-accent px-3 py-2 font-mono text-sm font-semibold uppercase tracking-tight text-on-accent shadow-brutal-sm transition-all hover:-translate-y-0.5 hover:bg-accent-bright hover:text-on-accent hover:shadow-brutal focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-accent px-3 py-2 text-sm font-semibold text-on-accent shadow-soft transition-all hover:-translate-y-0.5 hover:bg-accent-bright hover:text-on-accent hover:shadow-soft-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40;
   }
 }

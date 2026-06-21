@@ -7,9 +7,11 @@ export default {
     extend: {
       colors: {
         accent: "rgb(var(--color-accent) / <alpha-value>)",
+        "accent-ink": "rgb(var(--color-accent-ink) / <alpha-value>)",
         "accent-bright": "rgb(var(--color-accent-bright) / <alpha-value>)",
         "on-accent": "rgb(var(--color-on-accent) / <alpha-value>)",
         secondary: "rgb(var(--color-secondary) / <alpha-value>)",
+        "secondary-ink": "rgb(var(--color-secondary-ink) / <alpha-value>)",
         ink: "rgb(var(--color-ink) / <alpha-value>)",
         bg: "rgb(var(--color-bg) / <alpha-value>)",
         surface: "rgb(var(--color-surface) / <alpha-value>)",
@@ -18,33 +20,39 @@ export default {
         line: "rgb(var(--color-line) / <alpha-value>)",
         outline: "rgb(var(--color-outline) / <alpha-value>)",
         success: "rgb(var(--color-success) / <alpha-value>)",
+        "success-ink": "rgb(var(--color-success-ink) / <alpha-value>)",
         danger: "rgb(var(--color-danger) / <alpha-value>)",
         warn: "rgb(var(--color-warn) / <alpha-value>)",
+        "warn-ink": "rgb(var(--color-warn-ink) / <alpha-value>)",
         info: "rgb(var(--color-info) / <alpha-value>)",
+        "info-ink": "rgb(var(--color-info-ink) / <alpha-value>)",
+        "tone-blue": "rgb(var(--color-tone-blue) / <alpha-value>)",
+        "tone-blue-ink": "rgb(var(--color-tone-blue-ink) / <alpha-value>)",
+        "tone-yellow": "rgb(var(--color-tone-yellow) / <alpha-value>)",
+        "tone-yellow-ink": "rgb(var(--color-tone-yellow-ink) / <alpha-value>)",
+        "tone-mint": "rgb(var(--color-tone-mint) / <alpha-value>)",
+        "tone-mint-ink": "rgb(var(--color-tone-mint-ink) / <alpha-value>)",
+        "tone-pink": "rgb(var(--color-tone-pink) / <alpha-value>)",
+        "tone-pink-ink": "rgb(var(--color-tone-pink-ink) / <alpha-value>)",
       },
       fontFamily: {
-        // Headings — Clash Display (self-hosted). `display` is the explicit utility;
-        // h1–h6 default to it via the base layer in index.css.
         display: ['"Clash Display"', "ui-sans-serif", "system-ui", "sans-serif"],
-        // Body — Instrument Sans (also the default body font, set in index.css).
         sans: ['"Instrument Sans"', "ui-sans-serif", "system-ui", "sans-serif"],
-        // Technical labels — JetBrains Mono (IDs, serials, status chips, quantities).
         mono: ['"JetBrains Mono"', "ui-monospace", "SFMono-Regular", "monospace"],
       },
       boxShadow: {
-        // The "sticker" effect — a hard, solid offset block (no blur). The block colour
-        // is theme-driven (--shadow-color): near-black on light, light outline on dark.
-        brutal: "4px 4px 0 0 rgb(var(--shadow-color))",
-        "brutal-sm": "2px 2px 0 0 rgb(var(--shadow-color))",
-        "brutal-lg": "6px 6px 0 0 rgb(var(--shadow-color))",
+        soft: "0 1px 2px rgb(var(--shadow-color) / 0.06), 0 6px 16px rgb(var(--shadow-color) / 0.07)",
+        "soft-lg": "0 2px 4px rgb(var(--shadow-color) / 0.07), 0 12px 28px rgb(var(--shadow-color) / 0.10)",
+        brutal: "0 1px 2px rgb(var(--shadow-color) / 0.06), 0 6px 16px rgb(var(--shadow-color) / 0.07)",
+        "brutal-sm": "0 1px 2px rgb(var(--shadow-color) / 0.05), 0 3px 10px rgb(var(--shadow-color) / 0.06)",
+        "brutal-lg": "0 2px 4px rgb(var(--shadow-color) / 0.07), 0 12px 28px rgb(var(--shadow-color) / 0.10)",
       },
       borderRadius: {
-        // Soft (0.25rem default) — friendly but blocky, per the design system.
-        sm: "0.125rem",
-        DEFAULT: "0.25rem",
-        md: "0.375rem",
-        lg: "0.5rem",
-        xl: "0.75rem",
+        sm: "0.25rem",
+        DEFAULT: "0.5rem",
+        md: "0.625rem",
+        lg: "0.75rem",
+        xl: "1rem",
       },
       backgroundSize: {
         blueprint: "32px 32px",
