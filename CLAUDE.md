@@ -2,6 +2,41 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — pastel "notebook" UI reskin (frontend-only, 2026-06-22)
+
+Whole-app reskin from the red/orange "Blueprint" brutalist theme to a soft **pastel "notebook"**
+theme (kanakku-pusthakam color essence). Branch `feat/pastel-ui-reskin`. Codex Stage-1 APPROVED after
+4 review rounds; built in 4 commit-per-phase slices (`fb620fc` foundation, `4ad942f` public, `476334d`
+staff, `930e2a0` final); `tsc -b` + `npm run build` green each phase; whole-app contrast grep gate
+clean. **Frontend-only — no backend/migrations.** Spec (gitignored):
+`docs/superpowers/specs/2026-06-22-pastel-ui-reskin-design.md`.
+
+- **Palette (light):** cream page `#faf9f4`, white panels, surface `#efeee9`; blue `#7dd3fc`/`#00374a`
+  (primary action), yellow `#fcdf46`/`#3d3400`, mint `#74dd9c`/`#00321b`, pink `#f9a8d4`/`#5a1633`.
+  Danger = readable red `#a4243b` (light)/`#f4727f` (dark) — the only non-supplied color (palette has
+  no red). Dark = charcoal `#16161c` page / `#1d1e26` panel.
+- **Load-bearing token model (`index.css` + `tailwind.config.ts`):** a pastel is a good FILL but
+  unreadable as TEXT, so every brand/status color is split into a pastel **fill** token +
+  a dark **`-ink`** companion (`accent`/`success`/`warn`/`info`/`secondary`, each `+ -ink`), plus
+  `tone-blue/yellow/mint/pink (+ -ink)` for colored panels. **Rule:** pastel fill = `bg-X text-X-ink`;
+  colored text on a neutral bg = `text-X-ink` (never bare `text-X`); `on-accent` = `accent-ink`
+  (dark teal); danger fills use `bg-danger text-bg` (theme-adaptive). `text-danger` (101 usages,
+  readable red) left unchanged. Swept ~70 `text-accent/success/warn/secondary` → `-ink`.
+- **Softening:** brutalist `border-2 border-ink` → hairline `border-line`; hard offset
+  `shadow-brutal*` **kept as aliases** remapped to soft blurred shadows (zero call-site churn);
+  `rounded-sm` → `rounded-lg/xl`; central `uppercase` dropped (mono kept for IDs/serials/qty);
+  faint graph grid (lightened) whole-app, light + dark.
+- **Tone panels (liberal):** colored full-card panels per palette (blue=project/active, yellow=
+  check-in/material, mint=submitted/done/rules, pink=tracker). Large panels carry an inline
+  `dark:bg-[#…] dark:text-[#…]` **deep-tint** in dark mode (blue→`#0b2a38`, yellow→`#332b00`,
+  mint→`#06281a`, pink→`#3a1326`); small surfaces (steppers/badges/chips) stay bright pastel in dark.
+  `StatusStepper` colors steps by POSITION (1=blue,2=yellow,3=pink,4/done=mint; issue/rejected=red).
+- **Exceptions left literal:** `QrScanner` `bg-black`, `QrImage` `bg-white` (QR scannability),
+  email-preview white, `PrintingPanelParts` `SPOOL_COLOR_SWATCHES` (real filament colors).
+  `OperationsReportsParts` chart bars **recolored** to the pastel hex set. Per-makerspace runtime
+  color branding (`lib/branding.ts` accent/success overrides) **disabled** (title+favicon kept) so
+  the pastel palette is the unified brand.
+
 ## Recent batch — Phase 3: Celery + Redis async email delivery + Retry (2026-06-21)
 
 Third phase of the "snappy + email" batch — moves SMTP off the request thread (the submit/accept

@@ -1,5 +1,12 @@
 const STAGES = ["Requested", "Approved", "Collected", "Returned"] as const;
 
+const STEP_TONE_CLASSES = [
+  "border-tone-blue bg-tone-blue text-tone-blue-ink",
+  "border-tone-yellow bg-tone-yellow text-tone-yellow-ink",
+  "border-tone-pink bg-tone-pink text-tone-pink-ink",
+  "border-tone-mint bg-tone-mint text-tone-mint-ink",
+] as const;
+
 function statusStageIndex(status: string): number {
   switch (status) {
     case "accepted":
@@ -36,11 +43,9 @@ function StepBox({
 }) {
   const className = (rejected && step === 0) || state === "issue"
     ? "status-box status-box-danger"
-    : state === "completed"
-      ? "status-box status-box-done"
-      : state === "current"
-        ? "status-box status-box-active"
-        : "status-box";
+    : state === "completed" || state === "current"
+      ? `status-box ${STEP_TONE_CLASSES[step] ?? STEP_TONE_CLASSES[0]} shadow-soft`
+      : "status-box";
 
   return (
     <span

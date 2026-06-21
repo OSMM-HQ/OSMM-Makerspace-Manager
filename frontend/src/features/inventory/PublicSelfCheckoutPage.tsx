@@ -25,17 +25,17 @@ function formatStatus(status: string) {
 
 function ResultCard({ result }: { result: PublicToolLoanResult }) {
   return (
-    <div className="rounded-md border border-success/40 bg-success/10 px-3 py-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-success">
+    <div className="rounded-xl border border-tone-mint bg-tone-mint px-3 py-3 text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]">
+      <p className="text-xs font-semibold tracking-wide">
         {formatStatus(result.status)}
       </p>
-      <h2 className="mt-1 text-lg font-semibold text-ink">
+      <h2 className="mt-1 text-lg font-semibold">
         {result.target_label}
       </h2>
       <div className="mt-3 space-y-2">
         {result.items.map((item) => (
           <div
-            className="flex items-center justify-between gap-3 rounded-md border border-success/20 bg-panel px-3 py-2 text-sm text-ink"
+            className="flex items-center justify-between gap-3 rounded-lg border border-tone-mint-ink/20 bg-panel/80 px-3 py-2 text-sm"
             key={item.product_name}
           >
             <span>{item.product_name}</span>
@@ -89,7 +89,7 @@ export function PublicSelfCheckoutPage() {
     <main className="desk-shell">
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-screen-xl flex-col gap-4 px-5 py-6 sm:px-8">
-          <p className="text-sm font-semibold uppercase tracking-wide text-accent">
+          <p className="text-sm font-semibold tracking-wide text-accent-ink">
             Public Tool Checkout
           </p>
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -119,7 +119,7 @@ export function PublicSelfCheckoutPage() {
 
         {!bootstrapQuery.isLoading && !enabled ? (
           <Card>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+            <p className="text-xs font-semibold tracking-wide text-accent-ink">
               Self-checkout
             </p>
             <h2 className="mt-2 text-xl font-semibold text-ink">
@@ -163,7 +163,7 @@ export function PublicSelfCheckoutPage() {
             </div>
 
             <label className="mt-4 block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+              <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
                 Check-In ID
               </span>
               <input
@@ -184,7 +184,7 @@ export function PublicSelfCheckoutPage() {
             </button>
 
             {loanMutation.isError ? (
-              <p className="mt-4 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+              <p className="mt-4 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
                 {loanMutation.error.message}
               </p>
             ) : null}

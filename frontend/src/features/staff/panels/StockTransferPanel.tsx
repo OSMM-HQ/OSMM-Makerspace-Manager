@@ -164,7 +164,7 @@ export function StockTransferPanel({
     <Panel title="Stock transfers">
       <div className="grid gap-4">
         {!canCreate ? (
-          <p className="rounded-md border border-line bg-surface px-3 py-2 text-sm text-muted">
+          <p className="rounded-md border border-line bg-tone-yellow px-3 py-2 text-sm text-tone-yellow-ink dark:bg-[#332b00] dark:text-[#fcdf46]">
             Transfers are managed by inventory staff. This view is read-only.
           </p>
         ) : (
@@ -232,7 +232,7 @@ export function StockTransferPanel({
               <input className="desk-input w-full" value={reason} placeholder="Why is this stock moving?" onChange={(event) => setReason(event.target.value)} />
             </Field>
             {isCrossMakerspace ? (
-              <p className="mt-4 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-accent">
+              <p className="mt-4 rounded-md border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-accent-ink">
                 Inter-makerspace transfer: the chosen quantity is deducted from this makerspace and
                 credited to a matching product in the destination makerspace (created there if
                 needed, kept private until it opts in). Only available stock can move; individual
@@ -270,4 +270,3 @@ function Field({ children, className = "", label }: { children: React.ReactNode;
 function labelForContainer(container: Container) {
   return [container.code, container.label, container.location].filter(Boolean).join(" - ");
 }
-

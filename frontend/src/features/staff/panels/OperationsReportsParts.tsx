@@ -1,5 +1,7 @@
 import type React from "react";
 
+import { Skeleton, SkeletonRows } from "../../../components/ui";
+
 export type ReportCell = string | number | null;
 export type ReportRows = { rows: ReportCell[][] };
 
@@ -28,10 +30,32 @@ export function chartRows(data: ReportRows | undefined, labelKey: string, valueK
 }
 
 export function DataState(props: { loading: boolean; error: unknown; empty: boolean; children: React.ReactNode }) {
-  if (props.loading) return <p className="mt-3 text-sm text-muted">Loading reports...</p>;
+  if (props.loading) return <ReportSkeleton />;
   if (props.error) return <p className="mt-3 text-sm text-danger">{props.error instanceof Error ? props.error.message : "Unable to load report."}</p>;
   if (props.empty) return <p className="mt-3 text-sm text-muted">No records.</p>;
   return <>{props.children}</>;
+}
+
+function ReportSkeleton() {
+  return (
+    <div className="mt-4 grid gap-3" aria-hidden="true">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div key={index} className="rounded-md border border-line bg-surface p-3">
+            <Skeleton className="h-7 w-20" />
+            <Skeleton className="mt-2 h-3 w-24" />
+          </div>
+        ))}
+      </div>
+      <div className="overflow-x-auto rounded-md border border-line">
+        <table className="min-w-[640px] divide-y divide-line text-left text-sm">
+          <tbody className="divide-y divide-line bg-bg">
+            <SkeletonRows rows={4} cols={4} />
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 export function StatCards({ stats }: { stats: [string, number | undefined][] }) {
@@ -73,17 +97,14 @@ export function BarChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: 
   );
 }
 
-// Fixed categorical palette (readable on both light + dark theme tokens). Kept
-// dependency-free per repo convention — no chart library.
+// Fixed categorical palette aligned to the pastel reskin. Kept dependency-free
+// per repo convention — no chart library.
 const PIE_COLORS = [
-  "#6366f1",
-  "#22c55e",
-  "#f59e0b",
-  "#ef4444",
-  "#06b6d4",
-  "#a855f7",
-  "#ec4899",
-  "#84cc16",
+  "#7dd3fc",
+  "#fcdf46",
+  "#74dd9c",
+  "#f9a8d4",
+  "#a4243b",
 ];
 
 export function PieChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: string }) {
@@ -136,7 +157,7 @@ export function PieChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: 
       <ul className="min-w-0 flex-1 space-y-1 text-sm">
         {segments.map((segment, index) => (
           <li key={`${segment.label}-legend-${index}`} className="flex items-center gap-2">
-            <span className="h-3 w-3 shrink-0 rounded-sm" style={{ backgroundColor: segment.color }} />
+            <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: segment.color }} />
             <span className="truncate text-ink" title={segment.label}>
               {segment.label}
             </span>

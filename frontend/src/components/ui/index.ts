@@ -8,6 +8,7 @@ export { DetailDrawer } from "./DetailDrawer";
 export { EmptyState } from "./EmptyState";
 export { FilterBar } from "./FilterBar";
 export { Modal } from "./Modal";
+export { Skeleton, SkeletonRows } from "./Skeleton";
 export { Spinner } from "./Spinner";
 export { StatusBadge, statusToneMap } from "./StatusBadge";
 export type { StatusBadgeTone } from "./StatusBadge";

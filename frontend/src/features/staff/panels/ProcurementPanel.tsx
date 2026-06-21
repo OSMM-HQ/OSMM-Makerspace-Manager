@@ -136,7 +136,7 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
                   <td className="px-3 py-2">{item.quantity}</td>
                   <td className="px-3 py-2">
                     {safeHref(item.link) ? (
-                      <a className="text-accent underline" href={safeHref(item.link)!} target="_blank" rel="noreferrer">link</a>
+                      <a className="text-accent-ink underline" href={safeHref(item.link)!} target="_blank" rel="noreferrer">link</a>
                     ) : item.link ? (
                       <span className="block max-w-56 break-all text-muted" title={item.link}>{item.link}</span>
                     ) : (

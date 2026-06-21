@@ -138,7 +138,7 @@ export function PrintingReportSection({ makerspace, aggregate }: { makerspace: M
                   <button
                     key={item.key}
                     type="button"
-                    className={`rounded px-3 py-1 text-xs font-semibold ${period === item.key ? "bg-surface text-accent" : "text-muted"}`}
+                    className={`rounded px-3 py-1 text-xs font-semibold ${period === item.key ? "bg-surface text-accent-ink" : "text-muted"}`}
                     onClick={() => setPeriod(item.key)}
                   >
                     {item.label}

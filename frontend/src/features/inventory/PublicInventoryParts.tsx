@@ -71,8 +71,8 @@ export function CatalogSidebar({
       padding="sm"
     >
       <nav aria-label="Catalog browse">
-        <p className="px-3 text-xs font-semibold uppercase tracking-wide text-muted">
-          BROWSE
+        <p className="px-3 text-xs font-semibold tracking-wide text-muted">
+          Browse
         </p>
         <div className="mt-2 flex gap-2 overflow-x-auto lg:block lg:space-y-1 lg:overflow-visible">
           <button
@@ -114,8 +114,8 @@ export function CatalogSidebar({
         {categories.length > 0 ? (
           <>
             <div className="my-3 border-t border-line" />
-            <p className="px-3 text-xs font-semibold uppercase tracking-wide text-muted">
-              CATEGORIES
+            <p className="px-3 text-xs font-semibold tracking-wide text-muted">
+              Categories
             </p>
             <div className="mt-2 flex gap-2 overflow-x-auto lg:block lg:space-y-1 lg:overflow-visible">
               {categories.map((category) => {

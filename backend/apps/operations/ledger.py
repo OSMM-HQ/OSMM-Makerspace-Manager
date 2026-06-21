@@ -11,7 +11,8 @@ from apps.inventory.models import InventoryAsset
 
 def ledger_rows(makerspace_id=None):
     floor = datetime.min.replace(tzinfo=timezone.utc)
-    rows = _request_item_rows(makerspace_id)
+    item_rows, emitted_request_ids = _request_item_rows(makerspace_id)
+    rows = item_rows + _container_only_loan_rows(makerspace_id, emitted_request_ids)
     return sorted(rows, key=lambda row: row["since"] or floor, reverse=True)
 
 
@@ -72,7 +73,9 @@ def _request_item_rows(makerspace_id):
     asset_map = _loan_asset_map(item_loans)
 
     rows = []
+    emitted_request_ids = set()
     for item, loan in item_loans:
+        emitted_request_ids.add(item.request_id)
         rows.append(
             {
                 "source": _source(loan),
@@ -89,7 +92,46 @@ def _request_item_rows(makerspace_id):
                 "status": item.request.status,
             }
         )
-    return rows
+    return rows, emitted_request_ids
+
+
+def _container_only_loan_rows(makerspace_id, emitted_request_ids):
+    queryset = (
+        PublicToolLoan.objects.filter(
+            source=PublicToolLoan.Source.ADMIN_DIRECT,
+            status=PublicToolLoan.Status.CHECKED_OUT,
+            container__isnull=False,
+        )
+        .select_related("container", "request", "request__requester")
+        .exclude(request_id__in=emitted_request_ids)
+    )
+    if makerspace_id is not None:
+        queryset = queryset.filter(makerspace_id=makerspace_id)
+    else:
+        excluded = (
+            rbac.superadmin_hidden_makerspace_ids()
+            | rbac.archived_makerspace_ids()
+        )
+        if excluded:
+            queryset = queryset.exclude(makerspace_id__in=excluded)
+
+    return [
+        {
+            "source": "direct_handout",
+            "item_name": loan.container.label,
+            "container": None,
+            "holder": _request_holder(loan.request),
+            "quantity": 1,
+            "units": [],
+            "target_label": None,
+            "since": loan.checked_out_at or loan.request.issued_at,
+            "due": loan.due_at,
+            "makerspace_id": loan.makerspace_id,
+            "reference_id": loan.id,
+            "status": loan.request.status,
+        }
+        for loan in queryset.order_by("-checked_out_at", "id")
+    ]
 
 
 def _container_label(item, loan):

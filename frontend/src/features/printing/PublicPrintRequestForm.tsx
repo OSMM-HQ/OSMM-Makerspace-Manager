@@ -88,7 +88,7 @@ export function PrintDetailsForm({
 }: PrintDetailsFormProps) {
   return (
     <Card>
-      <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+      <p className="text-xs font-semibold tracking-wide text-accent-ink">
         Print Details
       </p>
       <form className="mt-4 space-y-4" onSubmit={onSubmit}>
@@ -128,7 +128,7 @@ export function PrintDetailsForm({
           />
           <div className="grid gap-4 md:grid-cols-2">
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+              <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
                 Filament / material
               </span>
               <select
@@ -159,7 +159,7 @@ export function PrintDetailsForm({
               ) : null}
             </label>
             <label className="block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+              <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
                 Quantity
               </span>
               <input
@@ -193,13 +193,13 @@ export function PrintDetailsForm({
         </fieldset>
 
         {!verified ? (
-          <p className="rounded-md border border-line bg-surface px-3 py-2 text-sm text-muted">
+          <p className="rounded-lg border border-tone-yellow bg-tone-yellow px-3 py-2 text-sm font-medium text-tone-yellow-ink dark:bg-[#332b00] dark:text-[#fcdf46]">
             Verify your Check-In before submitting a print request.
           </p>
         ) : null}
         {uploadProgress ? <p className="text-sm text-muted">{uploadProgress}</p> : null}
         {submitError ? (
-          <p className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+          <p className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
             {submitError.message}
           </p>
         ) : null}

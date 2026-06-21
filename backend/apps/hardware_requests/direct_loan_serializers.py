@@ -20,8 +20,14 @@ class DirectLoanIssueSerializer(serializers.Serializer):
     items = DirectLoanItemSerializer(many=True, required=False, allow_empty=True)
 
     def validate(self, attrs):
-        if not attrs.get("qr_payloads") and not attrs.get("items"):
-            raise serializers.ValidationError("Provide qr_payloads or items.")
+        if (
+            not attrs.get("qr_payloads")
+            and not attrs.get("items")
+            and attrs.get("container_id") is None
+        ):
+            raise serializers.ValidationError(
+                "Provide qr_payloads, items, or a container."
+            )
         return attrs
 
 

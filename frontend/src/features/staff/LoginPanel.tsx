@@ -65,7 +65,7 @@ export function LoginPanel({
             }
           }}
         >
-          <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+          <p className="text-xs font-semibold tracking-wide text-accent-ink">
             Account access
           </p>
           <h1 className="mt-2 text-2xl font-bold text-ink">Reset password</h1>
@@ -93,7 +93,7 @@ export function LoginPanel({
             {forgotPending ? "Sending..." : "Send reset link"}
           </button>
           <button
-            className="mt-3 w-full text-sm font-semibold text-accent hover:text-accent/80"
+            className="mt-3 w-full text-sm font-semibold text-accent-ink hover:text-accent-ink/80"
             type="button"
             onClick={() => setMode("login")}
           >
@@ -114,7 +114,7 @@ export function LoginPanel({
           onSubmit({ username, password });
         }}
       >
-        <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+        <p className="text-xs font-semibold tracking-wide text-accent-ink">
           {guestOnly ? "Guest admin desk" : "Space Manager desk"}
         </p>
         <h1 className="mt-2 text-2xl font-bold text-ink">Sign in</h1>
@@ -151,7 +151,7 @@ export function LoginPanel({
         </button>
         {emailEnabled ? (
           <button
-            className="mt-3 w-full text-sm font-semibold text-accent hover:text-accent/80"
+            className="mt-3 w-full text-sm font-semibold text-accent-ink hover:text-accent-ink/80"
             type="button"
             onClick={() => setMode("forgot")}
           >

@@ -201,7 +201,7 @@ export function AssignIssueModal({ row, open, pending, error, onClose, onSubmit,
         }
       >
         {row?.assigned_box ? (
-          <p className="text-xs text-muted">Box: <span className="font-medium text-ink">{row.assigned_box.label} ({row.assigned_box.code})</span></p>
+          <p className="text-xs text-muted">Box: <span className="font-medium text-ink">{row.assigned_box.label}</span></p>
         ) : null}
         <BoxCodeField value={boxCode} onChange={setBoxCode} makerspaceId={makerspaceId} pending={pending} />
         <div className="grid gap-1 text-sm">
@@ -409,8 +409,10 @@ type ContainerOption = { id: number; code?: string | null; label: string; is_act
 // containers — all three write the same box code so staff can pick whichever is fastest.
 function BoxCodeField({ value, onChange, makerspaceId, pending }: { value: string; onChange: (code: string) => void; makerspaceId: number; pending: boolean }) {
   const [containers, setContainers] = useState<ContainerOption[]>([]);
+  const [scanned, setScanned] = useState<{ code: string; label: string } | null>(null);
   const [scanOpen, setScanOpen] = useState(false);
   const [scanError, setScanError] = useState("");
+  const [manualOpen, setManualOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -426,17 +428,20 @@ function BoxCodeField({ value, onChange, makerspaceId, pending }: { value: strin
     };
   }, [makerspaceId]);
 
+  const displayLabel = containers.find((container) => container.code === value)?.label ?? (scanned && scanned.code === value ? scanned.label : "");
+
   const handleScan = async (payload: string) => {
     setScanOpen(false);
     const clean = payload.trim();
     if (!clean) return;
     try {
-      const res = await staffRequest<{ target: { type: string; code?: string } }>("/admin/qr/resolve", {
+      const res = await staffRequest<{ target: { type: string; code?: string; label?: string } }>("/admin/qr/resolve", {
         method: "POST",
         body: JSON.stringify({ payload: clean }),
       });
       if (res.target.type === "box" && res.target.code) {
         onChange(res.target.code);
+        setScanned({ code: res.target.code, label: res.target.label ?? "" });
         setScanError("");
       } else {
         setScanError("Scanned QR is not a box/container.");
@@ -448,9 +453,16 @@ function BoxCodeField({ value, onChange, makerspaceId, pending }: { value: strin
 
   return (
     <div className="grid gap-1 text-sm">
-      <span className="font-medium text-ink">Box QR code</span>
-      <div className="flex flex-wrap gap-2">
-        <input className="desk-input min-w-0 flex-1" value={value} disabled={pending} onChange={(event) => onChange(event.target.value)} />
+      <span className="font-medium text-ink">Container</span>
+      <div className="flex min-w-0 flex-wrap gap-2">
+        <div className="min-w-0 flex-1 rounded-md border border-line bg-surface px-3 py-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className={value ? "min-w-0 truncate font-medium text-ink" : "min-w-0 truncate text-muted"}>
+              {value ? displayLabel || value : "No container selected"}
+            </span>
+            {value ? <span className="shrink-0 rounded-full border border-line px-2 py-0.5 text-xs text-muted">Selected</span> : null}
+          </div>
+        </div>
         <button className="desk-button shrink-0" type="button" disabled={pending} onClick={() => setScanOpen(true)}>Scan</button>
       </div>
       {containers.length ? (
@@ -465,11 +477,21 @@ function BoxCodeField({ value, onChange, makerspaceId, pending }: { value: strin
           <option value="">Choose an available container…</option>
           {containers.map((container) => (
             <option key={container.id} value={container.code ?? ""}>
-              {container.label}{container.code ? ` (${container.code})` : ""}
+              {container.label}
             </option>
           ))}
         </select>
       ) : null}
+      <div className="grid gap-1">
+        <button className="desk-button justify-self-start" type="button" disabled={pending} onClick={() => setManualOpen((open) => !open)}>
+          {manualOpen ? "Hide manual code entry" : "Enter code manually"}
+        </button>
+        {manualOpen ? (
+          <div className="flex min-w-0 flex-wrap gap-2">
+            <input className="desk-input min-w-0 flex-1" value={value} disabled={pending} onChange={(event) => onChange(event.target.value)} />
+          </div>
+        ) : null}
+      </div>
       {scanError ? <p className="text-xs text-danger">{scanError}</p> : null}
       {scanOpen ? <QrScanner onScan={handleScan} onClose={() => setScanOpen(false)} /> : null}
     </div>

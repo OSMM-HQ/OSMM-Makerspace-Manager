@@ -11,7 +11,7 @@ export function StatTile({
   value: number | string;
   tone?: "default" | "accent";
 }) {
-  const valueClass = tone === "accent" ? "text-accent" : "text-ink";
+  const valueClass = tone === "accent" ? "text-accent-ink" : "text-ink";
 
   return (
     <div className="rounded-md border border-line bg-surface p-3">
