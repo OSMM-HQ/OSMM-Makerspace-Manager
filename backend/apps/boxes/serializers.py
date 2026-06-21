@@ -106,6 +106,8 @@ class QrRebindTargetSerializer(serializers.Serializer):
         choices=[QrCode.TargetType.PRODUCT, QrCode.TargetType.ASSET]
     )
     target_id = serializers.IntegerField()
+    destination_makerspace_id = serializers.IntegerField(required=False, allow_null=True)
+    destination_product_id = serializers.IntegerField(required=False, allow_null=True)
     # Cap to the smaller target column (asset_tag is 100, product name 200) so an
     # overlong rename returns a clean 400 instead of a DB-level error at save.
     new_name = serializers.CharField(required=False, allow_blank=True, max_length=100)
