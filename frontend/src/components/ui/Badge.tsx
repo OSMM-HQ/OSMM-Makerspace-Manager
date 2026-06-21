@@ -7,8 +7,8 @@ type BadgeProps = PropsWithChildren<{
 }>;
 
 const toneClasses: Record<BadgeTone, string> = {
-  success: "border-success bg-success text-success-ink",
-  warn: "border-warn bg-warn text-warn-ink",
+  success: "border-success bg-success text-on-success",
+  warn: "border-warn bg-warn text-on-warn",
   danger: "border-danger bg-danger text-bg",
   neutral: "border-outline bg-surface text-muted",
 };

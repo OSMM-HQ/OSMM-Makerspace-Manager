@@ -40,7 +40,14 @@
     --color-accent-bright: 56 189 248;
     --color-secondary: 249 168 212;
     --color-secondary-ink: 90 22 51;
+    /* on-* = FIXED dark text for solid bright pastel fills (badges/status boxes);
+       the {name}-ink tokens above are for STANDALONE colored text + /15 tints and
+       go light in dark mode, so they must NOT be used on a solid pastel fill. */
     --color-on-accent: 0 55 74;
+    --color-on-success: 0 50 27;
+    --color-on-warn: 61 52 0;
+    --color-on-info: 0 55 74;
+    --color-on-secondary: 90 22 51;
     --color-ink: 31 46 53;
     --color-bg: 250 249 244;
     --color-surface: 239 238 233;
@@ -70,11 +77,18 @@
   :root.dark {
     color-scheme: dark;
     --color-accent: 125 211 252;
-    --color-accent-ink: 0 55 74;
+    /* {name}-ink go LIGHT in dark mode — these style STANDALONE colored text (links,
+       eyebrows, /15-tinted badges) on the dark neutral bg. Solid pastel fills use the
+       fixed on-* tokens below instead. */
+    --color-accent-ink: 125 211 252;
     --color-accent-bright: 56 189 248;
     --color-secondary: 249 168 212;
-    --color-secondary-ink: 90 22 51;
+    --color-secondary-ink: 249 168 212;
     --color-on-accent: 0 55 74;
+    --color-on-success: 0 50 27;
+    --color-on-warn: 61 52 0;
+    --color-on-info: 0 55 74;
+    --color-on-secondary: 90 22 51;
     --color-ink: 236 234 242;
     --color-bg: 22 22 28;
     --color-surface: 38 40 51;
@@ -83,11 +97,11 @@
     --color-line: 51 52 63;
     --color-outline: 71 73 86;
     --color-success: 116 221 156;
-    --color-success-ink: 0 50 27;
+    --color-success-ink: 116 221 156;
     --color-warn: 252 223 70;
-    --color-warn-ink: 61 52 0;
+    --color-warn-ink: 252 223 70;
     --color-info: 125 211 252;
-    --color-info-ink: 0 55 74;
+    --color-info-ink: 125 211 252;
     --color-danger: 244 114 127;
     --color-danger-ink: 90 22 32;
     --color-tone-blue: 125 211 252;
@@ -184,7 +198,7 @@
     @apply inline-flex items-center gap-1 rounded-full border border-outline bg-surface px-2 py-1 font-mono text-xs font-medium text-ink;
   }
   .chip-available {
-    @apply border-success bg-success text-success-ink;
+    @apply border-success bg-success text-on-success;
   }
   .chip-active {
     @apply border-accent bg-accent text-on-accent;
@@ -194,13 +208,13 @@
     @apply inline-flex min-w-0 max-w-full items-center justify-center gap-1 rounded-lg border border-line bg-panel px-2 py-1 text-center font-mono text-xs font-semibold leading-tight tracking-tight text-muted break-words;
   }
   .status-box-active {
-    @apply bg-info text-info-ink shadow-soft;
+    @apply bg-info text-on-info shadow-soft;
   }
   .status-box-pending {
-    @apply bg-warn text-warn-ink;
+    @apply bg-warn text-on-warn;
   }
   .status-box-done {
-    @apply bg-success text-success-ink;
+    @apply bg-success text-on-success;
   }
   .status-box-danger {
     @apply bg-danger text-bg;

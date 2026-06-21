@@ -158,7 +158,7 @@ function ContactInput({
 function Notice({ text, tone }: { text: string; tone: "danger" | "success" }) {
   const colors =
     tone === "success"
-      ? "border-success bg-success text-success-ink"
+      ? "border-success bg-success text-on-success"
       : "border-danger/40 bg-danger/10 text-danger";
   return <p className={`rounded-lg border px-3 py-2 text-sm ${colors}`}>{text}</p>;
 }
