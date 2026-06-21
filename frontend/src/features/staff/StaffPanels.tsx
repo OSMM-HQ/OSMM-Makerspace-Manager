@@ -2,6 +2,7 @@ export { AuditLog } from "./panels/AuditLog";
 export { BulkImport } from "./panels/BulkImport";
 export { Categories } from "./panels/Categories";
 export { ContainersPanel } from "./panels/ContainersPanel";
+export { EmailLogPanel } from "./panels/EmailLogPanel";
 export { Inventory } from "./panels/Inventory";
 export { Ledger } from "./panels/Ledger";
 export { NeedsFixShelf } from "./panels/NeedsFixShelf";

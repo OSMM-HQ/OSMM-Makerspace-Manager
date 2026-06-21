@@ -2889,6 +2889,64 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/email-logs": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_email_logs_list",
+                "summary": "List makerspace email delivery logs",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "tags": [
+                    "Email logs"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedEmailLogList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid status filter."
+                    },
+                    "404": {
+                        "description": "Makerspace not found."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/email-templates": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_email_templates_list",
@@ -11762,6 +11820,84 @@
                 "type": "string",
                 "description": "* `needs_fix` - needs_fix\n* `remove` - remove"
             },
+            "EmailLog": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "to_email": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "subject": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "stream": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "event": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "audience": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/EmailLogStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "error": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "attempts": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "sent_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "attempts",
+                    "audience",
+                    "created_at",
+                    "error",
+                    "event",
+                    "id",
+                    "sent_at",
+                    "status",
+                    "stream",
+                    "subject",
+                    "to_email"
+                ]
+            },
+            "EmailLogStatusEnum": {
+                "enum": [
+                    "pending",
+                    "sent",
+                    "failed"
+                ],
+                "type": "string",
+                "description": "* `pending` - Pending\n* `sent` - Sent\n* `failed` - Failed"
+            },
             "EmailTemplateDetail": {
                 "type": "object",
                 "properties": {
@@ -13384,6 +13520,37 @@
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/DirectLoan"
+                        }
+                    }
+                }
+            },
+            "PaginatedEmailLogList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/EmailLog"
                         }
                     }
                 }

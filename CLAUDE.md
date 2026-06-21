@@ -2,6 +2,40 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — Phase 2: email log foundation + single dispatch choke point (2026-06-21)
+
+Second phase of the "snappy + email" batch (Codex Stage-1 APPROVED after 1 revision round; Stage-4
+review clean after fixing 1 P1; 7 email-log + 132 notification/printing/workflow tests + `tsc -b`
+green). Sends stay SYNCHRONOUS here — this is the foundation Phase 3 (Celery) swaps to async.
+
+- **`EmailLog` model** (`apps/integrations/models.py`, migration `integrations/0004`): makerspace
+  (null=platform), to_email, subject, text_body, html_body, stream (hardware|printing|account|api),
+  event, audience, connection_kind (makerspace|platform), status (pending|sent|failed), error,
+  attempts, created_at/updated_at/sent_at. Mutable **operational outbox** record (explicitly NOT an
+  append-only audit record). Registered read-only in the `/control/` admin (`admin_email_logs.py`).
+- **Single dispatch choke point** (`apps/integrations/dispatch.py`). `dispatch_email(...)` creates the
+  log then calls `_deliver(log)` **inline-synchronously** (no internal `on_commit`) and returns the log
+  with its final status; `_deliver` builds the makerspace-or-platform connection, sends, sets
+  sent/failed + error (truncated 2000) + attempts, **never raises** (fail-safe), `save(update_fields=…)`.
+  This `_deliver` is exactly what the Phase-3 Celery task will call (Phase 3 adds a `select_for_update`
+  row-claim there). **P1 fix:** `dispatch_email(persist_body=False)` (used by password reset) redacts
+  the stored body so a live reset token never lands in the DB/admin, while the real body is set
+  in-memory for delivery (`_deliver`'s `update_fields` excludes the body fields).
+- **Helpers funnel through dispatch, "delivered" return semantics preserved** (the return-reminder cron
+  + staff_notifications rely on it). `send_makerspace_email(..., *, stream, event, audience)` returns the
+  count of logs whose status==sent; `send_password_reset_email` returns 1/0; printing
+  `send_print_email`/`send_staff_print_email` route through dispatch with stream="printing". Callers
+  (`hardware_requests/notifications.py`, `staff_notifications.py`, `printing/emails.py`,
+  `apiclients/notifications.py`) thread stream/event/audience so the log is meaningful.
+- **Staff read API** `GET /api/v1/admin/makerspace/<id>/email-logs` (`admin_api/views_email_logs.py`):
+  scoped via `get_object_or_404(rbac.scope_by_action(MANAGE_MAKERSPACE, Makerspace.objects.filter(
+  archived_at__isnull=True), field="id"), pk=…)` (cross-tenant/hidden/archived → 404), paginated,
+  `?status=` validated (400 on invalid), lean serializer that **never exposes bodies**. OpenAPI snapshot
+  + generated TS client regenerated. **Retry is deferred to Phase 3** (needs the async task).
+- **Frontend** `EmailLogPanel.tsx` — new **Email log** staff tab (Admin group in `StaffApp` TAB_GROUPS,
+  gated `canManageMakerspace`), read-only paginated list with status badges + status filter. Wired
+  through `StaffPanels.tsx`/`StaffTabContent.tsx`. Tests: `backend/tests/test_email_log.py`.
+
 ## Recent batch — Phase 1: ledger container column + return-modal overflow + spool colour swatches (2026-06-21)
 
 First phase of a multi-phase "snappy + email" batch (Codex Stage-1 APPROVED, Stage-4 review clean, 15

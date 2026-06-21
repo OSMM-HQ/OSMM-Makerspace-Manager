@@ -8,6 +8,7 @@ import {
   BulkImport,
   Categories,
   ContainersPanel,
+  EmailLogPanel,
   Inventory,
   Ledger,
   NeedsFixShelf,
@@ -139,6 +140,9 @@ export function StaffTabContent({
       ) : null}
       {activeTab === "emailtemplates" ? (
         <EmailTemplatesPanel key={makerspaceKey} makerspace={activeMakerspace} />
+      ) : null}
+      {activeTab === "email-logs" && canManageMakerspace ? (
+        <EmailLogPanel key={makerspaceKey} makerspace={activeMakerspace} />
       ) : null}
       {activeTab === "platform" ? <PlatformEmailPanel /> : null}
       {activeTab === "users" && canManageMakerspace ? (

@@ -1,10 +1,10 @@
 import logging
 
 from django.conf import settings
-from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 
-from apps.integrations.email import makerspace_mail_connection, send_makerspace_email
+from apps.integrations.dispatch import dispatch_email
+from apps.integrations.email import send_makerspace_email
 from apps.integrations.email_templates import printing_context, render
 from apps.integrations.staff_notifications import staff_emails_for_stream
 from apps.printing.models import PrintRequest
@@ -73,17 +73,26 @@ def send_print_email(event, print_request):
             event,
             printing_context(print_request, status_url, print_request.public_token),
         )
-        connection, from_email = makerspace_mail_connection(makerspace)
-        message = EmailMultiAlternatives(
+        log = dispatch_email(
+            makerspace=makerspace,
+            stream="printing",
+            event=event,
+            audience="requester",
+            to_email=recipient,
             subject=rendered["subject"],
-            body=rendered["text_body"],
-            from_email=from_email,
-            to=[recipient],
-            connection=connection,
+            text_body=rendered["text_body"],
+            html_body=rendered["html_body"],
         )
-        if rendered["html_body"]:
-            message.attach_alternative(rendered["html_body"], "text/html")
-        message.send()
+        if log.status != log.Status.SENT:
+            logger.warning(
+                "print_email_send_failed",
+                extra={
+                    "event": event,
+                    "print_request_id": print_request.pk,
+                    "requester_id": print_request.requester_id,
+                    "email_log_id": log.pk,
+                },
+            )
     except Exception:
         logger.warning(
             "print_email_send_failed",
@@ -117,6 +126,9 @@ def send_staff_print_email(event, print_request):
             rendered["text_body"],
             recipients,
             html_body=rendered["html_body"],
+            stream="printing",
+            event=event,
+            audience="staff",
         )
     except Exception:
         logger.warning(

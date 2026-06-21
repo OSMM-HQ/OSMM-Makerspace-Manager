@@ -170,6 +170,9 @@ def _send_templated_email(request, key):
             rendered["text_body"],
             [recipient],
             html_body=rendered["html_body"],
+            stream="hardware",
+            event=key,
+            audience="requester",
         )
         return bool(sent)
     except Exception:
