@@ -108,8 +108,17 @@ class EmailTemplatePreviewRequestSerializer(serializers.Serializer):
     html_body = serializers.CharField(allow_blank=True)
 
     def validate(self, attrs):
-        if get_entry(attrs["stream"], attrs["audience"], attrs["key"]) is None:
-            raise serializers.ValidationError("Unknown email template.")
+        try:
+            validate_email_template_strings(
+                attrs["stream"],
+                attrs["audience"],
+                attrs["key"],
+                attrs["subject"],
+                attrs["text_body"],
+                attrs["html_body"],
+            )
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.messages) from exc
         return attrs
 
 
