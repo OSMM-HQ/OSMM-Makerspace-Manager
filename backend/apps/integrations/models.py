@@ -1,6 +1,54 @@
 from django.db import models
 
+from apps.integrations.email_templates_registry import validate_email_template_strings
 from apps.makerspaces.secrets import decrypt_value, encrypt_value
+
+
+class EmailTemplate(models.Model):
+    class Stream(models.TextChoices):
+        HARDWARE = "hardware", "Hardware"
+        PRINTING = "printing", "Printing"
+
+    class Audience(models.TextChoices):
+        REQUESTER = "requester", "Requester"
+        STAFF = "staff", "Staff"
+
+    stream = models.CharField(max_length=16, choices=Stream.choices)
+    audience = models.CharField(max_length=16, choices=Audience.choices)
+    key = models.CharField(max_length=32)
+    makerspace = models.ForeignKey(
+        "makerspaces.Makerspace",
+        on_delete=models.CASCADE,
+        related_name="email_templates",
+    )
+    subject = models.CharField(max_length=200)
+    text_body = models.TextField()
+    html_body = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["makerspace", "stream", "audience", "key"],
+                name="uniq_email_template_per_space",
+            )
+        ]
+        ordering = ["makerspace__name", "stream", "audience", "key"]
+
+    def clean(self):
+        validate_email_template_strings(
+            self.stream,
+            self.audience,
+            self.key,
+            self.subject,
+            self.text_body,
+            self.html_body,
+        )
+
+    def __str__(self):
+        return f"{self.makerspace}:{self.stream}/{self.audience}/{self.key}"
 
 
 class PlatformEmailSettings(models.Model):
