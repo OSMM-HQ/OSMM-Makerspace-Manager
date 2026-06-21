@@ -8,6 +8,7 @@ from apps.accounts.models import User
 from apps.inventory import public_image_storage
 from apps.integrations.email import platform_email_configured
 from apps.makerspaces.models import Makerspace, normalize_frontend_domain
+from apps.makerspaces.validators import validate_google_maps_url
 
 # Bare hostname (DNS labels); allows "localhost" and "alpha-lab.example.com",
 # rejects schemes, paths, ports, spaces, and empty labels.
@@ -46,6 +47,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "public_code",
             "slug",
             "location",
+            "map_url",
             "public_inventory_enabled",
             "public_stats_enabled",
             "superadmin_access_enabled",
@@ -105,6 +107,10 @@ class MakerspaceSerializer(serializers.ModelSerializer):
 
     def validate_public_code(self, value):
         return value.upper()
+
+    def validate_map_url(self, value):
+        validate_google_maps_url(value)
+        return value
 
     def validate_default_loan_days(self, value):
         if value < 1:

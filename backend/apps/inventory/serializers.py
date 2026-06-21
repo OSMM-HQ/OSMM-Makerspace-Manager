@@ -68,6 +68,7 @@ class PublicMakerspaceSerializer(serializers.Serializer):
     public_code = serializers.CharField(read_only=True)
     slug = serializers.SlugField(read_only=True)
     location = serializers.CharField(read_only=True)
+    map_url = serializers.CharField(read_only=True)
     logo_url = serializers.SerializerMethodField()
     cover_image_url = serializers.SerializerMethodField()
 

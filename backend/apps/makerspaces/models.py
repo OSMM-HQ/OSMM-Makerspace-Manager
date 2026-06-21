@@ -9,6 +9,7 @@ from django.db.models.functions import Lower
 from django.utils.crypto import get_random_string
 
 from apps.makerspaces.secrets import decrypt_value, encrypt_value
+from apps.makerspaces.validators import validate_google_maps_url
 
 
 def generate_publishable_key():
@@ -92,6 +93,7 @@ class Makerspace(models.Model):
         ],
     )
     location = models.CharField(max_length=200, blank=True)
+    map_url = models.URLField(blank=True, default="", validators=[validate_google_maps_url])
     public_inventory_enabled = models.BooleanField(default=True)
     public_stats_enabled = models.BooleanField(default=False)
     superadmin_access_enabled = models.BooleanField(default=True)

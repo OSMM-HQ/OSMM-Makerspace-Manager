@@ -93,6 +93,7 @@ def bootstrap_payload(makerspace):
             "slug": makerspace.slug,
             "public_code": makerspace.public_code,
             "location": makerspace.location,
+            "map_url": makerspace.map_url,
             "logo_url": logo_url,
             "cover_image_url": cover_image_url,
             "public_stats_enabled": makerspace.public_stats_enabled,
