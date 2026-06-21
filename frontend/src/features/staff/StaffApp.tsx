@@ -24,14 +24,14 @@ import { useTenant } from "../../lib/tenant";
 
 const ALL_TABS = [
   "requests", "direct", "inventory", "needsfix", "categories", "printing", "tobuy", "transfers",
-  "stocktake", "containers", "ledger", "reports", "bulk", "qr", "scanner", "api", "settings", "users", "platform", "audit",
+  "stocktake", "containers", "ledger", "reports", "bulk", "qr", "scanner", "api", "settings", "emailtemplates", "users", "platform", "audit",
 ] as const;
 // Membership roles that get the full staff console. Anything else (print_manager,
 // or an unknown role) is failed closed to the 3D-printing surfaces only.
 const FULL_ACCESS_ROLES = ["space_manager", "inventory_manager", "guest_admin"];
 // Print managers also get a To-Buy list (their items are auto-tagged "printing").
 // "requests" is included so they reach the (printing-only) unified Requests tab.
-const PRINTING_TABS = ["requests", "printing", "tobuy", "reports", "api"];
+const PRINTING_TABS = ["requests", "printing", "tobuy", "reports", "api", "emailtemplates"];
 
 // Human labels for every tab key (single source — was an inline ternary in the nav).
 const TAB_LABELS: Record<string, string> = {
@@ -53,6 +53,7 @@ const TAB_LABELS: Record<string, string> = {
   audit: "Audit log",
   users: "Users",
   settings: "Settings",
+  emailtemplates: "Email templates",
   api: "API access",
   platform: "Platform email",
 };
@@ -69,7 +70,7 @@ const TAB_GROUPS: { label: string; tabs: string[] }[] = [
   { label: "3D Printing", tabs: ["printing"] },
   { label: "Insights", tabs: ["reports", "audit"] },
   // Rarely-used admin tabs collapsed behind one expander by default.
-  { label: "Admin", tabs: ["users", "settings", "api", "platform"] },
+  { label: "Admin", tabs: ["users", "settings", "emailtemplates", "api", "platform"] },
 ];
 
 export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
@@ -309,6 +310,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     if (tabName === "audit") return canViewAudit;
     if (tabName === "users") return canManageMakerspace;
     if (tabName === "settings") return canManageMakerspace;
+    if (tabName === "emailtemplates") return canSeeHardware || canSeePrinting;
     if (tabName === "platform") return isSuperadmin && !singleTenantLocked;
     if (tabName === "printing") return canSeePrinting; // hide printer/spool mgmt from inventory managers
     if (tabName === "requests") return canSeeHardware || canSeePrinting;

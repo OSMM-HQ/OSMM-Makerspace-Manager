@@ -2,6 +2,7 @@ import { ApiClientsPanel } from "./ApiClientsPanel";
 import { DirectLoans } from "./DirectLoans";
 import { MakerspaceSettingsPanel } from "./MakerspaceSettingsPanel";
 import { PlatformEmailPanel } from "./PlatformEmailPanel";
+import { EmailTemplatesPanel } from "./panels/EmailTemplatesPanel";
 import {
   AuditLog,
   BulkImport,
@@ -135,6 +136,9 @@ export function StaffTabContent({
           makerspace={activeMakerspace}
           isSuperadmin={isSuperadmin}
         />
+      ) : null}
+      {activeTab === "emailtemplates" ? (
+        <EmailTemplatesPanel key={makerspaceKey} makerspace={activeMakerspace} />
       ) : null}
       {activeTab === "platform" ? <PlatformEmailPanel /> : null}
       {activeTab === "users" && canManageMakerspace ? (
