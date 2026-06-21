@@ -1,9 +1,11 @@
 from datetime import timedelta
 
 import pytest
+from django.test import override_settings
 from django.utils import timezone
 
 from apps.accounts.models import User
+from apps.audit.models import AuditLog
 from apps.boxes.models import Box
 from apps.hardware_requests.models import (
     HardwareRequest,
@@ -12,7 +14,14 @@ from apps.hardware_requests.models import (
     PublicToolLoan,
 )
 from apps.inventory.models import InventoryAsset, TrackingMode
-from tests.return_helpers import authenticated_client, make_member, make_product, make_space, make_user
+from tests.return_helpers import (
+    authenticated_client,
+    make_member,
+    make_product,
+    make_return_evidence,
+    make_space,
+    make_user,
+)
 
 pytestmark = pytest.mark.django_db
 
@@ -91,6 +100,18 @@ def _self_checkout_loan(
     return loan
 
 
+def _direct_url(makerspace):
+    return f"/api/v1/admin/makerspace/{makerspace.id}/direct-loans"
+
+
+def _direct_return_url(loan):
+    return f"/api/v1/admin/direct-loans/{loan.id}/return"
+
+
+def _return_body(evidence, notes="Container returned."):
+    return {"evidence_id": evidence.id, "notes": notes}
+
+
 def test_ledger_returns_outstanding_request_and_self_checkout_scoped_to_makerspace():
     makerspace = make_space("ledger-scope-a")
     other_space = make_space("ledger-scope-b")
@@ -155,6 +176,170 @@ def test_ledger_includes_container_labels_for_reviewed_requests_and_direct_loans
     assert rows["Direct Kit"]["source"] == "direct_handout"
     assert rows["Direct Kit"]["container"] == "Direct Box"
     assert rows["Loose Kit"]["container"] is None
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_container_only_direct_handout_appears_once_in_ledger_and_returns(
+    monkeypatch,
+):
+    makerspace = make_space("ledger-empty-container-api")
+    manager = make_member("ledger-empty-container-manager", makerspace)
+    container = Box.objects.create(makerspace=makerspace, label="Empty Travel Bin")
+    client = authenticated_client(manager)
+
+    issued = client.post(
+        _direct_url(makerspace),
+        {"identifier": "empty-container-holder", "container_id": container.id},
+        format="json",
+    )
+
+    assert issued.status_code == 201
+    loan = PublicToolLoan.objects.select_related("request", "container").get()
+    assert loan.container == container
+    assert loan.target_label == container.label
+    assert loan.request.items.count() == 0
+    assert loan.request.status == HardwareRequest.Status.ISSUED
+    assert AuditLog.objects.filter(
+        action="admin_direct.checked_out",
+        target_type="boxes.box",
+        target_id=str(container.id),
+        meta__loan_id=loan.id,
+        meta__request_id=loan.request_id,
+        meta__container_id=container.id,
+    ).exists()
+
+    ledger = client.get(f"/api/v1/admin/makerspace/{makerspace.id}/ledger")
+
+    assert ledger.status_code == 200
+    rows = [
+        row
+        for row in ledger.data["results"]
+        if row["item_name"] == container.label
+    ]
+    assert len(rows) == 1
+    assert rows[0]["source"] == "direct_handout"
+    assert rows[0]["quantity"] == 1
+    assert rows[0]["container"] is None
+    assert rows[0]["reference_id"] == loan.id
+
+    evidence = make_return_evidence(makerspace, manager)
+    monkeypatch.setattr("apps.evidence.storage.object_exists", lambda key: True)
+    returned = client.post(
+        _direct_return_url(loan),
+        _return_body(evidence),
+        format="json",
+    )
+
+    assert returned.status_code == 200
+    loan.refresh_from_db()
+    loan.request.refresh_from_db()
+    assert loan.status == PublicToolLoan.Status.RETURNED
+    assert loan.request.status == HardwareRequest.Status.RETURNED
+    assert AuditLog.objects.filter(
+        action="admin_direct.returned",
+        target_type="boxes.box",
+        target_id=str(container.id),
+        meta__loan_id=loan.id,
+        meta__request_id=loan.request_id,
+        meta__container_id=container.id,
+    ).exists()
+
+    after_return = client.get(f"/api/v1/admin/makerspace/{makerspace.id}/ledger")
+
+    assert after_return.status_code == 200
+    assert all(
+        row["item_name"] != container.label for row in after_return.data["results"]
+    )
+
+
+def test_loaded_direct_container_is_not_double_listed_in_ledger():
+    makerspace = make_space("ledger-loaded-container")
+    manager = make_member("ledger-loaded-container-manager", makerspace)
+    product = make_product(makerspace, name="Loaded Kit")
+    container = Box.objects.create(makerspace=makerspace, label="Loaded Bin")
+    _self_checkout_loan(
+        makerspace,
+        product,
+        "ledger-loaded-container-holder",
+        container=container,
+        source=PublicToolLoan.Source.ADMIN_DIRECT,
+    )
+
+    response = authenticated_client(manager).get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/ledger"
+    )
+
+    assert response.status_code == 200
+    rows = response.data["results"]
+    assert len(rows) == 1
+    assert rows[0]["item_name"] == "Loaded Kit"
+    assert rows[0]["source"] == "direct_handout"
+    assert rows[0]["container"] == "Loaded Bin"
+    assert all(row["item_name"] != "Loaded Bin" for row in rows)
+
+
+def test_checked_out_container_reappears_when_loaded_items_are_resolved():
+    makerspace = make_space("ledger-container-resolved-items")
+    manager = make_member("ledger-container-resolved-manager", makerspace)
+    product = make_product(makerspace, name="Resolved Kit")
+    container = Box.objects.create(makerspace=makerspace, label="Still Out Bin")
+    loan = _self_checkout_loan(
+        makerspace,
+        product,
+        "ledger-container-resolved-holder",
+        container=container,
+        source=PublicToolLoan.Source.ADMIN_DIRECT,
+    )
+    item = loan.request.items.get()
+    item.returned_quantity = item.issued_quantity
+    item.save(update_fields=["returned_quantity"])
+    loan.request.status = HardwareRequest.Status.PARTIALLY_RETURNED
+    loan.request.save(update_fields=["status", "updated_at"])
+
+    response = authenticated_client(manager).get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/ledger"
+    )
+
+    assert response.status_code == 200
+    assert response.data["count"] == 1
+    row = response.data["results"][0]
+    assert row["item_name"] == "Still Out Bin"
+    assert row["quantity"] == 1
+    assert row["container"] is None
+    assert row["reference_id"] == loan.id
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_direct_handout_requires_item_qr_or_container_even_after_module_gate():
+    makerspace = make_space("ledger-empty-direct-guard")
+    manager = make_member("ledger-empty-direct-guard-manager", makerspace)
+    container = Box.objects.create(makerspace=makerspace, label="Disabled Module Bin")
+    client = authenticated_client(manager)
+
+    empty = client.post(
+        _direct_url(makerspace),
+        {"identifier": "empty-direct-holder"},
+        format="json",
+    )
+
+    assert empty.status_code == 400
+    assert "Provide qr_payloads, items, or a container." in str(empty.data)
+
+    makerspace.enabled_modules = [
+        module for module in makerspace.enabled_modules if module != "containers"
+    ]
+    makerspace.save(update_fields=["enabled_modules"])
+    module_disabled = client.post(
+        _direct_url(makerspace),
+        {"identifier": "module-disabled-holder", "container_id": container.id},
+        format="json",
+    )
+
+    assert module_disabled.status_code == 400
+    assert "Provide qr_payloads, items, or a container." in str(
+        module_disabled.data
+    )
+    assert PublicToolLoan.objects.count() == 0
 
 
 def test_ledger_excludes_fully_returned_loans():

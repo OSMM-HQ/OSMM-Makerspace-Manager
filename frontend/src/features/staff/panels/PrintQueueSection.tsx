@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { Skeleton } from "../../../components/ui";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 import {
   ErrorText,
@@ -83,7 +84,6 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
 
   const printerRows = printers.data?.results ?? [];
   const spoolRows = spools.data?.results ?? [];
-  const anyQueueLoading = pending.isLoading || accepted.isLoading || printing.isLoading || completed.isLoading;
   const actionError = action.error instanceof Error ? action.error.message : undefined;
   // Backend _assign_print_job blocks start unless the printer is is_active AND status active,
   // so only offer those as start targets (otherwise the user hits a 409 after clicking Start).
@@ -91,15 +91,17 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
 
   return (
     <Panel title="Print requests">
-      {anyQueueLoading ? <p className="mb-3 text-sm text-muted">Loading queue...</p> : null}
-
       <div className="mb-3">
-        <PrintRows title="Pending review" rows={pending.data?.results ?? []} action={(row) => (
-          <>
-            <button disabled={action.isPending} onClick={() => setAcceptingRequest(row)}>Accept</button>
-            <button disabled={action.isPending} onClick={() => setRejectingRequest(row)}>Reject</button>
-          </>
-        )} />
+        {pending.isLoading ? (
+          <PrintRowsSkeleton title="Pending review" />
+        ) : (
+          <PrintRows title="Pending review" rows={pending.data?.results ?? []} action={(row) => (
+            <>
+              <button disabled={action.isPending} onClick={() => setAcceptingRequest(row)}>Accept</button>
+              <button disabled={action.isPending} onClick={() => setRejectingRequest(row)}>Reject</button>
+            </>
+          )} />
+        )}
       </div>
 
       <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Start-on-printer settings</p>
@@ -134,25 +136,37 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
         </label>
       </div>
       <div className="grid gap-3 lg:grid-cols-2">
-        <PrintRows title="Accepted" rows={accepted.data?.results ?? []} action={(row) => (
-          <button disabled={!selectedPrinter || action.isPending} onClick={() => action.mutate({ request: row, name: "start" })}>
-            {action.isPending ? "Starting..." : "Start on printer"}
-          </button>
-        )} />
-        <PrintRows title="Printing" rows={printing.data?.results ?? []} action={(row) => (
-          <>
-            <button disabled={action.isPending} onClick={() => action.mutate({ request: row, name: "complete" })}>Complete</button>
-            <button disabled={action.isPending} onClick={() => setFailingRequest(row)}>Fail</button>
-          </>
-        )} />
+        {accepted.isLoading ? (
+          <PrintRowsSkeleton title="Accepted" />
+        ) : (
+          <PrintRows title="Accepted" rows={accepted.data?.results ?? []} action={(row) => (
+            <button disabled={!selectedPrinter || action.isPending} onClick={() => action.mutate({ request: row, name: "start" })}>
+              {action.isPending ? "Starting..." : "Start on printer"}
+            </button>
+          )} />
+        )}
+        {printing.isLoading ? (
+          <PrintRowsSkeleton title="Printing" />
+        ) : (
+          <PrintRows title="Printing" rows={printing.data?.results ?? []} action={(row) => (
+            <>
+              <button disabled={action.isPending} onClick={() => action.mutate({ request: row, name: "complete" })}>Complete</button>
+              <button disabled={action.isPending} onClick={() => setFailingRequest(row)}>Fail</button>
+            </>
+          )} />
+        )}
       </div>
 
       <div className="mt-3">
-        <PrintRows title="Ready for collection" rows={completed.data?.results ?? []} action={(row) => (
-          <button disabled={action.isPending} onClick={() => action.mutate({ request: row, name: "collect" })}>
-            {action.isPending ? "..." : "Mark collected"}
-          </button>
-        )} />
+        {completed.isLoading ? (
+          <PrintRowsSkeleton title="Ready for collection" />
+        ) : (
+          <PrintRows title="Ready for collection" rows={completed.data?.results ?? []} action={(row) => (
+            <button disabled={action.isPending} onClick={() => action.mutate({ request: row, name: "collect" })}>
+              {action.isPending ? "..." : "Mark collected"}
+            </button>
+          )} />
+        )}
       </div>
 
       <div className="mt-4">
@@ -207,5 +221,26 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
         onSubmit={(reason) => rejectingRequest && action.mutate({ request: rejectingRequest, name: "reject", reason })}
       />
     </Panel>
+  );
+}
+
+function PrintRowsSkeleton({ title, rows = 3 }: { title: string; rows?: number }) {
+  return (
+    <div className="rounded-md border border-line" aria-hidden="true">
+      <h3 className="border-b border-line bg-surface px-3 py-2 text-sm font-semibold text-muted">{title}</h3>
+      <div className="grid gap-0">
+        {Array.from({ length: rows }, (_, index) => (
+          <article key={index} className="border-b border-line p-3 last:border-b-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <Skeleton className="h-4 w-44" />
+              <Skeleton className="h-5 w-20" />
+              <Skeleton className="ml-0 h-7 w-28 sm:ml-auto" />
+            </div>
+            <Skeleton className="mt-3 h-3 w-full" />
+            <Skeleton className="mt-2 h-3 w-2/3" />
+          </article>
+        ))}
+      </div>
+    </div>
   );
 }

@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { staffRequest } from "../../../lib/api";
 import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
+import { Skeleton } from "../../../components/ui/Skeleton";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 import { RequestList } from "./QueuesList";
 import {
@@ -196,40 +197,52 @@ export function Queues({ makerspace, guestOnly }: { makerspace: Makerspace; gues
       ) : null}
       {!guestOnly ? (
         <Panel title="Pending review">
-          <RequestList
-            rows={pending.data?.results ?? []}
-            actions={(row) => (
-              <>
-                <button disabled={action.isPending} onClick={() => openModal(setAcceptRow, row)}>Accept</button>
-                <button disabled={action.isPending} onClick={() => openModal(setRejectRow, row)}>Reject</button>
-                <button disabled={action.isPending} onClick={() => openModal(setDueRow, row)}>Set due</button>
-              </>
-            )}
-          />
+          {pending.isLoading ? (
+            <RequestListSkeleton />
+          ) : (
+            <RequestList
+              rows={pending.data?.results ?? []}
+              actions={(row) => (
+                <>
+                  <button disabled={action.isPending} onClick={() => openModal(setAcceptRow, row)}>Accept</button>
+                  <button disabled={action.isPending} onClick={() => openModal(setRejectRow, row)}>Reject</button>
+                  <button disabled={action.isPending} onClick={() => openModal(setDueRow, row)}>Set due</button>
+                </>
+              )}
+            />
+          )}
         </Panel>
       ) : null}
       <Panel title="Ready for handover">
-        <RequestList
-          rows={accepted.data?.results ?? []}
-          actions={(row) => (
-            <>
-              <button disabled={action.isPending} onClick={() => openModal(setAssignIssueRow, row)}>Assign + issue</button>
-              <button disabled={action.isPending} onClick={() => openModal(setDueRow, row)}>Set due</button>
-            </>
-          )}
-        />
-      </Panel>
-      {!guestOnly ? (
-        <Panel title="Active loans">
+        {accepted.isLoading ? (
+          <RequestListSkeleton />
+        ) : (
           <RequestList
-            rows={active.data?.results ?? []}
+            rows={accepted.data?.results ?? []}
             actions={(row) => (
               <>
+                <button disabled={action.isPending} onClick={() => openModal(setAssignIssueRow, row)}>Assign + issue</button>
                 <button disabled={action.isPending} onClick={() => openModal(setDueRow, row)}>Set due</button>
-                <button disabled={action.isPending} onClick={() => openModal(setReturnRow, row)}>Return</button>
               </>
             )}
           />
+        )}
+      </Panel>
+      {!guestOnly ? (
+        <Panel title="Active loans">
+          {active.isLoading ? (
+            <RequestListSkeleton />
+          ) : (
+            <RequestList
+              rows={active.data?.results ?? []}
+              actions={(row) => (
+                <>
+                  <button disabled={action.isPending} onClick={() => openModal(setDueRow, row)}>Set due</button>
+                  <button disabled={action.isPending} onClick={() => openModal(setReturnRow, row)}>Return</button>
+                </>
+              )}
+            />
+          )}
         </Panel>
       ) : null}
       <Panel title="History">
@@ -289,6 +302,23 @@ export function Queues({ makerspace, guestOnly }: { makerspace: Makerspace; gues
         onSubmit={submitReturn}
         makerspaceId={makerspace.id}
       />
+    </div>
+  );
+}
+
+function RequestListSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="grid gap-2" aria-hidden="true">
+      {Array.from({ length: rows }, (_, index) => (
+        <div key={index} className="rounded-md border border-line bg-surface p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-7 w-32" />
+          </div>
+          <Skeleton className="mt-3 h-3 w-full" />
+          <Skeleton className="mt-2 h-3 w-2/3" />
+        </div>
+      ))}
     </div>
   );
 }

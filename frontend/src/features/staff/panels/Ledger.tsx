@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 
+import { Skeleton, SkeletonRows } from "../../../components/ui";
+import { useDebouncedValue } from "../../../lib/useDebouncedValue";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 
 type LedgerSource = "request" | "self_checkout" | "direct_handout";
@@ -40,6 +42,7 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
     key: "due",
     direction: "asc",
   });
+  const debouncedFilter = useDebouncedValue(filter);
   const aggregate = isSuperadmin && allMakerspaces;
   const ledger = useStaffGet<LedgerResponse>(
     ["ledger", aggregate ? "all" : makerspace.id],
@@ -49,13 +52,13 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
   const rows = ledger.data?.results ?? [];
   const now = Date.now();
   const visibleRows = useMemo(() => {
-    const normalizedFilter = filter.trim().toLowerCase();
+    const normalizedFilter = debouncedFilter.trim().toLowerCase();
     const filtered = normalizedFilter
       ? rows.filter((row) => `${row.holder} ${row.item_name}`.toLowerCase().includes(normalizedFilter))
       : rows;
 
     return [...filtered].sort((a, b) => compareRows(a, b, sort.key, sort.direction));
-  }, [filter, rows, sort.direction, sort.key]);
+  }, [debouncedFilter, rows, sort.direction, sort.key]);
   const itemCount = visibleRows.reduce((total, row) => total + row.quantity, 0);
 
   const setSortKey = (key: SortKey) => {
@@ -95,7 +98,7 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
           onChange={(event) => setFilter(event.target.value)}
         />
 
-        {ledger.isLoading ? <p className="text-sm text-muted">Loading ledger...</p> : null}
+        {ledger.isLoading ? <LedgerSkeleton aggregate={aggregate} /> : null}
         {ledger.error ? <p className="text-sm text-danger">{ledger.error.message}</p> : null}
         {!ledger.isLoading && !ledger.error && !visibleRows.length ? (
           <p className="rounded-md border border-line bg-surface p-3 text-sm text-muted">No items are currently out.</p>
@@ -149,6 +152,29 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
         ) : null}
       </div>
     </Panel>
+  );
+}
+
+function LedgerSkeleton({ aggregate }: { aggregate: boolean }) {
+  return (
+    <div className="overflow-x-auto rounded-md border border-line">
+      <table className="min-w-[760px] divide-y divide-line text-left text-sm" aria-hidden="true">
+        <thead className="bg-bg text-xs font-semibold uppercase text-muted">
+          <tr>
+            {["Item", "Holder", "Qty", "Out since", "Due", "Source", aggregate ? "Makerspace" : ""]
+              .filter(Boolean)
+              .map((label) => (
+                <th key={label} className="whitespace-nowrap px-3 py-2">
+                  <Skeleton className="h-3 w-20" />
+                </th>
+              ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-line bg-surface">
+          <SkeletonRows rows={4} cols={aggregate ? 7 : 6} />
+        </tbody>
+      </table>
+    </div>
   );
 }
 

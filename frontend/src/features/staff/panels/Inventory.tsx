@@ -1,10 +1,11 @@
 import type { Key, ReactNode } from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { ConfirmDialog, DataTable, FilterBar, Modal, StatusBadge } from "../../../components/ui";
 import type { DataTableColumn } from "../../../components/ui";
 import { staffRequest } from "../../../lib/api";
+import { useDebouncedValue } from "../../../lib/useDebouncedValue";
 import { ImageUploader } from "../ImageUploader";
 import { categoryResults, Panel, type Category, type CategoryListResponse, type Makerspace, type Product, useStaffGet } from "./shared";
 
@@ -42,6 +43,7 @@ export function Inventory({ makerspace, canViewAudit = false }: { makerspace: Ma
   const [archiveTarget, setArchiveTarget] = useState<AdminProduct | null>(null);
   const [qrConfirm, setQrConfirm] = useState<boolean | null>(null);
   const [bulkQrMessage, setBulkQrMessage] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
   useEffect(() => {
     setSearch(localStorage.getItem(`inventory.view.${makerspace.id}`) ?? "");
     setSelectedIds([]);
@@ -98,9 +100,12 @@ export function Inventory({ makerspace, canViewAudit = false }: { makerspace: Ma
       invalidate();
     },
   });
-  const rows = (products.data?.results ?? []).filter((product) =>
-    [product.name, product.description, product.tracking_mode, product.storage_location].join(" ").toLowerCase().includes(search.toLowerCase()),
-  );
+  const rows = useMemo(() => {
+    const normalizedSearch = debouncedSearch.toLowerCase();
+    return (products.data?.results ?? []).filter((product) =>
+      [product.name, product.description, product.tracking_mode, product.storage_location].join(" ").toLowerCase().includes(normalizedSearch),
+    );
+  }, [debouncedSearch, products.data?.results]);
   const categoryRows = categoryResults(categories.data);
   const openEdit = (product: AdminProduct) => {
     setEditing(product);
@@ -143,7 +148,7 @@ export function Inventory({ makerspace, canViewAudit = false }: { makerspace: Ma
             </>
           )}
         />
-        <DataTable<AdminProduct> columns={columns} data={rows} getRowId={(row) => row.id} selectedIds={selectedIds} onSelectionChange={setSelectedIds} loading={products.isLoading} emptyTitle="No inventory" />
+        <DataTable<AdminProduct> columns={columns} data={rows} getRowId={(row) => row.id} selectedIds={selectedIds} onSelectionChange={setSelectedIds} loading={products.isLoading} emptyTitle="No inventory" skeletonCols={columns.length + 1} />
         {bulkQrMessage ? <p className="text-sm text-muted">{bulkQrMessage}</p> : null}
       </div>
       <ItemModal title="Add item" open={addOpen} onClose={() => setAddOpen(false)} form={form} setForm={setForm} categories={categoryRows} includeQuantities pending={create.isPending} error={create.error?.message} onSubmit={() => create.mutate()} />

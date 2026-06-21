@@ -1,5 +1,7 @@
 import type React from "react";
 
+import { Skeleton, SkeletonRows } from "../../../components/ui";
+
 export type ReportCell = string | number | null;
 export type ReportRows = { rows: ReportCell[][] };
 
@@ -28,10 +30,32 @@ export function chartRows(data: ReportRows | undefined, labelKey: string, valueK
 }
 
 export function DataState(props: { loading: boolean; error: unknown; empty: boolean; children: React.ReactNode }) {
-  if (props.loading) return <p className="mt-3 text-sm text-muted">Loading reports...</p>;
+  if (props.loading) return <ReportSkeleton />;
   if (props.error) return <p className="mt-3 text-sm text-danger">{props.error instanceof Error ? props.error.message : "Unable to load report."}</p>;
   if (props.empty) return <p className="mt-3 text-sm text-muted">No records.</p>;
   return <>{props.children}</>;
+}
+
+function ReportSkeleton() {
+  return (
+    <div className="mt-4 grid gap-3" aria-hidden="true">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }, (_, index) => (
+          <div key={index} className="rounded-md border border-line bg-surface p-3">
+            <Skeleton className="h-7 w-20" />
+            <Skeleton className="mt-2 h-3 w-24" />
+          </div>
+        ))}
+      </div>
+      <div className="overflow-x-auto rounded-md border border-line">
+        <table className="min-w-[640px] divide-y divide-line text-left text-sm">
+          <tbody className="divide-y divide-line bg-bg">
+            <SkeletonRows rows={4} cols={4} />
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
 }
 
 export function StatCards({ stats }: { stats: [string, number | undefined][] }) {

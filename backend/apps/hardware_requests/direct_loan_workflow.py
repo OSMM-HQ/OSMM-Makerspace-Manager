@@ -38,6 +38,9 @@ def issue_direct_loan(
     result = checkin.verify(makerspace, identifier)
     due_at = timezone.now() + timedelta(days=(makerspace.default_loan_days or 7))
     with transaction.atomic():
+        if container_id is None and not qr_payloads and not items:
+            raise RequestValidationError("Provide qr_payloads, items, or a container.")
+
         container = None
         if container_id is not None:
             container = (
@@ -109,7 +112,8 @@ def issue_direct_loan(
                     requester=requester,
                     target_type="direct",
                     target_id=request.id,
-                    target_label=", ".join(labels)[:200] or "Direct handout",
+                    target_label=", ".join(labels)[:200]
+                    or (container.label if container else "Direct handout"),
                     asset_ids=asset_ids,
                     source=PublicToolLoan.Source.ADMIN_DIRECT,
                     due_at=due_at,
@@ -261,7 +265,23 @@ def _manual_product(makerspace, product_id):
 
 
 def _record_item_logs(actor, action, makerspace, request, loan):
-    for item in request.items.select_related("product"):
+    items = list(request.items.select_related("product"))
+    if not items and loan.container_id:
+        audit.record(
+            actor,
+            action,
+            makerspace=makerspace,
+            target=loan.container,
+            meta={
+                "loan_id": loan.id,
+                "request_id": request.id,
+                "container_id": loan.container_id,
+                "source": loan.source,
+            },
+        )
+        return
+
+    for item in items:
         audit.record(
             actor,
             action,

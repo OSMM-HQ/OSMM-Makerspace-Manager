@@ -2,6 +2,7 @@ import type { Key, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { EmptyState } from "./EmptyState";
+import { SkeletonRows } from "./Skeleton";
 import { Spinner } from "./Spinner";
 
 export type DataTableColumn<T> = {
@@ -13,6 +14,7 @@ type SortState = { key: string; direction: "asc" | "desc" };
 type DataTableProps<T> = {
   columns: DataTableColumn<T>[]; data: T[]; getRowId?: (row: T) => Key; selectedIds?: Key[];
   onSelectionChange?: (ids: Key[]) => void; loading?: boolean; emptyTitle?: string; emptyDescription?: string; emptyAction?: ReactNode;
+  skeletonCols?: number;
 };
 
 export function DataTable<T>({
@@ -25,6 +27,7 @@ export function DataTable<T>({
   emptyTitle = "No records",
   emptyDescription,
   emptyAction,
+  skeletonCols,
 }: DataTableProps<T>) {
   const [sort, setSort] = useState<SortState | null>(null);
   const selectedSet = useMemo(() => new Set(selectedIds ?? []), [selectedIds]);
@@ -90,7 +93,9 @@ export function DataTable<T>({
           </tr>
         </thead>
         <tbody>
-          {loading ? (
+          {loading && skeletonCols ? (
+            <SkeletonRows rows={6} cols={skeletonCols} />
+          ) : loading ? (
             <tr>
               <td className="px-3 py-8 text-center" colSpan={columns.length + (selectionEnabled ? 1 : 0)}>
                 <Spinner />
