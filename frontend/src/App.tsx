@@ -113,7 +113,7 @@ function LandingPage() {
             {makerspacesQuery.data.map((makerspace) => (
               <article
                 key={makerspace.slug}
-                className="group flex flex-col border-2 border-ink bg-panel transition-transform duration-150 hover:-translate-y-1 hover:shadow-brutal"
+                className="group relative flex flex-col border-2 border-ink bg-panel transition-transform duration-150 hover:-translate-y-1 hover:shadow-brutal"
               >
                 <div className="relative h-40 overflow-hidden border-b-2 border-secondary bg-surface">
                   {makerspace.cover_image_url ? (
@@ -138,7 +138,7 @@ function LandingPage() {
                   />
                   <MakerspaceMapLink
                     makerspace={makerspace}
-                    className="mt-2"
+                    className="relative z-10 mt-2"
                     locationClassName="break-words font-mono text-xs uppercase text-muted"
                   />
                   <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-5">
@@ -146,8 +146,9 @@ function LandingPage() {
                       {makerspace.public_code}
                     </span>
                     <Link
-                      className="inline-flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-tight text-secondary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+                      className="inline-flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-tight text-secondary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40 after:absolute after:inset-0 after:content-['']"
                       to={`/m/${makerspace.slug}`}
+                      aria-label={`Open ${makerspace.name} catalog`}
                     >
                       Open catalog &rarr;
                     </Link>
