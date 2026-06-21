@@ -278,6 +278,50 @@ def test_loaded_direct_container_is_not_double_listed_in_ledger():
     assert all(row["item_name"] != "Loaded Bin" for row in rows)
 
 
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_container_only_handout_rejected_when_container_has_available_contents():
+    # A container-only handout assigns an EMPTY vessel. If the box still holds available
+    # contents, handing out the container alone would walk them out the door while leaving
+    # them logically AVAILABLE (re-loanable) — the workflow must reject it.
+    makerspace = make_space("ledger-nonempty-container")
+    manager = make_member("ledger-nonempty-container-manager", makerspace)
+    container = Box.objects.create(makerspace=makerspace, label="Loaded Travel Bin")
+    make_product(makerspace, name="Stowed Kit", box=container)
+    client = authenticated_client(manager)
+
+    response = client.post(
+        _direct_url(makerspace),
+        {"identifier": "nonempty-container-holder", "container_id": container.id},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "Container is not empty" in str(response.data)
+    assert PublicToolLoan.objects.count() == 0
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_container_only_handout_rejected_when_child_box_has_contents():
+    # The empty-container guard must see contents nested in CHILD boxes, else a parent
+    # container-only loan would walk the child box's available stock out untracked.
+    makerspace = make_space("ledger-childbox-container")
+    manager = make_member("ledger-childbox-manager", makerspace)
+    parent = Box.objects.create(makerspace=makerspace, label="Parent Bin")
+    child = Box.objects.create(makerspace=makerspace, label="Child Bin", parent=parent)
+    make_product(makerspace, name="Nested Kit", box=child)
+    client = authenticated_client(manager)
+
+    response = client.post(
+        _direct_url(makerspace),
+        {"identifier": "childbox-holder", "container_id": parent.id},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "Container is not empty" in str(response.data)
+    assert PublicToolLoan.objects.count() == 0
+
+
 def test_checked_out_container_reappears_when_loaded_items_are_resolved():
     makerspace = make_space("ledger-container-resolved-items")
     manager = make_member("ledger-container-resolved-manager", makerspace)
