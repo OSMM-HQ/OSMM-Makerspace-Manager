@@ -5,6 +5,7 @@ import { Badge } from "../../components/ui";
 import { staffRequest } from "../../lib/api";
 import { ImageUploader } from "./ImageUploader";
 import { MakerspaceEmailSettings } from "./MakerspaceEmailSettings";
+import { MakerspaceLocationSettings } from "./MakerspaceLocationSettings";
 import { Panel, type Makerspace, useStaffGet } from "./StaffPanels";
 
 type Props = {
@@ -146,6 +147,11 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
             />
           </div>
         </div>
+        <MakerspaceLocationSettings
+          makerspace={makerspace}
+          settings={settings.data}
+          loading={settings.isLoading}
+        />
         <div className="rounded-md border border-line bg-bg p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="grid max-w-2xl gap-2">

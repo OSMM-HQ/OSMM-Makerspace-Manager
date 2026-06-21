@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
+import { MakerspaceMapLink } from "../../components/MakerspaceMapLink";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Card } from "../../components/ui/Card";
 import { Spinner } from "../../components/ui/Spinner";
@@ -33,6 +34,10 @@ export function PublicItemDetailPage() {
               size="md"
             />
             <h1 className="mt-1 text-2xl font-bold text-ink">Item detail</h1>
+            <MakerspaceMapLink
+              makerspace={bootstrapData?.makerspace}
+              className="mt-2"
+            />
           </div>
           <div className="flex gap-2">
             <ThemeToggle />

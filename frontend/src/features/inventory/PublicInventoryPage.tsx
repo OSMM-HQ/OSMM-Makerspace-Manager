@@ -3,6 +3,7 @@ import type { FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
+import { MakerspaceMapLink } from "../../components/MakerspaceMapLink";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Card } from "../../components/ui/Card";
 import { useTenant, useTenantPath } from "../../lib/tenant";
@@ -142,6 +143,10 @@ export function PublicInventoryPage() {
               <p className="mt-2 text-sm text-muted">
                 Shared tools and equipment published by this makerspace.
               </p>
+              <MakerspaceMapLink
+                makerspace={bootstrap?.makerspace}
+                className="mt-2"
+              />
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <div className="rounded-md border border-line bg-surface px-3 py-2 text-sm text-muted">

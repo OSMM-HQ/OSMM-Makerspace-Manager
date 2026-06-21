@@ -19,6 +19,7 @@ export type TenantBootstrap = {
     slug: string;
     public_code: string;
     location: string;
+    map_url?: string;
     logo_url?: string | null;
     cover_image_url?: string | null;
     public_stats_enabled?: boolean;

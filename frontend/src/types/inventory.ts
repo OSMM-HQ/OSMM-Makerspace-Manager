@@ -32,6 +32,7 @@ export type Makerspace = {
   public_code: string;
   slug: string;
   location: string;
+  map_url?: string;
   logo_url?: string | null;
   cover_image_url?: string | null;
 };

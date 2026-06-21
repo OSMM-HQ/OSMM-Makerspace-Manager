@@ -1,6 +1,7 @@
 import { Link, Navigate, Route, Routes } from "react-router-dom";
 
 import { MakerspaceBrand } from "./components/MakerspaceBrand";
+import { MakerspaceMapLink } from "./components/MakerspaceMapLink";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Card } from "./components/ui/Card";
 import { Spinner } from "./components/ui/Spinner";
@@ -110,10 +111,9 @@ function LandingPage() {
         {makerspacesQuery.data && makerspacesQuery.data.length > 0 ? (
           <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
             {makerspacesQuery.data.map((makerspace) => (
-              <Link
+              <article
                 key={makerspace.slug}
-                className="group flex flex-col border-2 border-ink bg-panel transition-transform duration-150 hover:-translate-y-1 hover:shadow-brutal focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
-                to={`/m/${makerspace.slug}`}
+                className="group flex flex-col border-2 border-ink bg-panel transition-transform duration-150 hover:-translate-y-1 hover:shadow-brutal"
               >
                 <div className="relative h-40 overflow-hidden border-b-2 border-secondary bg-surface">
                   {makerspace.cover_image_url ? (
@@ -136,19 +136,24 @@ function LandingPage() {
                     logoUrl={makerspace.logo_url}
                     size="md"
                   />
-                  <p className="mt-2 break-words font-mono text-xs uppercase text-muted">
-                    {makerspace.location || makerspace.slug}
-                  </p>
+                  <MakerspaceMapLink
+                    makerspace={makerspace}
+                    className="mt-2"
+                    locationClassName="break-words font-mono text-xs uppercase text-muted"
+                  />
                   <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-5">
                     <span className="min-w-0 truncate font-mono text-xs uppercase text-muted">
                       {makerspace.public_code}
                     </span>
-                    <span className="inline-flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-tight text-secondary">
+                    <Link
+                      className="inline-flex items-center gap-2 font-mono text-xs font-semibold uppercase tracking-tight text-secondary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+                      to={`/m/${makerspace.slug}`}
+                    >
                       Open catalog &rarr;
-                    </span>
+                    </Link>
                   </div>
                 </div>
-              </Link>
+              </article>
             ))}
           </div>
         ) : null}
