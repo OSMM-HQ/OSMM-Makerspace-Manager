@@ -213,7 +213,7 @@ function SortableHeader({
     <th className={`whitespace-nowrap px-3 py-2 ${align === "right" ? "text-right" : "text-left"}`}>
       <button
         type="button"
-        className={`inline-flex items-center gap-1 hover:text-accent ${align === "right" ? "justify-end" : ""}`}
+        className={`inline-flex items-center gap-1 hover:text-accent-ink ${align === "right" ? "justify-end" : ""}`}
         onClick={() => onSort(sortKey)}
       >
         {label}

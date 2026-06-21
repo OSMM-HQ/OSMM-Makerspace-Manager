@@ -67,9 +67,9 @@ export function DataTable<T>({
   if (!loading && !data.length) return <EmptyState title={emptyTitle} description={emptyDescription} action={emptyAction} />;
 
   return (
-    <div className="overflow-x-auto rounded-md border border-line bg-panel">
+    <div className="overflow-x-auto rounded-xl border border-line bg-panel">
       <table className="w-full min-w-[640px] text-left text-sm" aria-busy={loading}>
-        <thead className="bg-surface text-xs uppercase text-muted">
+        <thead className="bg-surface text-xs text-muted">
           <tr className="border-b border-line">
             {selectionEnabled ? (
               <th className="w-10 px-3 py-2">
@@ -83,7 +83,7 @@ export function DataTable<T>({
                 aria-sort={sort?.key === column.key ? ariaSort(sort.direction) : undefined}
               >
                 {column.sortable ? (
-                  <button type="button" className="inline-flex items-center gap-1 font-semibold uppercase" onClick={() => toggleSort(column)}>
+                  <button type="button" className="inline-flex items-center gap-1 font-semibold" onClick={() => toggleSort(column)}>
                     {column.header}
                     <span aria-hidden="true">{sort?.key === column.key ? sort.direction : "sort"}</span>
                   </button>

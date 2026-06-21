@@ -111,8 +111,8 @@ function TemplateButton({
 }) {
   return (
     <button
-      className={`flex min-w-0 items-center justify-between gap-2 rounded-sm border px-3 py-2 text-left text-sm ${
-        selected ? "border-accent bg-surface text-accent" : "border-line bg-bg text-ink hover:border-accent"
+      className={`flex min-w-0 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-sm ${
+        selected ? "border-accent bg-surface text-accent-ink" : "border-line bg-bg text-ink hover:border-accent"
       }`}
       type="button"
       onClick={() =>

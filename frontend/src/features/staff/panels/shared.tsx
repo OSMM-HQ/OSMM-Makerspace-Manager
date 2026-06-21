@@ -73,7 +73,7 @@ export function Panel({ title, children }: { title: string; children: React.Reac
   return (
     <section className="desk-panel overflow-hidden">
       <div className="border-b border-line px-4 py-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">{title}</h2>
+        <h2 className="text-sm font-semibold tracking-wide text-muted">{title}</h2>
       </div>
       <div className="desk-panel-body p-4">
         {children}

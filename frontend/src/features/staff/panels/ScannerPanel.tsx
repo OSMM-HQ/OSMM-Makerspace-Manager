@@ -143,7 +143,7 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
         <button className="desk-button" type="button" onClick={() => setShowScanner(true)}>Scan camera</button>
       </div>
       {resolveError ? <p className="mt-2 text-sm text-danger">{resolveError}</p> : null}
-      {successNote ? <p className="mt-2 text-sm text-accent">{successNote}</p> : null}
+      {successNote ? <p className="mt-2 text-sm text-accent-ink">{successNote}</p> : null}
 
       {resolved && target ? (
         <div className="mt-4 rounded-md border border-line bg-surface p-3">
