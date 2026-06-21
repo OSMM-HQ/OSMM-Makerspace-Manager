@@ -93,6 +93,9 @@ def printing_context(print_request, status_url, public_token):
 
 
 def render(makerspace, stream, audience, key, context):
+    # is_active=False means "use the built-in default for this event" (the original
+    # HardwareEmailTemplate semantic), NOT "suppress the email" — lifecycle notifications
+    # always send, so a toggled-off custom row falls through to the registry default below.
     row = EmailTemplate.objects.filter(
         makerspace=makerspace,
         stream=stream,

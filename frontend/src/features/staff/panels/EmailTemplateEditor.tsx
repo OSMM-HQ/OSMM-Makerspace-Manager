@@ -190,14 +190,17 @@ function TemplateHeader({ detail, active, onActive }: { detail: TemplateDetail; 
       <div className="grid gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <h3 className="text-base font-semibold text-ink">{detail.label}</h3>
-          <Badge tone={active ? "success" : "neutral"}>{active ? "Active" : "Inactive"}</Badge>
+          <Badge tone={active ? "success" : "neutral"}>{active ? "Custom" : "Default"}</Badge>
           {detail.is_overridden ? <Badge tone="warn">Edited</Badge> : null}
         </div>
         {detail.description ? <p className="max-w-3xl text-sm text-muted">{detail.description}</p> : null}
       </div>
-      <label className="flex items-start gap-3 text-sm text-ink">
+      <label className="flex max-w-xs items-start gap-3 text-sm text-ink">
         <input className="mt-1 h-4 w-4" type="checkbox" checked={active} onChange={(event) => onActive(event.target.checked)} />
-        <span className="font-semibold">Active</span>
+        <span>
+          <span className="font-semibold">Use custom template</span>
+          <span className="block text-xs text-muted">When off, the built-in default is sent (your text is kept). The email always sends.</span>
+        </span>
       </label>
     </div>
   );
