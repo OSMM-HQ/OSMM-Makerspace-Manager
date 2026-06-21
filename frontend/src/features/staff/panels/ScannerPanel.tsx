@@ -37,8 +37,12 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
   const [resolved, setResolved] = useState<Resolved | null>(null);
   const [contents, setContents] = useState<BoxContents | null>(null);
   const [showRebind, setShowRebind] = useState(false);
+  const [showMove, setShowMove] = useState(false);
   const [selectedProductId, setSelectedProductId] = useState("");
+  const [destMakerspaceId, setDestMakerspaceId] = useState("");
+  const [destProductId, setDestProductId] = useState("");
   const [newName, setNewName] = useState("");
+  const [moveTag, setMoveTag] = useState("");
   const [successNote, setSuccessNote] = useState<string | null>(null);
   const resolvedQrMakerspaceId = resolved?.qr.makerspace_id ?? resolved?.qr.makerspace;
   const rebindMakerspaceId = resolvedQrMakerspaceId ?? makerspace.id;
@@ -51,8 +55,17 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
     `/admin/makerspace/${rebindMakerspaceId}/inventory?page_size=1000`,
     showRebind && Boolean(resolvedQrMakerspaceId),
   );
+  const destinationProducts = useStaffGet<ListResponse<Product>>(
+    ["inventory-all", destMakerspaceId],
+    `/admin/makerspace/${destMakerspaceId}/inventory?page_size=1000`,
+    Boolean(destMakerspaceId),
+  );
   const currentUser = useStaffGet<StaffAuthUser>(["staff", "me"], "/auth/me");
   const productRows = useMemo(() => rows(products.data), [products.data]);
+  const destinationProductRows = useMemo(
+    () => rows(destinationProducts.data).filter((product) => product.tracking_mode === "individual"),
+    [destinationProducts.data],
+  );
 
   const resolve = useMutation({
     mutationFn: (value: string) =>
@@ -61,8 +74,12 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
       setResolved(data);
       setContents(null);
       setShowRebind(false);
+      setShowMove(false);
       setSelectedProductId("");
+      setDestMakerspaceId("");
+      setDestProductId("");
       setNewName("");
+      setMoveTag("");
       setSuccessNote(null);
     },
   });
@@ -97,6 +114,35 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
       });
     },
   });
+  const moveAsset = useMutation({
+    mutationFn: () => {
+      if (!resolved) throw new Error("No QR resolved.");
+      return staffRequest<Rebound>(`/admin/qr/${resolved.qr.id}/rebind-target`, {
+        method: "POST",
+        body: JSON.stringify({
+          target_type: "asset",
+          target_id: resolved.target.id,
+          destination_makerspace_id: Number(destMakerspaceId),
+          destination_product_id: destProductId ? Number(destProductId) : undefined,
+          new_name: moveTag.trim() || undefined,
+        }),
+      });
+    },
+    onSuccess: (data) => {
+      setShowMove(false);
+      setDestMakerspaceId("");
+      setDestProductId("");
+      setMoveTag("");
+      setSuccessNote("Moved.");
+      resolve.mutate(data.qr.payload, {
+        onError: () => {
+          setResolved(null);
+          setContents(null);
+          setSuccessNote("Moved. Re-scan in the destination makerspace to view.");
+        },
+      });
+    },
+  });
 
   useEffect(() => {
     if (!productRows.length) {
@@ -116,7 +162,9 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
   const resolveError = resolve.error instanceof Error ? resolve.error.message : undefined;
   const revokeError = revoke.error instanceof Error ? revoke.error.message : undefined;
   const rebindError = rebind.error instanceof Error ? rebind.error.message : undefined;
+  const moveError = moveAsset.error instanceof Error ? moveAsset.error.message : undefined;
   const productError = products.error instanceof Error ? products.error.message : undefined;
+  const destinationProductError = destinationProducts.error instanceof Error ? destinationProducts.error.message : undefined;
   const rebindRole = currentUser.data?.makerspaces.find(
     (item) => item.id === resolvedQrMakerspaceId,
   )?.role;
@@ -125,6 +173,8 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
   // transfer scenario). The form always submits target_type "product", so offering
   // it for an asset QR would silently convert that QR's type — disallow it here.
   const canRebind = Boolean(resolved && target && target.type === "product" && hasRebindPermissions);
+  const canMoveAsset = Boolean(resolved && target && target.type === "asset" && isSuperadmin);
+  const destinationMakerspaces = makerspaces.filter((space) => space.id !== resolvedQrMakerspaceId);
 
   return (
     <Panel title="Scanner">
@@ -165,6 +215,11 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
             {canRebind ? (
               <button type="button" onClick={() => setShowRebind((open) => !open)}>
                 Rename & rebind
+              </button>
+            ) : null}
+            {canMoveAsset ? (
+              <button type="button" onClick={() => setShowMove((open) => !open)}>
+                Move to makerspace
               </button>
             ) : null}
           </div>
@@ -211,6 +266,61 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
               </div>
               {productError ? <p className="text-sm text-danger">{productError}</p> : null}
               {rebindError ? <p className="text-sm text-danger">{rebindError}</p> : null}
+            </form>
+          ) : null}
+          {canMoveAsset && showMove ? (
+            <form
+              className="mt-3 grid gap-2 rounded-md border border-line bg-bg p-3 text-sm"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (destMakerspaceId) moveAsset.mutate();
+              }}
+            >
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted">Destination makerspace</span>
+                <select
+                  className="desk-input"
+                  required
+                  value={destMakerspaceId}
+                  onChange={(event) => {
+                    setDestMakerspaceId(event.target.value);
+                    setDestProductId("");
+                  }}
+                >
+                  <option value="">Select makerspace</option>
+                  {destinationMakerspaces.map((space) => (
+                    <option key={space.id} value={space.id}>{space.name}</option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted">Destination product</span>
+                <select
+                  className="desk-input"
+                  value={destProductId}
+                  disabled={!destMakerspaceId || destinationProducts.isLoading}
+                  onChange={(event) => setDestProductId(event.target.value)}
+                >
+                  <option value="">Auto — match by name or create</option>
+                  {destinationProductRows.map((product) => (
+                    <option key={product.id} value={product.id}>{product.name}</option>
+                  ))}
+                </select>
+              </label>
+              <input
+                className="desk-input"
+                placeholder="New asset tag (optional)"
+                value={moveTag}
+                onChange={(event) => setMoveTag(event.target.value)}
+              />
+              <div className="flex flex-wrap gap-2">
+                <button className="desk-button" type="submit" disabled={!destMakerspaceId || moveAsset.isPending}>
+                  {moveAsset.isPending ? "Moving..." : "Move"}
+                </button>
+                <button className="desk-button" type="button" onClick={() => setShowMove(false)}>Cancel</button>
+              </div>
+              {destinationProductError ? <p className="text-sm text-danger">{destinationProductError}</p> : null}
+              {moveError ? <p className="text-sm text-danger">{moveError}</p> : null}
             </form>
           ) : null}
           {actions.some((action) => ["checkout", "return", "direct_handout"].includes(action)) ? (
