@@ -64,7 +64,7 @@ function ContainerRow({ container, makerspaceId }: { container: Container; maker
       <div className="flex flex-wrap items-center gap-2">
         <strong className="min-w-0 break-words text-ink">{container.label}</strong>
         {container.location ? <span className="text-xs text-muted">{container.location}</span> : null}
-        {container.is_active === false ? <span className="rounded-md bg-warn/15 px-2 py-0.5 text-xs text-warn">Inactive</span> : null}
+        {container.is_active === false ? <span className="rounded-md bg-warn/15 px-2 py-0.5 text-xs text-warn-ink">Inactive</span> : null}
         <div className="desk-actions ml-0 flex w-full flex-wrap gap-2 sm:ml-auto sm:w-auto">
           <button type="button" onClick={() => setEditing((value) => !value)}>{editing ? "Cancel" : "Edit"}</button>
           <button type="button" onClick={() => togglePanel("contents")}>{panel === "contents" ? "Hide contents" : "Contents"}</button>
@@ -122,7 +122,7 @@ function AssetQrRow({ asset }: { asset: { id: number; asset_tag: string; product
   return (
     <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
       <span>{asset.asset_tag} ({asset.status})</span>
-      <button type="button" className="text-accent" disabled={show.isPending} onClick={() => show.mutate()}>{qrId ? "QR shown" : "Show QR"}</button>
+      <button type="button" className="text-accent-ink" disabled={show.isPending} onClick={() => show.mutate()}>{qrId ? "QR shown" : "Show QR"}</button>
       {qrId ? <QrImage qrId={qrId} label={asset.asset_tag} /> : null}
       {show.error instanceof Error ? <span className="text-danger">{show.error.message}</span> : null}
     </div>

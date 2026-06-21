@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { Skeleton } from "../../../components/ui";
 import { Panel, useStaffGet } from "./shared";
 
 type AuditLogEntry = {
@@ -48,6 +49,7 @@ export function AuditLog() {
       </div>
       <div className="grid gap-2 text-sm">
         {logs.error ? <p className="text-sm text-danger">{logs.error.message}</p> : null}
+        {logs.isLoading ? <AuditLogSkeleton /> : null}
         {logs.data?.results?.map((log) => (
           <div key={log.id} className="rounded-md border border-line bg-surface p-2">
             <span className="font-semibold">{log.action}</span>
@@ -68,6 +70,22 @@ export function AuditLog() {
         </button>
       </div>
     </Panel>
+  );
+}
+
+function AuditLogSkeleton() {
+  return (
+    <div className="grid gap-2" aria-hidden="true">
+      {Array.from({ length: 5 }, (_, index) => (
+        <div key={index} className="rounded-md border border-line bg-surface p-2">
+          <div className="flex flex-wrap gap-3">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-4 w-56" />
+            <Skeleton className="h-4 w-32" />
+          </div>
+        </div>
+      ))}
+    </div>
   );
 }
 

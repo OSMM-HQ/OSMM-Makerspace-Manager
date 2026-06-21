@@ -3,8 +3,16 @@ from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import generics
 from rest_framework.exceptions import ValidationError
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+
+class ContainerPagination(PageNumberPagination):
+    # Opt-in larger pages (?page_size=) so callers that need the FULL container list
+    # (the direct-handout dropdown + its scan-membership check) aren't capped at page one.
+    page_size_query_param = "page_size"
+    max_page_size = 1000
 
 from apps.accounts import rbac
 from apps.admin_api.permissions import IsActiveStaff, require_action
@@ -27,6 +35,7 @@ from apps.operations.serializers import (
 class ContainerListCreateView(generics.ListCreateAPIView):
     serializer_class = BoxSerializer
     permission_classes = [IsActiveStaff]
+    pagination_class = ContainerPagination
 
     def get_queryset(self):
         makerspace_id = self.kwargs["makerspace_id"]

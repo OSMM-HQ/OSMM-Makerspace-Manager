@@ -35,7 +35,7 @@ export function PublicStatsPage() {
     <main className="desk-shell">
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-screen-2xl flex-col gap-4 px-5 py-6 sm:px-8">
-          <p className="text-sm font-semibold uppercase tracking-wide text-accent">
+          <p className="text-sm font-semibold tracking-wide text-accent-ink">
             Public Stats
           </p>
           <div className="flex flex-wrap items-end justify-between gap-3">

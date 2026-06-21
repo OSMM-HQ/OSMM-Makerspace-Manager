@@ -2476,6 +2476,15 @@
                         "schema": {
                             "type": "integer"
                         }
+                    },
+                    {
+                        "name": "page_size",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return per page.",
+                        "schema": {
+                            "type": "integer"
+                        }
                     }
                 ],
                 "tags": [
@@ -16883,6 +16892,14 @@
                     },
                     "target_id": {
                         "type": "integer"
+                    },
+                    "destination_makerspace_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "destination_product_id": {
+                        "type": "integer",
+                        "nullable": true
                     },
                     "new_name": {
                         "type": "string",

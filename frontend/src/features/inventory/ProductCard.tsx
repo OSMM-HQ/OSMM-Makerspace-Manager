@@ -48,9 +48,9 @@ export function ProductCard({
   const idLabel = `ID: ${String(product.id).padStart(4, "0")}`;
 
   return (
-    <article className="group flex h-full flex-col border-2 border-ink bg-panel transition-transform duration-150 hover:-translate-y-1">
+    <article className="group flex h-full flex-col rounded-xl border border-line bg-panel shadow-soft transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-soft-lg">
       {/* Image header — blueprint placeholder when no photo on file. */}
-      <div className="relative h-44 overflow-hidden border-b-2 border-secondary bg-surface">
+      <div className="relative h-44 overflow-hidden rounded-t-xl border-b border-line bg-surface">
         {product.image_url ? (
           <img
             src={product.image_url}
@@ -72,7 +72,7 @@ export function ProductCard({
 
       {/* Body */}
       <div className="flex flex-1 flex-col p-4">
-        <h2 className="break-words font-display text-lg font-semibold uppercase leading-tight text-ink">
+        <h2 className="break-words font-display text-lg font-semibold leading-tight text-ink">
           {product.name}
         </h2>
         <p className="mt-1 font-mono text-xs uppercase text-muted">{idLabel}</p>
@@ -86,7 +86,7 @@ export function ProductCard({
         ) : null}
 
         <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-4">
-          <div className="flex items-center border-2 border-ink bg-bg">
+          <div className="flex items-center rounded-lg border border-line bg-bg">
             <button
               aria-label={`Remove ${product.name}`}
                 className="h-9 w-9 font-mono text-lg font-semibold text-ink transition hover:bg-surface hover:text-ink disabled:cursor-not-allowed disabled:text-muted"
@@ -96,7 +96,7 @@ export function ProductCard({
             >
               -
             </button>
-            <span className="grid h-9 min-w-10 place-items-center border-x-2 border-ink px-2 font-mono text-sm font-semibold text-ink">
+            <span className="grid h-9 min-w-10 place-items-center border-x border-line px-2 font-mono text-sm font-semibold text-ink">
               {quantity}
             </span>
             <button
@@ -110,7 +110,7 @@ export function ProductCard({
             </button>
           </div>
           <Link
-            className="min-w-0 break-words font-mono text-xs font-semibold uppercase tracking-tight text-secondary underline-offset-4 hover:underline"
+            className="min-w-0 break-words font-mono text-xs font-semibold tracking-tight text-secondary-ink underline-offset-4 hover:underline"
             to={detailPath}
           >
             Details &rarr;

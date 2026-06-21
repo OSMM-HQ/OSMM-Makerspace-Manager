@@ -212,7 +212,7 @@ function MergeFields({ detail, onInsert }: { detail: TemplateDetail; onInsert: (
       <p className="text-sm font-semibold text-ink">Merge fields</p>
       <div className="flex flex-wrap gap-2">
         {detail.fields.map((field) => (
-          <button key={field.name} className="rounded-sm border border-line bg-surface px-2 py-1 font-mono text-xs text-ink hover:border-accent hover:text-accent" title={field.description} type="button" onClick={() => onInsert(field.name)}>
+          <button key={field.name} className="rounded-lg border border-line bg-surface px-2 py-1 font-mono text-xs text-ink hover:border-accent hover:text-accent-ink" title={field.description} type="button" onClick={() => onInsert(field.name)}>
             {field.name}
           </button>
         ))}

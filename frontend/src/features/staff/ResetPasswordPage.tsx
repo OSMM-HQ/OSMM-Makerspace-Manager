@@ -19,7 +19,7 @@ export function ResetPasswordPage() {
   return (
     <main className="desk-shell grid place-items-center px-5">
       <section className="desk-panel w-full max-w-md p-6">
-        <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+        <p className="text-xs font-semibold tracking-wide text-accent-ink">
           Account access
         </p>
         <h1 className="mt-2 text-2xl font-bold text-ink">Set a new password</h1>

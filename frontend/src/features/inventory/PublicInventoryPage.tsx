@@ -130,7 +130,7 @@ export function PublicInventoryPage() {
     <main className="desk-shell">
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-screen-2xl flex-col gap-4 px-5 py-6 sm:px-8">
-          <p className="text-sm font-semibold uppercase tracking-wide text-accent">
+          <p className="text-sm font-semibold tracking-wide text-accent-ink">
             Public Inventory
           </p>
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -149,7 +149,7 @@ export function PublicInventoryPage() {
               />
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <div className="rounded-md border border-line bg-surface px-3 py-2 text-sm text-muted">
+              <div className="rounded-lg border border-line bg-surface px-3 py-2 text-sm text-muted">
                 {inventoryQuery.data?.count ?? "-"} listed items
               </div>
               {bootstrap?.makerspace.public_stats_enabled ? (

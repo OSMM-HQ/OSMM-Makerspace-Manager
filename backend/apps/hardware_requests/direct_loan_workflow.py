@@ -38,6 +38,9 @@ def issue_direct_loan(
     result = checkin.verify(makerspace, identifier)
     due_at = timezone.now() + timedelta(days=(makerspace.default_loan_days or 7))
     with transaction.atomic():
+        if container_id is None and not qr_payloads and not items:
+            raise RequestValidationError("Provide qr_payloads, items, or a container.")
+
         container = None
         if container_id is not None:
             container = (
@@ -59,6 +62,27 @@ def issue_direct_loan(
             ).exists():
                 raise InvalidTransition(
                     "That container is already out on another direct handout."
+                )
+
+        # A container-only handout (no QRs, no items) assigns an EMPTY vessel. If the box
+        # — OR any child box nested under it — still holds available contents, a
+        # container-only loan would walk them out the door while leaving them logically
+        # AVAILABLE (re-loanable) — so reject and make staff hand out the contents (scan
+        # the box QR) or empty it first.
+        if container is not None and not qr_payloads and not items:
+            subtree_ids = _container_subtree_ids(makerspace, container)
+            has_contents = (
+                InventoryProduct.objects.filter(
+                    box_id__in=subtree_ids, is_archived=False, available_quantity__gt=0
+                ).exists()
+                or InventoryAsset.objects.filter(
+                    box_id__in=subtree_ids, status=InventoryAsset.Status.AVAILABLE
+                ).exists()
+            )
+            if has_contents:
+                raise RequestValidationError(
+                    "Container is not empty. Scan the box QR to hand out its contents, "
+                    "or empty the container before assigning it on its own."
                 )
 
         requester = _requester(result.external_id)
@@ -109,7 +133,8 @@ def issue_direct_loan(
                     requester=requester,
                     target_type="direct",
                     target_id=request.id,
-                    target_label=", ".join(labels)[:200] or "Direct handout",
+                    target_label=", ".join(labels)[:200]
+                    or (container.label if container else "Direct handout"),
                     asset_ids=asset_ids,
                     source=PublicToolLoan.Source.ADMIN_DIRECT,
                     due_at=due_at,
@@ -243,6 +268,25 @@ def _locked_qrs_for_payloads(makerspace, payloads):
     return [qrs_by_payload[payload] for payload in payloads]
 
 
+def _container_subtree_ids(makerspace, container):
+    # Walk Box.parent children iteratively (Box.clean() forbids same-makerspace cycles,
+    # so this terminates) to collect the container + every descendant box id, so the
+    # empty-container guard sees contents nested in child boxes too.
+    ids = [container.id]
+    frontier = [container.id]
+    while frontier:
+        child_ids = list(
+            Box.objects.filter(parent_id__in=frontier, makerspace=makerspace)
+            .exclude(pk__in=ids)
+            .values_list("id", flat=True)
+        )
+        if not child_ids:
+            break
+        ids.extend(child_ids)
+        frontier = child_ids
+    return ids
+
+
 def _manual_product(makerspace, product_id):
     product = InventoryProduct.objects.select_for_update().filter(
         pk=product_id,
@@ -261,7 +305,23 @@ def _manual_product(makerspace, product_id):
 
 
 def _record_item_logs(actor, action, makerspace, request, loan):
-    for item in request.items.select_related("product"):
+    items = list(request.items.select_related("product"))
+    if not items and loan.container_id:
+        audit.record(
+            actor,
+            action,
+            makerspace=makerspace,
+            target=loan.container,
+            meta={
+                "loan_id": loan.id,
+                "request_id": request.id,
+                "container_id": loan.container_id,
+                "source": loan.source,
+            },
+        )
+        return
+
+    for item in items:
         audit.record(
             actor,
             action,

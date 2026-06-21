@@ -104,7 +104,7 @@ export function ImageUploader({
     <div className="space-y-2">
       <p className="font-mono text-xs uppercase tracking-tight text-muted">{label}</p>
       <div className="flex items-center gap-3">
-        <div className={`${previewBox} shrink-0 overflow-hidden border-2 border-ink bg-surface`}>
+        <div className={`${previewBox} shrink-0 overflow-hidden rounded-lg border border-line bg-surface`}>
           {currentUrl ? (
             <img
               src={currentUrl}
@@ -126,7 +126,7 @@ export function ImageUploader({
               const file = event.target.files?.[0];
               if (file) handleFile(file);
             }}
-            className="block w-full text-sm text-muted file:mr-3 file:border-2 file:border-ink file:bg-accent file:px-3 file:py-1.5 file:font-mono file:text-xs file:font-semibold file:uppercase file:text-on-accent"
+            className="block w-full text-sm text-muted file:mr-3 file:rounded-lg file:border file:border-line file:bg-accent file:px-3 file:py-1.5 file:font-mono file:text-xs file:font-semibold file:text-on-accent"
           />
           {currentUrl ? (
             <button
