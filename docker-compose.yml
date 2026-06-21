@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:16
-    container_name: makerspace-manager-db
+    container_name: osmm-db
     environment:
       POSTGRES_USER: makerspace
       POSTGRES_PASSWORD: makerspace
@@ -18,7 +18,7 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: makerspace-manager-minio
+    container_name: osmm-minio
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: minioadmin
@@ -36,7 +36,7 @@ services:
 
   createbuckets:
     image: minio/mc:latest
-    container_name: makerspace-manager-minio-createbuckets
+    container_name: osmm-minio-createbuckets
     depends_on:
       minio:
         condition: service_healthy
@@ -55,7 +55,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: makerspace-manager-redis
+    container_name: osmm-redis
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -70,7 +70,7 @@ services:
   backend:
     build:
       context: ./backend
-    container_name: makerspace-manager-backend
+    container_name: osmm-backend
     environment: &backend-env
       SECRET_KEY: ${SECRET_KEY:-dev-insecure-change-me}
       DEBUG: ${DEBUG:-False}
@@ -130,7 +130,7 @@ services:
   worker:
     build:
       context: ./backend
-    container_name: makerspace-manager-worker
+    container_name: osmm-worker
     environment: *backend-env
     command: celery -A config worker -l info
     depends_on:
@@ -150,7 +150,7 @@ services:
     environment:
       TENANT_API_URL: ${TENANT_API_URL:-/api}
       TENANT_TOKEN: ${TENANT_TOKEN:-}
-    container_name: makerspace-manager-frontend
+    container_name: osmm-frontend
     ports:
       - "80:80"
     healthcheck:

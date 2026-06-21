@@ -1,4 +1,10 @@
-# Makerspace Manager
+<p>
+  <img src="docs/brand/osmm-logo.svg" alt="OSMM" height="64">
+</p>
+
+# OSMM — Open Source Makerspace Manager
+
+Self-hostable, multi-tenant makerspace hardware-loan & 3D-print manager.
 
 This project started from inside the TinkerSpace Kochi community.
 

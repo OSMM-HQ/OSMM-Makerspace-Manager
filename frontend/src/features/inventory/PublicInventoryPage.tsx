@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
 import { MakerspaceMapLink } from "../../components/MakerspaceMapLink";
+import { OsmmBadge } from "../../components/OsmmLogo";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Card } from "../../components/ui/Card";
 import { useTenant, useTenantPath } from "../../lib/tenant";
@@ -149,6 +150,7 @@ export function PublicInventoryPage() {
               />
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <OsmmBadge />
               <div className="rounded-lg border border-line bg-surface px-3 py-2 text-sm text-muted">
                 {inventoryQuery.data?.count ?? "-"} listed items
               </div>

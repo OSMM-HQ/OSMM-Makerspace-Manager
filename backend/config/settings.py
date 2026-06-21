@@ -20,6 +20,7 @@ PUBLIC_APP_BASE_URL = env("PUBLIC_APP_BASE_URL", default="").rstrip("/")
 MANAGED_POSTGRES = env.bool("MANAGED_POSTGRES", default=False)
 STORAGE_PRESIGN_METHOD = env("STORAGE_PRESIGN_METHOD", default="post")
 CRON_SECRET = env("CRON_SECRET", default="")
+ADMIN_SITE_NAME = env("ADMIN_SITE_NAME", default="OSMM")
 
 INSTALLED_APPS = [
     "unfold",
@@ -387,7 +388,7 @@ AUTH_COOKIE_SAMESITE = env("AUTH_COOKIE_SAMESITE", default="None")
 AUTH_COOKIE_SECURE = env.bool("AUTH_COOKIE_SECURE", default=True)
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Makerspace Manager API",
+    "TITLE": "OSMM API",
     "DESCRIPTION": (
         "Multi-tenant makerspace hardware loan system.\n\n"
         "Public flow: browse inventory, search with `q`, page with `page`, "

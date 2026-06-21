@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Makerspace Manager — first-run setup for self-hosting (macOS / Linux).
+# OSMM - Open Source Makerspace Manager first-run setup for self-hosting (macOS / Linux).
 # Run it from the project folder:  bash setup.sh
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -25,7 +25,7 @@ if [ -f .env ]; then
   say "Found an existing .env — keeping your settings and secrets."
 else
   FIRST_RUN=1
-  say "Welcome! Let's set up your Makerspace Manager. Press Enter to accept the [default]."
+  say "Welcome! Let's set up OSMM. Press Enter to accept the [default]."
   read -r -p "Web address (host name or IP, no http://) [localhost]: " WEBADDR;  WEBADDR="${WEBADDR:-localhost}"
   # Normalize: strip any scheme, path, and port so ALLOWED_HOSTS/CORS are valid.
   WEBHOST="${WEBADDR#*://}"; WEBHOST="${WEBHOST%%/*}"; WEBHOST="${WEBHOST%%:*}"

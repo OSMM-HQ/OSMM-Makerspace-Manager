@@ -11,6 +11,7 @@ import {
   staffRequest,
   type StaffAuthUser,
 } from "../../lib/api";
+import { OsmmBadge } from "../../components/OsmmLogo";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { ChangePasswordGate } from "./ChangePasswordGate";
 import { LoginPanel } from "./LoginPanel";
@@ -353,9 +354,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     <main className="desk-shell grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)]">
       <aside className="min-w-0 border-b border-line bg-panel lg:min-h-screen lg:border-b-0 lg:border-r">
         <div className="flex min-w-0 items-center gap-3 border-b border-line px-5 py-4">
-          <span className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-accent font-display text-sm font-bold text-on-accent shadow-soft">
-            MM
-          </span>
+          <OsmmBadge className="shrink-0" />
           <div className="min-w-0">
             <p className="truncate font-display text-sm font-bold uppercase tracking-tight text-ink">
               Makerspace Mgr

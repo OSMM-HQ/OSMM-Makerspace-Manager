@@ -1,7 +1,7 @@
 {
     "openapi": "3.0.3",
     "info": {
-        "title": "Makerspace Manager API",
+        "title": "OSMM API",
         "version": "0.1.0",
         "description": "Multi-tenant makerspace hardware loan system.\n\nPublic flow: browse inventory, search with `q`, page with `page`, verify Check-In, submit a borrow request, then track it by public token or verified Check-In identifier.\n\nAdmin flow: authenticate with JWT, manage makerspaces, inventory, staff, QR labels, bulk imports, request review, issue, and return.\n\nAuthentication: staff/admin endpoints use `Authorization: Bearer <access>`. Public browser endpoints can use `X-Publishable-Key` when public key hardening is enabled."
     },
@@ -17715,7 +17715,7 @@
                     },
                     "message": {
                         "type": "string",
-                        "default": "Makerspace Manager test alert."
+                        "default": "OSMM test alert."
                     }
                 },
                 "required": [

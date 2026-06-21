@@ -3,7 +3,7 @@ import os
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 
-SITE_NAME = os.environ.get("ADMIN_SITE_NAME", "Makerspace Manager")
+SITE_NAME = os.environ.get("ADMIN_SITE_NAME", "OSMM")
 
 
 def _is_active_superuser(request):

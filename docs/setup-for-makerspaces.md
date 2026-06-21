@@ -1,7 +1,7 @@
-# Setting up Makerspace Manager (plain-language guide)
+# Setting up OSMM — Open Source Makerspace Manager (plain-language guide)
 
 This guide is for makerspace organisers who are **not** software developers. It walks you through
-running Makerspace Manager on a computer at your space, step by step. You don't need to understand
+running OSMM on a computer at your space, step by step. You don't need to understand
 the code — just follow along.
 
 You'll need about **30 minutes** and one **always-on computer** (any spare PC, a Mini-PC, or an

@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
+import { OsmmBadge } from "../../components/OsmmLogo";
 import { Card } from "../../components/ui/Card";
 import { useTenant, useTenantPath } from "../../lib/tenant";
 import { formatSlug } from "../inventory/PublicInventoryParts";
@@ -188,9 +189,12 @@ export function PublicPrintRequestPage() {
                 Submit print files — check status anytime with your email.
               </p>
             </div>
-            <Link className="desk-button" to={tenantPath()}>
-              Back to inventory
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <OsmmBadge />
+              <Link className="desk-button" to={tenantPath()}>
+                Back to inventory
+              </Link>
+            </div>
           </div>
         </div>
       </header>

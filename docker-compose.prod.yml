@@ -73,7 +73,7 @@ services:
       retries: 6
 
   backend:
-    image: ${MAKERSPACE_BACKEND_IMAGE:-ghcr.io/shaan-shoukath/makerspace-manager-backend}:${MAKERSPACE_IMAGE_TAG:-latest}
+    image: ${MAKERSPACE_BACKEND_IMAGE:-ghcr.io/shaan-shoukath/osmm-backend}:${MAKERSPACE_IMAGE_TAG:-latest}
     environment: &backend-env
       SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY}
       DEBUG: "False"
@@ -125,7 +125,7 @@ services:
         condition: service_completed_successfully
 
   worker:
-    image: ${MAKERSPACE_BACKEND_IMAGE:-ghcr.io/shaan-shoukath/makerspace-manager-backend}:${MAKERSPACE_IMAGE_TAG:-latest}
+    image: ${MAKERSPACE_BACKEND_IMAGE:-ghcr.io/shaan-shoukath/osmm-backend}:${MAKERSPACE_IMAGE_TAG:-latest}
     environment: *backend-env
     command: celery -A config worker -l info
     depends_on:
@@ -135,7 +135,7 @@ services:
         condition: service_healthy
 
   frontend:
-    image: ${MAKERSPACE_FRONTEND_IMAGE:-ghcr.io/shaan-shoukath/makerspace-manager-frontend}:${MAKERSPACE_IMAGE_TAG:-latest}
+    image: ${MAKERSPACE_FRONTEND_IMAGE:-ghcr.io/shaan-shoukath/osmm-frontend}:${MAKERSPACE_IMAGE_TAG:-latest}
     ports:
       - "${HTTP_PORT:-80}:80"
     healthcheck:

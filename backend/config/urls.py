@@ -14,7 +14,7 @@ def docs_root(_request):
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>Makerspace Manager API</title>
+    <title>OSMM API</title>
     <script>
       window.location.replace(window.location.hash ? "/redoc/" : "/docs/");
     </script>

@@ -1,5 +1,5 @@
 <#
-  Makerspace Manager - first-run setup for self-hosting (Windows).
+  OSMM - Open Source Makerspace Manager first-run setup for self-hosting (Windows).
   Right-click -> "Run with PowerShell", or run:  powershell -ExecutionPolicy Bypass -File setup.ps1
 #>
 $ErrorActionPreference = "Stop"
@@ -36,7 +36,7 @@ if (Test-Path ".env") {
 }
 else {
   $firstRun = $true
-  Say "Welcome! Let's set up your Makerspace Manager. Press Enter to accept the [default]."
+  Say "Welcome! Let's set up OSMM. Press Enter to accept the [default]."
   $webaddr = Read-Host "Web address (host name or IP, no http://) [localhost]"; if (-not $webaddr) { $webaddr = "localhost" }
   # Normalize: strip any scheme, path, and port so ALLOWED_HOSTS/CORS are valid.
   $webhost = ($webaddr -replace '^[a-zA-Z][a-zA-Z0-9+.-]*://', '' -replace '/.*$', '' -replace ':.*$', '')

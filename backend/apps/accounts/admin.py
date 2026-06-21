@@ -43,7 +43,7 @@ class UserAdmin(SuperuserOnlyModelAdmin, DjangoUserAdmin, ModelAdmin):
     change_password_form = AdminPasswordChangeForm
     fieldsets = DjangoUserAdmin.fieldsets + (
         (
-            "Makerspace Manager Access",
+            "OSMM Access",
             {
                 "fields": (
                     "phone",

@@ -1,4 +1,4 @@
-# Contributing to Makerspace Manager
+# Contributing to OSMM
 
 Thanks for contributing! This guide covers how to get set up, the conventions we follow, and how
 to get a change merged.

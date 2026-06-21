@@ -2,7 +2,7 @@
 // Keep this file checked in so first-party and third-party frontends share route constants.
 
 export const openApiInfo = {
-  "title": "Makerspace Manager API",
+  "title": "OSMM API",
   "version": "0.1.0"
 } as const;
 

@@ -1059,7 +1059,7 @@ Stack (in use):
 - **Styling:** Tailwind CSS 3 with CSS-variable light/dark theme tokens. Light
   is the default; the frontend persists the user's dark-theme toggle locally.
 - **API documentation:** drf-spectacular / OpenAPI
-- **Admin theme:** Django admin themed with django-unfold (dark + purple, forced dark); site name configurable via `ADMIN_SITE_NAME` (default "Makerspace Manager")
+- **Admin theme:** Django admin themed with django-unfold (dark + purple, forced dark); site name configurable via `ADMIN_SITE_NAME` (default "OSMM")
 - **Telegram integration:** implemented for request alerts, test alerts, and
   authenticated webhook accept/reject callbacks.
 

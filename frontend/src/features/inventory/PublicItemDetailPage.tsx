@@ -2,6 +2,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
 import { MakerspaceMapLink } from "../../components/MakerspaceMapLink";
+import { OsmmBadge } from "../../components/OsmmLogo";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Card } from "../../components/ui/Card";
 import { Spinner } from "../../components/ui/Spinner";
@@ -39,7 +40,8 @@ export function PublicItemDetailPage() {
               className="mt-2"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <OsmmBadge />
             <ThemeToggle />
             <Link className="desk-button" to={tenantPath()}>
               Catalog

@@ -2,6 +2,7 @@ import { Link, Navigate, Route, Routes } from "react-router-dom";
 
 import { MakerspaceBrand } from "./components/MakerspaceBrand";
 import { MakerspaceMapLink } from "./components/MakerspaceMapLink";
+import { OsmmBadge } from "./components/OsmmLogo";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Card } from "./components/ui/Card";
 import { Spinner } from "./components/ui/Spinner";
@@ -30,14 +31,15 @@ function LandingPage() {
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
             <span className="grid h-9 w-9 place-items-center rounded-md bg-accent text-sm font-black text-on-accent">
-              MM
+              OS
             </span>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-ink">Makerspace Manager</p>
+              <p className="text-sm font-semibold text-ink">OSMM</p>
               <p className="text-xs text-muted">Shared equipment portal</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <OsmmBadge />
             <ThemeToggle />
             <Link className="desk-button" to="/admin">
               Staff login

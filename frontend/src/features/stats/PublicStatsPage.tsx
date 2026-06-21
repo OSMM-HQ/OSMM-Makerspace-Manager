@@ -1,6 +1,7 @@
 import { Link, useParams } from "react-router-dom";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
+import { OsmmBadge } from "../../components/OsmmLogo";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Card } from "../../components/ui/Card";
 import { Spinner } from "../../components/ui/Spinner";
@@ -50,6 +51,7 @@ export function PublicStatsPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
+              <OsmmBadge />
               <Link className="desk-button" to={tenantPath()}>
                 Catalog
               </Link>

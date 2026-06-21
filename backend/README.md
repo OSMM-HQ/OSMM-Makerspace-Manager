@@ -1,6 +1,6 @@
 # Backend
 
-Django REST API for the Makerspace Manager.
+Django REST API for OSMM.
 
 ## Run Locally
 
