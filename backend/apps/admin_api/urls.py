@@ -7,6 +7,7 @@ from apps.admin_api.views_email_templates import (
     EmailTemplatePreviewView,
     EmailTemplateResetView,
 )
+from apps.admin_api.views_email_logs import EmailLogListView
 from apps.admin_api.views_notification_recipients import NotificationRecipientsView
 from apps.admin_api.views_platform import PlatformEmailSettingsView
 from apps.makerspaces.models import MakerspaceMembership
@@ -104,6 +105,11 @@ urlpatterns = [
         "makerspace/<int:makerspace_id>/email-templates",
         EmailTemplateListView.as_view(),
         name="admin-email-templates",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/email-logs",
+        EmailLogListView.as_view(),
+        name="admin-email-logs",
     ),
     path(
         "makerspace/<int:makerspace_id>/email-templates/preview",

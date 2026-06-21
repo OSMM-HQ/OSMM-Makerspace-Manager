@@ -22,7 +22,15 @@ def notify_api_key_request_resolved(api_key_request):
 
     try:
         if requester and requester.email:
-            send_makerspace_email(makerspace, subject, body, [requester.email])
+            send_makerspace_email(
+                makerspace,
+                subject,
+                body,
+                [requester.email],
+                stream="api",
+                event="api_key_request_resolved",
+                audience="requester",
+            )
     except Exception:
         logger.warning(
             "api_key_request_email_notification_failed",
