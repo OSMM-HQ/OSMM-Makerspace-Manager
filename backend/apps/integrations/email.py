@@ -101,6 +101,7 @@ def send_password_reset_email(recipient, reset_url):
         audience="user",
         connection="platform",
         persist_body=False,
+        sync=True,
     )
     return 1 if log.status == log.Status.SENT else 0
 
@@ -115,6 +116,7 @@ def send_makerspace_email(
     stream="",
     event="",
     audience="",
+    sync=False,
 ):
     from apps.integrations.dispatch import dispatch_email
 
@@ -134,6 +136,7 @@ def send_makerspace_email(
             event=event,
             audience=audience,
             connection="makerspace",
+            sync=sync,
         )
         sent += 1 if log.status == log.Status.SENT else 0
     return sent

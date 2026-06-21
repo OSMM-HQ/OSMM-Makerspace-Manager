@@ -63,9 +63,18 @@ services:
       mc cors set "local/$$PUBLIC_IMAGE_BUCKET" /tmp/cors.json;
       '
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
   backend:
     image: ${MAKERSPACE_BACKEND_IMAGE:-ghcr.io/shaan-shoukath/makerspace-manager-backend}:${MAKERSPACE_IMAGE_TAG:-latest}
-    environment:
+    environment: &backend-env
       SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY}
       DEBUG: "False"
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:?set ALLOWED_HOSTS}
@@ -97,6 +106,7 @@ services:
       AWS_S3_PUBLIC_ENDPOINT_URL: ${AWS_S3_PUBLIC_ENDPOINT_URL:-http://localhost:9000}
       STORAGE_PRESIGN_METHOD: ${STORAGE_PRESIGN_METHOD:-post}
       CRON_SECRET: ${CRON_SECRET:-}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
@@ -109,8 +119,20 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       createbuckets:
         condition: service_completed_successfully
+
+  worker:
+    image: ${MAKERSPACE_BACKEND_IMAGE:-ghcr.io/shaan-shoukath/makerspace-manager-backend}:${MAKERSPACE_IMAGE_TAG:-latest}
+    environment: *backend-env
+    command: celery -A config worker -l info
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
 
   frontend:
     image: ${MAKERSPACE_FRONTEND_IMAGE:-ghcr.io/shaan-shoukath/makerspace-manager-frontend}:${MAKERSPACE_IMAGE_TAG:-latest}

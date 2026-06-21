@@ -73,7 +73,7 @@ def send_print_email(event, print_request):
             event,
             printing_context(print_request, status_url, print_request.public_token),
         )
-        log = dispatch_email(
+        dispatch_email(
             makerspace=makerspace,
             stream="printing",
             event=event,
@@ -83,16 +83,6 @@ def send_print_email(event, print_request):
             text_body=rendered["text_body"],
             html_body=rendered["html_body"],
         )
-        if log.status != log.Status.SENT:
-            logger.warning(
-                "print_email_send_failed",
-                extra={
-                    "event": event,
-                    "print_request_id": print_request.pk,
-                    "requester_id": print_request.requester_id,
-                    "email_log_id": log.pk,
-                },
-            )
     except Exception:
         logger.warning(
             "print_email_send_failed",

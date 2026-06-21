@@ -218,6 +218,24 @@ EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Makerspace <noreply@makerspace.local>")
 
+# Async email runs through a Celery worker ONLY when a broker is configured (the Compose
+# stack + prod set CELERY_BROKER_URL). With no broker — e.g. the documented local flow
+# (`docker compose up -d db` + `python manage.py runserver`), or any non-Compose process —
+# fall back to EAGER (synchronous) execution so dispatch_email still delivers inline instead
+# of enqueuing to an unreachable `redis` host and marking every email failed.
+_celery_broker = env("CELERY_BROKER_URL", default="")
+CELERY_TASK_ALWAYS_EAGER = env.bool(
+    "CELERY_TASK_ALWAYS_EAGER", default=(_celery_broker == "")
+)
+CELERY_BROKER_URL = _celery_broker or "redis://redis:6379/0"
+CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="") or None
+CELERY_TASK_EAGER_PROPAGATES = True
+CELERY_TASK_ACKS_LATE = True
+CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_ACCEPT_CONTENT = ["json"]
+
 CORS_ALLOWED_ORIGINS = env.list(
     "CORS_ALLOWED_ORIGINS",
     default=["http://localhost:5000", "http://localhost:5173"],

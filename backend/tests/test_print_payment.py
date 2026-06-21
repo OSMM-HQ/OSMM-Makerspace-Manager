@@ -271,7 +271,7 @@ def test_price_never_leaks_public():
 
 
 @pytest.mark.parametrize("event", ["accepted", "completed"])
-def test_price_never_leaks_in_email(settings, event):
+def test_price_never_leaks_in_email(settings, event, django_capture_on_commit_callbacks):
     settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
     mail.outbox = []
     makerspace = make_space(f"mail-cash-{event}")
@@ -287,7 +287,10 @@ def test_price_never_leaks_in_email(settings, event):
         workflow.complete(print_request, requester)
     print_request.refresh_from_db()
 
-    send_print_email(event, print_request)
+    # Email delivery is async (dispatch_email -> on_commit -> Celery task); fire the
+    # commit hooks so the eager task actually sends.
+    with django_capture_on_commit_callbacks(execute=True):
+        send_print_email(event, print_request)
 
     assert len(mail.outbox) == 1
     message = mail.outbox[0]

@@ -91,8 +91,14 @@ password?" link is hidden, and the admin on-screen reset flow is the recovery pa
 Use `render.yaml` from the repository root as the Render Blueprint. It creates:
 
 - a Render Starter Docker web service for the Django backend;
+- a Render worker service for Celery email delivery;
+- a Render Redis instance for the Celery broker;
 - a static frontend service for the Vite app;
 - an env var group matching `.env.production.example`.
+
+Phase 3 email delivery uses Redis + a Celery worker, so the production baseline now
+includes that paid Redis/worker capacity. The Django web service only records the
+email log and enqueues delivery; the worker performs SMTP delivery and retries.
 
 You can also put the same Vite build on Cloudflare Pages or Netlify and set its
 runtime `config.js` `apiUrl` or `VITE_API_URL` to the backend API root.

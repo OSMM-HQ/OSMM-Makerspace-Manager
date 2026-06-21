@@ -53,6 +53,16 @@ services:
       mc anonymous set download local/public-images;
       '
 
+  redis:
+    image: redis:7-alpine
+    container_name: makerspace-manager-redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   # Backend is wired to MinIO for dev: it SIGNS presigned upload/view URLs with the
   # public endpoint (browser-reachable localhost:9000) and talks to MinIO server-side
   # over the internal endpoint (minio:9000). Empty creds would make every presigned
@@ -61,7 +71,7 @@ services:
     build:
       context: ./backend
     container_name: makerspace-manager-backend
-    environment:
+    environment: &backend-env
       SECRET_KEY: ${SECRET_KEY:-dev-insecure-change-me}
       DEBUG: ${DEBUG:-False}
       ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1,backend}
@@ -70,6 +80,7 @@ services:
       CONN_MAX_AGE: ${CONN_MAX_AGE:-0}
       DISABLE_SERVER_SIDE_CURSORS: ${DISABLE_SERVER_SIDE_CURSORS:-False}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost,http://localhost:5173}
+      API_CLIENT_ENC_KEY: ${API_CLIENT_ENC_KEY:-}
       # Dev serves the frontend same-origin behind nginx over plain http://localhost, where a
       # SameSite=None/Secure=True cookie (the prod default) is silently dropped by browsers,
       # so the 7-day refresh session never persists. Lax + non-secure makes it stick in dev.
@@ -98,6 +109,7 @@ services:
       EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
       EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
       DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-Makerspace <noreply@makerspace.local>}
+      CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
@@ -111,6 +123,20 @@ services:
       - "8001:8000"
     depends_on:
       db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: ./backend
+    container_name: makerspace-manager-worker
+    environment: *backend-env
+    command: celery -A config worker -l info
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
 
   frontend:

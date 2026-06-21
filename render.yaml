@@ -62,6 +62,9 @@ envVarGroups:
         sync: false
       - key: CRON_SECRET
         sync: false
+      # NOTE: CELERY_BROKER_URL is NOT defined here — Render `fromService` refs are only
+      # honored inside a service's own envVars, not inside an envVarGroup. It is wired
+      # directly onto the web + worker services below.
       - key: PUBLIC_APP_BASE_URL
         sync: false
       - key: TELEGRAM_BOT_TOKEN
@@ -70,6 +73,11 @@ envVarGroups:
         sync: false
 
 services:
+  - type: redis
+    name: makerspace-redis
+    plan: starter
+    maxmemoryPolicy: allkeys-lru
+
   - type: web
     name: makerspace-backend
     env: docker
@@ -86,6 +94,26 @@ services:
     startCommand: python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 60
     envVars:
       - fromGroup: makerspace-prod
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: makerspace-redis
+          property: connectionString
+
+  - type: worker
+    name: makerspace-worker
+    env: docker
+    plan: starter
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    startCommand: celery -A config worker -l info
+    envVars:
+      - fromGroup: makerspace-prod
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: makerspace-redis
+          property: connectionString
 
   - type: web
     name: makerspace-frontend

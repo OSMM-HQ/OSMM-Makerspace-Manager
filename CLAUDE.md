@@ -2,6 +2,39 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — Phase 3: Celery + Redis async email delivery + Retry (2026-06-21)
+
+Third phase of the "snappy + email" batch — moves SMTP off the request thread (the submit/accept
+lag fix). Codex Stage-1 APPROVED after 1 revision round; Stage-4 review clean after **4 fix rounds**
+(durable-retry, fail-safe enqueue, retry-status/redacted guards, audit logging, broker-default
+eager-fallback, render.yaml broker wiring, retry origin-scope); **753 backend tests + `tsc -b` green**.
+Deployed on :8080 with a running Celery worker.
+
+- **Celery app** `backend/config/celery.py` (`Celery("config")`, `config_from_object(..., namespace="CELERY")`,
+  `autodiscover_tasks()`), imported in `config/__init__.py`. Deps `celery[redis]` + `redis`.
+- **Eager-unless-broker default** (`settings.py`): `CELERY_TASK_ALWAYS_EAGER` defaults to True when no
+  `CELERY_BROKER_URL` env is set — so plain `runserver` dev (no redis, no worker) still delivers email
+  **synchronously** instead of enqueuing to an unreachable host. Compose + prod set the broker → async.
+- **Async dispatch** (`apps/integrations/dispatch.py`): `dispatch_email(..., sync=False)` (default) creates
+  the EmailLog then `transaction.on_commit(_enqueue)`; `_enqueue` is **fail-safe** — a broker-down
+  `.delay()` marks the log `failed` (never 500s the request). `sync=True` keeps Phase-2 inline delivery
+  and is used by **password reset** (also `persist_body=False`) and the **return-reminder** path (both
+  borrower AND staff sends) so their "delivered" return contract holds (`services_return_reminders`).
+- **Task** `apps/integrations/tasks.py` `deliver_email_task`: loads the log `select_for_update` inside a
+  `transaction.atomic()` (row-claim concurrency guard), runs `_deliver`, commits, THEN raises `self.retry`
+  if still failed (bounded `max_retries=3`; commit-before-retry so the failed status is durable).
+- **Retry** `POST /admin/makerspace/<id>/email-logs/<pk>/retry` (nested under makerspace so the
+  origin-scope guard gets tenant context): `MANAGE_MAKERSPACE`-scoped, rejects non-`failed` (400) and
+  redacted/empty-body logs (400), re-enqueues, **audited `email.retried`**. Frontend Retry button on
+  failed rows in `EmailLogPanel.tsx`.
+- **Infra**: `redis` (redis:7-alpine) + `worker` (`celery -A config worker`) added to `docker-compose.yml`
+  (shared backend env via `x-backend-env` anchor) + `docker-compose.prod.yml`; `render.yaml` adds a Redis
+  instance + worker service with `CELERY_BROKER_URL` wired per-service via `fromService` (NOT in the env
+  group — Render only honors `fromService` on a service's own envVars). Worker env must include
+  `API_CLIENT_ENC_KEY` (to decrypt per-makerspace/platform SMTP) + DB + storage. **The worker must run or
+  async emails stay `pending`.** Tests use `django_capture_on_commit_callbacks(execute=True)` to fire the
+  async path under eager; pre-existing email-asserting tests were wrapped accordingly.
+
 ## Recent batch — Phase 2: email log foundation + single dispatch choke point (2026-06-21)
 
 Second phase of the "snappy + email" batch (Codex Stage-1 APPROVED after 1 revision round; Stage-4

@@ -1,6 +1,8 @@
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Panel, useStaffGet, type Makerspace } from "./shared";
+import { staffRequest } from "../../../lib/api";
 
 type EmailLogStatus = "" | "sent" | "failed" | "pending";
 
@@ -26,6 +28,7 @@ type EmailLogResponse = {
 };
 
 export function EmailLogPanel({ makerspace }: { makerspace: Makerspace }) {
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<EmailLogStatus>("");
   const [page, setPage] = useState(1);
   const params = new URLSearchParams();
@@ -36,6 +39,15 @@ export function EmailLogPanel({ makerspace }: { makerspace: Makerspace }) {
     ["email-logs", makerspace.id, query],
     `/admin/makerspace/${makerspace.id}/email-logs?${query}`,
   );
+  const retry = useMutation({
+    mutationFn: (id: number) =>
+      staffRequest<EmailLogEntry>(`/admin/makerspace/${makerspace.id}/email-logs/${id}/retry`, {
+        method: "POST",
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["email-logs", makerspace.id] });
+    },
+  });
 
   const updateStatus = (value: EmailLogStatus) => {
     setStatus(value);
@@ -57,6 +69,7 @@ export function EmailLogPanel({ makerspace }: { makerspace: Makerspace }) {
         </select>
       </div>
       {logs.error ? <p className="mb-3 text-sm text-danger">{logs.error.message}</p> : null}
+      {retry.error ? <p className="mb-3 text-sm text-danger">{retry.error.message}</p> : null}
       <div className="overflow-x-auto">
         <table className="min-w-full text-left text-sm">
           <thead className="border-b border-line text-xs uppercase text-muted">
@@ -66,6 +79,7 @@ export function EmailLogPanel({ makerspace }: { makerspace: Makerspace }) {
               <th className="px-2 py-2">Event</th>
               <th className="px-2 py-2">Status</th>
               <th className="px-2 py-2">Error</th>
+              <th className="px-2 py-2">Action</th>
             </tr>
           </thead>
           <tbody>
@@ -86,6 +100,17 @@ export function EmailLogPanel({ makerspace }: { makerspace: Makerspace }) {
                 </td>
                 <td className="max-w-72 break-words px-2 py-2 text-muted">
                   {log.status === "failed" ? truncate(log.error) : ""}
+                </td>
+                <td className="whitespace-nowrap px-2 py-2">
+                  {log.status === "failed" ? (
+                    <button
+                      className="desk-button"
+                      disabled={retry.isPending}
+                      onClick={() => retry.mutate(log.id)}
+                    >
+                      Retry
+                    </button>
+                  ) : null}
                 </td>
               </tr>
             ))}

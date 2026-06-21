@@ -55,6 +55,7 @@ def test_dispatch_email_creates_sent_log_row():
         stream="hardware",
         event="request_accepted",
         audience="requester",
+        sync=True,
     )
 
     assert EmailLog.objects.count() == 1
@@ -78,6 +79,7 @@ def test_dispatch_email_failure_logs_error_without_raising(monkeypatch):
         subject="Ready",
         text_body="Your item is ready.",
         makerspace=makerspace,
+        sync=True,
     )
 
     log.refresh_from_db()
@@ -126,6 +128,7 @@ def test_send_makerspace_email_returns_true_sent_count(monkeypatch):
         stream="hardware",
         event="request_issued",
         audience="requester",
+        sync=True,
     )
 
     assert sent == 1
@@ -146,6 +149,7 @@ def test_manager_lists_own_email_logs_and_response_excludes_bodies():
         stream="hardware",
         event="request_received",
         audience="requester",
+        sync=True,
     )
 
     response = authenticated_client(manager).get(log_url(makerspace))

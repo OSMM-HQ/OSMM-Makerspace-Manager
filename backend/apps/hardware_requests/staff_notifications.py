@@ -7,7 +7,7 @@ from apps.integrations.staff_notifications import staff_emails_for_stream
 
 logger = logging.getLogger(__name__)
 
-def send_staff_hardware_email(request, event) -> bool:
+def send_staff_hardware_email(request, event, *, sync=False) -> bool:
     """Send the staff-facing hardware notification. Returns True iff at least one staff
     email was actually delivered (used by notify_return_due to avoid re-sending the staff
     reminder on every cron run when the borrower has no reachable email)."""
@@ -42,6 +42,7 @@ def send_staff_hardware_email(request, event) -> bool:
                 stream="hardware",
                 event=event,
                 audience="staff",
+                sync=sync,
             )
         )
     except Exception:

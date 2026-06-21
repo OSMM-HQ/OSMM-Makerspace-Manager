@@ -85,6 +85,7 @@ export const openApiPaths = [
   "/api/v1/admin/makerspace/{makerspace_id}/cover",
   "/api/v1/admin/makerspace/{makerspace_id}/direct-loans",
   "/api/v1/admin/makerspace/{makerspace_id}/email-logs",
+  "/api/v1/admin/makerspace/{makerspace_id}/email-logs/{id}/retry",
   "/api/v1/admin/makerspace/{makerspace_id}/email-templates",
   "/api/v1/admin/makerspace/{makerspace_id}/email-templates/preview",
   "/api/v1/admin/makerspace/{makerspace_id}/email-templates/{stream}/{audience}/{key}",

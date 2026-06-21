@@ -345,6 +345,7 @@ def test_hardware_return_staff_email_has_status_specific_wording(
     status,
     subject_text,
     body_text,
+    django_capture_on_commit_callbacks,
 ):
     reset_outbox()
     makerspace = make_space(f"staff-hardware-return-{status}")
@@ -363,7 +364,10 @@ def test_hardware_return_staff_email_has_status_specific_wording(
     hardware_request.status = status
     hardware_request.save(update_fields=["status", "updated_at"])
 
-    hardware_notifications.notify_request_returned(hardware_request)
+    # Return notifications deliver async (dispatch_email -> on_commit -> Celery task);
+    # fire the commit hooks so the eager task actually sends.
+    with django_capture_on_commit_callbacks(execute=True):
+        hardware_notifications.notify_request_returned(hardware_request)
 
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == [staff.email]

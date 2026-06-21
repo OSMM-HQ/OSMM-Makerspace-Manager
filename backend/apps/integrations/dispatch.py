@@ -1,6 +1,7 @@
 import logging
 
 from django.core.mail import EmailMultiAlternatives
+from django.db import transaction
 from django.utils import timezone
 
 from apps.integrations.models import EmailLog
@@ -20,6 +21,7 @@ def dispatch_email(
     audience="",
     connection="makerspace",
     persist_body=True,
+    sync=False,
 ):
     # persist_body=False keeps the rendered body OUT of the stored row (e.g. password
     # reset emails embed a live recovery token in the body — persisting it would leave a
@@ -41,7 +43,23 @@ def dispatch_email(
         # so the stored row stays redacted while delivery uses the real content.
         log.text_body = text_body
         log.html_body = html_body
-    return _deliver(log)
+    if sync:
+        return _deliver(log)
+    transaction.on_commit(lambda lid=log.id: _enqueue(lid))
+    return log
+
+
+def _enqueue(log_id):
+    from apps.integrations.tasks import deliver_email_task
+
+    try:
+        deliver_email_task.delay(log_id)
+    except Exception as exc:
+        EmailLog.objects.filter(pk=log_id).update(
+            status=EmailLog.Status.FAILED,
+            error=("enqueue failed: " + str(exc))[:2000],
+        )
+        logger.exception("email_enqueue_failed", extra={"email_log_id": log_id})
 
 
 def _deliver(log):

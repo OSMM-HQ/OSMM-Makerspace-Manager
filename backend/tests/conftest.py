@@ -6,9 +6,11 @@ from django.db import connection
 @pytest.fixture(autouse=True)
 def disable_axes_by_default(settings, request):
     settings.AXES_ENABLED = False
+    settings.CELERY_TASK_ALWAYS_EAGER = True
     _reset_axes_state(request)
     yield
     settings.AXES_ENABLED = False
+    settings.CELERY_TASK_ALWAYS_EAGER = True
     _reset_axes_state(request)
 
 

@@ -2947,6 +2947,56 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/email-logs/{id}/retry": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_email_logs_retry_create",
+                "summary": "Retry a failed makerspace email",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Email logs"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EmailLog"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Email log cannot be retried."
+                    },
+                    "404": {
+                        "description": "Email log not found."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/email-templates": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_email_templates_list",
