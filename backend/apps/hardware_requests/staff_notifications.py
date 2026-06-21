@@ -38,6 +38,7 @@ def send_staff_hardware_email(request, event) -> bool:
                 rendered["subject"],
                 rendered["text_body"],
                 recipients,
+                html_body=rendered["html_body"],
             )
         )
     except Exception:

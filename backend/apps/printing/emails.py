@@ -116,6 +116,7 @@ def send_staff_print_email(event, print_request):
             rendered["subject"],
             rendered["text_body"],
             recipients,
+            html_body=rendered["html_body"],
         )
     except Exception:
         logger.warning(

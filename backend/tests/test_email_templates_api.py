@@ -244,6 +244,30 @@ def test_preview_renders_draft_without_persisting():
     assert EmailTemplate.objects.count() == 0
 
 
+def test_preview_invalid_syntax_returns_400_not_500():
+    makerspace = make_space("email-api-preview-bad")
+    manager = make_member(
+        "email-api-preview-bad-manager",
+        makerspace,
+        MakerspaceMembership.Role.INVENTORY_MANAGER,
+    )
+
+    response = client_for(manager).post(
+        preview_url(makerspace),
+        {
+            "stream": "hardware",
+            "audience": "requester",
+            "key": "request_received",
+            "subject": "Broken {{ request.id",
+            "text_body": "Hello",
+            "html_body": "",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+
+
 def test_list_order_matches_stream_audience_key_sort():
     makerspace = make_space("email-api-ordering")
     manager = make_member(

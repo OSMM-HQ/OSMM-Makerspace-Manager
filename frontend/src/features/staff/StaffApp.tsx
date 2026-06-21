@@ -310,7 +310,10 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     if (tabName === "audit") return canViewAudit;
     if (tabName === "users") return canManageMakerspace;
     if (tabName === "settings") return canManageMakerspace;
-    if (tabName === "emailtemplates") return canSeeHardware || canSeePrinting;
+    // Match the backend's edit-level gate: hardware templates need EDIT_INVENTORY/MANAGE_MAKERSPACE
+    // (canEditInventory), printing needs MANAGE_PRINTING/MANAGE_MAKERSPACE (canSeePrinting). A guest
+    // admin has neither, so the tab stays hidden instead of 404-ing on open.
+    if (tabName === "emailtemplates") return canEditInventory || canSeePrinting;
     if (tabName === "platform") return isSuperadmin && !singleTenantLocked;
     if (tabName === "printing") return canSeePrinting; // hide printer/spool mgmt from inventory managers
     if (tabName === "requests") return canSeeHardware || canSeePrinting;
