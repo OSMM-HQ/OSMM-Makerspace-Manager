@@ -64,8 +64,8 @@ export function PublicItemDetailPage() {
         {item.data ? (
           <div className="grid gap-6 md:grid-cols-2">
             {/* Image hero */}
-            <div className="border-2 border-ink bg-panel">
-              <div className="relative aspect-square overflow-hidden border-b-2 border-secondary bg-surface">
+            <div className="rounded-xl border border-line bg-panel shadow-soft">
+              <div className="relative aspect-square overflow-hidden rounded-xl bg-surface">
                 {item.data.image_url ? (
                   <img
                     src={item.data.image_url}
@@ -83,9 +83,9 @@ export function PublicItemDetailPage() {
             </div>
 
             {/* Spec manifest */}
-            <div className="flex flex-col border-2 border-ink bg-panel p-6 shadow-brutal-sm">
+            <div className="flex flex-col rounded-xl border border-line bg-panel p-6 shadow-soft">
               <div className="flex items-start justify-between gap-3">
-                <h2 className="font-display text-3xl font-bold uppercase leading-tight text-ink">
+                <h2 className="font-display text-3xl font-bold leading-tight text-ink">
                   {item.data.name}
                 </h2>
                 <AvailabilityBadge availability={item.data.availability} />
@@ -105,7 +105,7 @@ export function PublicItemDetailPage() {
                   <span className="chip">{item.data.category_name}</span>
                 ) : null}
               </div>
-              <h3 className="mt-6 border-b border-line pb-1 font-mono text-xs uppercase text-muted">
+              <h3 className="mt-6 border-b border-line pb-1 font-mono text-xs text-muted">
                 Description
               </h3>
               <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-ink">

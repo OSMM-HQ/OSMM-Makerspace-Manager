@@ -13,14 +13,14 @@ type PublicToolScanPanelProps = {
 
 function LoanResult({ loan }: { loan: PublicToolLoan }) {
   return (
-    <div className="rounded-md border border-success/40 bg-success/10 px-3 py-2">
-      <p className="text-sm font-semibold capitalize text-success">
+    <div className="rounded-xl border border-tone-mint bg-tone-mint px-3 py-2 text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]">
+      <p className="text-sm font-semibold capitalize">
         {loan.status.replace(/_/g, " ")}: {loan.target_label}
       </p>
-      <p className="mt-1 break-all text-xs text-ink">{loan.public_token}</p>
+      <p className="mt-1 break-all text-xs">{loan.public_token}</p>
       <div className="mt-2 space-y-1">
         {loan.items.map((item) => (
-          <div className="flex justify-between gap-3 text-xs text-ink" key={item.product_name}>
+          <div className="flex justify-between gap-3 text-xs" key={item.product_name}>
             <span>{item.product_name}</span>
             <span>x{item.quantity}</span>
           </div>
@@ -56,7 +56,7 @@ export function PublicToolScanPanel({
 
   return (
     <Card>
-      <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+      <p className="text-xs font-semibold tracking-wide text-accent-ink">
         QR Tool Checkout
       </p>
       <h2 className="mt-2 text-xl font-semibold text-ink">Scan public tool</h2>
@@ -96,7 +96,7 @@ export function PublicToolScanPanel({
         </button>
       </div>
       {error ? (
-        <p className="mt-3 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+        <p className="mt-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
           {error}
         </p>
       ) : null}

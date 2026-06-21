@@ -174,7 +174,7 @@ export function PublicPrintRequestPage() {
     <main className="desk-shell">
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-screen-xl flex-col gap-4 px-5 py-6 sm:px-8">
-          <p className="text-sm font-semibold uppercase tracking-wide text-accent">
+          <p className="text-sm font-semibold tracking-wide text-accent-ink">
             Public 3D Print Request
           </p>
           <div className="flex flex-wrap items-end justify-between gap-3">
@@ -206,7 +206,7 @@ export function PublicPrintRequestPage() {
       {!bootstrapQuery.isLoading && !enabled ? (
         <section className="mx-auto max-w-screen-sm px-5 py-6 sm:px-8">
           <Card>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+            <p className="text-xs font-semibold tracking-wide text-accent-ink">
               3D printing
             </p>
             <h2 className="mt-2 text-xl font-semibold text-ink">
@@ -234,14 +234,14 @@ export function PublicPrintRequestPage() {
       {!bootstrapQuery.isLoading && enabled ? (
         <section className="mx-auto grid max-w-screen-xl grid-cols-1 gap-5 px-5 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-4">
-          <Card>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+          <Card className="bg-tone-yellow text-tone-yellow-ink dark:bg-[#332b00] dark:text-[#fcdf46]">
+            <p className="text-xs font-semibold tracking-wide">
               Check-In
             </p>
             <label className="mt-3 block">
-              <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
-                Check-In email or phone
-              </span>
+                <span className="mb-1 block text-xs font-semibold tracking-wide opacity-80">
+                  Check-In email or phone
+                </span>
               <input
                 className="desk-input w-full"
                 placeholder="Email or phone used at Check-In"
@@ -258,12 +258,12 @@ export function PublicPrintRequestPage() {
               {verifyMutation.isPending ? "Verifying..." : "Verify Check-In"}
             </button>
             {verified ? (
-              <p className="mt-3 rounded-md border border-success/40 bg-success/10 px-3 py-2 text-sm text-success">
+              <p className="mt-3 rounded-lg border border-tone-mint bg-tone-mint px-3 py-2 text-sm font-medium text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]">
                 Check-In verified{verifiedName ? ` for ${verifiedName}` : ""}
               </p>
             ) : null}
             {verifyMutation.error ? (
-              <p className="mt-3 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+              <p className="mt-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
                 {verifyMutation.error.message}
               </p>
             ) : null}
@@ -289,13 +289,13 @@ export function PublicPrintRequestPage() {
 
         <aside className="min-w-0 space-y-4 lg:sticky lg:top-0 lg:max-h-[100dvh] lg:overflow-y-auto">
           {submittedToken ? <SubmittedTokenCard token={submittedToken} /> : null}
-          <Card>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+          <Card className="bg-tone-pink text-tone-pink-ink dark:bg-[#3a1326] dark:text-[#f9a8d4]">
+            <p className="text-xs font-semibold tracking-wide">
               Status Tracker
             </p>
             <form className="mt-3 space-y-3" onSubmit={checkStatusByEmail}>
               <label className="block">
-                <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">
+                <span className="mb-1 block text-xs font-semibold tracking-wide opacity-80">
                   Request email
                 </span>
                 <input
@@ -322,7 +322,7 @@ export function PublicPrintRequestPage() {
             </div>
             <div className="mt-4 space-y-4">
               {statusByEmailMutation.error ? (
-                <p className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+                <p className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
                   {statusByEmailMutation.error.message}
                 </p>
               ) : null}
@@ -335,7 +335,7 @@ export function PublicPrintRequestPage() {
                 />
               ))}
               {statusByEmailMutation.data?.results.length === 0 ? (
-                <p className="rounded-md border border-line bg-surface px-3 py-2 text-sm text-muted">
+                <p className="rounded-lg border border-line bg-panel/80 px-3 py-2 text-sm">
                   No requests found for that email.
                 </p>
               ) : null}
