@@ -175,7 +175,7 @@ export function Users({ makerspaces, isSuperadmin }: { makerspaces: Makerspace[]
             {roles.map((role, index) => (
               <button
                 key={role.value}
-                className={`desk-button ${activeRole === role.value ? "border-accent text-accent" : ""}`}
+                className={`desk-button ${activeRole === role.value ? "border-accent text-accent-ink" : ""}`}
                 type="button"
                 onClick={() => setActiveRole(role.value)}
               >

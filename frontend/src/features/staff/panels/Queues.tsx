@@ -246,7 +246,7 @@ export function Queues({ makerspace, guestOnly }: { makerspace: Makerspace; gues
         </Panel>
       ) : null}
       <Panel title="History">
-        <button type="button" className="text-sm text-accent" onClick={() => setShowHistory((value) => !value)}>
+        <button type="button" className="text-sm text-accent-ink" onClick={() => setShowHistory((value) => !value)}>
           {showHistory ? "Hide history" : "Show history (returned / rejected / closed with issue)"}
         </button>
         {showHistory ? (

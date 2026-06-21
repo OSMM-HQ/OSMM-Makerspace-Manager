@@ -221,7 +221,7 @@ export function ApiClientsPanel({
                         <p className="font-semibold text-ink">{client.label}</p>
                         <p className="mt-1 break-all font-mono text-xs text-muted">{client.client_id}</p>
                       </div>
-                      <span className={`rounded-md px-2 py-1 text-xs font-semibold ${client.is_active ? "bg-success/15 text-success" : "bg-warn/15 text-warn"}`}>
+                      <span className={`rounded-md px-2 py-1 text-xs font-semibold ${client.is_active ? "bg-success/15 text-success-ink" : "bg-warn/15 text-warn-ink"}`}>
                         {client.is_active ? "Active" : "Inactive"}
                       </span>
                     </div>
@@ -262,7 +262,7 @@ export function ApiClientsPanel({
                           <p className="font-semibold text-ink">{request.label}</p>
                           <p className="mt-1 text-xs text-muted">{formatDate(request.created_at)}</p>
                         </div>
-                        <span className="rounded-md border border-line bg-surface px-2 py-1 text-xs font-semibold uppercase text-muted">
+                        <span className="rounded-md border border-line bg-surface px-2 py-1 text-xs font-semibold text-muted">
                           {request.status}
                         </span>
                       </div>

@@ -25,7 +25,7 @@ export function PrinterCard({
           <h3 className="break-words font-semibold text-ink">{printer.name}</h3>
           <p className="break-words text-xs text-muted">{printer.model || "No model"}</p>
         </div>
-        <span className={`rounded-md px-2 py-1 text-xs font-semibold ${printer.is_free ? "bg-success/15 text-success" : "bg-warn/15 text-warn"}`}>
+        <span className={`rounded-md px-2 py-1 text-xs font-semibold ${printer.is_free ? "bg-success/15 text-success-ink" : "bg-warn/15 text-warn-ink"}`}>
           {printer.is_free ? "Free" : "Busy"}
         </span>
       </div>
@@ -73,7 +73,7 @@ export function SpoolRow({
         <span className="min-w-0 break-words text-muted">{usedLabel} - {spool.remaining_weight_grams}g left of {spool.initial_weight_grams}g</span>
         <span
           className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
-            spool.is_active ? "bg-success/15 text-success" : "bg-warn/15 text-warn"
+            spool.is_active ? "bg-success/15 text-success-ink" : "bg-warn/15 text-warn-ink"
           }`}
           title={spool.is_active ? "Shown to the public request form" : "Hidden from the public request form - activate to show"}
         >
@@ -123,7 +123,7 @@ export function PrintRows({
               {row.requester_name || row.requester_username} - {row.material || "material n/a"} {row.color || ""} - {row.estimated_minutes || 0} min - {row.estimated_filament_grams || "0.00"}g
             </p>
             {row.requested_filament_spool ? (
-              <p className="mt-1 text-xs text-accent">
+              <p className="mt-1 text-xs text-accent-ink">
                 <span className="font-medium">Requested spool: </span>
                 {`#${row.requested_filament_spool.id} ${row.requested_filament_spool.material} ${row.requested_filament_spool.color}`.trim()}
                 {` (${row.requested_filament_spool.remaining_weight_grams}g)`}

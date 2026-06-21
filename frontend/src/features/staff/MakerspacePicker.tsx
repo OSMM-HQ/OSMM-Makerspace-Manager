@@ -26,7 +26,7 @@ export function MakerspacePicker({
       <div className="mx-auto w-full max-w-3xl">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent">Super Admin</p>
+            <p className="text-xs font-semibold tracking-wide text-accent-ink">Super Admin</p>
             <h1 className="text-2xl font-bold text-ink">Choose a makerspace to operate</h1>
             <p className="mt-1 text-sm text-muted">Signed in as {username}. Pick a makerspace to manage its operations.</p>
           </div>
@@ -41,8 +41,8 @@ export function MakerspacePicker({
         {loading ? (
           <p className="text-sm text-muted">Loading makerspaces…</p>
         ) : !makerspaces.length ? (
-          <div className="desk-panel p-6">
-            <p className="text-sm text-muted">No makerspaces exist yet. Create one from the Django control plane.</p>
+          <div className="desk-panel bg-tone-yellow p-6 text-tone-yellow-ink dark:bg-[#332b00] dark:text-[#fcdf46]">
+            <p className="text-sm">No makerspaces exist yet. Create one from the Django control plane.</p>
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
@@ -53,7 +53,7 @@ export function MakerspacePicker({
                 onClick={() => onSelect(makerspace.id)}
                 className="desk-panel flex flex-col items-start gap-1 p-4 text-left transition hover:border-accent"
               >
-                <span className="text-xs font-semibold uppercase tracking-wide text-accent">
+                <span className="text-xs font-semibold uppercase tracking-wide text-accent-ink">
                   {makerspace.public_code ?? makerspace.slug}
                 </span>
                 <span className="text-lg font-semibold text-ink">{makerspace.name}</span>

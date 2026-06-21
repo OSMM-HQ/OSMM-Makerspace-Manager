@@ -20,7 +20,7 @@ export function KioskPage() {
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+            <p className="text-xs font-semibold tracking-wide text-accent-ink">
               Kiosk
             </p>
             <h1 className="text-xl font-bold text-ink">Public desk</h1>
@@ -52,7 +52,7 @@ export function ScannerPage() {
       <section className="mx-auto w-full max-w-3xl space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-accent">
+            <p className="text-xs font-semibold tracking-wide text-accent-ink">
               Scanner
             </p>
             <h1 className="text-2xl font-bold text-ink">QR resolution</h1>

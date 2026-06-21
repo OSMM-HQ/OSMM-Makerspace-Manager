@@ -107,7 +107,7 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
       <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Start-on-printer settings</p>
       <p className="mb-2 text-xs text-muted">Used by “Start on printer” below — not by Accept.</p>
       {startablePrinters.length === 0 ? (
-        <p className="mb-2 text-xs text-warn">No active printer — add or activate one on the 3D Printing tab.</p>
+        <p className="mb-2 text-xs text-warn-ink">No active printer — add or activate one on the 3D Printing tab.</p>
       ) : null}
       <div className="mb-3 grid gap-2 md:grid-cols-4">
         <label className="block">
@@ -170,7 +170,7 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
       </div>
 
       <div className="mt-4">
-        <button type="button" className="text-sm text-accent" onClick={() => setShowHistory((value) => !value)}>
+        <button type="button" className="text-sm text-accent-ink" onClick={() => setShowHistory((value) => !value)}>
           {showHistory ? "Hide history" : "Show history (collected / rejected / failed)"}
         </button>
         {showHistory ? (

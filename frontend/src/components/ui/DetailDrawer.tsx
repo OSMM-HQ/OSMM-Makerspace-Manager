@@ -38,7 +38,7 @@ export function DetailDrawer({ open, title, onClose, children }: DetailDrawerPro
         className={`absolute right-0 top-0 flex h-full w-full max-w-xl flex-col border-l border-line bg-panel shadow-xl transition-transform duration-200 ${open ? "translate-x-0" : "translate-x-full"}`}
       >
         <header className="flex items-center gap-3 border-b border-line px-4 py-3">
-          <h2 id="detail-drawer-title" className="text-sm font-semibold uppercase tracking-wide text-muted">
+          <h2 id="detail-drawer-title" className="text-sm font-semibold tracking-wide text-muted">
             {title}
           </h2>
           <button type="button" className="desk-button ml-auto" onClick={onClose}>

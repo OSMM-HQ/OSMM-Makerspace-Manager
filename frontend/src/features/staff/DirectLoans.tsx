@@ -67,9 +67,12 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
     ["inventory-all", makerspace.id],
     `/admin/makerspace/${makerspace.id}/inventory?page_size=1000`,
   );
+  // Fetch ALL containers (distinct cache key from the shared ["containers"] entry so a
+  // truncated first page can't leak in): the dropdown + the scan membership check both
+  // need the complete list, else a valid container past page one falsely reads as "not found".
   const containers = useStaffGet<ContainerResponse>(
-    ["containers", makerspace.id],
-    `/admin/makerspace/${makerspace.id}/containers`,
+    ["containers-all", makerspace.id],
+    `/admin/makerspace/${makerspace.id}/containers?page_size=1000`,
   );
   const containerOptions = Array.isArray(containers.data)
     ? containers.data
@@ -239,7 +242,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
             Verify check-in
           </button>
         </div>
-        {isVerified && verifiedUsername ? <p className="mt-2 text-sm text-success">Verified as {verifiedUsername}</p> : null}
+        {isVerified && verifiedUsername ? <p className="mt-2 text-sm text-success-ink">Verified as {verifiedUsername}</p> : null}
         {verify.error ? <p className="mt-2 text-sm text-danger">{verify.error.message}</p> : null}
         <label className="mt-4 block text-sm font-medium text-ink" htmlFor="direct-loan-container">Container (optional)</label>
         <div className="mt-1 flex flex-col gap-2 md:flex-row">

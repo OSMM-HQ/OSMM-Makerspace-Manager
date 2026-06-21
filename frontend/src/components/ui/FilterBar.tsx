@@ -21,7 +21,7 @@ export function FilterBar({
   const searchId = useId();
 
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-line bg-panel p-3 sm:flex-row sm:items-center">
+    <div className="flex flex-col gap-3 rounded-xl border border-line bg-panel p-3 sm:flex-row sm:items-center">
       <label className="sr-only" htmlFor={searchId}>
         {searchLabel}
       </label>

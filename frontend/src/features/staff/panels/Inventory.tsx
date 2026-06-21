@@ -114,11 +114,11 @@ export function Inventory({ makerspace, canViewAudit = false }: { makerspace: Ma
   };
   const columns: DataTableColumn<AdminProduct>[] = [
     { key: "image", header: "", render: (product) => (
-      <div className="h-10 w-10 overflow-hidden border-2 border-ink bg-surface">
+      <div className="h-10 w-10 overflow-hidden rounded-lg border border-line bg-surface">
         {product.image_url ? <img src={product.image_url} alt="" className="h-full w-full object-cover" /> : <div className="blueprint-bg h-full w-full" />}
       </div>
     ) },
-    { key: "name", header: "Name", sortable: true, render: (product) => <button type="button" className="text-left font-semibold text-ink hover:text-accent" onClick={() => openEdit(product)}>{product.name}</button> },
+    { key: "name", header: "Name", sortable: true, render: (product) => <button type="button" className="text-left font-semibold text-ink hover:text-accent-ink" onClick={() => openEdit(product)}>{product.name}</button> },
     { key: "tracking_mode", header: "Mode", sortable: true },
     { key: "total_quantity", header: "Total", sortable: true },
     { key: "available_quantity", header: "Available", sortable: true, render: (product) => <InventoryAvailability product={product} /> },
