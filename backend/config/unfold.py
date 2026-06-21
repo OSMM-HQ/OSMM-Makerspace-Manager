@@ -75,7 +75,6 @@ UNFOLD = {
                     _item("Return events", "assignment_return", "admin:hardware_requests_returnevent_changelist"),
                     _item("Accountability", "gavel", "admin:hardware_requests_requesteraccountability_changelist"),
                     _item("Issued asset links", "link", "admin:hardware_requests_hardwarerequestitemasset_changelist"),
-                    _item("Email templates", "mail", "admin:hardware_requests_hardwareemailtemplate_changelist"),
                 ],
             },
             {

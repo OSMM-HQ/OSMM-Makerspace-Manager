@@ -24,13 +24,13 @@ from apps.audit.models import AuditLog
 from apps.boxes.models import Box, BoxScan, QrCode, QrScanEvent
 from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests.models import (
-    HardwareEmailTemplate,
     HardwareRequest,
     HardwareRequestItemAsset,
     PublicToolLoan,
     RequesterAccountability,
     ReturnEvent,
 )
+from apps.integrations.models import EmailTemplate
 from apps.inventory.models import Category, InventoryAsset, InventoryProduct
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 from apps.operations.models import (
@@ -60,7 +60,7 @@ def test_core_models_are_registered_in_django_admin():
         QrCode,
         QrScanEvent,
         HardwareRequest,
-        HardwareEmailTemplate,
+        EmailTemplate,
         PublicToolLoan,
         ReturnEvent,
         RequesterAccountability,

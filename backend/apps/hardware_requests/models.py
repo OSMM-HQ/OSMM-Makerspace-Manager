@@ -139,41 +139,6 @@ class HardwareRequestItem(models.Model):
         ]
 
 
-class HardwareEmailTemplate(models.Model):
-    class Key(models.TextChoices):
-        REQUEST_RECEIVED = "request_received", "Request Received"
-        REQUEST_ACCEPTED = "request_accepted", "Request Accepted"
-        REQUEST_REJECTED = "request_rejected", "Request Rejected"
-        REQUEST_ISSUED = "request_issued", "Request Issued"
-        REQUEST_RETURNED = "request_returned", "Request Returned"
-        RETURN_REMINDER = "return_reminder", "Return Reminder"
-
-    makerspace = models.ForeignKey(
-        "makerspaces.Makerspace",
-        on_delete=models.CASCADE,
-        related_name="hardware_email_templates",
-    )
-    key = models.CharField(max_length=32, choices=Key.choices)
-    subject = models.CharField(max_length=200)
-    text_body = models.TextField()
-    html_body = models.TextField(blank=True)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        constraints = [
-            models.UniqueConstraint(
-                fields=["makerspace", "key"],
-                name="uniq_hardware_email_template_key_per_space",
-            )
-        ]
-        ordering = ["makerspace__name", "key"]
-
-    def __str__(self):
-        return f"{self.makerspace}: {self.get_key_display()}"
-
-
 from apps.hardware_requests.return_models import (  # noqa: E402
     RequesterAccountability,
     ReturnEvent,

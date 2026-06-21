@@ -4,10 +4,8 @@ from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.template.response import TemplateResponse
 from unfold.admin import ModelAdmin, TabularInline
 
-from apps.hardware_requests import admin_email_templates  # noqa: F401
 from apps.hardware_requests import admin_loans  # noqa: F401
 from apps.hardware_requests import admin_requests  # noqa: F401
-from apps.hardware_requests.admin_email_templates import HardwareEmailTemplateAdmin
 from apps.hardware_requests.admin_loans import (
     HardwareRequestItemAssetAdmin,
     PublicToolLoanAdmin,
@@ -22,7 +20,6 @@ from apps.hardware_requests.admin_workflow import WORKFLOW_EXCEPTIONS
 from apps.hardware_requests.asset_link_models import HardwareRequestItemAsset
 from apps.hardware_requests.handover_workflow import assign_box
 from apps.hardware_requests.models import (
-    HardwareEmailTemplate,
     HardwareRequest,
     HardwareRequestItem,
 )
@@ -43,8 +40,6 @@ __all__ = [
     "ACTION_CHECKBOX_NAME",
     "BoxUnavailable",
     "BoxValidationError",
-    "HardwareEmailTemplate",
-    "HardwareEmailTemplateAdmin",
     "HardwareRequest",
     "HardwareRequestAdmin",
     "HardwareRequestItem",

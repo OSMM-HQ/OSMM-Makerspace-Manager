@@ -1,14 +1,14 @@
-import importlib
 from types import SimpleNamespace
 
 import pytest
 from django.core.exceptions import ValidationError
 from django.template import Context, Template
 
-from apps.hardware_requests.models import HardwareEmailTemplate
-from apps.hardware_requests.notifications import DEFAULT_TEMPLATES
-from apps.hardware_requests.staff_notifications import STAFF_TEMPLATES
 from apps.integrations.email_templates_registry import (
+    HARDWARE_REQUESTER_KEYS,
+    HARDWARE_STAFF_KEYS,
+    PRINTING_REQUESTER_KEYS,
+    PRINTING_STAFF_KEYS,
     REGISTRY,
     all_send_keys,
     get_entry,
@@ -17,22 +17,15 @@ from apps.integrations.email_templates_registry import (
 )
 from apps.integrations.models import EmailTemplate
 from apps.makerspaces.models import Makerspace
-from apps.printing.emails import _STAFF_SUBJECTS, _SUBJECTS, _staff_print_body
-
-
-def _key_value(key):
-    return key.value if hasattr(key, "value") else key
+from apps.printing.emails import _staff_print_body
 
 
 def test_registry_declares_all_send_path_keys():
     expected = {
-        *{
-            ("hardware", "requester", _key_value(key))
-            for key in DEFAULT_TEMPLATES.keys()
-        },
-        *{("hardware", "staff", key) for key in STAFF_TEMPLATES.keys()},
-        *{("printing", "requester", key) for key in _SUBJECTS.keys()},
-        *{("printing", "staff", key) for key in _STAFF_SUBJECTS.keys()},
+        *{("hardware", "requester", key) for key in HARDWARE_REQUESTER_KEYS},
+        *{("hardware", "staff", key) for key in HARDWARE_STAFF_KEYS},
+        *{("printing", "requester", key) for key in PRINTING_REQUESTER_KEYS},
+        *{("printing", "staff", key) for key in PRINTING_STAFF_KEYS},
     }
 
     assert len(REGISTRY) == 27
@@ -76,7 +69,7 @@ def test_printing_staff_default_text_matches_current_body_helper():
         reprint_of_id=64,
     )
 
-    for event in _STAFF_SUBJECTS.keys():
+    for event in PRINTING_STAFF_KEYS:
         entry = get_entry("printing", "staff", event)
         context = Context({"print_request": print_request}, autoescape=True)
         assert Template(entry.default_text).render(context) == _staff_print_body(
@@ -123,50 +116,3 @@ def test_email_template_full_clean_rejects_invalid_subject_syntax():
 
     with pytest.raises(ValidationError, match="Email template has invalid syntax"):
         template.full_clean()
-
-
-@pytest.mark.django_db
-def test_hardware_email_template_data_migration_copies_rows():
-    makerspace = Makerspace.objects.create(name="Migration Lab", slug="migration-lab")
-    old_template = HardwareEmailTemplate.objects.create(
-        makerspace=makerspace,
-        key=HardwareEmailTemplate.Key.REQUEST_ACCEPTED,
-        subject="Accepted {{ request.id }}",
-        text_body="Accepted text",
-        html_body="<p>Accepted</p>",
-        is_active=False,
-    )
-    migration = importlib.import_module(
-        "apps.integrations.migrations.0003_migrate_hardware_email_templates"
-    )
-
-    class Apps:
-        @staticmethod
-        def get_model(app_label, model_name):
-            return {
-                ("hardware_requests", "HardwareEmailTemplate"): HardwareEmailTemplate,
-                ("integrations", "EmailTemplate"): EmailTemplate,
-            }[(app_label, model_name)]
-
-    migration.forwards(Apps, None)
-    migration.forwards(Apps, None)
-
-    copied = EmailTemplate.objects.get(
-        makerspace=makerspace,
-        stream="hardware",
-        audience="requester",
-        key=old_template.key,
-    )
-    assert copied.subject == old_template.subject
-    assert copied.text_body == old_template.text_body
-    assert copied.html_body == old_template.html_body
-    assert copied.is_active is False
-    assert (
-        EmailTemplate.objects.filter(
-            makerspace=makerspace,
-            stream="hardware",
-            audience="requester",
-            key=old_template.key,
-        ).count()
-        == 1
-    )

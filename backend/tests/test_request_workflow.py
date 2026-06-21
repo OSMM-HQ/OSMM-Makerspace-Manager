@@ -17,10 +17,10 @@ from apps.audit.models import AuditLog
 from apps.boxes.models import Box
 from apps.checkin.client import CheckinDenied, CheckinResult, CheckinUnavailable
 from apps.hardware_requests.models import (
-    HardwareEmailTemplate,
     HardwareRequest,
     HardwareRequestItem,
 )
+from apps.integrations.models import EmailTemplate
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 
@@ -639,9 +639,11 @@ def test_accept_email_uses_admin_configured_template(
 ):
     makerspace = make_space("request-template-email")
     product = make_product(makerspace)
-    HardwareEmailTemplate.objects.create(
+    EmailTemplate.objects.create(
         makerspace=makerspace,
-        key=HardwareEmailTemplate.Key.REQUEST_ACCEPTED,
+        stream="hardware",
+        audience="requester",
+        key="request_accepted",
         subject="Custom approval {{ request.id }}",
         text_body="Hi {{ request.requester_username }}, approved by {{ makerspace.name }}.",
     )

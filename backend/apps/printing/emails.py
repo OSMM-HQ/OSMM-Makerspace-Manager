@@ -3,32 +3,13 @@ import logging
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
-from django.template.loader import render_to_string
 
 from apps.integrations.email import makerspace_mail_connection, send_makerspace_email
+from apps.integrations.email_templates import printing_context, render
 from apps.integrations.staff_notifications import staff_emails_for_stream
 from apps.printing.models import PrintRequest
 
 logger = logging.getLogger(__name__)
-
-_SUBJECTS = {
-    "submitted": "We received your makerspace print request",
-    "accepted": "Your makerspace print request was accepted",
-    "started": "Your makerspace print request is now printing",
-    "rejected": "Your makerspace print request was rejected",
-    "completed": "Your makerspace print request is ready to collect",
-}
-
-_STAFF_SUBJECTS = {
-    "submitted": "{makerspace} print request #{id} submitted",
-    "accepted": "{makerspace} print request #{id} accepted",
-    "started": "{makerspace} print request #{id} started",
-    "completed": "{makerspace} print request #{id} completed",
-    "rejected": "{makerspace} print request #{id} rejected",
-    "failed": "{makerspace} print request #{id} failed",
-    "collected": "{makerspace} print request #{id} collected",
-    "reprinted": "{makerspace} reprint request #{id} accepted",
-}
 
 
 def _with_email_relations(print_request):
@@ -77,7 +58,6 @@ def send_print_email(event, print_request):
     if not recipient:
         return
 
-    subject = _SUBJECTS[event]
     makerspace = print_request.bucket.makerspace
     base = getattr(settings, "PUBLIC_APP_BASE_URL", "") or ""
     status_url = (
@@ -85,25 +65,24 @@ def send_print_email(event, print_request):
         if base
         else ""
     )
-    context = {
-        "print_request": print_request,
-        "status_url": status_url,
-        "public_token": str(print_request.public_token),
-    }
     try:
-        text_body = render_to_string(f"email/print_{event}.txt", context)
-        html_body = render_to_string(f"email/print_{event}.html", context)
-        connection, from_email = makerspace_mail_connection(
-            print_request.bucket.makerspace
+        rendered = render(
+            makerspace,
+            "printing",
+            "requester",
+            event,
+            printing_context(print_request, status_url, print_request.public_token),
         )
+        connection, from_email = makerspace_mail_connection(makerspace)
         message = EmailMultiAlternatives(
-            subject=subject,
-            body=text_body,
+            subject=rendered["subject"],
+            body=rendered["text_body"],
             from_email=from_email,
             to=[recipient],
             connection=connection,
         )
-        message.attach_alternative(html_body, "text/html")
+        if rendered["html_body"]:
+            message.attach_alternative(rendered["html_body"], "text/html")
         message.send()
     except Exception:
         logger.warning(
@@ -125,12 +104,19 @@ def send_staff_print_email(event, print_request):
         if not recipients:
             return
 
-        subject = _STAFF_SUBJECTS[event].format(
-            makerspace=makerspace.name,
-            id=print_request.pk,
+        rendered = render(
+            makerspace,
+            "printing",
+            "staff",
+            event,
+            printing_context(print_request, "", ""),
         )
-        body = _staff_print_body(event, print_request)
-        send_makerspace_email(makerspace, subject, body, recipients)
+        send_makerspace_email(
+            makerspace,
+            rendered["subject"],
+            rendered["text_body"],
+            recipients,
+        )
     except Exception:
         logger.warning(
             "print_staff_email_send_failed",
