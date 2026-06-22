@@ -9,6 +9,7 @@ from apps.admin_api.views_email_templates import (
 )
 from apps.admin_api.views_email_logs import EmailLogListView, EmailLogRetryView
 from apps.admin_api.views_notification_recipients import NotificationRecipientsView
+from apps.admin_api.views_notification_rules import NotificationRulesView
 from apps.admin_api.views_platform import PlatformEmailSettingsView
 from apps.makerspaces.models import MakerspaceMembership
 
@@ -100,6 +101,11 @@ urlpatterns = [
         "makerspace/<int:makerspace_id>/notification-recipients",
         NotificationRecipientsView.as_view(),
         name="admin-notification-recipients",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/notification-rules",
+        NotificationRulesView.as_view(),
+        name="admin-notification-rules",
     ),
     path(
         "makerspace/<int:makerspace_id>/email-templates",
