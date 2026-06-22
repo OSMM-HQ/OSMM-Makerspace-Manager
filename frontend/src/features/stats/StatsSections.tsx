@@ -11,6 +11,7 @@ import {
   formatDate,
   formatNumber,
 } from "./StatsParts";
+import { ImageThumbnail } from "../../components/ui/ImageThumbnail";
 
 export function PrintingSection({ printing }: { printing: PublicStatsPrinting }) {
   const queueTotal =
@@ -43,14 +44,21 @@ export function PrintingSection({ printing }: { printing: PublicStatsPrinting })
         <div className="rounded-md border border-line bg-panel p-3">
           <h3 className="text-sm font-semibold text-ink">Busiest printer</h3>
           {printing.busiest_printer ? (
-            <div className="mt-3 space-y-2 text-sm">
-              <p className="text-xl font-bold text-ink">
-                {printing.busiest_printer.name}
-              </p>
-              <p className="text-muted">
-                {formatNumber(printing.busiest_printer.hours)} hours /{" "}
-                {printing.busiest_printer.completed} completed
-              </p>
+            <div className="mt-3 flex items-center gap-3 text-sm">
+              <ImageThumbnail
+                src={printing.busiest_printer.image_url}
+                alt={printing.busiest_printer.name}
+                className="h-16 w-16"
+              />
+              <div className="min-w-0">
+                <p className="break-words text-xl font-bold text-ink">
+                  {printing.busiest_printer.name}
+                </p>
+                <p className="text-muted">
+                  {formatNumber(printing.busiest_printer.hours)} hours /{" "}
+                  {printing.busiest_printer.completed} completed
+                </p>
+              </div>
             </div>
           ) : (
             <p className="mt-3 text-sm text-muted">No printer activity yet.</p>
@@ -94,6 +102,52 @@ export function PrintingSection({ printing }: { printing: PublicStatsPrinting })
           }))}
           valueLabel="g"
         />
+      </div>
+
+      <div className="rounded-md border border-line bg-panel p-3">
+        <h3 className="text-sm font-semibold text-ink">Per printer</h3>
+        {printing.per_printer.length ? (
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-line text-left text-muted">
+                  <th className="py-2 pr-3 font-semibold">Printer</th>
+                  <th className="px-3 py-2 text-right font-semibold">
+                    Completed jobs
+                  </th>
+                  <th className="px-3 py-2 text-right font-semibold">Hours</th>
+                  <th className="py-2 pl-3 text-right font-semibold">
+                    Filament (g)
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {printing.per_printer.map((row, index) => (
+                  <tr
+                    className="border-b border-line last:border-b-0"
+                    key={`${row.name}-${index}`}
+                  >
+                    <td className="py-2 pr-3 text-ink">
+                      <div className="flex items-center gap-3">
+                        <ImageThumbnail src={row.image_url} alt={row.name} />
+                        <span className="min-w-0 break-words">{row.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 text-right text-ink">{row.jobs}</td>
+                    <td className="px-3 py-2 text-right text-ink">
+                      {formatNumber(row.hours)}
+                    </td>
+                    <td className="py-2 pl-3 text-right text-ink">
+                      {formatNumber(row.grams)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="mt-3 text-sm text-muted">No printer activity yet.</p>
+        )}
       </div>
     </Section>
   );

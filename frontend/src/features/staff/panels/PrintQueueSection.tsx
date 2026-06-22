@@ -16,7 +16,7 @@ import { AcceptPrintDialog, FailPrintDialog } from "./PrintingPanelDialogs";
 // The print queue lives here so it can be shown inside the unified "Requests" tab
 // alongside hardware requests. It now covers the FULL lifecycle to match hardware:
 // pending (accept/reject) -> accepted (start) -> printing (complete/fail) ->
-// completed (collect), plus a read-only history (collected/rejected/failed). Printer & spool management stays in
+// completed (collect), failed (reprint), plus a read-only history (collected/rejected). Printer & spool management stays in
 // PrintingPanel; both query the same TanStack keys so the cache is shared.
 export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
   const queryClient = useQueryClient();
@@ -40,7 +40,7 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
   // third arg is the TanStack `enabled` flag, so the network call is deferred until needed.
   const collected = useStaffGet<{ results: PrintRequest[] }>(["print-requests", makerspace.id, "collected"], reqUrl("collected"), showHistory);
   const rejected = useStaffGet<{ results: PrintRequest[] }>(["print-requests", makerspace.id, "rejected"], reqUrl("rejected"), showHistory);
-  const failed = useStaffGet<{ results: PrintRequest[] }>(["print-requests", makerspace.id, "failed"], reqUrl("failed"), showHistory);
+  const failed = useStaffGet<{ results: PrintRequest[] }>(["print-requests", makerspace.id, "failed"], reqUrl("failed"));
 
   const [selectedPrinter, setSelectedPrinter] = useState("");
   const [selectedSpool, setSelectedSpool] = useState("");
@@ -169,19 +169,26 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
         )}
       </div>
 
+      <div className="mt-3">
+        {failed.isLoading ? (
+          <PrintRowsSkeleton title="Failed" />
+        ) : (
+          <PrintRows title="Failed" rows={failed.data?.results ?? []} action={(row) => (
+            <button disabled={action.isPending} onClick={() => action.mutate({ request: row, name: "reprint" })}>
+              {action.isPending ? "..." : "Reprint"}
+            </button>
+          )} />
+        )}
+      </div>
+
       <div className="mt-4">
         <button type="button" className="text-sm text-accent-ink" onClick={() => setShowHistory((value) => !value)}>
-          {showHistory ? "Hide history" : "Show history (collected / rejected / failed)"}
+          {showHistory ? "Hide history" : "Show history (collected / rejected)"}
         </button>
         {showHistory ? (
-          <div className="mt-3 grid gap-3 lg:grid-cols-3">
+          <div className="mt-3 grid gap-3 lg:grid-cols-2">
             <PrintRows title="Collected" rows={collected.data?.results ?? []} action={() => null} />
             <PrintRows title="Rejected" rows={rejected.data?.results ?? []} action={() => null} />
-            <PrintRows title="Failed" rows={failed.data?.results ?? []} action={(row) => (
-              <button disabled={action.isPending} onClick={() => action.mutate({ request: row, name: "reprint" })}>
-                {action.isPending ? "..." : "Reprint"}
-              </button>
-            )} />
           </div>
         ) : null}
       </div>

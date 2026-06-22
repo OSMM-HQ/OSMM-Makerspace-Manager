@@ -2,10 +2,12 @@ import { Link, Navigate, Route, Routes } from "react-router-dom";
 
 import { MakerspaceBrand } from "./components/MakerspaceBrand";
 import { MakerspaceMapLink } from "./components/MakerspaceMapLink";
-import { OsmmBadge } from "./components/OsmmLogo";
+import { OsmmBadge, OsmmLogo } from "./components/OsmmLogo";
+import { SiteFooter } from "./components/SiteFooter";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Card } from "./components/ui/Card";
 import { Spinner } from "./components/ui/Spinner";
+import { AboutPage } from "./features/AboutPage";
 import { PublicInventoryPage } from "./features/inventory/PublicInventoryPage";
 import { PublicItemDetailPage } from "./features/inventory/PublicItemDetailPage";
 import { PublicSelfCheckoutPage } from "./features/inventory/PublicSelfCheckoutPage";
@@ -26,20 +28,17 @@ function LandingPage() {
   }
 
   return (
-    <main className="desk-shell">
+    <main className="desk-shell flex min-h-screen flex-col">
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="grid h-9 w-9 place-items-center rounded-md bg-accent text-sm font-black text-on-accent">
-              OS
-            </span>
+            <OsmmLogo className="shrink-0 text-ink" size={36} />
             <div className="min-w-0">
               <p className="text-sm font-semibold text-ink">OSMM</p>
               <p className="text-xs text-muted">Shared equipment portal</p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <OsmmBadge />
             <ThemeToggle />
             <Link className="desk-button" to="/admin">
               Staff login
@@ -162,6 +161,8 @@ function LandingPage() {
         ) : null}
         </div>
       </section>
+
+      <SiteFooter />
     </main>
   );
 }
@@ -215,6 +216,7 @@ export default function App() {
         <Route path="/checkout" element={<PublicSelfCheckoutPage />} />
         <Route path="/print" element={<PublicPrintRequestPage />} />
         <Route path="/stats" element={<PublicStatsPage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/admin" element={<StaffApp />} />
         <Route path="/guest-admin" element={<StaffApp guestOnly />} />
@@ -227,6 +229,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/about" element={<AboutPage />} />
       <Route path="/m/:slug" element={<PublicInventoryPage />} />
       <Route path="/m/:slug/items/:id" element={<PublicItemDetailPage />} />
       <Route path="/m/:slug/checkout" element={<PublicSelfCheckoutPage />} />

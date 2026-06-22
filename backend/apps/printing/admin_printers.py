@@ -2,23 +2,39 @@ from django.contrib import admin, messages
 from unfold.admin import ModelAdmin
 
 from apps.audit import services as audit
+from apps.inventory import public_image_storage
+from apps.inventory.admin_image_uploads import PublicImageAdminForm, PublicImageAdminMixin
 from apps.printing.models import FilamentSpool, PrintPrinter, PrintRequest
 from config.admin_access import SuperuserOnlyModelAdmin
 
 
+class PrintPrinterAdminForm(PublicImageAdminForm):
+    class Meta:
+        model = PrintPrinter
+        fields = "__all__"
+
+
 @admin.register(PrintPrinter)
-class PrintPrinterAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+class PrintPrinterAdmin(PublicImageAdminMixin, SuperuserOnlyModelAdmin, ModelAdmin):
+    form = PrintPrinterAdminForm
+    image_field = "image_key"
+    image_kind = "printers"
+    image_attach_action = "printing.printer_image_attached"
+    image_clear_action = "printing.printer_image_cleared"
     actions = ["delete_safely"]
     list_display = ("name", "makerspace", "status", "is_active", "updated_at")
     list_filter = ("status", "is_active", "makerspace")
     search_fields = ("name", "model", "notes", "makerspace__name", "makerspace__slug")
-    readonly_fields = ("created_at", "updated_at")
+    readonly_fields = ("image_preview", "created_at", "updated_at")
     fields = (
         "makerspace",
         "name",
         "model",
         "status",
         "notes",
+        "image_preview",
+        "image_upload",
+        "clear_image",
         "is_active",
         "created_at",
         "updated_at",
@@ -53,6 +69,8 @@ class PrintPrinterAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
                 makerspace=printer.makerspace,
                 target=printer,
             )
+            if printer.image_key:
+                public_image_storage.delete_object(printer.image_key)
             printer.delete()
             success_count += 1
 

@@ -355,7 +355,11 @@ if PUBLIC_IMAGE_BASE_URL:
 CONTENT_SECURITY_POLICY = {
     "DIRECTIVES": {
         "default-src": ["'self'"],
-        "script-src": ["'self'", "'unsafe-inline'", _SWAGGER_CDN],
+        # 'wasm-unsafe-eval' lets the in-browser QR scanner instantiate the bundled
+        # zxing-wasm reader (the camera fallback on browsers without a native
+        # BarcodeDetector). It permits ONLY WebAssembly compilation, NOT arbitrary
+        # JS eval, so it is far narrower than 'unsafe-eval'.
+        "script-src": ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'", _SWAGGER_CDN],
         "style-src": ["'self'", "'unsafe-inline'", _SWAGGER_CDN],
         "img-src": ["'self'", "data:", _SWAGGER_CDN, *_PUBLIC_IMAGE_CSP_ORIGINS],
         "font-src": ["'self'", "data:", _SWAGGER_CDN],
@@ -401,6 +405,22 @@ SPECTACULAR_SETTINGS = {
         "hardening is enabled."
     ),
     "VERSION": "0.1.0",
+    "ENUM_NAME_OVERRIDES": {
+        "PrintRequestStatusEnum": [
+            ("pending", "Pending"),
+            ("accepted", "Accepted"),
+            ("printing", "Printing"),
+            ("completed", "Completed"),
+            ("collected", "Collected"),
+            ("rejected", "Rejected"),
+            ("failed", "Failed"),
+        ],
+        "QrPrintBatchStatusEnum": [
+            ("draft", "Draft"),
+            ("printed", "Printed"),
+            ("archived", "Archived"),
+        ],
+    },
     "SERVE_INCLUDE_SCHEMA": False,
     "SERVERS": [
         {"url": "http://localhost:8001", "description": "Local Docker backend"},

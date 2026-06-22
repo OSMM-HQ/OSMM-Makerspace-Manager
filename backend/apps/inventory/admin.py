@@ -3,8 +3,9 @@ from django.contrib import admin
 from django.contrib import messages
 from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.core.exceptions import ObjectDoesNotExist, ValidationError as DjangoValidationError
+from django.db import transaction
 from django.template.response import TemplateResponse
-from django.utils.safestring import mark_safe
+from django.urls import path
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from unfold.admin import ModelAdmin
 from unfold.contrib.filters.admin import (
@@ -15,10 +16,12 @@ from unfold.contrib.filters.admin import (
     RelatedDropdownFilter,
 )
 
-from apps.boxes.models import QrCode
-from apps.boxes.qr_render import render_qr_label_svg
+from apps.audit import services as audit
 from apps.inventory import availability
-from apps.inventory.models import Category, InventoryAsset, InventoryProduct
+from apps.inventory import admin_assets  # noqa: F401
+from apps.inventory.admin_bulk_import import bulk_import_view
+from apps.inventory.admin_image_uploads import PublicImageAdminForm, PublicImageAdminMixin
+from apps.inventory.models import Category, InventoryProduct
 from apps.operations import services as operations_services
 from apps.operations.serializers import AssetGenerateSerializer
 from config.admin_access import SuperuserOnlyModelAdmin
@@ -29,6 +32,16 @@ class InventoryQuantityAdjustmentForm(forms.Form):
     delta_damaged = forms.IntegerField(required=True)
     delta_lost = forms.IntegerField(required=True)
     reason = forms.CharField(required=True, widget=forms.Textarea)
+
+
+class NeedsFixQuantityForm(forms.Form):
+    quantity = forms.IntegerField(required=True, min_value=1)
+
+
+class InventoryProductAdminForm(PublicImageAdminForm):
+    class Meta:
+        model = InventoryProduct
+        fields = "__all__"
 
 
 @admin.register(Category)
@@ -42,8 +55,13 @@ class CategoryAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
 
 
 @admin.register(InventoryProduct)
-class InventoryProductAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
-    actions = ["generate_qr_assets", "adjust_quantities"]
+class InventoryProductAdmin(PublicImageAdminMixin, SuperuserOnlyModelAdmin, ModelAdmin):
+    form = InventoryProductAdminForm
+    image_field = "image_key"
+    image_kind = "items"
+    image_attach_action = "inventory.image_attached"
+    image_clear_action = "inventory.image_cleared"
+    actions = ["generate_qr_assets", "adjust_quantities", "repair_needs_fix", "scrap_needs_fix"]
     list_display = (
         "name",
         "category",
@@ -77,6 +95,19 @@ class InventoryProductAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     date_hierarchy = "updated_at"
     list_filter_submit = True
     list_per_page = 50
+    readonly_fields = ("image_preview",)
+
+    def get_urls(self):
+        return [
+            path(
+                "bulk-import/",
+                self.admin_site.admin_view(self.bulk_import_admin_view),
+                name="inventory_inventoryproduct_bulk_import",
+            ),
+        ] + super().get_urls()
+
+    def bulk_import_admin_view(self, request):
+        return bulk_import_view(self, request)
 
     @admin.action(description="Generate QR assets for selected inventory")
     def generate_qr_assets(self, request, queryset):
@@ -191,27 +222,75 @@ class InventoryProductAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
             )
         return None
 
+    @admin.action(description="Repair units from the needs-fix shelf")
+    def repair_needs_fix(self, request, queryset):
+        return self._needs_fix_action(
+            request,
+            queryset,
+            action_name="repair_needs_fix",
+            action_label="repair",
+            service=availability.repair_from_needs_fix,
+        )
 
-@admin.register(InventoryAsset)
-class InventoryAssetAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
-    list_display = ("asset_tag", "product", "makerspace", "box", "status", "updated_at")
-    list_filter = ("makerspace", "status")
-    search_fields = ("asset_tag", "serial_number", "product__name")
-    autocomplete_fields = ("makerspace", "product", "box")
-    list_select_related = ("makerspace", "product", "box")
-    readonly_fields = ("qr_preview",)
+    @admin.action(description="Scrap units from the needs-fix shelf")
+    def scrap_needs_fix(self, request, queryset):
+        return self._needs_fix_action(
+            request,
+            queryset,
+            action_name="scrap_needs_fix",
+            action_label="scrap",
+            service=availability.scrap_from_needs_fix,
+        )
 
-    def qr_preview(self, obj):
-        if not obj or not obj.pk:
-            return "(save first)"
-        qr = QrCode.objects.filter(
-            target_type=QrCode.TargetType.ASSET,
-            target_id=obj.pk,
-            makerspace=obj.makerspace,
-            status=QrCode.Status.ACTIVE,
-        ).first()
-        if not qr:
-            return "(no active QR)"
-        return mark_safe(render_qr_label_svg(qr.payload, obj.asset_tag))
+    def _needs_fix_action(self, request, queryset, *, action_name, action_label, service):
+        if queryset.count() != 1:
+            self.message_user(
+                request,
+                "Select exactly one inventory product.",
+                level=messages.ERROR,
+            )
+            return None
 
-    qr_preview.short_description = "QR preview"
+        product = queryset.first()
+        if "apply" not in request.POST:
+            context = {
+                **self.admin_site.each_context(request),
+                "title": f"{action_label.title()} needs-fix units",
+                "queryset": queryset,
+                "opts": self.model._meta,
+                "action_name": action_name,
+                "action_label": action_label,
+                "action_checkbox_name": ACTION_CHECKBOX_NAME,
+                "product": product,
+            }
+            return TemplateResponse(
+                request,
+                "admin/inventory/needs_fix_quantity.html",
+                context,
+            )
+
+        form = NeedsFixQuantityForm(request.POST)
+        if not form.is_valid():
+            self.message_user(request, form.errors, level=messages.ERROR)
+            return None
+
+        quantity = form.cleaned_data["quantity"]
+        try:
+            with transaction.atomic():
+                locked = service(product, quantity)
+                audit.record(
+                    request.user,
+                    f"inventory.needs_fix_{action_label}",
+                    makerspace=locked.makerspace,
+                    target=locked,
+                    meta={"quantity": quantity},
+                )
+        except availability.InsufficientStock as exc:
+            self.message_user(request, str(exc), level=messages.ERROR)
+        else:
+            self.message_user(
+                request,
+                f"{action_label.title()}ed {quantity} unit(s) for {locked}.",
+                level=messages.SUCCESS,
+            )
+        return None

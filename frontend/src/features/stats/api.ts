@@ -15,7 +15,15 @@ export type PublicStatsPrinting = {
     name: string;
     hours: number;
     completed: number;
+    image_url?: string | null;
   } | null;
+  per_printer: {
+    name: string;
+    jobs: number;
+    hours: number;
+    grams: number;
+    image_url?: string | null;
+  }[];
   grams_all_time: number;
   by_brand: { brand: string; grams: number }[];
   jobs: {

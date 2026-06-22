@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import { BarChart, DataState, PerMakerspaceTables, PieChart, ReportTable, StatCards } from "./OperationsReportsParts";
+import { PrinterHoursTable, PrinterOutcomesTable } from "./OperationsReportsPrintingTables";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 
 export type PrintingReport = {
@@ -14,6 +15,7 @@ export type PrintingReport = {
   printer_hours: {
     printer_id: number;
     printer_name: string;
+    image_url?: string | null;
     completed_requests: number;
     hours: number;
     makerspace_id?: number;
@@ -21,6 +23,7 @@ export type PrintingReport = {
   printer_outcomes: {
     printer_id: number;
     printer_name: string;
+    image_url?: string | null;
     completed: number;
     failed: number;
     grams_used: number;
@@ -162,37 +165,11 @@ export function PrintingReportSection({
           <div className="grid gap-4 xl:grid-cols-2">
             <div>
               <h3 className="mb-2 text-sm font-semibold text-ink">Printer hours</h3>
-              <ReportTable
-                data={{
-                  rows: [
-                    aggregate
-                      ? ["makerspace_id", "printer", "completed_requests", "hours"]
-                      : ["printer", "completed_requests", "hours"],
-                    ...(printing.data?.printer_hours ?? []).map((row) =>
-                      aggregate
-                        ? [row.makerspace_id ?? "", row.printer_name, row.completed_requests, row.hours]
-                        : [row.printer_name, row.completed_requests, row.hours],
-                    ),
-                  ],
-                }}
-              />
+              <PrinterHoursTable rows={printing.data?.printer_hours ?? []} aggregate={aggregate} />
             </div>
             <div>
               <h3 className="mb-2 text-sm font-semibold text-ink">Printer outcomes (success / fail / grams)</h3>
-              <ReportTable
-                data={{
-                  rows: [
-                    aggregate
-                      ? ["makerspace_id", "printer", "completed", "failed", "grams_used"]
-                      : ["printer", "completed", "failed", "grams_used"],
-                    ...(printing.data?.printer_outcomes ?? []).map((row) =>
-                      aggregate
-                        ? [row.makerspace_id ?? "", row.printer_name, row.completed, row.failed, row.grams_used]
-                        : [row.printer_name, row.completed, row.failed, row.grams_used],
-                    ),
-                  ],
-                }}
-              />
+              <PrinterOutcomesTable rows={printing.data?.printer_outcomes ?? []} aggregate={aggregate} />
             </div>
             <div>
               <h3 className="mb-2 text-sm font-semibold text-ink">Filament used</h3>

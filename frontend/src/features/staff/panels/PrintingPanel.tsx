@@ -52,7 +52,7 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
 
   const createPrinter = useMutation({
     mutationFn: () =>
-      printingRequest("/printing/manage/printers/", {
+      printingRequest<PrintPrinter>("/printing/manage/printers/", {
         method: "POST",
         body: JSON.stringify({
           makerspace: makerspace.id,
@@ -61,10 +61,14 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
           status: "active",
         }),
       }),
-    onSuccess: () => {
+    onSuccess: (created) => {
       setPrinterName("");
       setPrinterModel("");
       invalidatePrinting();
+      // Open the edit dialog for the just-created printer so a photo can be added
+      // straight away (the image uploader needs the printer id, which only exists
+      // after creation — mirrors the inventory create→edit-to-add-photo flow).
+      setEditingPrinter(created);
     },
   });
 
@@ -179,6 +183,7 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
             {createPrinter.isPending ? "Adding..." : "Add printer"}
           </button>
         </div>
+        <p className="mt-1 text-xs text-muted">After adding, the edit dialog opens so you can upload a printer photo.</p>
         <ErrorText message={printers.error instanceof Error ? printers.error.message : undefined} />
         <ErrorText message={createPrinter.error instanceof Error ? createPrinter.error.message : undefined} />
         <ErrorText message={deletePrinter.error instanceof Error ? deletePrinter.error.message : undefined} />
@@ -230,6 +235,7 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
         error={updatePrinter.error instanceof Error ? updatePrinter.error.message : undefined}
         onClose={() => setEditingPrinter(null)}
         onSubmit={(payload) => editingPrinter && updatePrinter.mutate({ id: editingPrinter.id, payload })}
+        onImageChanged={invalidatePrinting}
       />
       <SpoolEditDialog
         spool={editingSpool}

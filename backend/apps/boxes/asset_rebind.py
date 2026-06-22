@@ -1,13 +1,12 @@
 from django.db import IntegrityError, transaction
 from rest_framework.exceptions import PermissionDenied, ValidationError
-from rest_framework.response import Response
 
 from apps.accounts import rbac
 from apps.accounts.models import User
 from apps.audit import services as audit
 from apps.boxes.exceptions import Conflict
 from apps.boxes.models import QrCode, QrScanEvent
-from apps.boxes.serializers import QrCodeSerializer, qr_target_payload
+from apps.boxes.rebind_results import QrRebindResult
 from apps.hardware_requests.models import HardwareRequest, PublicToolLoan
 from apps.hardware_requests.asset_link_models import HardwareRequestItemAsset
 from apps.hardware_requests.self_checkout_workflow import qr_has_active_loan
@@ -130,7 +129,7 @@ def move_asset_across_makerspaces(
             "new_tag": final_tag,
         },
     )
-    return Response({"qr": QrCodeSerializer(qr).data, "target": qr_target_payload(qr)})
+    return QrRebindResult(qr=qr)
 
 
 def _require_transfer_permission(user, source_makerspace_id, dest_makerspace_id):

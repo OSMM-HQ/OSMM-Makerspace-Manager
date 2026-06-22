@@ -75,6 +75,7 @@ def _project_printing(report):
         "hours_all_time": _float(sum(row.get("hours") or 0 for row in printer_hours)),
         "hours_this_month": 0.0,
         "busiest_printer": _public_printer_row(busiest),
+        "per_printer": _per_printer(report),
         "grams_all_time": _float(report.get("total_grams_used")),
         "by_brand": [
             {"brand": row.get("brand") or "Unbranded", "grams": _float(row.get("grams_used"))}
@@ -96,6 +97,31 @@ def _project_printing(report):
     }
 
 
+def _per_printer(report):
+    hours_by_printer = {
+        row.get("printer_id"): row for row in report.get("printer_hours") or []
+    }
+    outcomes_by_printer = {
+        row.get("printer_id"): row for row in report.get("printer_outcomes") or []
+    }
+    printer_ids = set(hours_by_printer) | set(outcomes_by_printer)
+    rows = []
+    for printer_id in printer_ids:
+        hours_row = hours_by_printer.get(printer_id) or {}
+        outcome_row = outcomes_by_printer.get(printer_id) or {}
+        rows.append(
+            {
+                "name": hours_row.get("printer_name") or outcome_row.get("printer_name") or "",
+                "jobs": outcome_row.get("completed") or 0,
+                "hours": _float(hours_row.get("hours")),
+                "grams": _float(outcome_row.get("grams_used")),
+                "image_url": hours_row.get("image_url") or outcome_row.get("image_url"),
+            }
+        )
+    rows.sort(key=lambda row: (-row["jobs"], -row["grams"], -row["hours"], row["name"]))
+    return rows
+
+
 def _public_printer_row(row):
     if row is None:
         return None
@@ -103,6 +129,7 @@ def _public_printer_row(row):
         "name": row.get("printer_name") or "",
         "hours": _float(row.get("hours")),
         "completed": row.get("completed_requests") or 0,
+        "image_url": row.get("image_url"),
     }
 
 

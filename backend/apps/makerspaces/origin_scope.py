@@ -161,6 +161,7 @@ _PRINT_ACTIONS = {
 _MODEL_LOOKUPS = {
     "admin-inventory-detail": ("inventory.InventoryProduct", "makerspace_id"),
     "admin-inventory-image": ("inventory.InventoryProduct", "makerspace_id"),
+    "admin-printer-image": ("printing.PrintPrinter", "makerspace_id"),
     "admin-inventory-adjust-quantity": ("inventory.InventoryProduct", "makerspace_id"),
     "admin-inventory-lending-history": ("inventory.InventoryProduct", "makerspace_id"),
     "admin-needs-fix-action": ("inventory.InventoryProduct", "makerspace_id"),

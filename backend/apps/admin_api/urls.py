@@ -12,6 +12,7 @@ from apps.admin_api.views_notification_recipients import NotificationRecipientsV
 from apps.admin_api.views_notification_rules import NotificationRulesView
 from apps.admin_api.views_platform import PlatformEmailSettingsView
 from apps.makerspaces.models import MakerspaceMembership
+from apps.printing.views_printer_image import PrinterImageView
 
 urlpatterns = [
     path(
@@ -46,6 +47,11 @@ urlpatterns = [
         "inventory/<int:pk>/image",
         views.InventoryProductImageView.as_view(),
         name="admin-inventory-image",
+    ),
+    path(
+        "printing/printers/<int:pk>/image",
+        PrinterImageView.as_view(),
+        name="admin-printer-image",
     ),
     path(
         "inventory/needs-fix",

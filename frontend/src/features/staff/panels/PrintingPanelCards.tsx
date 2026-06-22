@@ -6,6 +6,7 @@ import {
   type PrintRequest,
   printingRequest,
 } from "./PrintingPanelParts";
+import { ImageThumbnail } from "../../../components/ui/ImageThumbnail";
 
 export function PrinterCard({
   printer,
@@ -21,9 +22,12 @@ export function PrinterCard({
   return (
     <div className="min-w-0 rounded-md border border-line bg-surface p-3">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
+        <div className="flex min-w-0 items-start gap-3">
+          <ImageThumbnail src={printer.image_url} alt={printer.name} className="h-14 w-14" />
+          <div className="min-w-0">
           <h3 className="break-words font-semibold text-ink">{printer.name}</h3>
           <p className="break-words text-xs text-muted">{printer.model || "No model"}</p>
+          </div>
         </div>
         <span className={`rounded-md px-2 py-1 text-xs font-semibold ${printer.is_free ? "bg-success/15 text-success-ink" : "bg-warn/15 text-warn-ink"}`}>
           {printer.is_free ? "Free" : "Busy"}

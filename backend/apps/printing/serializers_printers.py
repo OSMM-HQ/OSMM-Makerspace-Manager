@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.inventory import public_image_storage
 from apps.makerspaces.models import Makerspace
 from apps.printing.models import PrintPrinter, PrintRequest
 from apps.printing.serializers_spools import FilamentSpoolSummarySerializer
@@ -9,6 +10,7 @@ class PrintPrinterSerializer(serializers.ModelSerializer):
     makerspace = serializers.IntegerField(source="makerspace_id")
     active_spool = serializers.SerializerMethodField()
     current_request = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
     is_free = serializers.SerializerMethodField()
     pending_estimated_minutes = serializers.SerializerMethodField()
     estimated_spool_remaining_after_queue_grams = serializers.SerializerMethodField()
@@ -22,9 +24,11 @@ class PrintPrinterSerializer(serializers.ModelSerializer):
             "model",
             "status",
             "notes",
+            "image_url",
             "is_active",
             "active_spool",
             "current_request",
+            "image_url",
             "is_free",
             "pending_estimated_minutes",
             "estimated_spool_remaining_after_queue_grams",
@@ -66,6 +70,9 @@ class PrintPrinterSerializer(serializers.ModelSerializer):
         if "makerspace_id" in validated_data:
             instance.makerspace_id = validated_data.pop("makerspace_id")
         return super().update(instance, validated_data)
+
+    def get_image_url(self, obj) -> str | None:
+        return public_image_storage.public_url(obj.image_key) or None
 
     def _active_spool_obj(self, obj):
         if hasattr(obj, "_active_spools"):

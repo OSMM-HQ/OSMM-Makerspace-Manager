@@ -8,8 +8,10 @@ from django.contrib.auth.models import Group
 from django.template.response import TemplateResponse
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
+from rest_framework.exceptions import APIException
 
 from apps.accounts.models import User
+from apps.admin_api.services_user_access import reset_user_password
 from apps.audit import services as audit
 from apps.makerspaces.models import MakerspaceMembership
 from config.admin_access import SuperuserOnlyModelAdmin
@@ -37,7 +39,7 @@ class MakerspaceMembershipInline(TabularInline):
 
 @admin.register(User)
 class UserAdmin(SuperuserOnlyModelAdmin, DjangoUserAdmin, ModelAdmin):
-    actions = ["restrict_access", "restore_access"]
+    actions = ["restrict_access", "restore_access", "reset_password_selected"]
     form = UserChangeForm
     add_form = UserCreationForm
     change_password_form = AdminPasswordChangeForm
@@ -62,6 +64,32 @@ class UserAdmin(SuperuserOnlyModelAdmin, DjangoUserAdmin, ModelAdmin):
         "makerspace_memberships__makerspace",
     )
     inlines = (MakerspaceMembershipInline,)
+
+    @admin.action(description="Reset selected user passwords")
+    def reset_password_selected(self, request, queryset):
+        succeeded, skipped = 0, 0
+        for user in queryset:
+            try:
+                result = reset_user_password(request.user, user.pk)
+            except APIException as exc:
+                skipped += 1
+                self.message_user(
+                    request,
+                    f"{user.username}: {_api_exception_message(exc)}",
+                    level=messages.WARNING,
+                )
+            else:
+                succeeded += 1
+                self.message_user(
+                    request,
+                    f"{result.user.username}: {result.temporary_password}",
+                    level=messages.SUCCESS,
+                )
+        self.message_user(
+            request,
+            f"Reset {succeeded} password(s); skipped {skipped}.",
+            level=messages.SUCCESS if succeeded else messages.WARNING,
+        )
 
     @admin.action(description="Restrict selected users")
     def restrict_access(self, request, queryset):
@@ -132,3 +160,12 @@ admin.site.unregister(Group)
 @admin.register(Group)
 class GroupAdmin(SuperuserOnlyModelAdmin, DjangoGroupAdmin, ModelAdmin):
     pass
+
+
+def _api_exception_message(exc):
+    detail = getattr(exc, "detail", None)
+    if isinstance(detail, list):
+        return "; ".join(str(item) for item in detail)
+    if isinstance(detail, dict):
+        return "; ".join(f"{key}: {value}" for key, value in detail.items())
+    return str(detail or exc)

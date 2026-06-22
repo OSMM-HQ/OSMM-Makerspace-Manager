@@ -59,12 +59,13 @@ def test_stocktake_admin_complete_and_approve_actions_transition_status():
     assert stocktake.approved_at is not None
 
 
-def test_stock_transfer_admin_add_is_forbidden():
+def test_stock_transfer_admin_add_is_enabled_for_custom_service_flow():
     client = admin_client(make_superadmin("ops-transfer-admin-super"))
 
     response = client.get(reverse("admin:operations_stocktransfer_add"))
 
-    assert response.status_code == 403
+    assert response.status_code == 200
+    assert b"Create stock transfer" in response.content
 
 
 def test_generate_qr_assets_admin_action_creates_assets_and_qr_codes():

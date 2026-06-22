@@ -36,7 +36,7 @@ def _public_client():
 
 
 def build_object_key(kind, makerspace_id, ext):
-    if kind not in {"items", "makerspace"}:
+    if kind not in {"items", "makerspace", "printers"}:
         raise ValueError("Invalid public image kind.")
     return f"{kind}/{makerspace_id}/{uuid.uuid4().hex}{ext}"
 
@@ -55,6 +55,18 @@ def delete_object(object_key):
         )
     except (BotoCoreError, ClientError):
         logger.exception("Failed to delete public image object %s.", object_key)
+
+
+def put_bytes(object_key, data, content_type):
+    try:
+        _client().put_object(
+            Bucket=settings.PUBLIC_IMAGE_BUCKET,
+            Key=object_key,
+            Body=data,
+            ContentType=content_type,
+        )
+    except (BotoCoreError, ClientError) as exc:
+        raise StorageUnavailable from exc
 
 
 def copy_object(source_key, dest_key):

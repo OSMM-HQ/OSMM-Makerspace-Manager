@@ -6,6 +6,7 @@ from rest_framework.response import Response
 
 from apps.accounts import rbac
 from apps.audit import services as audit
+from apps.inventory import public_image_storage
 from apps.makerspaces.guards import require_module
 from apps.printing.models import FilamentSpool, PrintPrinter, PrintRequest
 from apps.printing.permissions import CanManagePrinting
@@ -117,6 +118,8 @@ class ManagedPrinterDetailView(ManagedPrinterMixin, generics.RetrieveUpdateDestr
             makerspace=printer.makerspace,
             target=printer,
         )
+        if printer.image_key:
+            public_image_storage.delete_object(printer.image_key)
         printer.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 

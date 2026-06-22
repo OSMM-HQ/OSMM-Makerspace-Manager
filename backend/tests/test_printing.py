@@ -772,6 +772,7 @@ def test_printer_outcomes_in_report():
         {
             "printer_id": printer.id,
             "printer_name": "Prusa MK4",
+            "image_url": None,
             "completed": 1,
             "failed": 1,
             "grams_used": 140.0,
@@ -1235,7 +1236,8 @@ def test_print_email_templates_render_subject_and_branded_html(
     html, mimetype = message.alternatives[0]
     assert mimetype == "text/html"
     assert "Makerspace" in html
-    assert "background:#111111;color:#FBB905" in html
+    # Branded email header (pastel/OSMM theme: charcoal header, white wordmark).
+    assert "background:#16161c;color:#ffffff" in html
 
 
 def test_printbucket_admin_changelist_is_superadmin_only():

@@ -153,6 +153,7 @@ def test_makerspace_printing_report_aggregates_totals_hours_filament_and_periods
         {
             "printer_id": printer.id,
             "printer_name": "Prusa MK4",
+            "image_url": None,
             "completed_requests": 3,
             "hours": 3.0,
         }
@@ -230,6 +231,7 @@ def test_printing_report_keeps_estimate_based_request_grams_separate_from_spool_
         {
             "printer_id": printer.id,
             "printer_name": "Estimate rig",
+            "image_url": None,
             "completed": 1,
             "failed": 0,
             "grams_used": 150.0,

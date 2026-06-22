@@ -5,7 +5,8 @@ from django.db.models.functions import Coalesce, TruncDay, TruncHour, TruncMonth
 
 from apps.accounts import rbac
 from apps.hardware_requests.display import requester_label_for_user
-from apps.printing.models import FilamentSpool, ManualPrintLog, PrintRequest
+from apps.inventory import public_image_storage
+from apps.printing.models import FilamentSpool, ManualPrintLog, PrintPrinter, PrintRequest
 
 
 STATUS_KEYS = {
@@ -38,20 +39,24 @@ def build_printing_report(makerspace_id=None, *, include_makerspace=False):
             spools = spools.exclude(makerspace_id__in=excluded)
             manual_logs = manual_logs.exclude(makerspace_id__in=excluded)
 
+    printer_hours = _printer_hours(requests, include_makerspace, manual_logs)
+    printer_outcomes = _printer_outcomes(
+        requests,
+        include_makerspace,
+        manual_logs,
+    )
+    _attach_printer_image_urls(printer_hours, printer_outcomes)
+
     return {
         "totals": _totals(requests),
         # Printer hours combine completed-request estimated minutes AND manual-log
         # durations so ad-hoc prints logged manually are not missing from the hours.
-        "printer_hours": _printer_hours(requests, include_makerspace, manual_logs),
+        "printer_hours": printer_hours,
         # Per-printer activity axis: completed request grams are estimate-based
         # because workflow.complete reconciles filament_grams_used from
         # estimated_filament_grams. ManualPrintLog grams are added here as
         # printer activity, not as another spool-delta source.
-        "printer_outcomes": _printer_outcomes(
-            requests,
-            include_makerspace,
-            manual_logs,
-        ),
+        "printer_outcomes": printer_outcomes,
         # Per-spool inventory axis: grams are initial-minus-remaining deltas.
         # Manual logs already affect this when they decrement remaining weight.
         "filament_used": _filament_used(spools, include_makerspace),
@@ -142,6 +147,24 @@ def _printer_hours(requests, include_makerspace, manual_logs=None):
     for item in data:
         item["hours"] = round(item.pop("_minutes") / 60, 1)
     return data
+
+
+def _attach_printer_image_urls(*row_groups):
+    printer_ids = {
+        row.get("printer_id")
+        for rows in row_groups
+        for row in rows
+        if row.get("printer_id")
+    }
+    if not printer_ids:
+        return
+    urls = {
+        printer.id: public_image_storage.public_url(printer.image_key) or None
+        for printer in PrintPrinter.objects.filter(id__in=printer_ids).only("id", "image_key")
+    }
+    for rows in row_groups:
+        for row in rows:
+            row["image_url"] = urls.get(row.get("printer_id"))
 
 
 def _printer_outcomes(requests, include_makerspace, manual_logs=None):

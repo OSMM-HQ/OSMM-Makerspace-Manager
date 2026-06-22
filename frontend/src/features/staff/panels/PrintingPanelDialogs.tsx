@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { Modal } from "../../../components/ui/Modal";
+import { ImageUploader } from "../ImageUploader";
 import {
   ErrorText,
   type FilamentSpool,
@@ -14,12 +15,14 @@ export function PrinterEditDialog({
   printer,
   pending,
   error,
+  onImageChanged,
   onClose,
   onSubmit,
 }: {
   printer: PrintPrinter | null;
   pending: boolean;
   error?: string;
+  onImageChanged: () => void;
   onClose: () => void;
   onSubmit: (payload: PrinterPayload) => void;
 }) {
@@ -30,6 +33,16 @@ export function PrinterEditDialog({
   return (
     <Modal open={Boolean(printer)} onClose={onClose} title="Edit printer" footer={<DialogActions pending={pending} disabled={!form.name.trim()} submitLabel="Save printer" onCancel={onClose} onSubmit={() => onSubmit(form)} />}>
       <PrinterFields form={form} onChange={setForm} />
+      {printer ? (
+        <div className="border-t border-line pt-3">
+          <ImageUploader
+            endpoint={`/admin/printing/printers/${printer.id}/image`}
+            currentUrl={printer.image_url}
+            label="Printer photo"
+            onChanged={onImageChanged}
+          />
+        </div>
+      ) : null}
       <ErrorText message={error} />
     </Modal>
   );

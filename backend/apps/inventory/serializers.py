@@ -85,6 +85,15 @@ class PublicStatsBusiestPrinterSerializer(serializers.Serializer):
     name = serializers.CharField(read_only=True)
     hours = serializers.FloatField(read_only=True)
     completed = serializers.IntegerField(read_only=True)
+    image_url = serializers.URLField(read_only=True, allow_null=True)
+
+
+class PublicStatsPrinterSerializer(serializers.Serializer):
+    name = serializers.CharField(read_only=True)
+    jobs = serializers.IntegerField(read_only=True)
+    hours = serializers.FloatField(read_only=True)
+    grams = serializers.FloatField(read_only=True)
+    image_url = serializers.URLField(read_only=True, allow_null=True)
 
 
 class PublicStatsBrandSerializer(serializers.Serializer):
@@ -127,6 +136,7 @@ class PublicStatsPrintingSerializer(serializers.Serializer):
         required=False,
         allow_null=True,
     )
+    per_printer = PublicStatsPrinterSerializer(many=True, read_only=True)
     grams_all_time = serializers.FloatField(read_only=True)
     by_brand = PublicStatsBrandSerializer(many=True, read_only=True)
     jobs = PublicStatsJobsSerializer(read_only=True)

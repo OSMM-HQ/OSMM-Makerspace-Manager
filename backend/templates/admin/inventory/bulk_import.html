@@ -1,0 +1,45 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <form method="post" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    {{ form.as_p }}
+    <div class="submit-row">
+      <input type="submit" value="Preview import" class="default">
+    </div>
+  </form>
+
+  {% if preview %}
+    <h2>Preview</h2>
+    <p>
+      Total: {{ preview.summary.total }},
+      create: {{ preview.summary.create }},
+      update: {{ preview.summary.update }},
+      errors: {{ preview.summary.errors }}
+    </p>
+    {% if preview.errors %}
+      <ul>
+        {% for row in preview.errors %}
+          <li>Row {{ row.row }}: {{ row.errors }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+    {% if preview.valid %}
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="apply" value="1">
+        <div class="submit-row">
+          <input type="submit" value="Apply import" class="default">
+        </div>
+      </form>
+    {% endif %}
+  {% elif stored_preview %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="apply" value="1">
+      <div class="submit-row">
+        <input type="submit" value="Apply previous preview" class="default">
+      </div>
+    </form>
+  {% endif %}
+{% endblock %}

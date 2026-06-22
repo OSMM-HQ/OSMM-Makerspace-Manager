@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { staffRequest } from "../../lib/api";
 
@@ -45,6 +45,13 @@ export function ImageUploader({
   const previewBox = shape === "wide" ? "h-20 w-44" : "h-20 w-20";
   const [status, setStatus] = useState<"idle" | "uploading" | "error">("idle");
   const [error, setError] = useState("");
+  // Drive the preview from local state so an upload/remove reflects immediately,
+  // even though the parent's `currentUrl` (a snapshot) only refreshes on its next
+  // refetch. Re-sync whenever the parent does send a new URL.
+  const [preview, setPreview] = useState<string | null>(currentUrl ?? null);
+  useEffect(() => {
+    setPreview(currentUrl ?? null);
+  }, [currentUrl]);
 
   async function handleFile(file: File) {
     setStatus("uploading");
@@ -80,6 +87,7 @@ export function ImageUploader({
         body: JSON.stringify({ object_key: presigned.object_key }),
       });
       setStatus("idle");
+      setPreview(URL.createObjectURL(file));
       onChanged();
     } catch (err) {
       setStatus("error");
@@ -93,6 +101,7 @@ export function ImageUploader({
     try {
       await staffRequest(endpoint, { method: "DELETE" });
       setStatus("idle");
+      setPreview(null);
       onChanged();
     } catch (err) {
       setStatus("error");
@@ -105,9 +114,9 @@ export function ImageUploader({
       <p className="font-mono text-xs uppercase tracking-tight text-muted">{label}</p>
       <div className="flex items-center gap-3">
         <div className={`${previewBox} shrink-0 overflow-hidden rounded-lg border border-line bg-surface`}>
-          {currentUrl ? (
+          {preview ? (
             <img
-              src={currentUrl}
+              src={preview}
               alt={label}
               className={`h-full w-full ${fit === "contain" ? "object-contain" : "object-cover"}`}
             />
@@ -128,7 +137,7 @@ export function ImageUploader({
             }}
             className="block w-full text-sm text-muted file:mr-3 file:rounded-lg file:border file:border-line file:bg-accent file:px-3 file:py-1.5 file:font-mono file:text-xs file:font-semibold file:text-on-accent"
           />
-          {currentUrl ? (
+          {preview ? (
             <button
               type="button"
               className="font-mono text-xs uppercase text-danger hover:underline disabled:opacity-50"

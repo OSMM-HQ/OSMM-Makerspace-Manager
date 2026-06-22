@@ -1,6 +1,6 @@
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework import generics, status
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from rest_framework import generics, serializers, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -11,12 +11,17 @@ from apps.printing.emails import queue_staff_print_email
 from apps.printing.models import PrintRequest, PrintRequestFile
 from apps.printing.permissions import CanManagePrinting, IsActiveRequester
 from apps.printing.serializers import (
+    ErrorSerializer,
     ManagedPrintRequestSerializer,
     PrintRequestCreateSerializer,
     PrintRequestSerializer,
 )
 from apps.printing.storage import print_get_url
 from apps.printing.views_common import ERROR_RESPONSES, _int_query_param
+
+
+class PrintFileUrlResponseSerializer(serializers.Serializer):
+    url = serializers.URLField()
 
 
 @extend_schema(tags=["Printing"], summary="List or create personal print requests")
@@ -147,6 +152,15 @@ class ManagedPrintRequestDetailView(
 class ManagedPrintFileUrlView(APIView):
     permission_classes = [CanManagePrinting]
 
+    @extend_schema(
+        responses={
+            200: PrintFileUrlResponseSerializer,
+            503: OpenApiResponse(
+                ErrorSerializer, description="Storage is unavailable."
+            ),
+            **ERROR_RESPONSES,
+        }
+    )
     def get(self, request, pk):
         # Only files attached to a submitted request are exposable; unattached staging
         # rows (a public user uploaded but never submitted) have print_request=None and

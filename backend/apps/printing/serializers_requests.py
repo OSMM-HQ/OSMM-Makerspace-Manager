@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.hardware_requests.display import label_from_candidates
@@ -47,6 +48,13 @@ class PrintRequestCreateSerializer(serializers.ModelSerializer):
         )
 
 
+class PrintRequestFileSummarySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    kind = serializers.CharField()
+    content_type = serializers.CharField()
+    size_bytes = serializers.IntegerField()
+
+
 class PrintRequestSerializer(serializers.ModelSerializer):
     bucket = PrintBucketSerializer(read_only=True)
     printer = PrintPrinterSerializer(read_only=True)
@@ -64,6 +72,7 @@ class PrintRequestSerializer(serializers.ModelSerializer):
     reprint_of = serializers.IntegerField(source="reprint_of_id", read_only=True)
     files = serializers.SerializerMethodField()
 
+    @extend_schema_field(PrintRequestFileSummarySerializer(many=True))
     def get_files(self, obj):
         files = list(obj.files.all())
         if not files and obj.reprint_of_id:

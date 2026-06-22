@@ -24,6 +24,7 @@ export type PrintPrinter = {
   name: string;
   model: string;
   status: string;
+  image_url?: string | null;
   is_active: boolean;
   active_spool: FilamentSpool | null;
   current_request: { id: number; title: string; estimated_minutes: number } | null;

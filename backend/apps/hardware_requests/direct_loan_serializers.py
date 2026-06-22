@@ -52,6 +52,7 @@ class DirectLoanSerializer(PublicToolLoanSerializer):
     source = serializers.CharField(read_only=True)
     issued_by = serializers.SerializerMethodField()
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_container_label(self, obj):
         return obj.container.label if obj.container else None
 

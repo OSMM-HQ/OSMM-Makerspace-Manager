@@ -169,6 +169,7 @@ def assert_public_stats_schema(payload):
             "hours_all_time",
             "hours_this_month",
             "busiest_printer",
+            "per_printer",
             "grams_all_time",
             "by_brand",
             "jobs",
@@ -179,7 +180,12 @@ def assert_public_stats_schema(payload):
                 "name",
                 "hours",
                 "completed",
+                "image_url",
             }
+        assert all(
+            set(row) == {"name", "jobs", "hours", "grams", "image_url"}
+            for row in payload["printing"]["per_printer"]
+        )
         assert all(set(row) == {"brand", "grams"} for row in payload["printing"]["by_brand"])
         assert set(payload["printing"]["jobs"]) == {"completed", "status_counts", "queue"}
         assert set(payload["printing"]["jobs"]["status_counts"]) == {
@@ -280,7 +286,28 @@ def test_build_public_stats_returns_exact_schema(monkeypatch):
                     "printer_name": "Prusa MK4",
                     "hours": 6.5,
                     "completed_requests": 3,
+                    "image_url": "http://cdn.test/prusa.png",
                 }
+            ],
+            "printer_outcomes": [
+                {
+                    "printer_id": 10,
+                    "printer_name": "Prusa MK4",
+                    "completed": 3,
+                    "failed": 1,
+                    "grams_used": 200.25,
+                    "manual_logs": 0,
+                    "image_url": "http://cdn.test/prusa.png",
+                },
+                {
+                    "printer_id": 11,
+                    "printer_name": "Manual Rig",
+                    "completed": 0,
+                    "failed": 0,
+                    "grams_used": 20,
+                    "manual_logs": 1,
+                    "image_url": None,
+                },
             ],
             "total_grams_used": 420.25,
             "filament_by_brand": [
@@ -307,12 +334,38 @@ def test_build_public_stats_returns_exact_schema(monkeypatch):
         "hours_all_time",
         "hours_this_month",
         "busiest_printer",
+        "per_printer",
         "grams_all_time",
         "by_brand",
         "jobs",
         "filament_trend",
     }
-    assert set(stats["printing"]["busiest_printer"]) == {"name", "hours", "completed"}
+    assert set(stats["printing"]["busiest_printer"]) == {
+        "name",
+        "hours",
+        "completed",
+        "image_url",
+    }
+    assert stats["printing"]["per_printer"] == [
+        {
+            "name": "Prusa MK4",
+            "jobs": 3,
+            "hours": 6.5,
+            "grams": 200.25,
+            "image_url": "http://cdn.test/prusa.png",
+        },
+        {
+            "name": "Manual Rig",
+            "jobs": 0,
+            "hours": 0.0,
+            "grams": 20.0,
+            "image_url": None,
+        },
+    ]
+    assert all(
+        set(row) == {"name", "jobs", "hours", "grams", "image_url"}
+        for row in stats["printing"]["per_printer"]
+    )
     assert set(stats["printing"]["by_brand"][0]) == {"brand", "grams"}
     assert set(stats["printing"]["jobs"]) == {"completed", "status_counts", "queue"}
     assert set(stats["printing"]["jobs"]["status_counts"]) == {
@@ -529,6 +582,72 @@ def test_printing_hours_this_month_uses_activity_dates_not_request_creation():
     assert stats["printing"]["hours_this_month"] == 2.5
 
 
+def test_public_stats_per_printer_orders_and_strips_internal_keys():
+    makerspace = make_space("stats-printer-leaderboard", printing=True)
+    bucket = PrintBucket.objects.create(makerspace=makerspace, name="PLA")
+    requester = make_user("printer-leaderboard-requester")
+    now = timezone.now()
+
+    def completed_print(name, minutes, grams):
+        printer = PrintPrinter.objects.create(makerspace=makerspace, name=name)
+        PrintRequest.objects.create(
+            bucket=bucket,
+            requester=requester,
+            title=f"{name} job",
+            status=PrintRequest.Status.COMPLETED,
+            printer=printer,
+            estimated_minutes=minutes,
+            filament_grams_used=Decimal(str(grams)),
+            completed_at=now,
+        )
+        return printer
+
+    completed_print("Beta", 60, 80)
+    completed_print("Gamma", 180, 50)
+    completed_print("Alpha", 120, 50)
+    completed_print("Delta", 120, 50)
+    manual_only = PrintPrinter.objects.create(makerspace=makerspace, name="Manual Only")
+    ManualPrintLog.objects.create(
+        makerspace=makerspace,
+        printer=manual_only,
+        grams_used=Decimal("40.00"),
+        duration_minutes=90,
+        title="Manual-only print",
+    )
+
+    rows = build_public_stats(makerspace)["printing"]["per_printer"]
+
+    assert [row["name"] for row in rows] == [
+        "Beta",
+        "Gamma",
+        "Alpha",
+        "Delta",
+        "Manual Only",
+    ]
+    assert rows[0] == {
+        "name": "Beta",
+        "jobs": 1,
+        "hours": 1.0,
+        "grams": 80.0,
+        "image_url": None,
+    }
+    assert rows[2] == {
+        "name": "Alpha",
+        "jobs": 1,
+        "hours": 2.0,
+        "grams": 50.0,
+        "image_url": None,
+    }
+    assert rows[-1] == {
+        "name": "Manual Only",
+        "jobs": 0,
+        "hours": 1.5,
+        "grams": 40.0,
+        "image_url": None,
+    }
+    assert all(set(row) == {"name", "jobs", "hours", "grams", "image_url"} for row in rows)
+
+
 def test_self_checkout_and_direct_handout_borrowers_appear_in_current_loans():
     makerspace = make_space("stats-current-loans")
     self_product = make_product(
@@ -611,6 +730,18 @@ def test_public_stats_endpoint_returns_200_with_full_schema(monkeypatch):
                     "printer_name": "Voron",
                     "hours": 4.25,
                     "completed_requests": 2,
+                    "image_url": None,
+                }
+            ],
+            "printer_outcomes": [
+                {
+                    "printer_id": 42,
+                    "printer_name": "Voron",
+                    "completed": 2,
+                    "failed": 0,
+                    "grams_used": 150,
+                    "manual_logs": 0,
+                    "image_url": None,
                 }
             ],
             "total_grams_used": 200,
@@ -632,6 +763,7 @@ def test_public_stats_endpoint_returns_200_with_full_schema(monkeypatch):
         "name": "Voron",
         "hours": 4.25,
         "completed": 2,
+        "image_url": None,
     }
     assert response.data["hardware"]["library"] == {
         "currently_out_count": 2,

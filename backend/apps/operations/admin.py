@@ -2,10 +2,15 @@ from django.contrib import admin
 from django.contrib import messages
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.http import HttpResponse
+from django.shortcuts import redirect
 from rest_framework.exceptions import ValidationError as DRFValidationError
+from django.template.response import TemplateResponse
+from django.urls import path, reverse
 from unfold.admin import ModelAdmin, TabularInline
 
+from apps.makerspaces.guards import require_module
 from apps.operations import services
+from apps.operations.admin_forms import StockTransferAdminForm, StocktakeCountAdminForm
 from apps.operations.models import (
     InventoryAdjustment,
     QrPrintBatch,
@@ -39,7 +44,8 @@ class StockTransferLineInline(TabularInline):
 
 @admin.register(StockTransfer)
 class StockTransferAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
-    # Transfers are created by the API/React flow via services.apply_stock_transfer.
+    # Transfers are created by services.apply_stock_transfer; the admin add view
+    # must never fall through to Django's normal ORM save path.
     list_display = ("id", "makerspace", "source_container", "destination_container", "status", "created_at")
     list_filter = ("status", "makerspace")
     readonly_fields = (
@@ -57,14 +63,54 @@ class StockTransferAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     fields = readonly_fields
     inlines = (StockTransferLineInline,)
 
+    def get_urls(self):
+        return [
+            path(
+                "add/",
+                self.admin_site.admin_view(self.add_transfer_view),
+                name="operations_stocktransfer_add",
+            ),
+        ] + super().get_urls()
+
     def has_add_permission(self, request):
-        return False
+        return self._has_superuser_access(request)
 
     def has_change_permission(self, request, obj=None):
         return False
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+    def add_transfer_view(self, request):
+        form = StockTransferAdminForm(request.POST or None)
+        if request.method == "POST" and form.is_valid():
+            makerspace = form.cleaned_data["source_makerspace"]
+            try:
+                transfer = services.apply_stock_transfer(
+                    request.user,
+                    makerspace,
+                    form.service_payload(),
+                )
+            except (DRFValidationError, DjangoValidationError) as exc:
+                form.add_error(None, exc)
+            else:
+                self.message_user(
+                    request,
+                    f"Created stock transfer #{transfer.pk}.",
+                    level=messages.SUCCESS,
+                )
+                return redirect(reverse("admin:operations_stocktransfer_changelist"))
+
+        return TemplateResponse(
+            request,
+            "admin/operations/stock_transfer_add.html",
+            {
+                **self.admin_site.each_context(request),
+                "title": "Create stock transfer",
+                "opts": self.model._meta,
+                "form": form,
+            },
+        )
 
 
 class StocktakeLineInline(TabularInline):
@@ -101,6 +147,15 @@ class StocktakeSessionAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     list_filter = ("status", "makerspace")
     inlines = (StocktakeLineInline,)
 
+    def get_urls(self):
+        return [
+            path(
+                "<path:object_id>/count/",
+                self.admin_site.admin_view(self.count_line_view),
+                name="operations_stocktakesession_count",
+            ),
+        ] + super().get_urls()
+
     @admin.action(description="Complete selected stocktakes")
     def complete_selected(self, request, queryset):
         self._run_stocktake_action(request, queryset, services.complete_stocktake, "Completed")
@@ -125,6 +180,54 @@ class StocktakeSessionAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
 
         if success_count:
             self.message_user(request, f"{success_label} {success_count} stocktake(s).", level=messages.SUCCESS)
+
+    def count_line_view(self, request, object_id):
+        stocktake = self.get_queryset(request).filter(pk=object_id).first()
+        if stocktake is None:
+            self.message_user(request, "Stocktake was not found.", level=messages.ERROR)
+            return redirect(reverse("admin:operations_stocktakesession_changelist"))
+        try:
+            require_module(stocktake.makerspace, "stocktake")
+        except DRFValidationError as exc:
+            self.message_user(request, exc.detail, level=messages.ERROR)
+            return redirect(reverse("admin:operations_stocktakesession_change", args=[stocktake.pk]))
+        if stocktake.status not in {StocktakeSession.Status.DRAFT, StocktakeSession.Status.COUNTING}:
+            self.message_user(
+                request,
+                "Count lines can only be added while a stocktake is draft or counting.",
+                level=messages.ERROR,
+            )
+            return redirect(reverse("admin:operations_stocktakesession_change", args=[stocktake.pk]))
+
+        form = StocktakeCountAdminForm(request.POST or None, stocktake=stocktake)
+        if request.method == "POST" and form.is_valid():
+            try:
+                line = services.add_stocktake_line(
+                    request.user,
+                    stocktake,
+                    form.cleaned_data["_validated_payload"],
+                )
+            except (DRFValidationError, DjangoValidationError) as exc:
+                form.add_error(None, exc)
+            else:
+                self.message_user(
+                    request,
+                    f"Counted stocktake line #{line.pk}.",
+                    level=messages.SUCCESS,
+                )
+                return redirect(reverse("admin:operations_stocktakesession_change", args=[stocktake.pk]))
+
+        return TemplateResponse(
+            request,
+            "admin/operations/stocktake_count.html",
+            {
+                **self.admin_site.each_context(request),
+                "title": "Count stocktake line",
+                "opts": self.model._meta,
+                "stocktake": stocktake,
+                "form": form,
+            },
+        )
 
 
 @admin.register(InventoryAdjustment)

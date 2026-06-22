@@ -1,5 +1,4 @@
 from django.shortcuts import get_object_or_404
-from django.utils import timezone
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -26,6 +25,7 @@ from apps.boxes.serializers import (
     qr_target_payload,
 )
 from apps.boxes.rebind import rebind_qr_target
+from apps.boxes.services import revoke_qr_code
 from apps.inventory.models import InventoryAsset, InventoryProduct
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.platform import module_enabled
@@ -230,18 +230,7 @@ class QrRevokeView(QrPermissionMixin, APIView):
     def post(self, request, pk, *args, **kwargs):
         qr = get_object_or_404(QrCode, pk=pk)
         self._require_qr(request.user, qr.makerspace_id)
-        if qr.status == QrCode.Status.REVOKED:
-            raise ValidationError("QR code is already revoked.")
-        from apps.hardware_requests.self_checkout_workflow import qr_has_active_loan
-
-        # Revoking now would strand the loan: the return flow only locks ACTIVE
-        # QRs, and a fresh active QR could be minted for the same target. Block it.
-        if qr_has_active_loan(qr.makerspace, qr):
-            raise ValidationError("Cannot revoke a QR code with an outstanding loan.")
-        qr.status = QrCode.Status.REVOKED
-        qr.revoked_at = timezone.now()
-        qr.save(update_fields=["status", "revoked_at", "updated_at"])
-        audit.record(request.user, "qr.revoked", makerspace=qr.makerspace, target=qr)
+        revoke_qr_code(request.user, qr)
         return Response(QrCodeSerializer(qr).data)
 
 
@@ -266,7 +255,13 @@ class QrRebindTargetView(APIView):
         from django.db import transaction
 
         with transaction.atomic():
-            return rebind_qr_target(request.user, pk, serializer.validated_data)
+            result = rebind_qr_target(request.user, pk, serializer.validated_data)
+        return Response(
+            {
+                "qr": QrCodeSerializer(result.qr).data,
+                "target": qr_target_payload(result.qr),
+            }
+        )
 
 
 def _allowed_scanner_actions(user, qr):

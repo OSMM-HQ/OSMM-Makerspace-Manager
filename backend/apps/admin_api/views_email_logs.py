@@ -1,4 +1,3 @@
-from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import serializers, status
@@ -8,9 +7,8 @@ from rest_framework.views import APIView
 
 from apps.accounts import rbac
 from apps.admin_api.permissions import IsActiveStaff
-from apps.audit import services as audit
-from apps.integrations.dispatch import _enqueue
 from apps.integrations.models import EmailLog
+from apps.integrations.services import EmailRetryError, retry_email_log
 from apps.makerspaces.models import Makerspace
 
 
@@ -103,25 +101,11 @@ class EmailLogRetryView(APIView):
         # The makerspace_id path segment gives the origin-scope guard tenant context
         # (so tenant-domain admins aren't 403'd); also pins the log to that makerspace.
         log = get_object_or_404(queryset, pk=pk, makerspace_id=makerspace_id)
-        if log.status != EmailLog.Status.FAILED:
+        try:
+            retry_email_log(request.user, log)
+        except EmailRetryError as exc:
             return Response(
-                {"detail": "Only failed emails can be retried."},
+                {"detail": str(exc)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if not log.text_body and not log.html_body:
-            return Response(
-                {"detail": "This email cannot be retried (no stored content)."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        log.status = EmailLog.Status.PENDING
-        log.error = ""
-        log.save(update_fields=["status", "error", "updated_at"])
-        audit.record(
-            request.user,
-            "email.retried",
-            makerspace=log.makerspace,
-            target=log,
-            meta={"to_email": log.to_email, "event": log.event, "stream": log.stream},
-        )
-        transaction.on_commit(lambda: _enqueue(log.pk))
         return Response(EmailLogSerializer(log).data)

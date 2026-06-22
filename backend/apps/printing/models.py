@@ -51,6 +51,7 @@ class PrintPrinter(models.Model):
         db_index=True,
     )
     notes = models.TextField(blank=True)
+    image_key = models.CharField(max_length=300, blank=True, default="")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

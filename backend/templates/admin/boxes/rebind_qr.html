@@ -1,0 +1,25 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<form method="post" action="{{ request.path }}">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="{{ action_name }}">
+  {% for obj in queryset %}
+    <input type="hidden" name="{{ action_checkbox_name }}" value="{{ obj.pk }}">
+  {% endfor %}
+
+  <fieldset class="module aligned">
+    {% for obj in queryset %}
+      <div class="form-row">
+        <label>QR:</label>
+        <div class="readonly">{{ obj.payload }} ({{ obj.target_type }} #{{ obj.target_id }})</div>
+      </div>
+    {% endfor %}
+    {{ form.as_p }}
+  </fieldset>
+
+  <div class="submit-row">
+    <input type="submit" name="apply" value="Rebind QR code">
+  </div>
+</form>
+{% endblock %}

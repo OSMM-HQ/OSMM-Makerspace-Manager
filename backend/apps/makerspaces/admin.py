@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from django.template.response import TemplateResponse
 from unfold.admin import ModelAdmin, TabularInline
 
+from apps.makerspaces.admin_images import MakerspaceAdminForm, MakerspaceImageAdminMixin
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 from config.admin_access import SuperuserOnlyModelAdmin
 
@@ -40,7 +41,8 @@ class MakerspaceMembershipInline(TabularInline):
 
 
 @admin.register(Makerspace)
-class MakerspaceAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+class MakerspaceAdmin(MakerspaceImageAdminMixin, SuperuserOnlyModelAdmin, ModelAdmin):
+    form = MakerspaceAdminForm
     actions = ["archive_makerspaces", "unarchive_makerspaces", "purge_makerspaces"]
     list_display = (
         "name",
@@ -74,7 +76,21 @@ class MakerspaceAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
                 )
             },
         ),
+        (
+            "Public images",
+            {
+                "fields": (
+                    "logo_preview",
+                    "logo_upload",
+                    "clear_logo",
+                    "cover_preview",
+                    "cover_upload",
+                    "clear_cover",
+                )
+            },
+        ),
     )
+    readonly_fields = ("logo_preview", "cover_preview")
     inlines = (MakerspaceMembershipInline,)
 
     def has_change_permission(self, request, obj=None):

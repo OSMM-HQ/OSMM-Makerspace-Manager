@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.printing.models import ManualPrintLog
@@ -61,6 +62,7 @@ class ManualPrintLogSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Must be greater than 0.")
         return value
 
+    @extend_schema_field(serializers.CharField(allow_null=True))
     def get_spool_label(self, obj):
         spool = obj.filament_spool
         if not spool:

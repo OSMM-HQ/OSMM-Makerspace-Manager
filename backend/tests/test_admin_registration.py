@@ -41,6 +41,7 @@ from apps.operations.models import (
 )
 from apps.printing.models import (
     FilamentSpool,
+    ManualPrintLog,
     PrintBucket,
     PrintPrinter,
     PrintRequest,
@@ -73,6 +74,7 @@ def test_core_models_are_registered_in_django_admin():
         PrintRequest,
         PrintPrinter,
         FilamentSpool,
+        ManualPrintLog,
         ApiClient,
         ApiKeyRequest,
         AuditLog,

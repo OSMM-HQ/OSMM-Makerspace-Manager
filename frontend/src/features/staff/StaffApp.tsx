@@ -169,9 +169,9 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   if (restoring) {
     return (
       <main className="desk-shell grid place-items-center px-5">
-        <div className="desk-panel w-full max-w-md p-6 text-sm font-semibold text-muted">
-          <OsmmBadge className="mb-5" />
-          Restoring session...
+        <div className="desk-panel flex w-full max-w-md flex-col items-center gap-4 p-8 text-center text-sm font-semibold text-muted">
+          <OsmmBadge />
+          <span>Restoring session...</span>
         </div>
       </main>
     );

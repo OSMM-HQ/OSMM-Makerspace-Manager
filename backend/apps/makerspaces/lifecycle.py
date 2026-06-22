@@ -107,6 +107,7 @@ def _collect_storage_keys(makerspace):
 
 def _collect_public_image_keys(makerspace):
     from apps.inventory.models import InventoryProduct
+    from apps.printing.models import PrintPrinter
 
     keys = []
     seen = set()
@@ -119,6 +120,11 @@ def _collect_public_image_keys(makerspace):
     add(makerspace.logo_key)
     add(makerspace.cover_image_key)
     for key in InventoryProduct.objects.filter(makerspace=makerspace).values_list(
+        "image_key",
+        flat=True,
+    ):
+        add(key)
+    for key in PrintPrinter.objects.filter(makerspace=makerspace).values_list(
         "image_key",
         flat=True,
     ):
