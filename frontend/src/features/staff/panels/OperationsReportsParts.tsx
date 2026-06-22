@@ -58,13 +58,25 @@ function ReportSkeleton() {
   );
 }
 
+// Pastel fill + matching ink (with dark-mode deep-tint) so each report stat box
+// carries a palette colour, cycled by position across the grid.
+const STAT_TONE_CYCLE = [
+  "border-tone-blue bg-tone-blue text-tone-blue-ink dark:bg-[#0b2a38] dark:text-[#7dd3fc]",
+  "border-tone-yellow bg-tone-yellow text-tone-yellow-ink dark:bg-[#332b00] dark:text-[#fcdf46]",
+  "border-tone-mint bg-tone-mint text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]",
+  "border-tone-pink bg-tone-pink text-tone-pink-ink dark:bg-[#3a1326] dark:text-[#f9a8d4]",
+];
+
 export function StatCards({ stats }: { stats: [string, number | undefined][] }) {
   return (
     <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {stats.map(([label, value]) => (
-        <div key={label} className="rounded-md border border-line bg-surface p-3">
-          <p className="text-2xl font-bold text-ink">{formatNumber(value ?? 0)}</p>
-          <p className="text-xs text-muted">{label}</p>
+      {stats.map(([label, value], index) => (
+        <div
+          key={label}
+          className={`rounded-md border p-3 ${STAT_TONE_CYCLE[index % STAT_TONE_CYCLE.length]}`}
+        >
+          <p className="text-2xl font-bold">{formatNumber(value ?? 0)}</p>
+          <p className="text-xs opacity-70">{label}</p>
         </div>
       ))}
     </div>

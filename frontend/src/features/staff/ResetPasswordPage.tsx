@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { publicV1Request } from "../../lib/api";
+import { OsmmBadge } from "../../components/OsmmLogo";
 
 export function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -19,6 +20,7 @@ export function ResetPasswordPage() {
   return (
     <main className="desk-shell grid place-items-center px-5">
       <section className="desk-panel w-full max-w-md p-6">
+        <OsmmBadge className="mb-5" />
         <p className="text-xs font-semibold tracking-wide text-accent-ink">
           Account access
         </p>

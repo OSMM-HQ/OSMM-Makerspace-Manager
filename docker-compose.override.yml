@@ -1,6 +1,32 @@
 # Dev-only overrides (auto-merged by docker compose). Bind-mounts backend source so
 # host edits run live in the container during Stage-2 implementation.
+#
+# Port remap: this machine also runs the separate `kanakku-pusthakam` stack on the
+# default ports (80/8001/9000/5432), so the OSMM dev stack is offset to avoid clashes.
+# `!override` REPLACES the base port list (Compose otherwise *appends*, which would
+# re-publish the colliding base ports).
 services:
+  db:
+    ports: !override
+      - "5433:5432"
+
+  minio:
+    ports: !override
+      - "9100:9000"
+      - "9101:9001"
+
   backend:
+    # The stack is served at http://localhost:8080 in dev, so the staff-console
+    # refresh/logout CSRF check (assert_csrf -> _origin_allowed) must accept that
+    # origin — otherwise POST /auth/refresh 403s and a page reload drops the
+    # session back to the login screen. Base default only lists :80 and :5173.
+    environment:
+      CORS_ALLOWED_ORIGINS: http://localhost,http://localhost:5173,http://localhost:8080
+    ports: !override
+      - "8002:8000"
     volumes:
       - ./backend:/app
+
+  frontend:
+    ports: !override
+      - "8080:80"

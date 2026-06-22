@@ -2,21 +2,31 @@ import type React from "react";
 
 type ChartRow = { label: string; value: number };
 
+export type StatTone = "blue" | "yellow" | "mint" | "pink";
+
+// Pastel fill + matching ink, with the dark-mode deep-tint companion used
+// across the reskin. Each stat box picks one so the grid reads as a colourful
+// palette rather than a wall of identical surface tiles.
+export const STAT_TONE_CLASS: Record<StatTone, string> = {
+  blue: "border-tone-blue bg-tone-blue text-tone-blue-ink dark:bg-[#0b2a38] dark:text-[#7dd3fc]",
+  yellow: "border-tone-yellow bg-tone-yellow text-tone-yellow-ink dark:bg-[#332b00] dark:text-[#fcdf46]",
+  mint: "border-tone-mint bg-tone-mint text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]",
+  pink: "border-tone-pink bg-tone-pink text-tone-pink-ink dark:bg-[#3a1326] dark:text-[#f9a8d4]",
+};
+
 export function StatTile({
   label,
   value,
-  tone = "default",
+  tone = "blue",
 }: {
   label: string;
   value: number | string;
-  tone?: "default" | "accent";
+  tone?: StatTone;
 }) {
-  const valueClass = tone === "accent" ? "text-accent-ink" : "text-ink";
-
   return (
-    <div className="rounded-md border border-line bg-surface p-3">
-      <p className={`text-2xl font-bold ${valueClass}`}>{value}</p>
-      <p className="mt-1 text-xs text-muted">{label}</p>
+    <div className={`rounded-md border p-3 ${STAT_TONE_CLASS[tone]}`}>
+      <p className="text-2xl font-bold">{value}</p>
+      <p className="mt-1 text-xs opacity-70">{label}</p>
     </div>
   );
 }

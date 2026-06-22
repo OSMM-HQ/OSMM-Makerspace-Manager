@@ -6,7 +6,7 @@ import type { PublicRequestStatus } from "../../types/inventory";
 
 export function RequestSummary({ request }: { request: PublicRequestStatus }) {
   return (
-    <div className="rounded-xl border border-tone-pink bg-tone-pink p-3 text-tone-pink-ink shadow-soft dark:bg-[#3a1326] dark:text-[#f9a8d4]">
+    <div className="rounded-xl border border-line bg-panel p-3 text-ink shadow-soft">
       <StatusStepper status={request.status} />
       <div className="flex items-start justify-between gap-3">
         <div className="mt-3">

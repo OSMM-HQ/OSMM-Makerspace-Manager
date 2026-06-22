@@ -24,17 +24,19 @@ export function PrintingSection({ printing }: { printing: PublicStatsPrinting })
         <StatTile
           label="Print hours all time"
           value={formatNumber(printing.hours_all_time)}
+          tone="blue"
         />
         <StatTile
           label="Print hours this month"
           value={formatNumber(printing.hours_this_month)}
-          tone="accent"
+          tone="yellow"
         />
         <StatTile
           label="Filament used"
           value={`${formatNumber(printing.grams_all_time)} g`}
+          tone="mint"
         />
-        <StatTile label="Completed jobs" value={printing.jobs.completed} />
+        <StatTile label="Completed jobs" value={printing.jobs.completed} tone="pink" />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -101,15 +103,16 @@ export function HardwareSection({ hardware }: { hardware: PublicStatsHardware })
   return (
     <Section title="Hardware">
       <div className="grid gap-3 sm:grid-cols-3">
-        <StatTile label="Public library" value={hardware.library.library_size} />
+        <StatTile label="Public library" value={hardware.library.library_size} tone="blue" />
         <StatTile
           label="Available now"
           value={hardware.library.available_count}
-          tone="accent"
+          tone="mint"
         />
         <StatTile
           label="Currently out"
           value={hardware.library.currently_out_count}
+          tone="yellow"
         />
       </div>
 

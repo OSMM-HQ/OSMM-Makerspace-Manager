@@ -1,3 +1,4 @@
+import { OsmmBadge } from "../../components/OsmmLogo";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Badge } from "../../components/ui";
 import type { Makerspace } from "./StaffPanels";
@@ -26,6 +27,7 @@ export function MakerspacePicker({
       <div className="mx-auto w-full max-w-3xl">
         <div className="mb-6 flex items-center justify-between">
           <div>
+            <OsmmBadge className="mb-3" />
             <p className="text-xs font-semibold tracking-wide text-accent-ink">Super Admin</p>
             <h1 className="text-2xl font-bold text-ink">Choose a makerspace to operate</h1>
             <p className="mt-1 text-sm text-muted">Signed in as {username}. Pick a makerspace to manage its operations.</p>

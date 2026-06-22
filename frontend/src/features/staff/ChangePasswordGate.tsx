@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 
 import { staffRequest } from "../../lib/api";
+import { OsmmBadge } from "../../components/OsmmLogo";
 
 type ChangePasswordGateProps = {
   username: string;
@@ -36,6 +37,7 @@ export function ChangePasswordGate({ username, onChanged, onSignOut }: ChangePas
           if (canSubmit) mutation.mutate();
         }}
       >
+        <OsmmBadge className="mb-5" />
         <p className="text-xs font-semibold tracking-wide text-accent-ink">Security</p>
         <h1 className="mt-2 text-2xl font-bold text-ink">Set a new password</h1>
         <p className="mt-2 text-sm text-muted">

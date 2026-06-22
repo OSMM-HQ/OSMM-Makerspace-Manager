@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { publicV1Request } from "../../lib/api";
+import { OsmmBadge } from "../../components/OsmmLogo";
 
 const RESET_SENT_MESSAGE =
   "If an account exists for that email, a reset link has been sent. Check your inbox.";
@@ -65,6 +66,7 @@ export function LoginPanel({
             }
           }}
         >
+          <OsmmBadge className="mb-5" />
           <p className="text-xs font-semibold tracking-wide text-accent-ink">
             Account access
           </p>
@@ -114,6 +116,7 @@ export function LoginPanel({
           onSubmit({ username, password });
         }}
       >
+        <OsmmBadge className="mb-5" />
         <p className="text-xs font-semibold tracking-wide text-accent-ink">
           {guestOnly ? "Guest admin desk" : "Space Manager desk"}
         </p>

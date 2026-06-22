@@ -356,9 +356,6 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
         <div className="flex min-w-0 items-center gap-3 border-b border-line px-5 py-4">
           <OsmmBadge className="shrink-0" />
           <div className="min-w-0">
-            <p className="truncate font-display text-sm font-bold uppercase tracking-tight text-ink">
-              Makerspace Mgr
-            </p>
             <p className="truncate font-mono text-xs uppercase text-muted">
               {guestOnly ? "Guest admin" : isSuperadmin ? "Super Admin" : printingOnly ? "Print Manager" : "Space Manager"}
             </p>
