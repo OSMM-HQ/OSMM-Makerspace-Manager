@@ -35,22 +35,26 @@ export function PublicToolScanPanel({
   makerspaceSlug,
 }: PublicToolScanPanelProps) {
   const [payload, setPayload] = useState("");
+  // A camera-scanned token is held here, NOT shown in the visible input — the QR
+  // payload is an opaque physical-possession token, not something to render.
+  const [scannedToken, setScannedToken] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
+  const effectivePayload = (scannedToken || payload).trim();
   const checkout = useMutation({
     mutationFn: () =>
       publicToolCheckout(makerspaceSlug, {
         identifier: identifier.trim(),
-        payload: payload.trim(),
+        payload: effectivePayload,
       }),
   });
   const returnTool = useMutation({
     mutationFn: () =>
       publicToolReturn(makerspaceSlug, {
         identifier: identifier.trim(),
-        payload: payload.trim(),
+        payload: effectivePayload,
       }),
   });
-  const disabled = !identifier.trim() || !payload.trim();
+  const disabled = !identifier.trim() || !effectivePayload;
   const error = checkout.error?.message ?? returnTool.error?.message;
   const result = checkout.data ?? returnTool.data;
 
@@ -71,11 +75,26 @@ export function PublicToolScanPanel({
       >
         Scan QR with camera
       </button>
+      {scannedToken && !payload ? (
+        <p className="mt-2 inline-flex items-center gap-2 rounded-lg border border-tone-mint bg-tone-mint px-3 py-1 text-sm font-semibold text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]">
+          Scanned ✓
+          <button
+            type="button"
+            className="text-xs font-normal underline"
+            onClick={() => setScannedToken("")}
+          >
+            clear
+          </button>
+        </p>
+      ) : null}
       <input
         className="desk-input mt-2 w-full"
         placeholder="…or paste a tool, asset, or box QR payload"
         value={payload}
-        onChange={(event) => setPayload(event.target.value)}
+        onChange={(event) => {
+          setPayload(event.target.value);
+          setScannedToken("");
+        }}
       />
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <button
@@ -109,7 +128,8 @@ export function PublicToolScanPanel({
         <QrScanner
           onClose={() => setScannerOpen(false)}
           onScan={(scanned) => {
-            setPayload(scanned);
+            setScannedToken(scanned);
+            setPayload("");
             setScannerOpen(false);
           }}
         />

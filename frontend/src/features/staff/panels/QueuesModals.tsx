@@ -142,15 +142,17 @@ export function AssignIssueModal({ row, open, pending, error, onClose, onSubmit,
   const handleScan = async (payload: string) => {
     const clean = payload.trim();
     if (!clean || scanned.some((item) => item.payload === clean)) return;
-    let label = clean;
+    // Display a resolved name, never the opaque QR token. The raw payload is still
+    // stored (and submitted) below; it's just not shown to the operator.
+    let label = "Scanned QR";
     try {
       const result = await staffRequest<{ target: { type: string; product?: string; asset_tag?: string } }>("/admin/qr/resolve", {
         method: "POST",
         body: JSON.stringify({ payload: clean }),
       });
-      label = result.target.product || result.target.asset_tag || clean;
+      label = result.target.product || result.target.asset_tag || "Scanned QR";
     } catch {
-      label = clean;
+      label = "Unrecognized QR";
     }
     setScanned((items) => (items.some((item) => item.payload === clean) ? items : [...items, { payload: clean, label }]));
   };

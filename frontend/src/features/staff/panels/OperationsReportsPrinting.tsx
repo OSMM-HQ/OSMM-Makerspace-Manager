@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { BarChart, DataState, PieChart, ReportTable, StatCards } from "./OperationsReportsParts";
+import { BarChart, DataState, PerMakerspaceTables, PieChart, ReportTable, StatCards } from "./OperationsReportsParts";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 
 export type PrintingReport = {
@@ -38,6 +38,7 @@ export type PrintingReport = {
   top_requesters: {
     requester_id: number;
     requester: string;
+    grams: number;
     requests: number;
     items: number;
     makerspace_id?: number;
@@ -69,7 +70,16 @@ const statusPie: { key: keyof PrintingReport["totals"]; label: string }[] = [
   { key: "rejected", label: "Rejected" },
 ];
 
-export function PrintingReportSection({ makerspace, aggregate }: { makerspace: Makerspace; aggregate: boolean }) {
+export function PrintingReportSection({
+  makerspace,
+  aggregate,
+  makerspaceName,
+}: {
+  makerspace: Makerspace;
+  aggregate: boolean;
+  makerspaceName?: (id: number) => string;
+}) {
+  const nameOf = (id: number) => (makerspaceName ? makerspaceName(id) : `#${id}`);
   const [period, setPeriod] = useState<PeriodKey>("month");
   const scopeKey = aggregate ? "all" : makerspace.id;
   // printing routes are mounted under /api/v1/printing/ (not /api/v1/admin/).
@@ -217,25 +227,39 @@ export function PrintingReportSection({ makerspace, aggregate }: { makerspace: M
               />
             </div>
             <div>
-              <h3 className="mb-2 text-sm font-semibold text-ink">Top requesters</h3>
-              <BarChart
-                rows={(printing.data?.top_requesters ?? []).slice(0, 8).map((row) => ({ label: row.requester, value: row.requests }))}
-                valueLabel=" reqs"
-              />
-              <ReportTable
-                data={{
-                  rows: [
-                    aggregate
-                      ? ["makerspace_id", "requester", "requests", "items"]
-                      : ["requester", "requests", "items"],
-                    ...(printing.data?.top_requesters ?? []).map((row) =>
-                      aggregate
-                        ? [row.makerspace_id ?? "", row.requester, row.requests, row.items]
-                        : [row.requester, row.requests, row.items],
-                    ),
-                  ],
-                }}
-              />
+              <h3 className="mb-2 text-sm font-semibold text-ink">Top requesters (by grams printed)</h3>
+              {aggregate ? (
+                <PerMakerspaceTables
+                  data={{
+                    rows: [
+                      ["makerspace_id", "requester", "grams", "requests", "items"],
+                      ...(printing.data?.top_requesters ?? []).map((row) => [
+                        row.makerspace_id ?? "",
+                        row.requester,
+                        row.grams,
+                        row.requests,
+                        row.items,
+                      ]),
+                    ],
+                  }}
+                  nameOf={nameOf}
+                />
+              ) : (
+                <>
+                  <BarChart
+                    rows={(printing.data?.top_requesters ?? []).slice(0, 8).map((row) => ({ label: row.requester, value: row.grams }))}
+                    valueLabel="g"
+                  />
+                  <ReportTable
+                    data={{
+                      rows: [
+                        ["requester", "grams", "requests", "items"],
+                        ...(printing.data?.top_requesters ?? []).map((row) => [row.requester, row.grams, row.requests, row.items]),
+                      ],
+                    }}
+                  />
+                </>
+              )}
             </div>
           </div>
         </div>

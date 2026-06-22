@@ -76,6 +76,7 @@ class PrintingReportBrandSerializer(serializers.Serializer):
 class PrintingReportTopRequesterSerializer(serializers.Serializer):
     requester_id = serializers.IntegerField()
     requester = serializers.CharField()
+    grams = serializers.FloatField()
     requests = serializers.IntegerField()
     items = serializers.IntegerField()
     makerspace_id = serializers.IntegerField(required=False)

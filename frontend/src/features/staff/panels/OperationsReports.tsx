@@ -4,6 +4,7 @@ import { downloadStaffFile } from "../../../lib/api";
 import {
   BarChart,
   DataState,
+  PerMakerspaceTables,
   ReportTable,
   StatCards,
   chartRows,
@@ -27,10 +28,12 @@ const exportReports = ["taken-items", "active-loans", "returns", "damaged-lost"]
 
 export function OperationsReports({
   makerspace,
+  makerspaces,
   isSuperadmin,
   printingOnly = false,
 }: {
   makerspace: Makerspace;
+  makerspaces: Makerspace[];
   isSuperadmin: boolean;
   printingOnly?: boolean;
 }) {
@@ -51,6 +54,7 @@ export function OperationsReports({
   const recentlyAdded = useStaffGet<ReportRows>(["operations-report", "recently-added", scopeKey], `${analyticsBase}/recently-added`, hardwareEnabled);
 
   const scopeLabel = aggregate ? "all makerspaces" : makerspace.name;
+  const makerspaceName = (id: number) => makerspaces.find((space) => space.id === id)?.name ?? `#${id}`;
 
   function exportReport(report: string, format: "csv" | "xlsx") {
     downloadStaffFile(`${reportsBase}/${report}/export?format=${format}`, `${aggregate ? "all-makerspaces-" : ""}${report}.${format}`);
@@ -129,8 +133,14 @@ export function OperationsReports({
 
         <Panel title="Top borrowers">
           <DataState loading={topBorrowers.isLoading} error={topBorrowers.error} empty={!reportRows(topBorrowers.data).length}>
-            <BarChart rows={chartRows(topBorrowers.data, "holder", "requests")} valueLabel="requests" />
-            <ReportTable data={topBorrowers.data} />
+            {aggregate ? (
+              <PerMakerspaceTables data={topBorrowers.data} nameOf={makerspaceName} />
+            ) : (
+              <>
+                <BarChart rows={chartRows(topBorrowers.data, "holder", "requests")} valueLabel="requests" />
+                <ReportTable data={topBorrowers.data} />
+              </>
+            )}
           </DataState>
         </Panel>
       </div>
@@ -151,7 +161,7 @@ export function OperationsReports({
       </>
       ) : null}
 
-      <PrintingReportSection makerspace={makerspace} aggregate={aggregate} />
+      <PrintingReportSection makerspace={makerspace} aggregate={aggregate} makerspaceName={makerspaceName} />
     </div>
   );
 }

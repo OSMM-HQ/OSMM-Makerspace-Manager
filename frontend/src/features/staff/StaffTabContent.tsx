@@ -112,6 +112,7 @@ export function StaffTabContent({
         <OperationsReports
           key={makerspaceKey}
           makerspace={activeMakerspace}
+          makerspaces={makerspaces}
           isSuperadmin={isSuperadmin}
           printingOnly={printingOnly}
         />

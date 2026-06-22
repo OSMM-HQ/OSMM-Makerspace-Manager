@@ -1,9 +1,10 @@
 from decimal import Decimal
 
-from django.db.models import Count, Sum
-from django.db.models.functions import TruncDay, TruncHour, TruncMonth
+from django.db.models import Count, Q, Sum
+from django.db.models.functions import Coalesce, TruncDay, TruncHour, TruncMonth
 
 from apps.accounts import rbac
+from apps.hardware_requests.display import requester_label_for_user
 from apps.printing.models import FilamentSpool, ManualPrintLog, PrintRequest
 
 
@@ -245,22 +246,42 @@ def _filament_by_brand(spools):
 
 
 def _top_requesters(requests, include_makerspace):
-    # Who submits the most 3D-print jobs: request count + total quantity per requester,
-    # ranked high-to-low. In aggregate mode each row is per requester+makerspace
-    # (mirrors printer_hours/filament_used).
-    values = ["requester_id", "requester__username"]
+    # Top printers by FILAMENT GRAMS: total estimated grams printed per requester,
+    # ranked high-to-low (the requester who printed the most grams wins). Grams are
+    # the operator slicer estimate, summed over completed/collected jobs only.
+    # In aggregate mode rows are ordered per makerspace first so the frontend can
+    # present a separate ranking per makerspace (not one blended cross-OSMM list).
+    values = ["requester_id", "requester__username", "requester__external_checkin_user_id"]
     if include_makerspace:
         values.append("bucket__makerspace_id")
+    order = ["-grams", "-request_count", "-items"]
+    if include_makerspace:
+        order = ["bucket__makerspace_id", *order]
     rows = (
         requests.values(*values)
-        .annotate(request_count=Count("id"), items=Sum("quantity"))
-        .order_by("-request_count", "-items")
+        .annotate(
+            request_count=Count("id"),
+            items=Sum("quantity"),
+            grams=Coalesce(
+                Sum(
+                    "estimated_filament_grams",
+                    filter=Q(status__in=COMPLETED_STATUSES),
+                ),
+                Decimal("0"),
+            ),
+        )
+        .order_by(*order)
     )
     data = []
     for row in rows:
         item = {
             "requester_id": row["requester_id"],
-            "requester": row["requester__username"],
+            # Readable label, never the internal checkin_<hash> username.
+            "requester": requester_label_for_user(
+                username=row["requester__username"],
+                external_checkin_user_id=row["requester__external_checkin_user_id"],
+            ),
+            "grams": _decimal_to_float(row["grams"]),
             "requests": row["request_count"],
             "items": row["items"] or 0,
         }
