@@ -2,6 +2,7 @@ import logging
 
 from apps.integrations.email_templates import hardware_context, render
 from apps.integrations.email import send_makerspace_email
+from apps.integrations import notification_rules
 from apps.integrations.telegram import TelegramDeliveryError, send_message
 from apps.hardware_requests.staff_notifications import send_staff_hardware_email
 
@@ -158,6 +159,9 @@ def _clamp(text, limit):
 
 
 def _send_templated_email(request, key, *, sync=False):
+    if notification_rules.is_requester_muted(request.makerspace, "hardware", key):
+        return False
+
     recipient = request.requester_contact_email
     if not recipient:
         return False
