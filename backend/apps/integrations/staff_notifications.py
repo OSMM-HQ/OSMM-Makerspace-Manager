@@ -1,6 +1,7 @@
 import logging
 
 from apps.accounts.models import User
+from apps.integrations import notification_rules
 from apps.makerspaces.models import MakerspaceMembership
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,7 @@ _STREAM_ROLES = {
 }
 
 
-def staff_emails_for_stream(makerspace, stream) -> list[str]:
+def staff_emails_for_stream(makerspace, stream, event=None) -> list[str]:
     try:
         if not getattr(makerspace, "staff_notifications_enabled", True):
             return []
@@ -34,6 +35,14 @@ def staff_emails_for_stream(makerspace, stream) -> list[str]:
             )
             return []
 
+        muted_roles = set()
+        if event and notification_rules.is_event_mutable(stream, "staff", event):
+            muted_roles = {
+                role
+                for role in roles
+                if notification_rules.role_muted(makerspace, stream, event, role)
+            }
+
         memberships = (
             MakerspaceMembership.objects.filter(
                 makerspace=makerspace,
@@ -47,6 +56,9 @@ def staff_emails_for_stream(makerspace, stream) -> list[str]:
             .select_related("user")
             .order_by("id")
         )
+        if muted_roles:
+            memberships = memberships.exclude(role__in=muted_roles)
+
         seen = set()
         recipients = []
         for membership in memberships:

@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from apps.integrations.email_templates_registry import validate_email_template_strings
@@ -117,3 +118,37 @@ class EmailLog(models.Model):
 
     def __str__(self):
         return f"{self.to_email} {self.subject} [{self.status}]"
+
+
+class EmailNotificationMute(models.Model):
+    makerspace = models.ForeignKey(
+        "makerspaces.Makerspace",
+        on_delete=models.CASCADE,
+        related_name="email_mutes",
+    )
+    target = models.CharField(max_length=32)
+    stream = models.CharField(max_length=16)
+    event = models.CharField(max_length=64)
+    audience = models.CharField(max_length=16)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["makerspace", "target", "stream", "event"],
+                name="uniq_email_mute_row",
+            )
+        ]
+        ordering = ["makerspace__name", "stream", "event"]
+        indexes = [
+            models.Index(fields=["makerspace", "stream", "audience"]),
+        ]
+
+    def __str__(self):
+        return f"{self.makerspace}:{self.target}:{self.stream}/{self.event} muted"

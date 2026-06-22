@@ -21,7 +21,11 @@ def send_staff_hardware_email(request, event, *, sync=False) -> bool:
             .prefetch_related("items__product")
             .get(pk=request.pk)
         )
-        recipients = staff_emails_for_stream(staff_request.makerspace, "hardware")
+        recipients = staff_emails_for_stream(
+            staff_request.makerspace,
+            "hardware",
+            event=event,
+        )
         if not recipients:
             return False
 

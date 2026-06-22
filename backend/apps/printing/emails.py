@@ -6,6 +6,7 @@ from django.db import transaction
 from apps.integrations.dispatch import dispatch_email
 from apps.integrations.email import send_makerspace_email
 from apps.integrations.email_templates import printing_context, render
+from apps.integrations import notification_rules
 from apps.integrations.staff_notifications import staff_emails_for_stream
 from apps.printing.models import PrintRequest
 
@@ -59,6 +60,9 @@ def send_print_email(event, print_request):
         return
 
     makerspace = print_request.bucket.makerspace
+    if notification_rules.is_requester_muted(makerspace, "printing", event):
+        return
+
     base = getattr(settings, "PUBLIC_APP_BASE_URL", "") or ""
     status_url = (
         f"{base}/m/{makerspace.slug}/print?token={print_request.public_token}"
@@ -99,7 +103,7 @@ def send_staff_print_email(event, print_request):
     try:
         print_request = _with_email_relations(print_request)
         makerspace = print_request.bucket.makerspace
-        recipients = staff_emails_for_stream(makerspace, "printing")
+        recipients = staff_emails_for_stream(makerspace, "printing", event=event)
         if not recipients:
             return
 
