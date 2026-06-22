@@ -186,6 +186,7 @@ export default function App() {
     return (
       <main className="desk-shell grid place-items-center px-5">
         <div className="desk-panel w-full max-w-md p-6 text-sm font-semibold text-muted">
+          <OsmmBadge className="mb-5" />
           Loading site...
         </div>
       </main>
@@ -196,6 +197,7 @@ export default function App() {
     return (
       <main className="desk-shell grid place-items-center px-5">
         <div className="desk-panel w-full max-w-md p-6">
+          <OsmmBadge className="mb-5" />
           <h1 className="text-xl font-bold text-ink">Site unavailable</h1>
           <p className="mt-2 text-sm text-muted">
             The configured tenant could not be resolved.

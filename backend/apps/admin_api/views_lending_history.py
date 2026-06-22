@@ -7,6 +7,7 @@ from apps.admin_api.permissions import IsActiveStaff
 from apps.admin_api.serializers_lending_history import (
     LendingHistoryResponseSerializer,
 )
+from apps.hardware_requests.display import requester_label
 from apps.hardware_requests.models import HardwareRequestItem
 from apps.inventory.models import InventoryProduct
 
@@ -49,13 +50,19 @@ class InventoryLendingHistoryView(APIView):
                 request__issued_at__isnull=False,
                 request__makerspace_id=product.makerspace_id,
             )
-            .select_related("request", "request__issued_by", "request__accepted_by")
+            .select_related(
+                "request",
+                "request__requester",
+                "request__issued_by",
+                "request__accepted_by",
+            )
             .order_by("-request__issued_at", "-request__id")[:3]
         )
         recent = [
             {
                 "id": item.id,
-                "username": item.request.requester_username,
+                # Readable borrower label, never the internal checkin_<hash>.
+                "username": requester_label(item.request),
                 "issued_at": item.request.issued_at,
                 "quantity": item.issued_quantity,
                 "issued_by": _actor_payload(item.request.issued_by),

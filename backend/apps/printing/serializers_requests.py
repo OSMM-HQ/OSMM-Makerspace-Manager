@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.hardware_requests.display import label_from_candidates
 from apps.printing.models import PrintBucket, PrintRequest
 from apps.printing.serializers_buckets import PrintBucketSerializer
 from apps.printing.serializers_printers import PrintPrinterSerializer
@@ -123,9 +124,21 @@ class PrintRequestSerializer(serializers.ModelSerializer):
 
 class ManagedPrintRequestSerializer(PrintRequestSerializer):
     collected_by = serializers.IntegerField(source="collected_by_id", read_only=True)
+    # Staff-only readable label, never the internal checkin_<hash> username.
+    requester_display = serializers.SerializerMethodField()
+
+    def get_requester_display(self, obj) -> str:
+        return label_from_candidates(
+            obj.requester_name,
+            obj.contact_email,
+            obj.contact_phone,
+            getattr(obj.requester, "external_checkin_user_id", ""),
+            getattr(obj.requester, "username", ""),
+        )
 
     class Meta(PrintRequestSerializer.Meta):
         fields = PrintRequestSerializer.Meta.fields + (
+            "requester_display",
             "price",
             "payment_status",
             "paid_at",

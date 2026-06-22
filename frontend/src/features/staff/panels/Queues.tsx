@@ -35,6 +35,7 @@ export type HardwareRequest = {
   id: number;
   status: string;
   requester_username: string;
+  requester_display?: string;
   requester_contact_email?: string;
   requester_contact_phone?: string;
   rejection_reason?: string;
@@ -259,7 +260,7 @@ export function Queues({ makerspace, guestOnly }: { makerspace: Makerspace; gues
       <ConfirmDialog
         open={Boolean(acceptRow)}
         title="Accept request"
-        message={acceptRow ? `Accept request #${acceptRow.id} from ${acceptRow.requester_username}?${modalError ? ` Error: ${modalError}` : ""}` : ""}
+        message={acceptRow ? `Accept request #${acceptRow.id} from ${acceptRow.requester_display || acceptRow.requester_username}?${modalError ? ` Error: ${modalError}` : ""}` : ""}
         confirmLabel="Accept"
         pending={action.isPending}
         onCancel={closeModals}

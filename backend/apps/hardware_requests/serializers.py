@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from apps.hardware_requests.display import requester_label
 from apps.inventory.models import TrackingMode
 
 
@@ -110,6 +111,9 @@ class AdminRequestSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     makerspace_id = serializers.IntegerField(read_only=True)
     requester_username = serializers.CharField(read_only=True)
+    # Readable staff-facing label (Check-In email/phone), never the internal
+    # checkin_<hash>. Additive — requester_username stays for the existing contract.
+    requester_display = serializers.SerializerMethodField()
     requester_contact_email = serializers.EmailField(read_only=True)
     requester_contact_phone = serializers.CharField(read_only=True)
     status = serializers.CharField(read_only=True)
@@ -139,6 +143,9 @@ class AdminRequestSerializer(serializers.Serializer):
 
     def get_return_evidence_ids(self, obj) -> list:
         return [event.evidence_id for event in obj.returnevent_set.all() if event.evidence_id]
+
+    def get_requester_display(self, obj) -> str:
+        return requester_label(obj)
 
 
 class RejectRequestSerializer(serializers.Serializer):

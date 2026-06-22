@@ -170,6 +170,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     return (
       <main className="desk-shell grid place-items-center px-5">
         <div className="desk-panel w-full max-w-md p-6 text-sm font-semibold text-muted">
+          <OsmmBadge className="mb-5" />
           Restoring session...
         </div>
       </main>
@@ -225,6 +226,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     return (
       <main className="desk-shell grid place-items-center px-5">
         <div className="desk-panel w-full max-w-md p-6 text-sm font-semibold text-muted">
+          <OsmmBadge className="mb-5" />
           Checking makerspace access...
         </div>
       </main>
@@ -238,6 +240,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     return (
       <main className="desk-shell grid place-items-center px-5">
         <section className="desk-panel w-full max-w-md bg-tone-yellow p-6 text-tone-yellow-ink dark:bg-[#332b00] dark:text-[#fcdf46]">
+          <OsmmBadge className="mb-5" />
           <p className="text-xs font-semibold tracking-wide">
             Access denied
           </p>

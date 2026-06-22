@@ -120,7 +120,7 @@ export function PrintRows({
               <div className="desk-actions ml-0 flex w-full flex-wrap gap-2 text-sm sm:ml-auto sm:w-auto">{action(row)}</div>
             </div>
             <p className="mt-2 text-xs text-muted">
-              {row.requester_name || row.requester_username} - {row.material || "material n/a"} {row.color || ""} - {row.estimated_minutes || 0} min - {row.estimated_filament_grams || "0.00"}g
+              {row.requester_display || row.requester_name || row.requester_username} - {row.material || "material n/a"} {row.color || ""} - {row.estimated_minutes || 0} min - {row.estimated_filament_grams || "0.00"}g
             </p>
             {row.requested_filament_spool ? (
               <p className="mt-1 text-xs text-accent-ink">
