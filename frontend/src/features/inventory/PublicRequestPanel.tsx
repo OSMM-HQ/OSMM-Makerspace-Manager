@@ -81,10 +81,32 @@ export function PublicRequestPanel({
     setLookupValue(value);
   }
 
+  // Each tab carries its own palette tone — a touch of colour so the action row
+  // doesn't read as flat. Active = filled pastel (+ dark deep-tint); idle = neutral
+  // with a faint tone hover hint.
+  const tabTone: Record<ActiveTab, { active: string; idle: string }> = {
+    borrow: {
+      active:
+        "border-tone-blue bg-tone-blue text-tone-blue-ink dark:bg-[#0b2a38] dark:text-[#7dd3fc]",
+      idle: "hover:bg-tone-blue/40 hover:text-tone-blue-ink",
+    },
+    scan: {
+      active:
+        "border-tone-mint bg-tone-mint text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]",
+      idle: "hover:bg-tone-mint/40 hover:text-tone-mint-ink",
+    },
+    requests: {
+      active:
+        "border-tone-pink bg-tone-pink text-tone-pink-ink dark:bg-[#3a1326] dark:text-[#f9a8d4]",
+      idle: "hover:bg-tone-pink/40 hover:text-tone-pink-ink",
+    },
+  };
+
   function tabClass(tab: ActiveTab) {
+    const tone = tabTone[tab];
     return activeTab === tab
-      ? "status-box border-accent bg-accent text-on-accent shadow-soft w-full py-2"
-      : "status-box w-full py-2 hover:bg-surface hover:text-ink";
+      ? `status-box w-full py-2 shadow-soft ${tone.active}`
+      : `status-box w-full py-2 ${tone.idle}`;
   }
 
   const canSubmit =

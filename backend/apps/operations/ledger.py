@@ -4,6 +4,7 @@ from django.db.models import F, Prefetch
 
 from apps.accounts import rbac
 from apps.hardware_requests.asset_link_models import HardwareRequestItemAsset
+from apps.hardware_requests.display import requester_label
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
 from apps.hardware_requests.self_checkout_models import PublicToolLoan
 from apps.inventory.models import InventoryAsset
@@ -215,44 +216,6 @@ def _source(loan):
 
 
 def _request_holder(request):
-    requester = getattr(request, "requester", None)
-    email_candidates = [
-        request.requester_contact_email,
-        getattr(requester, "email", ""),
-        request.requester_username,
-        getattr(requester, "external_checkin_user_id", ""),
-    ]
-    for value in email_candidates:
-        label = _clean_label(value)
-        if _looks_like_email(label) and not _is_internal_checkin_username(label):
-            return label
-
-    candidates = [
-        request.requester_contact_phone,
-        request.requester_username,
-        getattr(requester, "external_checkin_user_id", ""),
-        getattr(requester, "username", ""),
-    ]
-    for value in candidates:
-        label = _clean_label(value)
-        if label and not _is_internal_checkin_username(label):
-            return label
-
-    for value in candidates:
-        label = _clean_label(value)
-        if label:
-            return label
-    return ""
-
-
-def _clean_label(value):
-    return str(value or "").strip()
-
-
-def _looks_like_email(value):
-    return "@" in value
-
-
-def _is_internal_checkin_username(value):
-    local_part = value.split("@", 1)[0]
-    return local_part.startswith("checkin_") and len(local_part) > 32
+    # Shared display policy (apps.hardware_requests.display). ``allow_internal_fallback``
+    # + empty fallback preserve the ledger's prior last-resort behaviour exactly.
+    return requester_label(request, fallback="", allow_internal_fallback=True)

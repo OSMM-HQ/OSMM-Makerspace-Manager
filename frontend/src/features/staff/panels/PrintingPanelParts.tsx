@@ -36,6 +36,7 @@ export type PrintRequest = {
   id: number;
   title: string;
   requester_username: string;
+  requester_display?: string;
   status: string;
   price?: string;
   payment_status?: "none" | "pending" | "paid";
