@@ -3824,6 +3824,101 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/notification-rules": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_notification_rules_retrieve",
+                "summary": "List or update makerspace email notification rules",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Makerspaces"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotificationRulesResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "api_v1_admin_makerspace_notification_rules_partial_update",
+                "summary": "List or update makerspace email notification rules",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Makerspaces"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedNotificationRulesPatch"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedNotificationRulesPatch"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedNotificationRulesPatch"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotificationRulesResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid notification rule change."
+                    },
+                    "404": {
+                        "description": "Makerspace not found."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/pending-requests": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_pending_requests_list",
@@ -4700,6 +4795,162 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/PlatformEmailSettings"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/printing/printers/{id}/image": {
+            "post": {
+                "operationId": "api_v1_admin_printing_printers_image_create",
+                "summary": "Create a printer image upload URL",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin printing"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageUploadRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageUploadRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageUploadRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PublicImageUploadResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid image upload request."
+                    },
+                    "503": {
+                        "description": "Public image storage is unavailable."
+                    }
+                }
+            },
+            "put": {
+                "operationId": "api_v1_admin_printing_printers_image_update",
+                "summary": "Attach an uploaded image to a printer",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin printing"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageAttachRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageAttachRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageAttachRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PrintPrinter"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid image object key or size."
+                    },
+                    "503": {
+                        "description": "Public image storage is unavailable."
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "api_v1_admin_printing_printers_image_destroy",
+                "summary": "Clear a printer image",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin printing"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PrintPrinter"
                                 }
                             }
                         },
@@ -7470,7 +7721,43 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "No response body"
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PrintFileUrlResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Storage is unavailable."
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
                     }
                 }
             }
@@ -11753,6 +12040,7 @@
                     },
                     "container_label": {
                         "type": "string",
+                        "nullable": true,
                         "readOnly": true
                     },
                     "due_at": {
@@ -13066,13 +13354,16 @@
                         "readOnly": true
                     },
                     "files": {
-                        "type": "string",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PrintRequestFileSummary"
+                        },
                         "readOnly": true
                     },
                     "status": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/Status073Enum"
+                                "$ref": "#/components/schemas/PrintRequestStatusEnum"
                             }
                         ],
                         "readOnly": true
@@ -13292,6 +13583,7 @@
                     },
                     "spool_label": {
                         "type": "string",
+                        "nullable": true,
                         "readOnly": true
                     },
                     "logged_by_username": {
@@ -13374,6 +13666,106 @@
                 "required": [
                     "id",
                     "receives_notifications"
+                ]
+            },
+            "NotificationRuleCatalogItem": {
+                "type": "object",
+                "properties": {
+                    "stream": {
+                        "type": "string"
+                    },
+                    "audience": {
+                        "type": "string"
+                    },
+                    "targets": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "events": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "audience",
+                    "events",
+                    "stream",
+                    "targets"
+                ]
+            },
+            "NotificationRuleChange": {
+                "type": "object",
+                "properties": {
+                    "target": {
+                        "type": "string"
+                    },
+                    "stream": {
+                        "type": "string"
+                    },
+                    "event": {
+                        "type": "string"
+                    },
+                    "audience": {
+                        "type": "string"
+                    },
+                    "muted": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "audience",
+                    "event",
+                    "muted",
+                    "stream",
+                    "target"
+                ]
+            },
+            "NotificationRuleMute": {
+                "type": "object",
+                "properties": {
+                    "target": {
+                        "type": "string"
+                    },
+                    "stream": {
+                        "type": "string"
+                    },
+                    "event": {
+                        "type": "string"
+                    },
+                    "audience": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "audience",
+                    "event",
+                    "stream",
+                    "target"
+                ]
+            },
+            "NotificationRulesResponse": {
+                "type": "object",
+                "properties": {
+                    "catalog": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/NotificationRuleCatalogItem"
+                        }
+                    },
+                    "mutes": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/NotificationRuleMute"
+                        }
+                    }
+                },
+                "required": [
+                    "catalog",
+                    "mutes"
                 ]
             },
             "PaginatedAdminRequestList": {
@@ -14523,6 +14915,17 @@
                     }
                 }
             },
+            "PatchedNotificationRulesPatch": {
+                "type": "object",
+                "properties": {
+                    "changes": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/NotificationRuleChange"
+                        }
+                    }
+                }
+            },
             "PatchedPlatformEmailSettings": {
                 "type": "object",
                 "properties": {
@@ -14592,6 +14995,11 @@
                     },
                     "notes": {
                         "type": "string"
+                    },
+                    "image_url": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
                     },
                     "is_active": {
                         "type": "boolean"
@@ -14847,6 +15255,18 @@
                     "username"
                 ]
             },
+            "PrintFileUrlResponse": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "format": "uri"
+                    }
+                },
+                "required": [
+                    "url"
+                ]
+            },
             "PrintPresignRequest": {
                 "type": "object",
                 "properties": {
@@ -14919,6 +15339,11 @@
                     "notes": {
                         "type": "string"
                     },
+                    "image_url": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
                     "is_active": {
                         "type": "boolean"
                     },
@@ -14964,6 +15389,7 @@
                     "current_request",
                     "estimated_spool_remaining_after_queue_grams",
                     "id",
+                    "image_url",
                     "is_free",
                     "makerspace",
                     "name",
@@ -15074,13 +15500,16 @@
                         "readOnly": true
                     },
                     "files": {
-                        "type": "string",
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PrintRequestFileSummary"
+                        },
                         "readOnly": true
                     },
                     "status": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/Status073Enum"
+                                "$ref": "#/components/schemas/PrintRequestStatusEnum"
                             }
                         ],
                         "readOnly": true
@@ -15266,6 +15695,42 @@
                     "bucket",
                     "title"
                 ]
+            },
+            "PrintRequestFileSummary": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "kind": {
+                        "type": "string"
+                    },
+                    "content_type": {
+                        "type": "string"
+                    },
+                    "size_bytes": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "content_type",
+                    "id",
+                    "kind",
+                    "size_bytes"
+                ]
+            },
+            "PrintRequestStatusEnum": {
+                "enum": [
+                    "pending",
+                    "accepted",
+                    "printing",
+                    "completed",
+                    "collected",
+                    "rejected",
+                    "failed"
+                ],
+                "type": "string",
+                "description": "* `pending` - Pending\n* `accepted` - Accepted\n* `printing` - Printing\n* `completed` - Completed\n* `collected` - Collected\n* `rejected` - Rejected\n* `failed` - Failed"
             },
             "PrintRequestSubmit": {
                 "type": "object",
@@ -15578,6 +16043,11 @@
                     "printer_name": {
                         "type": "string"
                     },
+                    "image_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
+                    },
                     "completed_requests": {
                         "type": "integer"
                     },
@@ -15604,6 +16074,11 @@
                     },
                     "printer_name": {
                         "type": "string"
+                    },
+                    "image_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true
                     },
                     "completed": {
                         "type": "integer"
@@ -16242,11 +16717,18 @@
                     "completed": {
                         "type": "integer",
                         "readOnly": true
+                    },
+                    "image_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
                     }
                 },
                 "required": [
                     "completed",
                     "hours",
+                    "image_url",
                     "name"
                 ]
             },
@@ -16413,6 +16895,42 @@
                     "total_quantity_lent"
                 ]
             },
+            "PublicStatsPrinter": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "jobs": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "hours": {
+                        "type": "number",
+                        "format": "double",
+                        "readOnly": true
+                    },
+                    "grams": {
+                        "type": "number",
+                        "format": "double",
+                        "readOnly": true
+                    },
+                    "image_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "grams",
+                    "hours",
+                    "image_url",
+                    "jobs",
+                    "name"
+                ]
+            },
             "PublicStatsPrinting": {
                 "type": "object",
                 "properties": {
@@ -16434,6 +16952,13 @@
                         ],
                         "readOnly": true,
                         "nullable": true
+                    },
+                    "per_printer": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PublicStatsPrinter"
+                        },
+                        "readOnly": true
                     },
                     "grams_all_time": {
                         "type": "number",
@@ -16470,7 +16995,8 @@
                     "grams_all_time",
                     "hours_all_time",
                     "hours_this_month",
-                    "jobs"
+                    "jobs",
+                    "per_printer"
                 ]
             },
             "PublicStatsQueue": {
@@ -16730,7 +17256,7 @@
                         "maxLength": 200
                     },
                     "status": {
-                        "$ref": "#/components/schemas/Status438Enum"
+                        "$ref": "#/components/schemas/QrPrintBatchStatusEnum"
                     },
                     "created_by": {
                         "type": "integer",
@@ -16780,7 +17306,7 @@
                         "maxLength": 200
                     },
                     "status": {
-                        "$ref": "#/components/schemas/Status438Enum"
+                        "$ref": "#/components/schemas/QrPrintBatchStatusEnum"
                     },
                     "created_by": {
                         "type": "integer",
@@ -16882,6 +17408,15 @@
                 "required": [
                     "id"
                 ]
+            },
+            "QrPrintBatchStatusEnum": {
+                "enum": [
+                    "draft",
+                    "printed",
+                    "archived"
+                ],
+                "type": "string",
+                "description": "* `draft` - Draft\n* `printed` - Printed\n* `archived` - Archived"
             },
             "QrRebindResult": {
                 "type": "object",
@@ -17378,28 +17913,6 @@
                 ],
                 "type": "string",
                 "description": "* `space_manager` - Space Manager\n* `guest_admin` - Guest Admin\n* `inventory_manager` - Inventory Manager\n* `print_manager` - Print Manager"
-            },
-            "Status073Enum": {
-                "enum": [
-                    "pending",
-                    "accepted",
-                    "printing",
-                    "completed",
-                    "collected",
-                    "rejected",
-                    "failed"
-                ],
-                "type": "string",
-                "description": "* `pending` - Pending\n* `accepted` - Accepted\n* `printing` - Printing\n* `completed` - Completed\n* `collected` - Collected\n* `rejected` - Rejected\n* `failed` - Failed"
-            },
-            "Status438Enum": {
-                "enum": [
-                    "draft",
-                    "printed",
-                    "archived"
-                ],
-                "type": "string",
-                "description": "* `draft` - Draft\n* `printed` - Printed\n* `archived` - Archived"
             },
             "StockTransfer": {
                 "type": "object",
