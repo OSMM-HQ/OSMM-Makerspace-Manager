@@ -1,5 +1,5 @@
-<p>
-  <img src="docs/brand/osmm-logo.svg" alt="OSMM" height="64">
+<p align="center">
+  <img src="docs/banner.svg" alt="OSMM — Open Source Makerspace Manager" width="100%">
 </p>
 
 # OSMM — Open Source Makerspace Manager
@@ -207,6 +207,13 @@ the prepared statements migrations need), then point the app at the transaction 
 ---
 
 ## Development
+
+### 0. Get the code
+
+```bash
+git clone https://github.com/Shaan-Shoukath/OSMM-Makerspace-Manager.git
+cd OSMM-Makerspace-Manager
+```
 
 ### 1. Database
 

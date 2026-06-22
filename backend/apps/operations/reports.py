@@ -2,6 +2,7 @@ from django.db.models import Count, Sum
 
 from apps.accounts import rbac
 from apps.boxes.models import QrScanEvent
+from apps.hardware_requests.display import label_from_candidates, requester_label
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
 from apps.inventory.models import InventoryAsset, InventoryProduct
 
@@ -85,27 +86,29 @@ def _taken_items(makerspace_id, aggregate):
 
 
 def _active_loans(makerspace_id, aggregate):
-    values = ["id", "requester_username", "status", "issued_at"]
     header = ["id", "requester", "status", "issued_at"]
     if aggregate:
-        values = ["makerspace_id", *values]
         header = ["makerspace_id", *header]
-    qs = _requests(makerspace_id).filter(
+    qs = _requests(makerspace_id).select_related("requester").filter(
         status__in=[HardwareRequest.Status.ISSUED, HardwareRequest.Status.PARTIALLY_RETURNED]
     ).order_by("-issued_at")
-    return [header, *[[_value(request, key) for key in values] for request in qs]]
+    return [header, *[_request_row(request, aggregate, request.issued_at) for request in qs]]
 
 
 def _returns(makerspace_id, aggregate):
-    values = ["id", "requester_username", "status", "closed_at"]
     header = ["id", "requester", "status", "closed_at"]
     if aggregate:
-        values = ["makerspace_id", *values]
         header = ["makerspace_id", *header]
-    qs = _requests(makerspace_id).filter(
+    qs = _requests(makerspace_id).select_related("requester").filter(
         status__in=[HardwareRequest.Status.RETURNED, HardwareRequest.Status.CLOSED_WITH_ISSUE]
     ).order_by("-closed_at")
-    return [header, *[[_value(request, key) for key in values] for request in qs]]
+    return [header, *[_request_row(request, aggregate, request.closed_at) for request in qs]]
+
+
+def _request_row(request, aggregate, timestamp):
+    # Readable holder label (never the internal checkin_<hash>); matches the ledger.
+    prefix = [request.makerspace_id] if aggregate else []
+    return [*prefix, request.id, requester_label(request), request.status, timestamp]
 
 
 def _damaged_missing(makerspace_id, aggregate):
@@ -161,7 +164,18 @@ def _most_lent(makerspace_id, aggregate):
 
 
 def _top_borrowers(makerspace_id, aggregate):
-    values = ["request__requester_username"]
+    # Group by the requester (PROTECT, non-nullable, so never collapses NULLs) and
+    # resolve a readable holder label — never the internal checkin_<hash> username.
+    values = [
+        "request__requester_id",
+        # Request-level Check-In username (from the Check-In service, stable per
+        # account) is the most readable holder label — prefer it over the account's
+        # hashed username / external id. Grouping by it alongside requester_id does
+        # not fragment counts because it is constant for a given Check-In account.
+        "request__requester_username",
+        "request__requester__username",
+        "request__requester__external_checkin_user_id",
+    ]
     header = ["holder", "requests", "items_borrowed"]
     if aggregate:
         values = ["request__makerspace_id", *values]
@@ -174,12 +188,26 @@ def _top_borrowers(makerspace_id, aggregate):
             requests=Count("request_id", distinct=True),
             items_borrowed=Sum("issued_quantity"),
         )
-        .order_by("-requests", "-items_borrowed", "request__requester_username")
+        # In aggregate mode order per makerspace first so each makerspace gets its
+        # own ranking (the frontend renders a separate section per makerspace),
+        # rather than one blended cross-OSMM leaderboard.
+        .order_by(
+            *(["request__makerspace_id"] if aggregate else []),
+            "-requests",
+            "-items_borrowed",
+            "request__requester__username",
+        )
     )
-    return [
-        header,
-        *[[_value(row, key) for key in values] + [row["requests"], row["items_borrowed"] or 0] for row in qs],
-    ]
+    rows = []
+    for row in qs:
+        holder = label_from_candidates(
+            row["request__requester_username"],
+            row["request__requester__external_checkin_user_id"],
+            row["request__requester__username"],
+        )
+        prefix = [row["request__makerspace_id"]] if aggregate else []
+        rows.append([*prefix, holder, row["requests"], row["items_borrowed"] or 0])
+    return [header, *rows]
 
 
 def _recently_added(makerspace_id, aggregate):

@@ -33,6 +33,7 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
   makerspaces: Makerspace[];
 }) {
   const [payload, setPayload] = useState("");
+  const [scanNote, setScanNote] = useState("");
   const [showScanner, setShowScanner] = useState(false);
   const [resolved, setResolved] = useState<Resolved | null>(null);
   const [contents, setContents] = useState<BoxContents | null>(null);
@@ -73,6 +74,7 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
     onSuccess: (data) => {
       setResolved(data);
       setContents(null);
+      setScanNote("");
       setShowRebind(false);
       setShowMove(false);
       setSelectedProductId("");
@@ -155,7 +157,16 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
   }, [productRows, selectedProductId]);
 
   const doResolve = (value: string) => {
+    setScanNote("");
     if (value.trim()) resolve.mutate(value);
+  };
+  // Camera scans resolve the opaque token WITHOUT echoing it into the visible
+  // input (the payload is a physical-possession token, not something to display).
+  const resolveFromScan = (value: string) => {
+    setShowScanner(false);
+    if (!value.trim()) return;
+    setScanNote("Scanned ✓ — resolving…");
+    resolve.mutate(value);
   };
   const target = resolved?.target;
   const actions = resolved?.allowed_actions ?? [];
@@ -179,19 +190,20 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
   return (
     <Panel title="Scanner">
       <p className="mb-3 text-sm text-muted">Scan or paste a QR payload to resolve a box, product, or asset and act on it.</p>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <input
-          className="desk-input flex-1 font-mono"
-          placeholder="QR payload"
+          className="desk-input w-full font-mono sm:flex-1"
+          placeholder="Paste QR payload (or scan)"
           value={payload}
           onChange={(event) => setPayload(event.target.value)}
           onKeyDown={(event) => { if (event.key === "Enter") doResolve(payload); }}
         />
-        <button className="desk-button" type="button" disabled={!payload.trim() || resolve.isPending} onClick={() => doResolve(payload)}>
+        <button className="desk-button w-full sm:w-auto" type="button" disabled={!payload.trim() || resolve.isPending} onClick={() => doResolve(payload)}>
           {resolve.isPending ? "Resolving..." : "Resolve"}
         </button>
-        <button className="desk-button" type="button" onClick={() => setShowScanner(true)}>Scan camera</button>
+        <button className="desk-button w-full sm:w-auto" type="button" onClick={() => { setScanNote(""); setShowScanner(true); }}>Scan camera</button>
       </div>
+      {scanNote && resolve.isPending ? <p className="mt-2 text-sm text-accent-ink">{scanNote}</p> : null}
       {resolveError ? <p className="mt-2 text-sm text-danger">{resolveError}</p> : null}
       {successNote ? <p className="mt-2 text-sm text-accent-ink">{successNote}</p> : null}
 
@@ -341,7 +353,7 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
         </div>
       ) : null}
 
-      {showScanner ? <QrScanner onScan={(value) => { setPayload(value); setShowScanner(false); doResolve(value); }} onClose={() => setShowScanner(false)} /> : null}
+      {showScanner ? <QrScanner onScan={resolveFromScan} onClose={() => setShowScanner(false)} /> : null}
     </Panel>
   );
 }

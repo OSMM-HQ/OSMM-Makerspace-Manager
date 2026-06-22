@@ -10736,6 +10736,10 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "requester_display": {
+                        "type": "string",
+                        "readOnly": true
+                    },
                     "requester_contact_email": {
                         "type": "string",
                         "format": "email",
@@ -10849,6 +10853,7 @@
                     "requested_for",
                     "requester_contact_email",
                     "requester_contact_phone",
+                    "requester_display",
                     "requester_username",
                     "return_due_at",
                     "return_evidence_ids",
@@ -13158,6 +13163,10 @@
                         "format": "date-time",
                         "readOnly": true
                     },
+                    "requester_display": {
+                        "type": "string",
+                        "readOnly": true
+                    },
                     "price": {
                         "type": "string",
                         "format": "decimal",
@@ -13224,6 +13233,7 @@
                     "reprint_of",
                     "requested_filament_spool",
                     "requester",
+                    "requester_display",
                     "requester_email",
                     "requester_name",
                     "requester_username",
@@ -15631,6 +15641,10 @@
                     "requester": {
                         "type": "string"
                     },
+                    "grams": {
+                        "type": "number",
+                        "format": "double"
+                    },
                     "requests": {
                         "type": "integer"
                     },
@@ -15642,6 +15656,7 @@
                     }
                 },
                 "required": [
+                    "grams",
                     "items",
                     "requester",
                     "requester_id",

@@ -422,3 +422,67 @@ def test_admin_printing_report_is_superadmin_only_and_includes_makerspaces():
         space_a.id,
         space_b.id,
     }
+
+
+def test_printing_report_top_requesters_ranked_by_grams_printed():
+    # The leaderboard ranks by total estimated grams printed, NOT by request count:
+    # a user with one big print outranks a user with several tiny prints.
+    makerspace = make_space("reports-grams-rank")
+    bucket = make_bucket(makerspace)
+    manager = make_print_manager("reports-grams-manager", makerspace)
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="G1")
+    spool = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        printer=printer,
+        material="PLA",
+        color="black",
+        initial_weight_grams=5000,
+        remaining_weight_grams=5000,
+    )
+    heavy = make_user("grams-heavy", access_status=User.AccessStatus.ACTIVE)
+    light = make_user("grams-light", access_status=User.AccessStatus.ACTIVE)
+    for index in range(3):
+        make_completed_request(
+            bucket, light, printer, spool, f"L{index}", 10, "10.00", completed_at(2026, 5, 1, 10)
+        )
+    make_completed_request(
+        bucket, heavy, printer, spool, "H", 100, "500.00", completed_at(2026, 5, 1, 11)
+    )
+
+    response = authenticated_client(manager).get(makerspace_report_url(makerspace))
+
+    assert response.status_code == 200
+    rows = response.data["top_requesters"]
+    # Heavy printer (500g, 1 job) outranks the light one (30g across 3 jobs).
+    assert rows[0]["requester"] == "grams-heavy"
+    assert rows[0]["grams"] == 500.0
+    assert rows[1]["requester"] == "grams-light"
+    assert rows[1]["grams"] == 30.0
+    assert rows[1]["requests"] == 3
+    grams = [row["grams"] for row in rows]
+    assert grams == sorted(grams, reverse=True)
+
+
+def test_printing_report_top_requesters_never_leak_checkin_hash():
+    # A public/self-checkout shadow requester carries the privacy hash username
+    # checkin_<sha256>. The report's Top requesters must show the readable Check-In
+    # identifier (external_checkin_user_id), never the raw hash.
+    makerspace = make_space("reports-hash")
+    bucket = make_bucket(makerspace)
+    manager = make_print_manager("reports-hash-manager", makerspace)
+    hashed = "checkin_" + ("b" * 64)
+    requester = make_user(
+        hashed,
+        access_status=User.AccessStatus.ACTIVE,
+        external_checkin_user_id="printer-walkin@x.com",
+    )
+    make_request(bucket, requester, title="Hash job")
+
+    response = authenticated_client(manager).get(makerspace_report_url(makerspace))
+
+    assert response.status_code == 200
+    requesters = response.data["top_requesters"]
+    assert requesters, "top_requesters should not be empty"
+    labels = [row["requester"] for row in requesters]
+    assert all(not label.startswith("checkin_") for label in labels)
+    assert "printer-walkin@x.com" in labels

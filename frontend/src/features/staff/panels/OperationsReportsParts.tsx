@@ -184,6 +184,50 @@ export function PieChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: 
   );
 }
 
+// Aggregate ("All makerspaces") leaderboards must read PER MAKERSPACE, not as one
+// blended cross-OSMM ranking. Given rows whose first/identified column is the
+// makerspace, this groups them and renders a separate ranked table per makerspace
+// (heading = makerspace name), dropping the now-redundant makerspace column.
+export function PerMakerspaceTables({
+  data,
+  nameOf,
+  emptyLabel = "No records.",
+}: {
+  data?: ReportRows;
+  nameOf: (id: number) => string;
+  emptyLabel?: string;
+}) {
+  if (!data?.rows?.length) return <p className="text-sm text-muted">{emptyLabel}</p>;
+  const [header, ...body] = data.rows;
+  const idx = header.findIndex((cell) => cell === "makerspace_id" || cell === "makerspace");
+  if (idx === -1 || !body.length) return <ReportTable data={data} />;
+
+  const groups: { key: string; rows: ReportCell[][] }[] = [];
+  const byKey = new Map<string, ReportCell[][]>();
+  for (const row of body) {
+    const key = String(row[idx]);
+    let bucket = byKey.get(key);
+    if (!bucket) {
+      bucket = [];
+      byKey.set(key, bucket);
+      groups.push({ key, rows: bucket });
+    }
+    bucket.push(row);
+  }
+  const subHeader = header.filter((_, i) => i !== idx);
+
+  return (
+    <div className="space-y-4">
+      {groups.map((group) => (
+        <div key={group.key}>
+          <h4 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">{nameOf(Number(group.key))}</h4>
+          <ReportTable data={{ rows: [subHeader, ...group.rows.map((row) => row.filter((_, i) => i !== idx))] }} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function ReportTable({ data }: { data?: ReportRows }) {
   const tableHeaders = headers(data);
   const rows = reportRows(data);
