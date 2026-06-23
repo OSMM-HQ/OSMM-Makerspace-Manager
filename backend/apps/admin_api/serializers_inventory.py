@@ -10,6 +10,21 @@ from apps.inventory.models import (
     TrackingMode,
 )
 
+QUANTITY_BUCKET_FIELDS = (
+    "total_quantity",
+    "available_quantity",
+    "reserved_quantity",
+    "issued_quantity",
+    "damaged_quantity",
+    "lost_quantity",
+)
+CREATE_PROTECTED_BUCKET_FIELDS = (
+    "reserved_quantity",
+    "issued_quantity",
+    "damaged_quantity",
+    "lost_quantity",
+)
+
 
 class InventoryProductAdminSerializer(serializers.ModelSerializer):
     category = serializers.PrimaryKeyRelatedField(
@@ -75,6 +90,48 @@ class InventoryProductAdminSerializer(serializers.ModelSerializer):
         if value not in PublicAvailabilityMode.values:
             raise serializers.ValidationError("Invalid public availability mode.")
         return value
+
+
+class InventoryProductAdminCreateSerializer(InventoryProductAdminSerializer):
+    class Meta(InventoryProductAdminSerializer.Meta):
+        read_only_fields = [
+            *InventoryProductAdminSerializer.Meta.read_only_fields,
+            *CREATE_PROTECTED_BUCKET_FIELDS,
+        ]
+
+    def validate(self, attrs):
+        rejected = {
+            field: "Use the quantity adjustment workflow after creation."
+            for field in CREATE_PROTECTED_BUCKET_FIELDS
+            if field in self.initial_data
+        }
+        if rejected:
+            raise serializers.ValidationError(rejected)
+        total = attrs.get("total_quantity", 0)
+        available = attrs.get("available_quantity", 0)
+        if available > total:
+            raise serializers.ValidationError(
+                {"available_quantity": "Available quantity cannot exceed total quantity."}
+            )
+        return attrs
+
+
+class InventoryProductAdminUpdateSerializer(InventoryProductAdminSerializer):
+    class Meta(InventoryProductAdminSerializer.Meta):
+        read_only_fields = [
+            *InventoryProductAdminSerializer.Meta.read_only_fields,
+            *QUANTITY_BUCKET_FIELDS,
+        ]
+
+    def validate(self, attrs):
+        rejected = {
+            field: "Use the quantity adjustment workflow."
+            for field in QUANTITY_BUCKET_FIELDS
+            if field in self.initial_data
+        }
+        if rejected:
+            raise serializers.ValidationError(rejected)
+        return attrs
 
 
 class CategoryAdminSerializer(serializers.ModelSerializer):

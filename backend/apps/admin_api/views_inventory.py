@@ -18,7 +18,9 @@ class InventoryPagination(PageNumberPagination):
 from apps.accounts import rbac
 from apps.admin_api.permissions import IsActiveStaff, require_action
 from apps.admin_api.serializers_inventory import (
+    InventoryProductAdminCreateSerializer,
     InventoryProductAdminSerializer,
+    InventoryProductAdminUpdateSerializer,
     PublicImageAttachRequestSerializer,
     PublicImageUploadRequestSerializer,
     PublicImageUploadResponseSerializer,
@@ -37,6 +39,11 @@ class InventoryListCreateView(generics.ListCreateAPIView):
     serializer_class = InventoryProductAdminSerializer
     permission_classes = [IsActiveStaff]
     pagination_class = InventoryPagination
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return InventoryProductAdminCreateSerializer
+        return InventoryProductAdminSerializer
 
     def get_queryset(self):
         makerspace_id = self.kwargs["makerspace_id"]
@@ -66,6 +73,11 @@ class InventoryDetailView(generics.RetrieveUpdateAPIView):
     serializer_class = InventoryProductAdminSerializer
     permission_classes = [IsActiveStaff]
     http_method_names = ["get", "patch", "head", "options"]
+
+    def get_serializer_class(self):
+        if self.request.method == "PATCH":
+            return InventoryProductAdminUpdateSerializer
+        return InventoryProductAdminSerializer
 
     def get_queryset(self):
         action = (

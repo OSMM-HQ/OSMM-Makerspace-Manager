@@ -27,6 +27,7 @@ OPTIONAL_FIELDS = {
     "lost_quantity",
 }
 VALID_FIELDS = REQUIRED_FIELDS | OPTIONAL_FIELDS
+QUANTITY_BUCKET_FIELDS = {"total_quantity", "available_quantity", "reserved_quantity", "issued_quantity", "damaged_quantity", "lost_quantity"}
 MAX_IMPORT_ROWS = 5000
 MAX_IMPORT_UPLOAD_BYTES = 5 * 1024 * 1024
 
@@ -135,8 +136,9 @@ def apply_import(actor, makerspace, rows, mapping):
     updated = 0
     with transaction.atomic():
         for item in preview["rows"]:
-            data = item["data"]
+            data = dict(item["data"])
             box = data.pop("box", None)
+            name = data.pop("name")
             category_name = data.pop("category_name", "")
             if category_name:
                 category, was_category_created = _category_for_name(makerspace, category_name)
@@ -149,13 +151,21 @@ def apply_import(actor, makerspace, rows, mapping):
                         target=category,
                         meta={"source": "bulk_import"},
                     )
-            product, was_created = InventoryProduct.objects.update_or_create(
-                makerspace=makerspace,
-                name=data.pop("name"),
-                defaults={**data, "box": box},
+            create_defaults = {**data, "box": box}
+            product, was_created = InventoryProduct.objects.get_or_create(
+                makerspace=makerspace, name=name, defaults=create_defaults
             )
-            created += 1 if was_created else 0
-            updated += 0 if was_created else 1
+            if was_created:
+                created += 1
+                continue
+            update_defaults = {
+                field: value for field, value in data.items() if field not in QUANTITY_BUCKET_FIELDS
+            }
+            update_defaults["box"] = box
+            for field, value in update_defaults.items():
+                setattr(product, field, value)
+            product.save(update_fields=[*update_defaults.keys(), "updated_at"])
+            updated += 1
         audit.record(
             actor,
             "inventory.bulk_imported",

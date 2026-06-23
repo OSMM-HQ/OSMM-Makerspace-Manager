@@ -1161,17 +1161,17 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/PatchedInventoryProductAdmin"
+                                "$ref": "#/components/schemas/PatchedInventoryProductAdminUpdate"
                             }
                         },
                         "application/x-www-form-urlencoded": {
                             "schema": {
-                                "$ref": "#/components/schemas/PatchedInventoryProductAdmin"
+                                "$ref": "#/components/schemas/PatchedInventoryProductAdminUpdate"
                             }
                         },
                         "multipart/form-data": {
                             "schema": {
-                                "$ref": "#/components/schemas/PatchedInventoryProductAdmin"
+                                "$ref": "#/components/schemas/PatchedInventoryProductAdminUpdate"
                             }
                         }
                     }
@@ -1186,7 +1186,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/InventoryProductAdmin"
+                                    "$ref": "#/components/schemas/InventoryProductAdminUpdate"
                                 }
                             }
                         },
@@ -3366,17 +3366,17 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/InventoryProductAdmin"
+                                "$ref": "#/components/schemas/InventoryProductAdminCreate"
                             }
                         },
                         "application/x-www-form-urlencoded": {
                             "schema": {
-                                "$ref": "#/components/schemas/InventoryProductAdmin"
+                                "$ref": "#/components/schemas/InventoryProductAdminCreate"
                             }
                         },
                         "multipart/form-data": {
                             "schema": {
-                                "$ref": "#/components/schemas/InventoryProductAdmin"
+                                "$ref": "#/components/schemas/InventoryProductAdminCreate"
                             }
                         }
                     },
@@ -3392,7 +3392,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/InventoryProductAdmin"
+                                    "$ref": "#/components/schemas/InventoryProductAdminCreate"
                                 }
                             }
                         },
@@ -12830,6 +12830,234 @@
                     "updated_at"
                 ]
             },
+            "InventoryProductAdminCreate": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "makerspace": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "box": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "category": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "image_key": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "image_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "tracking_mode": {
+                        "$ref": "#/components/schemas/TrackingModeEnum"
+                    },
+                    "total_quantity": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 0
+                    },
+                    "available_quantity": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 0
+                    },
+                    "reserved_quantity": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "issued_quantity": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "damaged_quantity": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "lost_quantity": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "needs_fix_quantity": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "is_public": {
+                        "type": "boolean"
+                    },
+                    "public_self_checkout_enabled": {
+                        "type": "boolean"
+                    },
+                    "show_public_count": {
+                        "type": "boolean"
+                    },
+                    "public_availability_mode": {
+                        "$ref": "#/components/schemas/PublicAvailabilityModeEnum"
+                    },
+                    "storage_location": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "is_archived": {
+                        "type": "boolean"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "damaged_quantity",
+                    "id",
+                    "image_key",
+                    "image_url",
+                    "issued_quantity",
+                    "lost_quantity",
+                    "makerspace",
+                    "name",
+                    "needs_fix_quantity",
+                    "reserved_quantity",
+                    "updated_at"
+                ]
+            },
+            "InventoryProductAdminUpdate": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "makerspace": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "box": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "category": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "image_key": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "image_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "tracking_mode": {
+                        "$ref": "#/components/schemas/TrackingModeEnum"
+                    },
+                    "total_quantity": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "available_quantity": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "reserved_quantity": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "issued_quantity": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "damaged_quantity": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "lost_quantity": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "needs_fix_quantity": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "is_public": {
+                        "type": "boolean"
+                    },
+                    "public_self_checkout_enabled": {
+                        "type": "boolean"
+                    },
+                    "show_public_count": {
+                        "type": "boolean"
+                    },
+                    "public_availability_mode": {
+                        "$ref": "#/components/schemas/PublicAvailabilityModeEnum"
+                    },
+                    "storage_location": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "is_archived": {
+                        "type": "boolean"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "available_quantity",
+                    "created_at",
+                    "damaged_quantity",
+                    "id",
+                    "image_key",
+                    "image_url",
+                    "issued_quantity",
+                    "lost_quantity",
+                    "makerspace",
+                    "name",
+                    "needs_fix_quantity",
+                    "reserved_quantity",
+                    "total_quantity",
+                    "updated_at"
+                ]
+            },
             "InventoryQuantityAdjustment": {
                 "type": "object",
                 "properties": {
@@ -14679,7 +14907,7 @@
                     }
                 }
             },
-            "PatchedInventoryProductAdmin": {
+            "PatchedInventoryProductAdminUpdate": {
                 "type": "object",
                 "properties": {
                     "id": {
@@ -14720,33 +14948,27 @@
                     },
                     "total_quantity": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "readOnly": true
                     },
                     "available_quantity": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "readOnly": true
                     },
                     "reserved_quantity": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "readOnly": true
                     },
                     "issued_quantity": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "readOnly": true
                     },
                     "damaged_quantity": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "readOnly": true
                     },
                     "lost_quantity": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "readOnly": true
                     },
                     "needs_fix_quantity": {
                         "type": "integer",
