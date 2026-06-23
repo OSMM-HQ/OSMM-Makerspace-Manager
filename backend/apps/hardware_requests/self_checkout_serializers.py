@@ -3,14 +3,14 @@ from rest_framework import serializers
 
 
 class PublicToolScanSerializer(serializers.Serializer):
-    identifier = serializers.CharField()
-    payload = serializers.CharField()
+    identifier = serializers.CharField(max_length=254)
+    payload = serializers.CharField(max_length=64)
 
 
 # Checkout collects full identity; email IS the Check-In identifier (no separate
 # `identifier` field). Return keeps using PublicToolScanSerializer above.
 class PublicToolCheckoutSerializer(serializers.Serializer):
-    payload = serializers.CharField()
+    payload = serializers.CharField(max_length=64)
     requester_name = serializers.CharField(max_length=120)
     contact_email = serializers.EmailField()
     contact_phone = serializers.CharField(max_length=32)
@@ -24,8 +24,6 @@ class PublicToolLoanItemSerializer(serializers.Serializer):
 class PublicToolLoanSerializer(serializers.Serializer):
     public_token = serializers.UUIDField(source="request.public_token", read_only=True)
     status = serializers.CharField(read_only=True)
-    target_type = serializers.CharField(read_only=True)
-    target_label = serializers.CharField(read_only=True)
     items = serializers.SerializerMethodField()
 
     @extend_schema_field(PublicToolLoanItemSerializer(many=True))

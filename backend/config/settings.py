@@ -302,6 +302,8 @@ REST_FRAMEWORK = {
             default="10/min",
         ),
         "print_request_submit": env("THROTTLE_PRINT_REQUEST_SUBMIT", default="10/min"),
+        "public_tool_checkout": env("THROTTLE_PUBLIC_TOOL_CHECKOUT", default="10/min"),
+        "public_tool_return": env("THROTTLE_PUBLIC_TOOL_RETURN", default="10/min"),
         "request_submit": env("THROTTLE_REQUEST_SUBMIT", default="10/min"),
         "request_status": env("THROTTLE_REQUEST_STATUS", default="60/min"),
         "public_read": env("THROTTLE_PUBLIC_READ", default="120/min"),
@@ -448,3 +450,5 @@ SPECTACULAR_SETTINGS = {
         {"name": "Health", "description": "Health and readiness probes."},
     ],
 }
+
+

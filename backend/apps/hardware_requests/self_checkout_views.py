@@ -25,7 +25,7 @@ from rest_framework.exceptions import ValidationError
 class PublicToolCheckoutView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [ClientTierRateThrottle]
-    throttle_scope = "request_submit"
+    throttle_scope = "public_tool_checkout"
 
     @extend_schema(
         tags=["Public requests"],
@@ -54,7 +54,7 @@ class PublicToolCheckoutView(APIView):
 class PublicToolReturnView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [ClientTierRateThrottle]
-    throttle_scope = "request_submit"
+    throttle_scope = "public_tool_return"
 
     @extend_schema(
         tags=["Public requests"],
@@ -81,3 +81,4 @@ class PublicToolReturnView(APIView):
 def _require_module(makerspace, module_key):
     if not module_enabled(makerspace, module_key):
         raise ValidationError({"module": f"{module_key} is disabled for this makerspace."})
+

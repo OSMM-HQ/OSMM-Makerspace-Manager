@@ -12,7 +12,6 @@ class PublicFilamentSpoolSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     material = serializers.CharField()
     color = serializers.CharField()
-    remaining_weight_grams = serializers.DecimalField(max_digits=8, decimal_places=2)
 
 
 class PrintCheckinVerifyRequestSerializer(serializers.Serializer):
@@ -102,3 +101,4 @@ class PublicPrintStatusSerializer(serializers.Serializer):
     def get_queue_awaiting_review_ahead(self, obj):
         counts = self.context.get("queue_counts", {}).get(obj.id)
         return counts["awaiting_review_ahead"] if counts else None
+

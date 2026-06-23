@@ -322,14 +322,12 @@ def test_public_spools_lists_active_same_space_safe_fields_only():
             "id": active.id,
             "material": "PLA",
             "color": "white",
-            "remaining_weight_grams": "640.00",
         }
     ]
     assert set(response.data[0].keys()) == {
         "id",
         "material",
         "color",
-        "remaining_weight_grams",
     }
 
 

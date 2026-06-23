@@ -12026,14 +12026,6 @@
                         "type": "string",
                         "readOnly": true
                     },
-                    "target_type": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "target_label": {
-                        "type": "string",
-                        "readOnly": true
-                    },
                     "items": {
                         "type": "array",
                         "items": {
@@ -12043,6 +12035,14 @@
                     },
                     "id": {
                         "type": "integer",
+                        "readOnly": true
+                    },
+                    "target_type": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "target_label": {
+                        "type": "string",
                         "readOnly": true
                     },
                     "container_id": {
@@ -12121,8 +12121,10 @@
                     "qr_payloads": {
                         "type": "array",
                         "items": {
-                            "type": "string"
-                        }
+                            "type": "string",
+                            "maxLength": 64
+                        },
+                        "maxItems": 50
                     },
                     "items": {
                         "type": "array",
@@ -16501,18 +16503,12 @@
                     },
                     "color": {
                         "type": "string"
-                    },
-                    "remaining_weight_grams": {
-                        "type": "string",
-                        "format": "decimal",
-                        "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$"
                     }
                 },
                 "required": [
                     "color",
                     "id",
-                    "material",
-                    "remaining_weight_grams"
+                    "material"
                 ]
             },
             "PublicImageAttachRequest": {
@@ -17357,7 +17353,8 @@
                 "type": "object",
                 "properties": {
                     "payload": {
-                        "type": "string"
+                        "type": "string",
+                        "maxLength": 64
                     },
                     "requester_name": {
                         "type": "string",
@@ -17391,14 +17388,6 @@
                         "type": "string",
                         "readOnly": true
                     },
-                    "target_type": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "target_label": {
-                        "type": "string",
-                        "readOnly": true
-                    },
                     "items": {
                         "type": "array",
                         "items": {
@@ -17410,9 +17399,7 @@
                 "required": [
                     "items",
                     "public_token",
-                    "status",
-                    "target_label",
-                    "target_type"
+                    "status"
                 ]
             },
             "PublicToolLoanItem": {
@@ -17434,10 +17421,12 @@
                 "type": "object",
                 "properties": {
                     "identifier": {
-                        "type": "string"
+                        "type": "string",
+                        "maxLength": 254
                     },
                     "payload": {
-                        "type": "string"
+                        "type": "string",
+                        "maxLength": 64
                     }
                 },
                 "required": [

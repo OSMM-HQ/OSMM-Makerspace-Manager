@@ -74,10 +74,9 @@ export type PublicRequestStatus = {
 export type PublicToolLoan = {
   public_token: string;
   status: string;
-  target_type: string;
-  target_label: string;
   items: {
     product_name: string;
     quantity: number;
   }[];
 };
+

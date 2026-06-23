@@ -17,7 +17,7 @@ function LoanResult({ loan }: { loan: PublicToolLoan }) {
   return (
     <div className="rounded-xl border border-tone-mint bg-tone-mint px-3 py-2 text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]">
       <p className="text-sm font-semibold capitalize">
-        {loan.status.replace(/_/g, " ")}: {loan.target_label}
+        {loan.status.replace(/_/g, " ")}: {loan.items.map((item) => item.product_name).join(", ") || "Tool loan"}
       </p>
       <p className="mt-1 break-all text-xs">{loan.public_token}</p>
       <div className="mt-2 space-y-1">
@@ -38,12 +38,11 @@ export function PublicToolScanPanel({
   contactPhone,
   makerspaceSlug,
 }: PublicToolScanPanelProps) {
-  const [payload, setPayload] = useState("");
-  // A camera-scanned token is held here, NOT shown in the visible input — the QR
+  // A camera-scanned token is held here, NOT shown in the visible input - the QR
   // payload is an opaque physical-possession token, not something to render.
   const [scannedToken, setScannedToken] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
-  const effectivePayload = (scannedToken || payload).trim();
+  const effectivePayload = scannedToken.trim();
   const checkout = useMutation({
     mutationFn: () =>
       publicToolCheckout(makerspaceSlug, {
@@ -76,7 +75,7 @@ export function PublicToolScanPanel({
       </p>
       <h2 className="mt-2 text-xl font-semibold text-ink">Scan public tool</h2>
       <p className="mt-2 text-sm leading-6 text-muted">
-        Use your email above, then scan or paste the tool QR payload.
+        Use your email above, then scan the tool QR with your camera.
       </p>
       <button
         className="desk-button mt-4 w-full"
@@ -86,9 +85,9 @@ export function PublicToolScanPanel({
       >
         Scan QR with camera
       </button>
-      {scannedToken && !payload ? (
+      {scannedToken ? (
         <p className="mt-2 inline-flex items-center gap-2 rounded-lg border border-tone-mint bg-tone-mint px-3 py-1 text-sm font-semibold text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]">
-          Scanned ✓
+          Scanned OK
           <button
             type="button"
             className="text-xs font-normal underline"
@@ -98,15 +97,6 @@ export function PublicToolScanPanel({
           </button>
         </p>
       ) : null}
-      <input
-        className="desk-input mt-2 w-full"
-        placeholder="…or paste a tool, asset, or box QR payload"
-        value={payload}
-        onChange={(event) => {
-          setPayload(event.target.value);
-          setScannedToken("");
-        }}
-      />
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <button
           className="desk-button-primary disabled:cursor-not-allowed disabled:opacity-50"
@@ -140,7 +130,6 @@ export function PublicToolScanPanel({
           onClose={() => setScannerOpen(false)}
           onScan={(scanned) => {
             setScannedToken(scanned);
-            setPayload("");
             setScannerOpen(false);
           }}
         />

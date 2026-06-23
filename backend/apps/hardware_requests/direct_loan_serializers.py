@@ -15,9 +15,10 @@ class DirectLoanIssueSerializer(serializers.Serializer):
     contact_phone = serializers.CharField(max_length=32)
     container_id = serializers.IntegerField(required=False, allow_null=True)
     qr_payloads = serializers.ListField(
-        child=serializers.CharField(),
+        child=serializers.CharField(max_length=64),
         required=False,
         allow_empty=True,
+        max_length=50,
     )
     items = DirectLoanItemSerializer(many=True, required=False, allow_empty=True)
 
@@ -46,6 +47,8 @@ class DirectLoanUserAttributionSerializer(serializers.Serializer):
 
 class DirectLoanSerializer(PublicToolLoanSerializer):
     id = serializers.IntegerField(read_only=True)
+    target_type = serializers.CharField(read_only=True)
+    target_label = serializers.CharField(read_only=True)
     container_id = serializers.IntegerField(read_only=True)
     container_label = serializers.SerializerMethodField()
     due_at = serializers.DateTimeField(read_only=True, allow_null=True)

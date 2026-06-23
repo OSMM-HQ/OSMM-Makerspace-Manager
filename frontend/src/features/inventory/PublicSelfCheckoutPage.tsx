@@ -30,7 +30,7 @@ function ResultCard({ result }: { result: PublicToolLoanResult }) {
         {formatStatus(result.status)}
       </p>
       <h2 className="mt-1 text-lg font-semibold">
-        {result.target_label}
+        {result.items.map((item) => item.product_name).join(", ") || "Tool loan"}
       </h2>
       <div className="mt-3 space-y-2">
         {result.items.map((item) => (

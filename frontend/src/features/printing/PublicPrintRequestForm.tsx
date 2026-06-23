@@ -144,7 +144,7 @@ export function PrintDetailsForm({
                   <optgroup key={material} label={material}>
                     {spools.map((spool) => (
                       <option key={spool.id} value={spool.id}>
-                        {`${spool.color || "Default color"} — ${spool.remaining_weight_grams}g left`}
+                        {spool.color || "Default color"}
                       </option>
                     ))}
                   </optgroup>
@@ -221,3 +221,5 @@ export function PrintDetailsForm({
     </Card>
   );
 }
+
+
