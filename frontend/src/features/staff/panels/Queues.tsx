@@ -48,6 +48,8 @@ export type HardwareRequest = {
   return_due_at: string | null;
   return_reminder_sent_at: string | null;
   items: RequestItem[];
+  // AdminRequestSerializer serializes the assigned container as the flat `assigned_box_label`.
+  assigned_box_label?: string | null;
   assigned_box?: { code: string; label: string };
 };
 
