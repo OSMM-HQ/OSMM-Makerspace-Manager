@@ -62,7 +62,7 @@ envVarGroups:
         sync: false
       - key: CRON_SECRET
         sync: false
-      # NOTE: CELERY_BROKER_URL is NOT defined here — Render `fromService` refs are only
+      # NOTE: CELERY_BROKER_URL is NOT defined here - Render `fromService` refs are only
       # honored inside a service's own envVars, not inside an envVarGroup. It is wired
       # directly onto the web + worker services below.
       - key: PUBLIC_APP_BASE_URL
@@ -76,7 +76,8 @@ services:
   - type: redis
     name: makerspace-redis
     plan: starter
-    maxmemoryPolicy: allkeys-lru
+    ipAllowList: []
+    maxmemoryPolicy: noeviction
 
   - type: web
     name: makerspace-backend
@@ -86,10 +87,10 @@ services:
     dockerContext: ./backend
     healthCheckPath: /api/v1/health/readiness/
     # collectstatic runs at START (not preDeploy) so the populated STATIC_ROOT lives in
-    # the SAME container that serves traffic — Render's preDeploy runs in a separate
+    # the SAME container that serves traffic - Render's preDeploy runs in a separate
     # instance whose filesystem is discarded. collectstatic needs no DB, so it is safe
     # here; migrations are NOT run at start (they are a one-off against the direct/session
-    # pooler — see docs/deploy-production.md), because the runtime DATABASE_URL is the
+    # pooler - see docs/deploy-production.md), because the runtime DATABASE_URL is the
     # transaction pooler which can't run migration prepared statements.
     startCommand: python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 60
     envVars:
@@ -106,7 +107,7 @@ services:
     plan: starter
     dockerfilePath: ./backend/Dockerfile
     dockerContext: ./backend
-    startCommand: celery -A config worker -l info
+    dockerCommand: celery -A config worker -l info
     envVars:
       - fromGroup: makerspace-prod
       - key: CELERY_BROKER_URL
@@ -122,7 +123,7 @@ services:
     staticPublishPath: ./frontend/dist
     envVars:
       # sync:false so Render PROMPTS for the real backend API root at deploy time.
-      # VITE_API_URL is a BUILD-TIME var baked into the static bundle by Vite — a
+      # VITE_API_URL is a BUILD-TIME var baked into the static bundle by Vite - a
       # concrete placeholder here would ship an invalid URL until someone edits it
       # and rebuilds (Codex Stage-4 P2). Set it to https://<backend-host>/api .
       - key: VITE_API_URL
