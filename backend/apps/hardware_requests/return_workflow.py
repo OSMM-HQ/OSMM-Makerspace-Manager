@@ -63,7 +63,7 @@ def return_items(actor, request, evidence_id, remark, box_code, resolutions):
 
         availability.return_items(locked, validated_resolutions)
         event = _create_event(actor, locked, box, evidence, remark)
-        flip_individual_asset_returns(validated_resolutions, event)
+        flip_individual_asset_returns(actor, locked, validated_resolutions, event)
         write_accountability(actor, locked, evidence, validated_resolutions)
         request_action = finalize_return_status(locked, actor)
         _audit_return(actor, locked, box, evidence, scan, request_action)

@@ -1,6 +1,9 @@
+from collections import Counter
+
 from django.utils import timezone
 
 from apps.audit import services as audit
+from apps.boxes.models import QrCode, QrScanEvent
 from apps.hardware_requests.models import (
     HardwareRequest,
     HardwareRequestItemAsset,
@@ -8,6 +11,13 @@ from apps.hardware_requests.models import (
 )
 from apps.hardware_requests.workflow_errors import ReturnValidationError
 from apps.inventory.models import InventoryAsset, TrackingMode
+
+
+OUTCOME_MAP = {
+    "returned": (HardwareRequestItemAsset.Outcome.RETURNED, InventoryAsset.Status.AVAILABLE),
+    "damaged": (HardwareRequestItemAsset.Outcome.DAMAGED, InventoryAsset.Status.DAMAGED),
+    "missing": (HardwareRequestItemAsset.Outcome.LOST, InventoryAsset.Status.LOST),
+}
 
 
 def build_resolutions(locked, resolutions):
@@ -26,8 +36,14 @@ def build_resolutions(locked, resolutions):
         returned = resolution["returned"]
         damaged = resolution["damaged"]
         missing = resolution["missing"]
+        asset_outcomes = list(resolution.get("assets", []))
         if returned < 0 or damaged < 0 or missing < 0:
             raise ReturnValidationError("Return quantities cannot be negative.")
+
+        if item.product.tracking_mode == TrackingMode.INDIVIDUAL:
+            returned, damaged, missing = _individual_counts(
+                item, returned, damaged, missing, asset_outcomes
+            )
 
         quantity = returned + damaged + missing
         if quantity > remaining_quantity(item):
@@ -42,12 +58,29 @@ def build_resolutions(locked, resolutions):
                 "returned": returned,
                 "damaged": damaged,
                 "missing": missing,
+                "asset_outcomes": asset_outcomes,
             }
         )
 
     if total_resolved < 1:
         raise ReturnValidationError("At least one item must be resolved.")
     return validated
+
+
+def _individual_counts(item, returned, damaged, missing, asset_outcomes):
+    remaining = remaining_quantity(item)
+    if asset_outcomes:
+        counts = Counter(asset["outcome"] for asset in asset_outcomes)
+        exact = (counts["returned"], counts["damaged"], counts["missing"])
+        provided = (returned, damaged, missing)
+        if provided != (0, 0, 0) and provided != exact:
+            raise ReturnValidationError("Asset outcomes must match return quantities.")
+        return exact
+    if damaged or missing or returned != remaining:
+        raise ReturnValidationError(
+            "Individual-tracked returns require exact asset identity."
+        )
+    return returned, damaged, missing
 
 
 def remaining_quantity(item):
@@ -77,11 +110,16 @@ def write_accountability(actor, locked, evidence, resolutions):
         )
 
 
-def flip_individual_asset_returns(resolutions, event):
+def flip_individual_asset_returns(actor, locked, resolutions, event):
     now = timezone.now()
     for resolution in resolutions:
         item = resolution["item"]
         if item.product.tracking_mode != TrackingMode.INDIVIDUAL:
+            continue
+        if resolution.get("asset_outcomes"):
+            _flip_exact_asset_links(
+                actor, locked, item, resolution["asset_outcomes"], event, now
+            )
             continue
         _flip_asset_links(
             item,
@@ -91,22 +129,48 @@ def flip_individual_asset_returns(resolutions, event):
             event,
             now,
         )
-        _flip_asset_links(
-            item,
-            resolution["damaged"],
-            HardwareRequestItemAsset.Outcome.DAMAGED,
-            InventoryAsset.Status.DAMAGED,
-            event,
-            now,
+
+
+def _flip_exact_asset_links(actor, locked, item, asset_outcomes, event, now):
+    requested_ids = [asset["asset_id"] for asset in asset_outcomes]
+    links = {
+        link.asset_id: link
+        for link in HardwareRequestItemAsset.objects.select_for_update()
+        .select_related("asset")
+        .filter(
+            request_item=item,
+            asset_id__in=requested_ids,
+            outcome=HardwareRequestItemAsset.Outcome.ISSUED,
         )
-        _flip_asset_links(
-            item,
-            resolution["missing"],
-            HardwareRequestItemAsset.Outcome.LOST,
-            InventoryAsset.Status.LOST,
-            event,
-            now,
+    }
+    if len(links) != len(requested_ids):
+        raise ReturnValidationError("Return asset does not belong to this issued item.")
+    qr_by_asset = _active_asset_qrs(locked, requested_ids)
+    for asset in asset_outcomes:
+        link = links[asset["asset_id"]]
+        outcome, asset_status = OUTCOME_MAP[asset["outcome"]]
+        _set_link_outcome(link, outcome, asset_status, event, now)
+        qr = qr_by_asset.get(link.asset_id)
+        if qr is not None:
+            QrScanEvent.objects.create(
+                makerspace=locked.makerspace,
+                qr_code=qr,
+                request=locked,
+                actor=actor,
+                context=QrScanEvent.Context.RETURN,
+            )
+
+
+def _active_asset_qrs(locked, asset_ids):
+    return {
+        qr.target_id: qr
+        for qr in QrCode.objects.filter(
+            makerspace=locked.makerspace,
+            target_type=QrCode.TargetType.ASSET,
+            target_id__in=asset_ids,
+            status=QrCode.Status.ACTIVE,
         )
+    }
 
 
 def _flip_asset_links(item, quantity, outcome, asset_status, event, now):
@@ -120,19 +184,17 @@ def _flip_asset_links(item, quantity, outcome, asset_status, event, now):
     )
     if len(links) != quantity:
         raise ReturnValidationError("Return quantity exceeds linked issued assets.")
-
-    asset_ids = [link.asset_id for link in links]
-    locked_assets = list(
-        InventoryAsset.objects.select_for_update().filter(pk__in=asset_ids).order_by("pk")
-    )
-    for asset in locked_assets:
-        asset.status = asset_status
-        asset.save(update_fields=["status", "updated_at"])
     for link in links:
-        link.outcome = outcome
-        link.returned_at = now
-        link.return_event = event
-        link.save(update_fields=["outcome", "returned_at", "return_event"])
+        _set_link_outcome(link, outcome, asset_status, event, now)
+
+
+def _set_link_outcome(link, outcome, asset_status, event, now):
+    link.asset.status = asset_status
+    link.asset.save(update_fields=["status", "updated_at"])
+    link.outcome = outcome
+    link.returned_at = now
+    link.return_event = event
+    link.save(update_fields=["outcome", "returned_at", "return_event"])
 
 
 def finalize_return_status(locked, actor):

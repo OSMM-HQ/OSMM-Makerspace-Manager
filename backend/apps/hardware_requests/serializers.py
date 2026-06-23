@@ -70,6 +70,12 @@ class CheckinVerifyResponseSerializer(serializers.Serializer):
     username = serializers.CharField()
 
 
+class IssuedAssetSerializer(serializers.Serializer):
+    asset_id = serializers.IntegerField(read_only=True, source="asset.id")
+    asset_tag = serializers.CharField(read_only=True, source="asset.asset_tag")
+    serial_number = serializers.CharField(read_only=True, source="asset.serial_number")
+
+
 class AdminRequestItemSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     product_id = serializers.IntegerField(read_only=True)
@@ -86,9 +92,16 @@ class AdminRequestItemSerializer(serializers.Serializer):
     damaged_quantity = serializers.IntegerField(read_only=True)
     missing_quantity = serializers.IntegerField(read_only=True)
     needs_fix_quantity = serializers.IntegerField(read_only=True)
+    issued_assets = serializers.SerializerMethodField()
 
     def get_requires_asset_qr(self, obj) -> bool:
         return obj.product.tracking_mode == TrackingMode.INDIVIDUAL
+
+    def get_issued_assets(self, obj) -> list:
+        if obj.product.tracking_mode != TrackingMode.INDIVIDUAL:
+            return []
+        links = obj.asset_links.select_related("asset").filter(outcome="issued").order_by("asset_id")
+        return IssuedAssetSerializer(links, many=True).data
 
 
 class AdminRequestActorSerializer(serializers.Serializer):
@@ -102,7 +115,7 @@ class AdminRequestSerializer(serializers.Serializer):
     requester_username = serializers.CharField(read_only=True)
     requester_name = serializers.CharField(read_only=True)
     # Readable staff-facing label (Check-In email/phone), never the internal
-    # checkin_<hash>. Additive — requester_username stays for the existing contract.
+    # checkin_<hash>. Additive - requester_username stays for the existing contract.
     requester_display = serializers.SerializerMethodField()
     requester_contact_email = serializers.EmailField(read_only=True)
     requester_contact_phone = serializers.CharField(read_only=True)
@@ -124,7 +137,7 @@ class AdminRequestSerializer(serializers.Serializer):
     created_at = serializers.DateTimeField(read_only=True)
     updated_at = serializers.DateTimeField(read_only=True)
     # Evidence-photo ids so the staff console can fetch signed view URLs (GET /admin/evidence/<id>)
-    # and SHOW the issue/return photos — without these ids React had no way to view captured
+    # and SHOW the issue/return photos - without these ids React had no way to view captured
     # evidence (only the Django admin could). issue_evidence is a direct FK; return photos hang
     # off the immutable ReturnEvent rows for this request.
     issue_evidence_id = serializers.IntegerField(read_only=True, allow_null=True)
@@ -175,11 +188,17 @@ class ReturnDueSerializer(serializers.Serializer):
     return_due_at = serializers.DateTimeField(allow_null=True)
 
 
+class ReturnAssetResolutionSerializer(serializers.Serializer):
+    asset_id = serializers.IntegerField()
+    outcome = serializers.ChoiceField(choices=["returned", "damaged", "missing"])
+
+
 class ReturnItemResolutionSerializer(serializers.Serializer):
     item_id = serializers.IntegerField()
     returned = serializers.IntegerField(min_value=0, default=0)
     damaged = serializers.IntegerField(min_value=0, default=0)
     missing = serializers.IntegerField(min_value=0, default=0)
+    assets = ReturnAssetResolutionSerializer(many=True, required=False, default=list)
 
 
 class ReturnRequestSerializer(serializers.Serializer):
@@ -194,13 +213,20 @@ class ReturnRequestSerializer(serializers.Serializer):
             raise serializers.ValidationError(
                 {"resolutions": "Duplicate item_id values are not allowed."}
             )
+        asset_ids = []
         for resolution in attrs["resolutions"]:
+            asset_ids.extend(asset["asset_id"] for asset in resolution.get("assets", []))
             if (
                 resolution["returned"]
                 + resolution["damaged"]
                 + resolution["missing"]
+                + len(resolution.get("assets", []))
             ) == 0:
                 raise serializers.ValidationError(
                     {"resolutions": "Each resolution must resolve at least one item."}
                 )
+        if len(asset_ids) != len(set(asset_ids)):
+            raise serializers.ValidationError(
+                {"resolutions": "Duplicate asset_id values are not allowed."}
+            )
         return attrs

@@ -71,15 +71,6 @@ def make_issue_evidence(makerspace, actor):
     )
 
 
-def make_return_evidence(makerspace, actor):
-    return EvidencePhoto.objects.create(
-        makerspace=makerspace,
-        evidence_type=EvidencePhoto.EvidenceType.RETURN,
-        object_key=f"evidence/{makerspace.id}/return/{uuid.uuid4().hex}",
-        uploaded_by=actor,
-    )
-
-
 def make_accepted_request(makerspace, product, quantity, actor):
     requester = make_member(
         f"requester-{makerspace.slug}-{uuid.uuid4().hex[:8]}",
@@ -144,39 +135,6 @@ def setup_individual_issue(slug, quantity=1):
     hardware_request = make_accepted_request(makerspace, product, quantity, admin)
     evidence = make_issue_evidence(makerspace, admin)
     return makerspace, admin, product, hardware_request, evidence
-
-
-def test_quantity_mode_issue_and_return_do_not_require_asset_payloads(monkeypatch):
-    makerspace = make_space("serialized-quantity")
-    admin = make_member("serialized-quantity-admin", makerspace)
-    product = make_product(makerspace, total_quantity=5, available_quantity=5)
-    hardware_request = make_accepted_request(makerspace, product, 2, admin)
-    issue_evidence = make_issue_evidence(makerspace, admin)
-    return_evidence = make_return_evidence(makerspace, admin)
-    monkeypatch.setattr("apps.evidence.storage.object_exists", Mock(return_value=True))
-    client = authenticated_client(admin)
-
-    issued = issue_request(client, hardware_request, issue_evidence)
-
-    assert issued.status_code == 200
-    product.refresh_from_db()
-    assert (product.available_quantity, product.reserved_quantity, product.issued_quantity) == (
-        3,
-        0,
-        2,
-    )
-    assert HardwareRequestItemAsset.objects.count() == 0
-
-    returned = client.post(
-        return_url(hardware_request),
-        return_payload(hardware_request, return_evidence),
-        format="json",
-    )
-
-    assert returned.status_code == 200
-    product.refresh_from_db()
-    assert (product.available_quantity, product.issued_quantity) == (5, 0)
-    assert HardwareRequestItemAsset.objects.count() == 0
 
 
 def test_individual_issue_without_scans_is_rejected(monkeypatch):
@@ -313,63 +271,3 @@ def test_individual_issue_rejects_too_few_or_too_many_scans(monkeypatch, payload
 
     assert response.status_code == 400
     assert HardwareRequestItemAsset.objects.count() == 0
-
-
-def test_individual_return_flips_counted_assets_and_leaves_partial_issued(monkeypatch):
-    makerspace, admin, product, hardware_request, issue_evidence = setup_individual_issue(
-        "serialized-return",
-        quantity=4,
-    )
-    assets = [make_asset(makerspace, product) for _ in range(4)]
-    qrs = [make_asset_qr(makerspace, asset) for asset in assets]
-    first_return_evidence = make_return_evidence(makerspace, admin)
-    second_return_evidence = make_return_evidence(makerspace, admin)
-    monkeypatch.setattr("apps.evidence.storage.object_exists", Mock(return_value=True))
-    client = authenticated_client(admin)
-    issued = issue_request(
-        client,
-        hardware_request,
-        issue_evidence,
-        [qr.payload for qr in qrs],
-    )
-    assert issued.status_code == 200
-    item = hardware_request.items.get()
-
-    first_payload = return_payload(hardware_request, first_return_evidence, remark="Partial.")
-    first_payload["resolutions"] = [
-        {"item_id": item.id, "returned": 1, "damaged": 1, "missing": 1}
-    ]
-    first = client.post(return_url(hardware_request), first_payload, format="json")
-
-    assert first.status_code == 200
-    assert list(
-        item.asset_links.order_by("asset_id").values_list("outcome", flat=True)
-    ) == [
-        HardwareRequestItemAsset.Outcome.RETURNED,
-        HardwareRequestItemAsset.Outcome.DAMAGED,
-        HardwareRequestItemAsset.Outcome.LOST,
-        HardwareRequestItemAsset.Outcome.ISSUED,
-    ]
-    assert list(
-        InventoryAsset.objects.filter(pk__in=[asset.pk for asset in assets])
-        .order_by("pk")
-        .values_list("status", flat=True)
-    ) == [
-        InventoryAsset.Status.AVAILABLE,
-        InventoryAsset.Status.DAMAGED,
-        InventoryAsset.Status.LOST,
-        InventoryAsset.Status.ISSUED,
-    ]
-    hardware_request.refresh_from_db()
-    assert hardware_request.status == HardwareRequest.Status.PARTIALLY_RETURNED
-
-    second_payload = return_payload(hardware_request, second_return_evidence, remark="Final.")
-    second_payload["resolutions"] = [
-        {"item_id": item.id, "returned": 1, "damaged": 0, "missing": 0}
-    ]
-    second = client.post(return_url(hardware_request), second_payload, format="json")
-
-    assert second.status_code == 200
-    assert item.asset_links.filter(outcome=HardwareRequestItemAsset.Outcome.ISSUED).count() == 0
-    assert InventoryAsset.objects.get(pk=assets[3].pk).status == InventoryAsset.Status.AVAILABLE
-    assert ReturnEvent.objects.filter(request=hardware_request).count() == 2

@@ -35,4 +35,4 @@ def request_queryset():
         "assigned_box",
         "issued_by",
         "issue_evidence",
-    ).prefetch_related("items__product", "returnevent_set")
+    ).prefetch_related("items__product", "items__asset_links__asset", "returnevent_set")
