@@ -1,5 +1,6 @@
 import type React from "react";
 import { useEffect, useId, useRef } from "react";
+import { focusFirstDialogElement, trapDialogFocus } from "./dialogFocus";
 
 type ModalProps = {
   open: boolean;
@@ -15,16 +16,20 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
 
   useEffect(() => {
     if (!open) return;
-    panelRef.current?.focus();
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const panel = panelRef.current;
+    if (panel) focusFirstDialogElement(panel);
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onClose();
-      }
+      if (event.key === "Escape") onClose();
+      if (panel) trapDialogFocus(event, panel);
     };
 
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previousFocus?.focus();
+    };
   }, [onClose, open]);
 
   if (!open) return null;
