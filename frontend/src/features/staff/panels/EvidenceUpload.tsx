@@ -57,7 +57,7 @@ export function EvidenceUpload({
         const formData = new FormData();
         Object.entries(presigned.fields).forEach(([key, value]) => formData.append(key, value));
         formData.append("file", file);
-        // Direct presigned POST to object storage — no auth header, and we must NOT
+        // Direct presigned POST to object storage - no auth header, and we must NOT
         // set Content-Type so the browser adds the multipart boundary itself.
         const upload = await fetch(presigned.upload_url, { method: "POST", body: formData });
         if (!upload.ok) throw new Error(`Storage upload failed (${upload.status})`);
@@ -74,6 +74,7 @@ export function EvidenceUpload({
   return (
     <div className="space-y-1">
       <input
+        aria-label={`${evidenceType} photo`}
         type="file"
         accept="image/jpeg,image/png,image/webp"
         disabled={disabled || status === "uploading"}
@@ -83,8 +84,8 @@ export function EvidenceUpload({
         }}
         className="block w-full text-sm text-muted file:mr-3 file:rounded-md file:border-0 file:bg-accent file:px-3 file:py-1.5 file:text-sm file:font-semibold file:text-on-accent"
       />
-      {status === "uploading" ? <p className="text-xs text-muted">Uploading {fileName}…</p> : null}
-      {status === "done" ? <p className="text-xs text-success-ink">Photo uploaded ✓</p> : null}
+      {status === "uploading" ? <p className="text-xs text-muted">Uploading {fileName}...</p> : null}
+      {status === "done" ? <p className="text-xs text-success-ink">Photo uploaded</p> : null}
       {status === "error" ? <p className="text-xs text-danger">{error}</p> : null}
     </div>
   );

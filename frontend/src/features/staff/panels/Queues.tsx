@@ -162,7 +162,7 @@ function ReturnPolicyPanel({ policyDays, value, pending, onChange, onSave }: { p
   return (
     <Panel title="Return policy">
       <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-        <input className="desk-input" type="number" min="1" value={value} onChange={(event) => onChange(event.target.value)} />
+        <input aria-label="Default loan days" className="desk-input" type="number" min="1" value={value} onChange={(event) => onChange(event.target.value)} />
         <button disabled={pending} onClick={onSave}>Save default days</button>
       </div>
       <p className="mt-2 text-sm text-muted">Default return time is used when a request is issued. Current default: {policyDays} days.</p>

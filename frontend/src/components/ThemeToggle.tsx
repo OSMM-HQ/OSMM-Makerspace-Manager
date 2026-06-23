@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { readStorage, writeStorage } from "../lib/safeStorage";
 
 const THEME_KEY = "makerspace.theme";
 
@@ -8,13 +9,13 @@ function applyTheme(theme: "light" | "dark") {
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<"light" | "dark">(() => {
-    const stored = localStorage.getItem(THEME_KEY);
+    const stored = readStorage(THEME_KEY);
     return stored === "dark" ? "dark" : "light";
   });
 
   useEffect(() => {
     applyTheme(theme);
-    localStorage.setItem(THEME_KEY, theme);
+    writeStorage(THEME_KEY, theme);
   }, [theme]);
 
   return (
