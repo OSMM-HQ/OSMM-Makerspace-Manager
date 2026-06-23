@@ -68,7 +68,10 @@ class PrintPrinterSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         if "makerspace_id" in validated_data:
-            instance.makerspace_id = validated_data.pop("makerspace_id")
+            makerspace_id = validated_data.pop("makerspace_id")
+            if makerspace_id != instance.makerspace_id:
+                instance.image_key = ""
+            instance.makerspace_id = makerspace_id
         return super().update(instance, validated_data)
 
     def get_image_url(self, obj) -> str | None:

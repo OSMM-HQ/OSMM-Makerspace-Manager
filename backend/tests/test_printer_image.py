@@ -1,6 +1,9 @@
 from decimal import Decimal
 from unittest.mock import Mock
 
+from django.contrib import admin
+from django.test import RequestFactory
+
 import pytest
 from django.urls import reverse
 
@@ -173,6 +176,61 @@ def test_printer_delete_deletes_image_object(monkeypatch):
 
     assert response.status_code == 204
     delete.assert_called_once_with(f"printers/{makerspace.id}/delete.png")
+
+def test_printer_makerspace_move_clears_image_key():
+    source = make_space("printer-image-move-source")
+    dest = make_space("printer-image-move-dest")
+    superadmin = make_user(
+        "printer-image-move-super",
+        role="superadmin",
+        access_status="active",
+        is_staff=True,
+        is_superuser=True,
+    )
+    printer = PrintPrinter.objects.create(
+        makerspace=source,
+        name="Movable printer",
+        image_key=f"printers/{source.id}/stale.png",
+    )
+
+    response = authenticated_client(superadmin).patch(
+        printer_detail_url(printer),
+        {"makerspace": dest.id},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    printer.refresh_from_db()
+    assert printer.makerspace_id == dest.id
+    assert printer.image_key == ""
+    assert response.data["image_url"] is None
+
+
+def test_printer_admin_makerspace_move_clears_image_key():
+    source = make_space("printer-admin-image-move-source")
+    dest = make_space("printer-admin-image-move-dest")
+    superadmin = make_user(
+        "printer-admin-image-move-super",
+        role="superadmin",
+        access_status="active",
+        is_staff=True,
+        is_superuser=True,
+    )
+    printer = PrintPrinter.objects.create(
+        makerspace=source,
+        name="Admin moved printer",
+        image_key=f"printers/{source.id}/stale.png",
+    )
+    request = RequestFactory().post("/control/printing/printprinter/")
+    request.user = superadmin
+    form = Mock(cleaned_data={"image_upload": None, "clear_image": False})
+
+    printer.makerspace = dest
+    admin.site._registry[PrintPrinter].save_model(request, printer, form, change=True)
+
+    printer.refresh_from_db()
+    assert printer.makerspace_id == dest.id
+    assert printer.image_key == ""
 
 
 def test_report_and_public_stats_include_printer_image_url(settings):

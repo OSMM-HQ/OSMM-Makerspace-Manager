@@ -40,6 +40,14 @@ class PrintPrinterAdmin(PublicImageAdminMixin, SuperuserOnlyModelAdmin, ModelAdm
         "updated_at",
     )
 
+    def save_model(self, request, obj, form, change):
+        if change and obj.pk:
+            old = type(obj).objects.only("makerspace_id").get(pk=obj.pk)
+            old_makerspace_id = old.makerspace_id
+            if old_makerspace_id != obj.makerspace_id:
+                obj.image_key = ""
+        super().save_model(request, obj, form, change)
+
     def has_delete_permission(self, request, obj=None):
         # Force deletion through the reference-guarded `delete_safely` action only — disabling
         # the built-in delete removes `delete_selected` + the per-object delete view, so a
