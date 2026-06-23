@@ -105,9 +105,9 @@ def test_disabled_request_module_blocks_public_submit():
     response = APIClient().post(
         f"/api/v1/public/{makerspace.slug}/requests",
         {
-            "identifier": "member@example.com",
+            "requester_name": "Module Test Member",
             "contact_email": "member@example.com",
-            "contact_phone": "",
+            "contact_phone": "+15550101010",
             "requested_for": "Testing",
             "items": [{"product_id": product.id, "quantity": 1}],
         },

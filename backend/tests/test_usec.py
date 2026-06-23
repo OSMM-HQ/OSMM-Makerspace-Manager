@@ -35,9 +35,9 @@ def submit_url(makerspace):
 
 def submit_payload(product, **overrides):
     payload = {
-        "identifier": "checked-in-user",
+        "requester_name": "Checked In User",
         "contact_email": "checked-in-user@example.com",
-        "contact_phone": "",
+        "contact_phone": "+15550101010",
         "requested_for": "Bench diagnostics",
         "items": [{"product_id": product.id, "quantity": 1}],
     }

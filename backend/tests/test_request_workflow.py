@@ -144,12 +144,26 @@ def return_policy_url(makerspace):
     return f"/api/v1/admin/makerspace/{makerspace.id}/return-policy"
 
 
-def submit_payload(identifier, product, quantity=1):
-    return {
-        "identifier": identifier,
-        "contact_email": f"{identifier}@example.com",
+def submit_payload(contact_email, product, quantity=1, **overrides):
+    payload = {
+        "requester_name": "Ada Borrower",
+        "contact_email": contact_email,
+        "contact_phone": "+15550101010",
         "requested_for": "Bench diagnostics",
         "items": [{"product_id": product.id, "quantity": quantity}],
+    }
+    payload.update(overrides)
+    return payload
+
+
+def email_for_identifier(name):
+    return f"{name}@example.com"
+
+
+def legacy_submit_payload(identifier, product, quantity=1, **overrides):
+    return {
+        **submit_payload(email_for_identifier(identifier), product, quantity),
+        **overrides,
     }
 
 
@@ -172,12 +186,12 @@ def test_restricted_requester_cannot_submit():
     make_user(
         "restricted-requester",
         access_status=User.AccessStatus.RESTRICTED,
-        external_checkin_user_id="ext-r",
+        external_checkin_user_id="ext-r@example.com",
     )
 
     response = APIClient().post(
         public_submit_url(makerspace),
-        submit_payload("ext-r", product),
+        legacy_submit_payload("ext-r", product),
         format="json",
     )
 
@@ -193,12 +207,12 @@ def test_suspended_requester_cannot_submit():
     make_user(
         "suspended-requester",
         access_status=User.AccessStatus.SUSPENDED,
-        external_checkin_user_id="ext-s",
+        external_checkin_user_id="ext-s@example.com",
     )
 
     response = APIClient().post(
         public_submit_url(makerspace),
-        submit_payload("ext-s", product),
+        legacy_submit_payload("ext-s", product),
         format="json",
     )
 
@@ -223,7 +237,7 @@ def test_successful_submission_creates_pending_request_items_audit_and_notifies(
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
         response = APIClient().post(
             public_submit_url(makerspace),
-            submit_payload("ext-ok", product, quantity=2),
+            legacy_submit_payload("ext-ok", product, quantity=2),
             format="json",
         )
 
@@ -234,8 +248,9 @@ def test_successful_submission_creates_pending_request_items_audit_and_notifies(
     hardware_request = HardwareRequest.objects.get()
     assert str(hardware_request.public_token) == response.data["public_token"]
     assert hardware_request.status == HardwareRequest.Status.PENDING_APPROVAL
+    assert hardware_request.requester_name == "Ada Borrower"
     assert hardware_request.requester_contact_email == "ext-ok@example.com"
-    assert hardware_request.requester_contact_phone == ""
+    assert hardware_request.requester_contact_phone == "+15550101010"
     item = hardware_request.items.get()
     assert item.product == product
     assert item.requested_quantity == 2
@@ -246,11 +261,12 @@ def test_successful_submission_creates_pending_request_items_audit_and_notifies(
 
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
-def test_submission_requires_email_or_phone_contact():
-    makerspace = make_space("missing-contact")
+@pytest.mark.parametrize("missing_field", ["requester_name", "contact_email", "contact_phone"])
+def test_submission_requires_name_email_and_phone(missing_field):
+    makerspace = make_space(f"missing-{missing_field.replace('_', '-')}")
     product = make_product(makerspace)
-    payload = submit_payload("ext-missing-contact", product)
-    payload.pop("contact_email")
+    payload = legacy_submit_payload("ext-missing-contact", product)
+    payload.pop(missing_field)
 
     response = APIClient().post(
         public_submit_url(makerspace),
@@ -259,7 +275,7 @@ def test_submission_requires_email_or_phone_contact():
     )
 
     assert response.status_code == 400
-    assert response.data["contact"] == ["Email or phone number is required."]
+    assert missing_field in response.data
     assert HardwareRequest.objects.count() == 0
 
 
@@ -277,7 +293,7 @@ def test_submission_sends_confirmation_email_to_contact(
     with django_capture_on_commit_callbacks(execute=True):
         response = APIClient().post(
             public_submit_url(makerspace),
-            submit_payload("ext-email", product),
+            legacy_submit_payload("ext-email", product),
             format="json",
         )
 
@@ -299,7 +315,7 @@ def test_checkin_unavailable_returns_503_and_creates_no_request(monkeypatch):
 
     response = APIClient().post(
         public_submit_url(makerspace),
-        submit_payload("ext-down", product),
+        legacy_submit_payload("ext-down", product),
         format="json",
     )
 
@@ -319,7 +335,7 @@ def test_checkin_denied_returns_403_and_creates_no_request(monkeypatch):
 
     response = APIClient().post(
         public_submit_url(makerspace),
-        submit_payload("ext-denied", product),
+        legacy_submit_payload("ext-denied", product),
         format="json",
     )
 
@@ -333,7 +349,10 @@ def test_duplicate_product_lines_in_one_submission_return_400():
     makerspace = make_space("duplicate-lines")
     product = make_product(makerspace)
     payload = {
-        "identifier": "ext-duplicate",
+        "requester_name": "Ada Borrower",
+        "contact_email": "ext-duplicate@example.com",
+        "contact_phone": "+15550101010",
+        "requested_for": "Bench diagnostics",
         "items": [
             {"product_id": product.id, "quantity": 1},
             {"product_id": product.id, "quantity": 2},
@@ -370,7 +389,7 @@ def test_unrequestable_product_returns_400_and_creates_no_request(
 
     response = APIClient().post(
         public_submit_url(makerspace),
-        submit_payload(f"ext-{name}", product),
+        legacy_submit_payload(f"ext-{name}", product),
         format="json",
     )
 
@@ -516,10 +535,8 @@ def test_same_checked_in_user_has_separate_request_history_per_makerspace():
     second_product = make_product(second_space, name="Second Space Meter")
     contact = "shared@example.com"
 
-    first_payload = submit_payload("shared-checkin-id", first_product)
-    first_payload["contact_email"] = contact
-    second_payload = submit_payload("shared-checkin-id", second_product)
-    second_payload["contact_email"] = contact
+    first_payload = submit_payload(contact, first_product)
+    second_payload = submit_payload(contact, second_product)
 
     first_submit = APIClient().post(
         public_submit_url(first_space),
@@ -538,12 +555,12 @@ def test_same_checked_in_user_has_separate_request_history_per_makerspace():
 
     first_lookup = APIClient().post(
         public_lookup_url(first_space),
-        {"identifier": "shared-checkin-id"},
+        {"identifier": contact},
         format="json",
     )
     second_lookup = APIClient().post(
         public_lookup_url(second_space),
-        {"identifier": "shared-checkin-id"},
+        {"identifier": contact},
         format="json",
     )
 
@@ -967,12 +984,12 @@ def test_request_submit_throttle_returns_429_on_second_rapid_submit(settings, mo
 
     first = client.post(
         public_submit_url(makerspace),
-        submit_payload("first", product),
+        legacy_submit_payload("first", product),
         format="json",
     )
     second = client.post(
         public_submit_url(makerspace),
-        submit_payload("second", product),
+        legacy_submit_payload("second", product),
         format="json",
     )
 

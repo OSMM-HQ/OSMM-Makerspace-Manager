@@ -1,5 +1,6 @@
 import logging
 
+from apps.hardware_requests.display import requester_label
 from apps.integrations.email_templates import hardware_context, render
 from apps.integrations.email import send_makerspace_email
 from apps.integrations import notification_rules
@@ -127,7 +128,7 @@ def _send_request_message(request, text):
 def _build_submitted_request_message(request):
     lines = [
         f"New hardware request #{request.pk}",
-        f"Requester: {request.requester_username or 'Unknown requester'}",
+        f"Requester: {requester_label(request, fallback='Unknown requester')}",
     ]
     if request.requester_contact_email:
         lines.append(f"Email: {request.requester_contact_email}")

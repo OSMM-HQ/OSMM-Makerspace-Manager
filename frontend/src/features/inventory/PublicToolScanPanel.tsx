@@ -7,7 +7,9 @@ import type { PublicToolLoan } from "../../types/inventory";
 import { publicToolCheckout, publicToolReturn } from "./api";
 
 type PublicToolScanPanelProps = {
-  identifier: string;
+  requesterName: string;
+  contactEmail: string;
+  contactPhone: string;
   makerspaceSlug: string;
 };
 
@@ -31,7 +33,9 @@ function LoanResult({ loan }: { loan: PublicToolLoan }) {
 }
 
 export function PublicToolScanPanel({
-  identifier,
+  requesterName,
+  contactEmail,
+  contactPhone,
   makerspaceSlug,
 }: PublicToolScanPanelProps) {
   const [payload, setPayload] = useState("");
@@ -43,18 +47,25 @@ export function PublicToolScanPanel({
   const checkout = useMutation({
     mutationFn: () =>
       publicToolCheckout(makerspaceSlug, {
-        identifier: identifier.trim(),
         payload: effectivePayload,
+        requester_name: requesterName.trim(),
+        contact_email: contactEmail.trim(),
+        contact_phone: contactPhone.trim(),
       }),
   });
   const returnTool = useMutation({
     mutationFn: () =>
       publicToolReturn(makerspaceSlug, {
-        identifier: identifier.trim(),
+        identifier: contactEmail.trim(),
         payload: effectivePayload,
       }),
   });
-  const disabled = !identifier.trim() || !effectivePayload;
+  const checkoutDisabled =
+    !requesterName.trim() ||
+    !contactEmail.trim() ||
+    !contactPhone.trim() ||
+    !effectivePayload;
+  const returnDisabled = !contactEmail.trim() || !effectivePayload;
   const error = checkout.error?.message ?? returnTool.error?.message;
   const result = checkout.data ?? returnTool.data;
 
@@ -65,11 +76,11 @@ export function PublicToolScanPanel({
       </p>
       <h2 className="mt-2 text-xl font-semibold text-ink">Scan public tool</h2>
       <p className="mt-2 text-sm leading-6 text-muted">
-        Use your Check-In email or phone above, then scan or paste the tool QR payload.
+        Use your email above, then scan or paste the tool QR payload.
       </p>
       <button
         className="desk-button mt-4 w-full"
-        disabled={!identifier.trim()}
+        disabled={!contactEmail.trim()}
         type="button"
         onClick={() => setScannerOpen(true)}
       >
@@ -99,7 +110,7 @@ export function PublicToolScanPanel({
       <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <button
           className="desk-button-primary disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={disabled || checkout.isPending}
+          disabled={checkoutDisabled || checkout.isPending}
           type="button"
           onClick={() => checkout.mutate()}
         >
@@ -107,7 +118,7 @@ export function PublicToolScanPanel({
         </button>
         <button
           className="desk-button"
-          disabled={disabled || returnTool.isPending}
+          disabled={returnDisabled || returnTool.isPending}
           type="button"
           onClick={() => returnTool.mutate()}
         >

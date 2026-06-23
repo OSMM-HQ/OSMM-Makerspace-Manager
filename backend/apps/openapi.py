@@ -15,7 +15,7 @@ PUBLISHABLE_KEY_PARAMETER = OpenApiParameter(
 PUBLIC_REQUEST_SUBMIT_EXAMPLE = OpenApiExample(
     "Submit public equipment request",
     value={
-        "identifier": "shaans@example.com",
+        "requester_name": "Shaan Shoukath",
         "contact_email": "shaans@example.com",
         "contact_phone": "+919876543210",
         "requested_for": "Electronics workshop diagnostics",
@@ -83,8 +83,19 @@ QR_SCAN_EXAMPLE = OpenApiExample(
 )
 
 PUBLIC_TOOL_SCAN_EXAMPLE = OpenApiExample(
-    "Public QR tool scan",
+    "Public QR tool return scan",
     value={"identifier": "shaans@example.com", "payload": "BOX-ABC123"},
+    request_only=True,
+)
+
+PUBLIC_TOOL_CHECKOUT_EXAMPLE = OpenApiExample(
+    "Public QR tool checkout",
+    value={
+        "payload": "BOX-ABC123",
+        "requester_name": "Shaan Shoukath",
+        "contact_email": "shaans@example.com",
+        "contact_phone": "+919876543210",
+    },
     request_only=True,
 )
 

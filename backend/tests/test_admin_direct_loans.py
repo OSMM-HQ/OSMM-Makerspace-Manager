@@ -70,15 +70,22 @@ def direct_url(makerspace):
     return f"/api/v1/admin/makerspace/{makerspace.id}/direct-loans"
 
 
+def direct_payload(**overrides):
+    payload = {
+        "requester_name": "Direct Borrower",
+        "contact_email": "member-direct@example.com",
+        "contact_phone": "+15550101010",
+    }
+    payload.update(overrides)
+    return payload
+
+
 def issue_direct_product_loan(makerspace, admin, product=None):
     product = product or make_product(makerspace)
     client = authed(admin)
     response = client.post(
         direct_url(makerspace),
-        {
-            "identifier": "member-direct",
-            "items": [{"product_id": product.id, "quantity": 1}],
-        },
+        direct_payload(items=[{"product_id": product.id, "quantity": 1}]),
         format="json",
     )
     assert response.status_code == 201
@@ -107,11 +114,11 @@ def test_admin_direct_manual_handout_and_return_logs_product(monkeypatch):
 
     issued = client.post(
         direct_url(makerspace),
-        {
-            "identifier": "member-direct",
-            "container_id": container.id,
-            "items": [{"product_id": product.id, "quantity": 2}],
-        },
+        direct_payload(
+            container_id=container.id,
+            due_at="2035-01-01T00:00:00Z",
+            items=[{"product_id": product.id, "quantity": 2}],
+        ),
         format="json",
     )
 
@@ -125,10 +132,15 @@ def test_admin_direct_manual_handout_and_return_logs_product(monkeypatch):
     request = HardwareRequest.objects.get()
     assert request.status == HardwareRequest.Status.ISSUED
     assert request.issued_by == admin
+    assert request.requester_name == "Direct Borrower"
+    assert request.requester_contact_email == "member-direct@example.com"
+    assert request.requester_contact_phone == "+15550101010"
     loan = PublicToolLoan.objects.get()
     assert loan.qr_code_id is None
     assert loan.container == container
     assert loan.due_at is not None
+    assert request.return_due_at == loan.due_at
+    assert loan.due_at.year != 2035
     assert abs((loan.due_at - loan.checked_out_at) - timedelta(days=10)) < timedelta(
         seconds=2
     )
@@ -176,6 +188,26 @@ def test_admin_direct_manual_handout_and_return_logs_product(monkeypatch):
 
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
+@pytest.mark.parametrize("missing_field", ["requester_name", "contact_email", "contact_phone"])
+def test_direct_loan_requires_name_email_and_phone(missing_field):
+    makerspace = make_space(f"direct-missing-{missing_field.replace('_', '-')}")
+    admin = make_admin(makerspace)
+    product = make_product(makerspace)
+    payload = direct_payload(items=[{"product_id": product.id, "quantity": 1}])
+    payload.pop(missing_field)
+
+    response = authed(admin).post(
+        direct_url(makerspace),
+        payload,
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert missing_field in response.data
+    assert PublicToolLoan.objects.count() == 0
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_admin_direct_handout_allows_non_self_checkout_product():
     makerspace = make_space("direct-disabled")
     admin = make_admin(makerspace)
@@ -183,10 +215,7 @@ def test_admin_direct_handout_allows_non_self_checkout_product():
 
     response = authed(admin).post(
         direct_url(makerspace),
-        {
-            "identifier": "member-direct",
-            "items": [{"product_id": product.id, "quantity": 1}],
-        },
+        direct_payload(items=[{"product_id": product.id, "quantity": 1}]),
         format="json",
     )
 
@@ -207,7 +236,7 @@ def test_admin_direct_qr_handout_allows_non_public_non_self_checkout_product():
 
     response = authed(admin).post(
         direct_url(makerspace),
-        {"identifier": "member-direct", "qr_payloads": [qr.payload]},
+        direct_payload(qr_payloads=[qr.payload]),
         format="json",
     )
 
@@ -247,7 +276,7 @@ def test_suspended_admin_cannot_issue_direct_loan():
 
     response = authed(admin).post(
         direct_url(makerspace),
-        {"identifier": "member-direct", "items": [{"product_id": product.id, "quantity": 1}]},
+        direct_payload(items=[{"product_id": product.id, "quantity": 1}]),
         format="json",
     )
 
@@ -266,10 +295,7 @@ def test_direct_loan_originless_list_uses_membership_fallback():
 
     issued = client.post(
         direct_url(makerspace),
-        {
-            "identifier": "member-direct",
-            "items": [{"product_id": product.id, "quantity": 1}],
-        },
+        direct_payload(items=[{"product_id": product.id, "quantity": 1}]),
         format="json",
     )
     listed = client.get(direct_url(makerspace))
@@ -290,10 +316,7 @@ def test_direct_loan_rejects_different_staff_origin_for_scoped_views():
 
     issued = client.post(
         direct_url(primary),
-        {
-            "identifier": "member-direct",
-            "items": [{"product_id": product.id, "quantity": 1}],
-        },
+        direct_payload(items=[{"product_id": product.id, "quantity": 1}]),
         format="json",
     )
     assert issued.status_code == 201
@@ -302,10 +325,10 @@ def test_direct_loan_rejects_different_staff_origin_for_scoped_views():
     listed = client.get(direct_url(primary), HTTP_ORIGIN=wrong_origin)
     created = client.post(
         direct_url(primary),
-        {
-            "identifier": "member-direct-2",
-            "items": [{"product_id": product.id, "quantity": 1}],
-        },
+        direct_payload(
+            contact_email="member-direct-2@example.com",
+            items=[{"product_id": product.id, "quantity": 1}],
+        ),
         format="json",
         HTTP_ORIGIN=wrong_origin,
     )
@@ -341,10 +364,7 @@ def test_direct_return_hides_cross_tenant_and_missing_loan_ids():
 
     issued = authed(other_admin).post(
         direct_url(other),
-        {
-            "identifier": "member-direct",
-            "items": [{"product_id": other_product.id, "quantity": 1}],
-        },
+        direct_payload(items=[{"product_id": other_product.id, "quantity": 1}]),
         format="json",
     )
     assert issued.status_code == 201
@@ -497,7 +517,7 @@ def test_every_qr_in_multi_qr_direct_loan_is_tracked(monkeypatch):
 
     issued = client.post(
         direct_url(makerspace),
-        {"identifier": "member-direct", "qr_payloads": [qr_a.payload, qr_b.payload]},
+        direct_payload(qr_payloads=[qr_a.payload, qr_b.payload]),
         format="json",
     )
 
@@ -510,7 +530,7 @@ def test_every_qr_in_multi_qr_direct_loan_is_tracked(monkeypatch):
     # The second QR must now read as already checked out (the bug let it through).
     reissue = client.post(
         direct_url(makerspace),
-        {"identifier": "member-direct", "qr_payloads": [qr_b.payload]},
+        direct_payload(qr_payloads=[qr_b.payload]),
         format="json",
     )
 
@@ -545,7 +565,7 @@ def test_direct_loan_rejects_duplicate_qr_payload():
 
     response = authed(admin).post(
         direct_url(makerspace),
-        {"identifier": "member-direct", "qr_payloads": [qr.payload, qr.payload]},
+        direct_payload(qr_payloads=[qr.payload, qr.payload]),
         format="json",
     )
 
@@ -566,7 +586,7 @@ def test_direct_loan_rejects_product_qr_for_individual_tracked_product():
 
     response = authed(admin).post(
         direct_url(makerspace),
-        {"identifier": "member-direct", "qr_payloads": [qr.payload]},
+        direct_payload(qr_payloads=[qr.payload]),
         format="json",
     )
 
@@ -599,7 +619,7 @@ def test_direct_loan_accepts_asset_qr_for_individual_tracked_product():
 
     response = authed(admin).post(
         direct_url(makerspace),
-        {"identifier": "member-direct", "qr_payloads": [qr.payload]},
+        direct_payload(qr_payloads=[qr.payload]),
         format="json",
     )
 
@@ -632,7 +652,7 @@ def test_direct_loan_rejects_box_qr_fallback_for_individual_tracked_product():
 
     response = authed(admin).post(
         direct_url(makerspace),
-        {"identifier": "member-direct", "qr_payloads": [qr.payload]},
+        direct_payload(qr_payloads=[qr.payload]),
         format="json",
     )
 
@@ -659,11 +679,10 @@ def test_direct_loan_rejects_inactive_container():
 
     response = authed(admin).post(
         direct_url(makerspace),
-        {
-            "identifier": "member-direct",
-            "container_id": container.id,
-            "items": [{"product_id": product.id, "quantity": 1}],
-        },
+        direct_payload(
+            container_id=container.id,
+            items=[{"product_id": product.id, "quantity": 1}],
+        ),
         format="json",
     )
 
@@ -683,22 +702,22 @@ def test_direct_loan_duplicate_active_container_returns_409():
 
     created = client.post(
         direct_url(makerspace),
-        {
-            "identifier": "member-direct-1",
-            "container_id": container.id,
-            "items": [{"product_id": first.id, "quantity": 1}],
-        },
+        direct_payload(
+            contact_email="member-direct-1@example.com",
+            container_id=container.id,
+            items=[{"product_id": first.id, "quantity": 1}],
+        ),
         format="json",
     )
     assert created.status_code == 201
 
     duplicate = client.post(
         direct_url(makerspace),
-        {
-            "identifier": "member-direct-2",
-            "container_id": container.id,
-            "items": [{"product_id": second.id, "quantity": 1}],
-        },
+        direct_payload(
+            contact_email="member-direct-2@example.com",
+            container_id=container.id,
+            items=[{"product_id": second.id, "quantity": 1}],
+        ),
         format="json",
     )
 
@@ -736,7 +755,7 @@ def test_guest_admin_cannot_create_direct_loan():
 
     response = authed(guest).post(
         direct_url(makerspace),
-        {"identifier": "member-direct", "items": [{"product_id": product.id, "quantity": 1}]},
+        direct_payload(items=[{"product_id": product.id, "quantity": 1}]),
         format="json",
     )
 
@@ -753,7 +772,12 @@ def test_direct_return_rejects_self_checkout_loan():
 
     checkout = APIClient().post(
         f"/api/v1/public/{makerspace.slug}/tools/checkout",
-        {"identifier": "member-x", "payload": qr.payload},
+        {
+            "payload": qr.payload,
+            "requester_name": "Self Checkout",
+            "contact_email": "member-x@example.com",
+            "contact_phone": "+15550101010",
+        },
         format="json",
     )
     assert checkout.status_code == 201
@@ -782,12 +806,12 @@ def test_direct_return_rejects_reused_evidence_across_loans(monkeypatch):
     product_b = make_product(makerspace, name="Reuse Tool B")
     issued_a = client.post(
         direct_url(makerspace),
-        {"identifier": "member-direct", "items": [{"product_id": product_a.id, "quantity": 1}]},
+        direct_payload(items=[{"product_id": product_a.id, "quantity": 1}]),
         format="json",
     )
     issued_b = client.post(
         direct_url(makerspace),
-        {"identifier": "member-direct", "items": [{"product_id": product_b.id, "quantity": 1}]},
+        direct_payload(items=[{"product_id": product_b.id, "quantity": 1}]),
         format="json",
     )
     assert issued_a.status_code == 201

@@ -11,16 +11,9 @@ class RequestItemInputSerializer(serializers.Serializer):
 
 class RequestSubmitSerializer(serializers.Serializer):
     website = serializers.CharField(required=False, allow_blank=True, write_only=True)
-    identifier = serializers.CharField()
-    contact_email = serializers.EmailField(
-        required=False,
-        allow_blank=True,
-        default="",
-    )
+    requester_name = serializers.CharField(max_length=120)
+    contact_email = serializers.EmailField()
     contact_phone = serializers.CharField(
-        required=False,
-        allow_blank=True,
-        default="",
         max_length=32,
     )
     requested_for = serializers.CharField(
@@ -36,10 +29,6 @@ class RequestSubmitSerializer(serializers.Serializer):
         if len(product_ids) != len(set(product_ids)):
             raise serializers.ValidationError(
                 {"items": "Duplicate product_id values are not allowed."}
-            )
-        if not attrs["contact_email"].strip() and not attrs["contact_phone"].strip():
-            raise serializers.ValidationError(
-                {"contact": "Email or phone number is required."}
             )
         return attrs
 
@@ -111,6 +100,7 @@ class AdminRequestSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     makerspace_id = serializers.IntegerField(read_only=True)
     requester_username = serializers.CharField(read_only=True)
+    requester_name = serializers.CharField(read_only=True)
     # Readable staff-facing label (Check-In email/phone), never the internal
     # checkin_<hash>. Additive — requester_username stays for the existing contract.
     requester_display = serializers.SerializerMethodField()

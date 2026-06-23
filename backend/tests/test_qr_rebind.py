@@ -250,7 +250,12 @@ def test_rebind_blocked_when_qr_has_outstanding_loan():
     qr = _qr(source, actor)
     checkout = APIClient().post(
         f"/api/v1/public/{makerspace.slug}/tools/checkout",
-        {"identifier": "member-1", "payload": qr.payload},
+        {
+            "payload": qr.payload,
+            "requester_name": "QR Borrower",
+            "contact_email": "member-1@example.com",
+            "contact_phone": "+15550101010",
+        },
         format="json",
     )
     assert checkout.status_code == 201

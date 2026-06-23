@@ -31,7 +31,6 @@ export function PublicPrintRequestPage() {
   const tenant = useTenant();
   const makerspaceSlug = tenant.mode === "single" ? tenant.slug : slug ?? "";
   const tenantPath = useTenantPath(makerspaceSlug);
-  const [identifier, setIdentifier] = useState("");
   const [verifiedIdentifier, setVerifiedIdentifier] = useState("");
   const [verifiedName, setVerifiedName] = useState("");
   const [form, setForm] = useState<FormState>(initialForm);
@@ -83,14 +82,15 @@ export function PublicPrintRequestPage() {
     }
   }, []);
   const verifyMutation = useMutation({
-    mutationFn: (id: string) => verifyPrintCheckin(makerspaceSlug, id),
-    onSuccess: (data, id) => {
-      setVerifiedIdentifier(id);
+    mutationFn: (email: string) => verifyPrintCheckin(makerspaceSlug, email),
+    onSuccess: (data, email) => {
+      setVerifiedIdentifier(email);
       setVerifiedName(data.username);
     },
   });
   const verified =
-    identifier.trim().length > 0 && identifier.trim() === verifiedIdentifier;
+    form.contactEmail.trim().length > 0 &&
+    form.contactEmail.trim() === verifiedIdentifier;
   const displayName =
     bootstrap?.branding.display_name ||
     bootstrap?.makerspace.name ||
@@ -108,7 +108,7 @@ export function PublicPrintRequestPage() {
       for (const [index, item] of files.entries()) {
         setUploadProgress(`Uploading ${index + 1}/${files.length}`);
         const presigned = await presignPrintUpload(makerspaceSlug, {
-          identifier: identifier.trim(),
+          contact_email: form.contactEmail.trim(),
           kind: item.kind,
           filename: item.file.name,
           content_type:
@@ -128,8 +128,7 @@ export function PublicPrintRequestPage() {
       );
       return submitPrintRequest(makerspaceSlug, {
         website,
-        identifier: identifier.trim(),
-        requester_name: optional(form.requesterName),
+        requester_name: form.requesterName.trim(),
         title: form.title.trim(),
         project_brief: optional(form.projectBrief),
         preferred_settings: optional(form.preferredSettings),
@@ -140,8 +139,8 @@ export function PublicPrintRequestPage() {
           : null,
         quantity: form.quantity,
         source_link: optional(form.sourceLink),
-        contact_email: optional(form.contactEmail),
-        contact_phone: optional(form.contactPhone),
+        contact_email: form.contactEmail.trim(),
+        contact_phone: form.contactPhone.trim(),
         file_ids: fileIds,
       });
     },
@@ -157,9 +156,24 @@ export function PublicPrintRequestPage() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
+  function updateContactEmail(value: string) {
+    updateField("contactEmail", value);
+    if (value.trim() !== verifiedIdentifier) {
+      setVerifiedIdentifier("");
+      setVerifiedName("");
+      verifyMutation.reset();
+    }
+  }
+
   function submitForm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (verified && form.title.trim()) {
+    if (
+      verified &&
+      form.requesterName.trim() &&
+      form.contactEmail.trim() &&
+      form.contactPhone.trim() &&
+      form.title.trim()
+    ) {
       submitMutation.mutate();
     }
   }
@@ -244,20 +258,22 @@ export function PublicPrintRequestPage() {
             </p>
             <label className="mt-3 block">
                 <span className="mb-1 block text-xs font-semibold tracking-wide opacity-80">
-                  Check-In email or phone
+                  Check-In email
                 </span>
               <input
                 className="desk-input w-full"
-                placeholder="Email or phone used at Check-In"
-                value={identifier}
-                onChange={(event) => setIdentifier(event.target.value)}
+                placeholder="you@example.com"
+                required
+                type="email"
+                value={form.contactEmail}
+                onChange={(event) => updateContactEmail(event.target.value)}
               />
             </label>
             <button
               className="desk-button mt-3"
-              disabled={!identifier.trim() || verifyMutation.isPending}
+              disabled={!form.contactEmail.trim() || verifyMutation.isPending}
               type="button"
-              onClick={() => verifyMutation.mutate(identifier.trim())}
+              onClick={() => verifyMutation.mutate(form.contactEmail.trim())}
             >
               {verifyMutation.isPending ? "Verifying..." : "Verify Check-In"}
             </button>

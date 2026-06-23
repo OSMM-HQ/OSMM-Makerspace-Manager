@@ -31,12 +31,17 @@ def is_internal_checkin_username(value):
 def requester_label(request, *, fallback="Member", allow_internal_fallback=False):
     """Readable label for a HardwareRequest/PrintRequest-like row.
 
-    Prefers a real email (contact email → account email → username → external id),
-    then any non-hash identifier (contact phone → username → external id → account
-    username). ``allow_internal_fallback=True`` reproduces the ledger's last-resort
-    behaviour of returning the raw value (even the hash) before the fallback.
+    Prefers the captured requester name, then a real email (contact email → account
+    email → username → external id), then any non-hash identifier (contact phone →
+    username → external id → account username). ``allow_internal_fallback=True``
+    reproduces the ledger's last-resort behaviour of returning the raw value (even
+    the hash) before the fallback.
     """
     requester = getattr(request, "requester", None)
+
+    name = clean_label(getattr(request, "requester_name", ""))
+    if name:
+        return name
 
     email_candidates = [
         getattr(request, "requester_contact_email", ""),

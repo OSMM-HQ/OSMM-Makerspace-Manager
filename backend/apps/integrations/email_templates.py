@@ -42,6 +42,7 @@ def hardware_context(request, *, staff):
         status=request.status,
         return_due_at=request.return_due_at,
         rejection_reason=request.rejection_reason,
+        requester_name=request.requester_name,
         requester_username=request.requester_username,
         requester_contact_email=request.requester_contact_email,
         requester_contact_phone=request.requester_contact_phone,

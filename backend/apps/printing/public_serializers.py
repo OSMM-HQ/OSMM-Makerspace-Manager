@@ -16,7 +16,7 @@ class PublicFilamentSpoolSerializer(serializers.Serializer):
 
 
 class PrintCheckinVerifyRequestSerializer(serializers.Serializer):
-    identifier = serializers.CharField(trim_whitespace=True)
+    contact_email = serializers.EmailField()
 
 
 class PrintCheckinVerifyResponseSerializer(serializers.Serializer):
@@ -26,7 +26,7 @@ class PrintCheckinVerifyResponseSerializer(serializers.Serializer):
 
 
 class PrintPresignRequestSerializer(serializers.Serializer):
-    identifier = serializers.CharField()
+    contact_email = serializers.EmailField()
     kind = serializers.ChoiceField(choices=["stl", "screenshot"])
     filename = serializers.CharField(max_length=255)
     content_type = serializers.CharField(
@@ -43,11 +43,8 @@ class PrintPresignResponseSerializer(serializers.Serializer):
 
 class PrintRequestSubmitSerializer(serializers.Serializer):
     website = serializers.CharField(required=False, allow_blank=True)
-    identifier = serializers.CharField()
     bucket_id = serializers.IntegerField(required=False, allow_null=True)
     requester_name = serializers.CharField(
-        required=False,
-        allow_blank=True,
         max_length=120,
     )
     title = serializers.CharField(max_length=200)
@@ -60,8 +57,8 @@ class PrintRequestSubmitSerializer(serializers.Serializer):
     quantity = serializers.IntegerField(min_value=1, default=1)
     # Bound to the model column limits so overlong input is a clean 400, not a DB DataError.
     source_link = serializers.URLField(required=False, allow_blank=True, max_length=200)
-    contact_email = serializers.EmailField(required=False, allow_blank=True, max_length=254)
-    contact_phone = serializers.CharField(required=False, allow_blank=True, max_length=40)
+    contact_email = serializers.EmailField(max_length=254)
+    contact_phone = serializers.CharField(max_length=40)
     file_ids = serializers.ListField(
         child=serializers.IntegerField(),
         required=False,

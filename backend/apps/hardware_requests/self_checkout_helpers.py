@@ -167,6 +167,10 @@ def _issued_request(
     requester_username,
     product_quantities,
     *,
+    requester_name="",
+    contact_email="",
+    contact_phone="",
+    return_due_at=None,
     requested_for="Public QR self-checkout",
     issued_by=None,
 ):
@@ -175,6 +179,10 @@ def _issued_request(
         requester,
         requester_username,
         product_quantities,
+        requester_name=requester_name,
+        contact_email=contact_email,
+        contact_phone=contact_phone,
+        return_due_at=return_due_at,
         requested_for=requested_for,
         issued_by=issued_by or requester,
     )
@@ -186,6 +194,10 @@ def _create_issued_request(
     requester_username,
     product_quantities,
     *,
+    requester_name="",
+    contact_email="",
+    contact_phone="",
+    return_due_at=None,
     requested_for,
     issued_by,
 ):
@@ -193,10 +205,14 @@ def _create_issued_request(
         makerspace=makerspace,
         requester=requester,
         requester_username=requester_username,
+        requester_name=requester_name.strip(),
+        requester_contact_email=contact_email.strip(),
+        requester_contact_phone=contact_phone.strip(),
         status=HardwareRequest.Status.ISSUED,
         requested_for=requested_for,
         issued_by=issued_by,
         issued_at=timezone.now(),
+        return_due_at=return_due_at,
     )
     HardwareRequestItem.objects.bulk_create(
         [
