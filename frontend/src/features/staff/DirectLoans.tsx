@@ -120,10 +120,9 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
           container_id: containerId ? Number(containerId) : null,
           qr_payloads: Array.from(new Set([
             ...scanned.map((item) => item.payload),
-            ...qrPayloads.split("\n").map((value) => value.trim()).filter(Boolean),
+            ...pastedQrPayloads,
           ])),
-          items: lineRows
-            .filter((line) => line.productId)
+          items: validManualLines
             .map((line) => ({ product_id: Number(line.productId), quantity: Number(line.quantity) })),
         }),
       }),
@@ -139,11 +138,18 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
       setContainerScanError("");
     },
   });
+  const pastedQrPayloads = qrPayloads.split("\n").map((value) => value.trim()).filter(Boolean);
+  const validManualLines = lineRows.filter(
+    (line) => line.productId && Number(line.quantity) > 0,
+  );
+  const hasIssueContent =
+    validManualLines.length > 0 || scanned.length > 0 || pastedQrPayloads.length > 0 || Boolean(containerId);
   const canIssue =
     isVerified &&
     requesterName.trim().length > 0 &&
     contactEmail.trim().length > 0 &&
     contactPhone.trim().length > 0 &&
+    hasIssueContent &&
     !issue.isPending;
   const returnLoan = useMutation({
     mutationFn: ({ loanId, evidenceId, notes }: ReturnLoanPayload) =>
@@ -346,6 +352,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
           value={qrPayloads}
           onChange={(e) => setQrPayloads(e.target.value)}
         />
+        {!hasIssueContent ? <p className="mt-3 text-sm text-muted">Add at least one item, QR payload, or container before issuing.</p> : null}
         <button className="desk-button-primary mt-3" disabled={!canIssue} onClick={() => issue.mutate()}>
           Issue direct handout
         </button>

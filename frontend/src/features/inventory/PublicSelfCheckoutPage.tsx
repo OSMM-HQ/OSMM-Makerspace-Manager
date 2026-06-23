@@ -135,7 +135,12 @@ export function PublicSelfCheckoutPage() {
           </Card>
         ) : null}
 
-        {!bootstrapQuery.isLoading && !enabled ? (
+        {bootstrapQuery.isError ? (
+          <Card>
+            <p className="text-sm text-danger">Could not load checkout access. Try again in a moment.</p>
+          </Card>
+        ) : null}
+        {!bootstrapQuery.isLoading && !bootstrapQuery.isError && !enabled ? (
           <Card>
             <p className="text-xs font-semibold tracking-wide text-accent-ink">
               Self-checkout
@@ -149,7 +154,7 @@ export function PublicSelfCheckoutPage() {
           </Card>
         ) : null}
 
-        {!bootstrapQuery.isLoading && enabled ? (
+        {!bootstrapQuery.isLoading && !bootstrapQuery.isError && enabled ? (
           <Card>
             <div
               aria-label="Checkout mode"

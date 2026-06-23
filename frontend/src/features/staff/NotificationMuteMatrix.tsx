@@ -40,7 +40,19 @@ export function NotificationMuteMatrix({ makerspaceId }: { makerspaceId: number 
         method: "PATCH",
         body: JSON.stringify({ changes: [change] }),
       }),
-    onSuccess: () => {
+    onMutate: async (change) => {
+      const queryKey = ["notification-rules", makerspaceId] as const;
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<NotificationRulesResponse>(queryKey);
+      queryClient.setQueryData<NotificationRulesResponse>(queryKey, (current) =>
+        current ? { ...current, mutes: applyMuteChange(current.mutes, change) } : current,
+      );
+      return { queryKey, previous };
+    },
+    onError: (_error, _change, context) => {
+      if (context?.previous) queryClient.setQueryData(context.queryKey, context.previous);
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["notification-rules", makerspaceId] });
     },
   });
@@ -139,13 +151,21 @@ export function NotificationMuteMatrix({ makerspaceId }: { makerspaceId: number 
   );
 }
 
+function applyMuteChange(mutes: RuleMute[], change: MuteChange) {
+  const withoutCurrent = mutes.filter((mute) => !matchesMute(mute, change));
+  return change.muted ? [...withoutCurrent, change] : withoutCurrent;
+}
+
 function isMuted(mutes: RuleMute[], candidate: RuleMute) {
-  return mutes.some(
-    (mute) =>
-      mute.target === candidate.target &&
-      mute.stream === candidate.stream &&
-      mute.event === candidate.event &&
-      mute.audience === candidate.audience,
+  return mutes.some((mute) => matchesMute(mute, candidate));
+}
+
+function matchesMute(mute: RuleMute, candidate: RuleMute) {
+  return (
+    mute.target === candidate.target &&
+    mute.stream === candidate.stream &&
+    mute.event === candidate.event &&
+    mute.audience === candidate.audience
   );
 }
 

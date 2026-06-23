@@ -85,6 +85,8 @@ export function ReturnRequestModal({ row, open, pending, error, onClose, onSubmi
     const finalResolutions = buildFinalResolutions();
     if (finalResolutions.length === 0) return setValidationError("Resolve at least one item.");
     if (finalResolutions.some((resolution) => resolution.returned < 0 || resolution.damaged < 0 || resolution.missing < 0)) return setValidationError("Resolution quantities cannot be negative.");
+    const overReturn = overReturnError(row, finalResolutions);
+    if (overReturn) return setValidationError(overReturn);
     onSubmit({ evidenceId, boxCode: boxCode.trim(), remark: remark.trim(), resolutions: finalResolutions });
   }
 
@@ -123,12 +125,24 @@ function QuantityReturnItem({ item, resolution, pending, onChange }: { item: Non
     <div className="rounded-md border border-line p-2">
       <p className="text-sm font-medium text-ink">{item.product_name}</p>
       <div className="mt-2 grid gap-2 sm:grid-cols-3">
-        {(["returned", "damaged", "missing"] as const).map((key) => <label key={key} className="grid gap-1 text-xs text-muted"><span className="capitalize">{key}</span><input className="desk-input min-w-0" type="number" min="0" value={resolution?.[key] ?? 0} disabled={pending} onChange={(event) => onChange(item.id, key, event.target.value)} /></label>)}
+        {(["returned", "damaged", "missing"] as const).map((key) => <label key={key} className="grid gap-1 text-xs text-muted"><span className="capitalize">{key}</span><input className="desk-input min-w-0" type="number" min="0" max={remainingCount(item)} value={resolution?.[key] ?? 0} disabled={pending} onChange={(event) => onChange(item.id, key, event.target.value)} /></label>)}
       </div>
     </div>
   );
 }
 
+function overReturnError(row: FormModalProps<ReturnRequestValues>["row"], resolutions: ReturnRequestValues["resolutions"]) {
+  for (const item of row?.items ?? []) {
+    const resolution = resolutions.find((entry) => entry.item_id === item.id);
+    if (!resolution) continue;
+    const resolved = resolution.returned + resolution.damaged + resolution.missing;
+    const remaining = remainingCount(item);
+    if (resolved > remaining) {
+      return `${item.product_name}: return outcomes (${resolved}) exceed remaining issued quantity (${remaining}).`;
+    }
+  }
+  return "";
+}
 function countAssetOutcomes(assets: Array<{ outcome: AssetReturnOutcome }>) {
   return {
     returned: assets.filter((asset) => asset.outcome === "returned").length,

@@ -25,6 +25,7 @@ import {
   uploadToStorage,
   verifyPrintCheckin,
 } from "./publicApi";
+import { uploadPrintFilesBounded } from "./PublicPrintUploads";
 
 export function PublicPrintRequestPage() {
   const queryClient = useQueryClient();
@@ -100,14 +101,11 @@ export function PublicPrintRequestPage() {
 
   const submitMutation = useMutation({
     mutationFn: async () => {
-      const fileIds: number[] = [];
       const files = [
         ...modelFiles.map((file) => ({ file, kind: "stl" as const })),
         ...screenshotFiles.map((file) => ({ file, kind: "screenshot" as const })),
       ];
-
-      for (const [index, item] of files.entries()) {
-        setUploadProgress(`Uploading ${index + 1}/${files.length}`);
+      const fileIds = await uploadPrintFilesBounded(files, async (item) => {
         const presigned = await presignPrintUpload(makerspaceSlug, {
           contact_email: form.contactEmail.trim(),
           kind: item.kind,
@@ -118,8 +116,8 @@ export function PublicPrintRequestPage() {
               : item.file.type,
         });
         await uploadToStorage(presigned.upload, item.file);
-        fileIds.push(presigned.file_id);
-      }
+        return presigned.file_id;
+      }, setUploadProgress);
 
       setUploadProgress(files.length ? "Submitting request..." : "");
       // Material/color are no longer free-text fields; the chosen spool is the single
@@ -203,7 +201,7 @@ export function PublicPrintRequestPage() {
                 size="lg"
               />
               <p className="mt-2 text-sm text-muted">
-                Submit print files — check status anytime with your email.
+                Submit print files - check status anytime with your email.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
@@ -224,7 +222,14 @@ export function PublicPrintRequestPage() {
         </section>
       ) : null}
 
-      {!bootstrapQuery.isLoading && !enabled ? (
+      {bootstrapQuery.isError ? (
+        <section className="mx-auto max-w-screen-sm px-5 py-6 sm:px-8">
+          <Card>
+            <p className="text-sm text-danger">Could not load printing access. Try again in a moment.</p>
+          </Card>
+        </section>
+      ) : null}
+      {!bootstrapQuery.isLoading && !bootstrapQuery.isError && !enabled ? (
         <section className="mx-auto max-w-screen-sm px-5 py-6 sm:px-8">
           <Card>
             <p className="text-xs font-semibold tracking-wide text-accent-ink">
@@ -252,7 +257,7 @@ export function PublicPrintRequestPage() {
         </section>
       ) : null}
 
-      {!bootstrapQuery.isLoading && enabled ? (
+      {!bootstrapQuery.isLoading && !bootstrapQuery.isError && enabled ? (
         <section className="mx-auto grid max-w-screen-xl grid-cols-1 gap-5 px-5 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="min-w-0 space-y-4">
           <Card className="bg-tone-yellow text-tone-yellow-ink dark:bg-[#332b00] dark:text-[#fcdf46]">

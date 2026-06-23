@@ -88,18 +88,20 @@ export function ApiClientsTelegramSettings({ makerspace }: { makerspace: Makersp
       </div>
       <button
         className="desk-button-primary mt-3 w-full"
-        disabled={saveSettings.isPending}
+        disabled={!settings.isSuccess || saveSettings.isPending}
         onClick={() => saveSettings.mutate()}
       >
         {saveSettings.isPending ? "Saving..." : "Save integration settings"}
       </button>
       <button
         className="desk-button mt-2 w-full"
-        disabled={testTelegram.isPending}
+        disabled={!settings.isSuccess || testTelegram.isPending}
         onClick={() => testTelegram.mutate()}
       >
         {testTelegram.isPending ? "Sending..." : "Send Telegram test alert"}
       </button>
+      {settings.isLoading ? <p className="mt-2 text-sm text-muted">Loading integration settings...</p> : null}
+      {settings.error ? <p className="mt-2 text-sm text-danger">{settings.error.message}</p> : null}
       {saveSettings.error ? <p className="mt-2 text-sm text-danger">{saveSettings.error.message}</p> : null}
       {testTelegram.data ? (
         <p className={`mt-2 text-sm ${testTelegram.data.delivered ? "text-muted" : "text-danger"}`}>

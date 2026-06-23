@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { staffRequest } from "../../../lib/api";
@@ -135,14 +135,17 @@ export function Queues({ makerspace, guestOnly }: { makerspace: Makerspace; gues
       {!guestOnly ? (
         <Panel title="Pending review">
           {pending.isLoading ? <RequestListSkeleton /> : <RequestList rows={pending.data?.results ?? []} actions={(row) => <PendingActions row={row} disabled={action.isPending} openModal={openModal} setAcceptRow={setAcceptRow} setRejectRow={setRejectRow} setDueRow={setDueRow} />} />}
+          {pending.error instanceof Error ? <p className="mt-2 text-sm text-danger">{pending.error.message}</p> : null}
         </Panel>
       ) : null}
       <Panel title="Ready for handover">
         {accepted.isLoading ? <RequestListSkeleton /> : <RequestList rows={accepted.data?.results ?? []} actions={(row) => <AcceptedActions row={row} disabled={action.isPending} openModal={openModal} setAssignIssueRow={setAssignIssueRow} setDueRow={setDueRow} />} />}
+        {accepted.error instanceof Error ? <p className="mt-2 text-sm text-danger">{accepted.error.message}</p> : null}
       </Panel>
       {!guestOnly ? (
         <Panel title="Active loans">
           {active.isLoading ? <RequestListSkeleton /> : <RequestList rows={active.data?.results ?? []} actions={(row) => <ActiveActions row={row} disabled={action.isPending} openModal={openModal} setDueRow={setDueRow} setReturnRow={setReturnRow} />} />}
+          {active.error instanceof Error ? <p className="mt-2 text-sm text-danger">{active.error.message}</p> : null}
         </Panel>
       ) : null}
       <HistoryPanel show={showHistory} loading={history.isLoading} rows={history.data?.results ?? []} onToggle={() => setShowHistory((value) => !value)} />

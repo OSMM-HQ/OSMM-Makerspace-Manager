@@ -44,6 +44,7 @@ export function MakerspaceEmailSettings({ makerspace }: { makerspace: Makerspace
     smtp_from_email: "",
   });
   const [recipientChecks, setRecipientChecks] = useState<Record<number, boolean>>({});
+  const [recipientsDirty, setRecipientsDirty] = useState(false);
 
   const settings = useStaffGet<ApiSettings>(
     ["api-settings", makerspace.id],
@@ -74,6 +75,7 @@ export function MakerspaceEmailSettings({ makerspace }: { makerspace: Makerspace
         recipients.data.map((recipient) => [recipient.id, recipient.receives_notifications]),
       ),
     );
+    setRecipientsDirty(false);
   }, [recipients.data]);
 
   const saveSmtpSettings = useMutation({
@@ -109,6 +111,7 @@ export function MakerspaceEmailSettings({ makerspace }: { makerspace: Makerspace
           updated.map((recipient) => [recipient.id, recipient.receives_notifications]),
         ),
       );
+      setRecipientsDirty(false);
       queryClient.invalidateQueries({ queryKey: ["notification-recipients", makerspace.id] });
     },
   });
@@ -126,7 +129,7 @@ export function MakerspaceEmailSettings({ makerspace }: { makerspace: Makerspace
           <button
             className="desk-button-primary"
             type="button"
-            disabled={saveSmtpSettings.isPending}
+            disabled={!settings.isSuccess || saveSmtpSettings.isPending}
             onClick={() => saveSmtpSettings.mutate()}
           >
             {saveSmtpSettings.isPending ? "Saving..." : "Save email settings"}
@@ -174,7 +177,7 @@ export function MakerspaceEmailSettings({ makerspace }: { makerspace: Makerspace
               type="checkbox"
               checked={smtpForm.smtp_use_tls}
               onChange={(event) =>
-                setSmtpForm({ ...smtpForm, smtp_use_tls: event.target.checked })
+                setSmtpForm({ ...smtpForm, smtp_use_tls: event.target.checked, smtp_use_ssl: event.target.checked ? false : smtpForm.smtp_use_ssl })
               }
             />
             Use STARTTLS (587)
@@ -184,12 +187,14 @@ export function MakerspaceEmailSettings({ makerspace }: { makerspace: Makerspace
               type="checkbox"
               checked={smtpForm.smtp_use_ssl}
               onChange={(event) =>
-                setSmtpForm({ ...smtpForm, smtp_use_ssl: event.target.checked })
+                setSmtpForm({ ...smtpForm, smtp_use_ssl: event.target.checked, smtp_use_tls: event.target.checked ? false : smtpForm.smtp_use_tls })
               }
             />
             Use implicit SSL (465)
           </label>
         </div>
+        {settings.isLoading ? <p className="mt-2 text-sm text-muted">Loading email settings...</p> : null}
+        {settings.error ? <p className="mt-2 text-sm text-danger">{settings.error.message}</p> : null}
         {saveSmtpSettings.error ? (
           <p className="mt-2 text-sm text-danger">{saveSmtpSettings.error.message}</p>
         ) : null}
@@ -207,7 +212,7 @@ export function MakerspaceEmailSettings({ makerspace }: { makerspace: Makerspace
           <button
             className="desk-button-primary"
             type="button"
-            disabled={saveRecipients.isPending || !recipients.data?.length}
+            disabled={!recipients.isSuccess || !recipientsDirty || saveRecipients.isPending || !recipients.data?.length}
             onClick={() => saveRecipients.mutate()}
           >
             {saveRecipients.isPending ? "Saving..." : "Save recipients"}
@@ -224,12 +229,13 @@ export function MakerspaceEmailSettings({ makerspace }: { makerspace: Makerspace
                 className="mt-1 h-4 w-4"
                 type="checkbox"
                 checked={recipientChecks[recipient.id] ?? recipient.receives_notifications}
-                onChange={(event) =>
+                onChange={(event) => {
                   setRecipientChecks({
                     ...recipientChecks,
                     [recipient.id]: event.target.checked,
-                  })
-                }
+                  });
+                  setRecipientsDirty(true);
+                }}
               />
               <span>
                 <span className="font-semibold">{recipient.username}</span>

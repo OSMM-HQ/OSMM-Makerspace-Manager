@@ -15,7 +15,7 @@ type Contents = {
 type History = { scans: { id: number; context: string; actor: number | null; created_at: string }[] };
 
 // Containers had list + create (in QR tools) but no edit/move/contents/history surface in
-// React — they were only manageable in the Django admin. This panel wires the operations
+// React - they were only manageable in the Django admin. This panel wires the operations
 // container endpoints (MANAGE_QR for edit/move, VIEW_INVENTORY for contents/history).
 export function ContainersPanel({ makerspace }: { makerspace: Makerspace }) {
   const containers = useStaffGet<{ results: Container[] }>(["containers", makerspace.id], `/admin/makerspace/${makerspace.id}/containers`);
@@ -27,7 +27,7 @@ export function ContainersPanel({ makerspace }: { makerspace: Makerspace }) {
         {containers.data?.results?.map((container) => (
           <ContainerRow key={container.id} container={container} makerspaceId={makerspace.id} />
         ))}
-        {!containers.isLoading && !containers.data?.results?.length ? (
+        {!containers.isLoading && !containers.error && !containers.data?.results?.length ? (
           <p className="text-sm text-muted">No containers yet. Create one in QR tools.</p>
         ) : null}
       </div>
@@ -87,13 +87,14 @@ function ContainerRow({ container, makerspaceId }: { container: Container; maker
         <div className="mt-3 grid gap-2 rounded-md border border-line bg-bg p-2">
           {contents.isLoading ? <p className="text-xs text-muted">Loading...</p> : null}
           <p className="text-xs font-semibold text-ink">Products</p>
-          {contents.data?.products.length ? contents.data.products.map((product) => (
-            <p key={product.id} className="text-xs text-muted">{product.name} — {product.available_quantity} available</p>
-          )) : <p className="text-xs text-muted">None</p>}
+          {contents.error instanceof Error ? <p className="text-xs text-danger">{contents.error.message}</p> : null}
+          {!contents.isLoading && !contents.error && contents.data?.products.length ? contents.data.products.map((product) => (
+            <p key={product.id} className="text-xs text-muted">{product.name} - {product.available_quantity} available</p>
+          )) : !contents.isLoading && !contents.error ? <p className="text-xs text-muted">None</p> : null}
           <p className="mt-1 text-xs font-semibold text-ink">Asset units</p>
-          {contents.data?.assets.length ? contents.data.assets.map((asset) => (
+          {!contents.isLoading && !contents.error && contents.data?.assets.length ? contents.data.assets.map((asset) => (
             <AssetQrRow key={asset.id} asset={asset} />
-          )) : <p className="text-xs text-muted">None</p>}
+          )) : !contents.isLoading && !contents.error ? <p className="text-xs text-muted">None</p> : null}
           {contents.data?.children.length ? (
             <p className="mt-1 text-xs text-muted">Sub-containers: {contents.data.children.map((child) => child.label).join(", ")}</p>
           ) : null}
@@ -103,9 +104,10 @@ function ContainerRow({ container, makerspaceId }: { container: Container; maker
       {panel === "history" ? (
         <div className="mt-3 rounded-md border border-line bg-bg p-2">
           {history.isLoading ? <p className="text-xs text-muted">Loading...</p> : null}
-          {history.data?.scans.length ? history.data.scans.map((scan) => (
-            <p key={scan.id} className="text-xs text-muted">{new Date(scan.created_at).toLocaleString()} — {scan.context || "scan"}</p>
-          )) : <p className="text-xs text-muted">No scan history.</p>}
+          {history.error instanceof Error ? <p className="text-xs text-danger">{history.error.message}</p> : null}
+          {!history.isLoading && !history.error && history.data?.scans.length ? history.data.scans.map((scan) => (
+            <p key={scan.id} className="text-xs text-muted">{new Date(scan.created_at).toLocaleString()} - {scan.context || "scan"}</p>
+          )) : !history.isLoading && !history.error ? <p className="text-xs text-muted">No scan history.</p> : null}
         </div>
       ) : null}
     </div>
