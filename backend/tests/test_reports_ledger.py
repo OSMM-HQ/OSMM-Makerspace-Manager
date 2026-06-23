@@ -707,6 +707,23 @@ def test_ledger_holder_uses_checkin_external_email_before_internal_username():
     assert response.data["results"][0]["holder"] == "external-holder@example.com"
 
 
+
+
+def test_ledger_internal_checkin_fallback_is_member():
+    makerspace = make_space("ledger-internal-fallback")
+    manager = make_member("ledger-internal-fallback-manager", makerspace)
+    product = make_product(makerspace, name="Loaner")
+    hashed = "checkin_" + ("e" * 64)
+    requester = make_user(hashed, access_status=User.AccessStatus.ACTIVE)
+    _request_loan(makerspace, product, hashed, quantity=1, requester=requester)
+
+    response = authenticated_client(manager).get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/ledger"
+    )
+
+    assert response.status_code == 200
+    assert response.data["results"][0]["holder"] == "Member"
+
 def test_active_loans_xlsx_export_handles_timezone_aware_datetimes():
     """active-loans rows carry tz-aware issued_at; openpyxl rejects tz-aware
     datetimes, so the XLSX export must normalize them instead of 500ing."""

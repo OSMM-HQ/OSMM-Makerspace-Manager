@@ -101,3 +101,39 @@ def test_top_borrowers_prefers_readable_request_username_over_external_id():
     holders = [row[0] for row in rows[1:]]
     assert "jane.doe" in holders
     assert "member-22@x.com" not in holders
+
+def test_top_borrowers_groups_by_requester_not_request_username():
+    makerspace = make_space("top-borrowers-defragment")
+    product = make_product(makerspace, name="Scope", total_quantity=10, available_quantity=10)
+    requester = make_user(
+        "checkin_" + ("f" * 64),
+        access_status=User.AccessStatus.ACTIVE,
+        external_checkin_user_id="stable-member@example.com",
+    )
+    first = HardwareRequest.objects.create(
+        makerspace=makerspace,
+        requester=requester,
+        requester_username="checkin_" + ("a" * 64),
+        status=HardwareRequest.Status.ISSUED,
+    )
+    second = HardwareRequest.objects.create(
+        makerspace=makerspace,
+        requester=requester,
+        requester_username="checkin_" + ("b" * 64),
+        status=HardwareRequest.Status.ISSUED,
+    )
+    for request, quantity in ((first, 1), (second, 2)):
+        HardwareRequestItem.objects.create(
+            request=request,
+            product=product,
+            requested_quantity=quantity,
+            accepted_quantity=quantity,
+            issued_quantity=quantity,
+        )
+
+    rows = reports._top_borrowers(makerspace.id, aggregate=False)
+
+    assert rows == [
+        ["holder", "requests", "items_borrowed"],
+        ["stable-member@example.com", 2, 3],
+    ]

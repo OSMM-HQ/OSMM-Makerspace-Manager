@@ -216,6 +216,4 @@ def _source(loan):
 
 
 def _request_holder(request):
-    # Shared display policy (apps.hardware_requests.display). ``allow_internal_fallback``
-    # + empty fallback preserve the ledger's prior last-resort behaviour exactly.
-    return requester_label(request, fallback="", allow_internal_fallback=True)
+    return requester_label(request, fallback="Member", allow_internal_fallback=True)

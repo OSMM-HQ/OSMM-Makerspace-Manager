@@ -71,7 +71,7 @@ class AnalyticsView(APIView):
     )
     def get(self, request, makerspace_id, report_key="summary", *args, **kwargs):
         makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
-        require_action(request.user, rbac.Action.VIEW_INVENTORY, makerspace.id)
+        require_action(request.user, rbac.Action.VIEW_AUDIT, makerspace.id)
         require_module(makerspace, "reports")
         return Response(reports.report_data(report_key, makerspace.id, limit=_limit_param(request)))
 
@@ -114,7 +114,7 @@ class ReportExportView(APIView):
     )
     def get(self, request, makerspace_id, report_key, *args, **kwargs):
         makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
-        require_action(request.user, rbac.Action.VIEW_INVENTORY, makerspace.id)
+        require_action(request.user, rbac.Action.VIEW_AUDIT, makerspace.id)
         require_module(makerspace, "reports")
         fmt = request.query_params.get("format", "csv")
         rows = reports.report_rows(report_key, makerspace.id)
@@ -208,7 +208,7 @@ def _limit_param(request):
 def _csv_response(rows, filename):
     buffer = StringIO()
     writer = csv.writer(buffer)
-    writer.writerows(rows)
+    writer.writerows([[_export_cell(value) for value in row] for row in rows])
     response = HttpResponse(buffer.getvalue(), content_type="text/csv")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
@@ -234,4 +234,10 @@ def _xlsx_cell(value):
 
     if isinstance(value, _dt) and value.tzinfo is not None:
         return value.replace(tzinfo=None)
+    return _export_cell(value)
+
+
+def _export_cell(value):
+    if isinstance(value, str) and value.startswith(("=", "+", "-", "@", "\t", "\r")):
+        return f"'{value}"
     return value

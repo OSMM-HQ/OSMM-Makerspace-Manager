@@ -1,4 +1,4 @@
-from django.db.models import Count, Sum
+from django.db.models import Count, Max, Sum
 
 from apps.accounts import rbac
 from apps.boxes.models import QrScanEvent
@@ -176,18 +176,9 @@ def _most_lent(makerspace_id, aggregate):
 
 
 def _top_borrowers(makerspace_id, aggregate):
-    # Group by the requester (PROTECT, non-nullable, so never collapses NULLs) and
-    # resolve a readable holder label — never the internal checkin_<hash> username.
-    values = [
-        "request__requester_id",
-        # Request-level Check-In username (from the Check-In service, stable per
-        # account) is the most readable holder label — prefer it over the account's
-        # hashed username / external id. Grouping by it alongside requester_id does
-        # not fragment counts because it is constant for a given Check-In account.
-        "request__requester_username",
-        "request__requester__username",
-        "request__requester__external_checkin_user_id",
-    ]
+    # Group by stable requester id only; request-level display fields can vary over
+    # time and must not fragment a single borrower's totals.
+    values = ["request__requester_id"]
     header = ["holder", "requests", "items_borrowed"]
     if aggregate:
         values = ["request__makerspace_id", *values]
@@ -199,23 +190,23 @@ def _top_borrowers(makerspace_id, aggregate):
         .annotate(
             requests=Count("request_id", distinct=True),
             items_borrowed=Sum("issued_quantity"),
+            requester_username=Max("request__requester_username"),
+            username=Max("request__requester__username"),
+            external_id=Max("request__requester__external_checkin_user_id"),
         )
-        # In aggregate mode order per makerspace first so each makerspace gets its
-        # own ranking (the frontend renders a separate section per makerspace),
-        # rather than one blended cross-OSMM leaderboard.
         .order_by(
             *(["request__makerspace_id"] if aggregate else []),
             "-requests",
             "-items_borrowed",
-            "request__requester__username",
+            "username",
         )
     )
     rows = []
     for row in qs:
         holder = label_from_candidates(
-            row["request__requester_username"],
-            row["request__requester__external_checkin_user_id"],
-            row["request__requester__username"],
+            row["requester_username"],
+            row["external_id"],
+            row["username"],
         )
         prefix = [row["request__makerspace_id"]] if aggregate else []
         rows.append([*prefix, holder, row["requests"], row["items_borrowed"] or 0])
