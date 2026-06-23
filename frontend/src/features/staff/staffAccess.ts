@@ -51,6 +51,10 @@ export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boo
   const canManageQr = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
   const canManageMakerspace = isSuperadmin || activeRole === "space_manager";
   const canChooseToBuyKind = isSuperadmin || activeRole === "space_manager";
+  // Guest Admins are handout-only: they issue accepted requests + process returns (the Requests
+  // tab) and nothing else. Direct handout stays blocked by RBAC, so this hides Inventory/Ledger
+  // too, leaving just the handover queue.
+  const handoutOnly = activeRole === "guest_admin" && !isSuperadmin;
   const allowedTabs: readonly string[] = (fullAccess ? ALL_TABS : PRINTING_TABS).filter((tabName) => {
     if (tabName === "tobuy") return canUseToBuy;
     if (tabName === "needsfix") return canEditInventory;
@@ -58,6 +62,8 @@ export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boo
     if (tabName === "bulk") return canEditInventory;
     if (tabName === "stocktake") return canEditInventory;
     if (tabName === "direct") return canEditInventory;
+    if (tabName === "inventory") return !handoutOnly;
+    if (tabName === "ledger") return !handoutOnly;
     if (tabName === "transfers") return canEditInventory || isSuperadmin;
     if (tabName === "containers") return canManageQr;
     if (tabName === "qr") return canManageQr;
