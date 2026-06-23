@@ -60,7 +60,7 @@ export function AssignIssueModal({ row, open, pending, error, onClose, onSubmit,
   return (
     <Modal open={open} onClose={onClose} title={row ? `Assign and issue request #${row.id}` : "Assign and issue"} footer={<FormFooter formId="assign-issue-form" pending={pending} submitLabel="Assign + issue" onCancel={onClose} />}>
       <form id="assign-issue-form" className="grid gap-3" onSubmit={(event) => submitForm(event, () => submitAssign())}>
-        {row?.assigned_box ? <p className="text-xs text-muted">Box: <span className="font-medium text-ink">{row.assigned_box.label}</span></p> : null}
+        {row?.assigned_box_label ? <p className="text-xs text-muted">Box: <span className="font-medium text-ink">{row.assigned_box_label}</span></p> : null}
         <BoxCodeField value={boxCode} onChange={setBoxCode} makerspaceId={makerspaceId} pending={pending} />
         <div className="grid gap-1 text-sm">
           <span className="font-medium text-ink">Issue photo</span>
