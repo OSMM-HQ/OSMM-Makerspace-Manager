@@ -55,9 +55,14 @@ export function RequestList({ rows, actions }: { rows: HardwareRequest[]; action
             {row.return_due_at ? `Due ${new Date(row.return_due_at).toLocaleString()}` : "No return due time set"}
             {row.return_reminder_sent_at ? ` · reminder sent ${new Date(row.return_reminder_sent_at).toLocaleString()}` : ""}
           </p>
-          <p className="mt-2 text-xs text-ink/60">
-            {row.items.map((item) => `${item.product_name} x${item.requested_quantity}`).join(", ")}
-          </p>
+          <div className="mt-2 space-y-0.5 text-xs text-ink/60">
+            {row.items.map((item) => (
+              <p key={item.id}>
+                {item.product_name} x{item.requested_quantity}
+                {item.storage_location ? <span className="text-muted"> · Shelf: {item.storage_location}</span> : null}
+              </p>
+            ))}
+          </div>
           {row.issue_evidence_id || (row.return_evidence_ids?.length ?? 0) > 0 ? (
             <div className="desk-actions mt-2 flex flex-wrap gap-2 text-xs">
               {row.issue_evidence_id ? (
