@@ -1,33 +1,24 @@
 from collections import Counter
 from datetime import timedelta
 
-from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
-from apps.audit import services as audit
 from apps.boxes.models import Box, QrCode, QrScanEvent
 from apps.checkin import client as checkin
-from apps.evidence import storage
-from apps.evidence.models import EvidencePhoto
-from apps.hardware_requests.models import (
-    HardwareRequest,
-    PublicToolLoan,
-    ReturnEvent,
-)
+from apps.hardware_requests.models import PublicToolLoan
+from apps.hardware_requests.direct_loan_audit import record_item_logs
+from apps.hardware_requests.direct_loan_returns import return_direct_loan
 from apps.hardware_requests.self_checkout_workflow import (
     _checkout_target,
     _issue_product,
     _issued_request,
     _requester,
-    _return_request_items,
     qr_has_active_loan,
 )
 from apps.hardware_requests.workflow_errors import (
-    EvidenceNotUploaded,
     InvalidTransition,
     RequestValidationError,
-    ReturnValidationError,
 )
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 
@@ -98,6 +89,7 @@ def issue_direct_loan(
         asset_ids = []
         labels = []
         qrs = _locked_qrs_for_payloads(makerspace, qr_payloads)
+        loan_container = container
 
         seen_qr_ids = set()
         for qr in qrs:
@@ -106,11 +98,19 @@ def issue_direct_loan(
                 # stock twice for one item; reject before any mutation.
                 raise InvalidTransition("The same QR code was scanned more than once.")
             seen_qr_ids.add(qr.id)
+            if qr.target_type == QrCode.TargetType.BOX and container is not None:
+                if container.id != qr.target_id:
+                    raise InvalidTransition("Scanned box does not match the selected container.")
             if qr_has_active_loan(makerspace, qr):
                 raise InvalidTransition("One scanned QR code is already checked out.")
-            label, quantities, target_asset_ids = _checkout_target(
+            label, quantities, target_asset_ids, target_container = _checkout_target(
                 qr, require_public=False
             )
+            if target_container is not None:
+                if loan_container is None:
+                    loan_container = target_container
+                elif loan_container.id != target_container.id:
+                    raise InvalidTransition("Only one handout container can be checked out at a time.")
             labels.append(label)
             product_quantities.update(quantities)
             asset_ids.extend(target_asset_ids)
@@ -139,14 +139,14 @@ def issue_direct_loan(
                 loan = PublicToolLoan.objects.create(
                     makerspace=makerspace,
                     qr_code=qrs[0] if qrs else None,
-                    container=container,
+                    container=loan_container,
                     qr_ids=[qr.id for qr in qrs],
                     request=request,
                     requester=requester,
                     target_type="direct",
                     target_id=request.id,
                     target_label=", ".join(labels)[:200]
-                    or (container.label if container else "Direct handout"),
+                    or (loan_container.label if loan_container else "Direct handout"),
                     asset_ids=asset_ids,
                     source=PublicToolLoan.Source.ADMIN_DIRECT,
                     due_at=due_at,
@@ -163,101 +163,8 @@ def issue_direct_loan(
                 context=QrScanEvent.Context.ISSUE,
                 request=request,
             )
-        _record_item_logs(actor, "admin_direct.checked_out", makerspace, request, loan)
+        record_item_logs(actor, "admin_direct.checked_out", makerspace, request, loan)
         return loan
-
-
-def return_direct_loan(loan, actor, evidence_id, notes):
-    notes = str(notes or "").strip()
-    if not notes:
-        raise RequestValidationError("Return notes are required.")
-    evidence = EvidencePhoto.objects.filter(
-        pk=evidence_id,
-        makerspace_id=loan.makerspace_id,
-        evidence_type=EvidencePhoto.EvidenceType.RETURN,
-    ).first()
-    if evidence is None:
-        raise RequestValidationError("Invalid return evidence.")
-
-    with transaction.atomic():
-        locked = (
-            PublicToolLoan.objects.select_for_update()
-            .select_related("request")
-            .get(pk=loan.pk)
-        )
-        if locked.status != PublicToolLoan.Status.CHECKED_OUT:
-            raise InvalidTransition("Direct loan is not currently checked out.")
-        # Lock the evidence row FIRST — before finalizing the upload — so a
-        # concurrent reviewed-request return can't consume/finalize the same photo
-        # between our check and save. There is no single DB constraint spanning
-        # PublicToolLoan.return_evidence and ReturnEvent.evidence, so this shared
-        # row lock is what serializes the two return paths (incl. PUT finalize).
-        EvidencePhoto.objects.select_for_update().get(pk=evidence.pk)
-        # One return photo per handover. A RETURN photo must not already back
-        # another direct-loan return OR a reviewed-request ReturnEvent (both are
-        # single-use). The PublicToolLoan OneToOne is the race-proof backstop for
-        # the direct-loan side; ReturnEvent.evidence is its own OneToOne.
-        if (
-            PublicToolLoan.objects.filter(return_evidence=evidence).exists()
-            or ReturnEvent.objects.filter(evidence=evidence).exists()
-        ):
-            raise ReturnValidationError("Evidence already used.")
-        _validate_return_upload(evidence)
-        _return_request_items(locked.request)
-        if locked.asset_ids:
-            InventoryAsset.objects.select_for_update().filter(
-                pk__in=locked.asset_ids,
-                makerspace=locked.makerspace,
-            ).update(status=InventoryAsset.Status.AVAILABLE)
-        locked.status = PublicToolLoan.Status.RETURNED
-        locked.returned_at = timezone.now()
-        locked.return_evidence = evidence
-        locked.return_notes = notes
-        try:
-            with transaction.atomic():
-                locked.save(
-                    update_fields=[
-                        "status",
-                        "returned_at",
-                        "return_evidence",
-                        "return_notes",
-                    ]
-                )
-        except IntegrityError as exc:
-            # Concurrent return reusing the same evidence lost the unique race.
-            raise ReturnValidationError("Evidence already used.") from exc
-        locked.request.status = HardwareRequest.Status.RETURNED
-        locked.request.closed_by = actor
-        locked.request.closed_at = locked.returned_at
-        locked.request.save(
-            update_fields=["status", "closed_by", "closed_at", "updated_at"]
-        )
-        _record_item_logs(
-            actor, "admin_direct.returned", locked.makerspace, locked.request, locked
-        )
-        audit.record(
-            actor,
-            "evidence.attached",
-            makerspace=locked.makerspace,
-            target=evidence,
-            meta={"request_id": locked.request_id},
-        )
-        return locked
-
-
-def _validate_return_upload(evidence):
-    if settings.STORAGE_PRESIGN_METHOD == "put":
-        size = storage.finalize_upload(
-            evidence.object_key, settings.EVIDENCE_MAX_BYTES
-        )
-        if size is None:
-            raise EvidenceNotUploaded("Return evidence has not been uploaded.")
-        if not (1 <= size <= settings.EVIDENCE_MAX_BYTES):
-            raise ReturnValidationError(
-                "Return evidence is invalid or exceeds the size limit."
-            )
-    elif not storage.object_exists(evidence.object_key):
-        raise EvidenceNotUploaded("Return evidence has not been uploaded.")
 
 
 def _locked_qrs_for_payloads(makerspace, payloads):
@@ -314,36 +221,3 @@ def _manual_product(makerspace, product_id):
             "Individual-tracked products require scanned asset QR codes for handout."
         )
     return product
-
-
-def _record_item_logs(actor, action, makerspace, request, loan):
-    items = list(request.items.select_related("product"))
-    if not items and loan.container_id:
-        audit.record(
-            actor,
-            action,
-            makerspace=makerspace,
-            target=loan.container,
-            meta={
-                "loan_id": loan.id,
-                "request_id": request.id,
-                "container_id": loan.container_id,
-                "source": loan.source,
-            },
-        )
-        return
-
-    for item in items:
-        audit.record(
-            actor,
-            action,
-            makerspace=makerspace,
-            target=item.product,
-            meta={
-                "loan_id": loan.id,
-                "request_id": request.id,
-                "product_id": item.product_id,
-                "quantity": item.issued_quantity,
-                "source": loan.source,
-            },
-        )
