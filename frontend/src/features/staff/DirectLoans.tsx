@@ -11,6 +11,7 @@ import { Panel, type Makerspace, useStaffGet } from "./StaffPanels";
 type ProductOption = {
   id: number;
   name: string;
+  storage_location: string;
   available_quantity: number;
   tracking_mode: string;
   is_public: boolean;
@@ -321,6 +322,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
                   {eligibleProducts.map((product) => (
                     <option key={product.id} value={product.id}>
                       {product.name} ({product.available_quantity} available)
+                      {product.storage_location ? ` — Shelf: ${product.storage_location}` : ""}
                     </option>
                   ))}
                 </select>

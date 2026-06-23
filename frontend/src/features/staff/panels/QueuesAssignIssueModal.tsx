@@ -4,7 +4,7 @@ import { Modal } from "../../../components/ui/Modal";
 import QrScanner from "../../../components/ui/QrScanner";
 import { staffRequest } from "../../../lib/api";
 import { EvidenceUpload } from "./EvidenceUpload";
-import { BoxCodeField, ErrorText, FormFooter, submitForm } from "./QueuesModalShared";
+import { BoxCodeField, ErrorText, FormFooter, ShelfLine, submitForm } from "./QueuesModalShared";
 import type { AssignIssueValues, FormModalProps } from "./QueuesModalTypes";
 
 type ScannedAsset = { payload: string; label: string };
@@ -105,9 +105,10 @@ function IssueItems({ row, pending, rejects, setBroken, setDisposition }: { row:
   return (
     <div className="grid gap-2">
       <p className="text-sm font-medium text-ink">Items - reject any broken units</p>
-      {row?.items.map((item) => item.requires_asset_qr ? <div key={item.id} className="rounded-md border border-line p-2"><p className="text-sm font-medium text-ink">{item.product_name} <span className="text-muted">x{item.accepted_quantity}</span></p><p className="mt-1 text-xs text-muted">Individually tracked - issued by asset QR scan above.</p></div> : (
+      {row?.items.map((item) => item.requires_asset_qr ? <div key={item.id} className="rounded-md border border-line p-2"><p className="text-sm font-medium text-ink">{item.product_name} <span className="text-muted">x{item.accepted_quantity}</span></p><ShelfLine location={item.storage_location} /><p className="mt-1 text-xs text-muted">Individually tracked - issued by asset QR scan above.</p></div> : (
         <div key={item.id} className="rounded-md border border-line p-2">
           <p className="text-sm font-medium text-ink">{item.product_name} <span className="text-muted">x{item.accepted_quantity}</span></p>
+          <ShelfLine location={item.storage_location} />
           <div className="mt-2 grid gap-2 sm:grid-cols-[auto_1fr] sm:items-end">
             <label className="grid gap-1 text-xs text-muted"><span>Reject as broken</span><input className="desk-input w-24" type="number" min="0" max={item.accepted_quantity} value={rejects[item.id]?.broken ?? 0} disabled={pending} onChange={(event) => setBroken(item.id, Number(event.target.value))} /></label>
             {(rejects[item.id]?.broken ?? 0) > 0 ? <label className="grid gap-1 text-xs text-muted"><span>Send broken units to</span><select className="desk-input" value={rejects[item.id]?.disposition ?? "needs_fix"} disabled={pending} onChange={(event) => setDisposition(item.id, event.target.value as "needs_fix" | "remove")}><option value="needs_fix">To-be-fixed shelf</option><option value="remove">Remove from inventory</option></select></label> : null}

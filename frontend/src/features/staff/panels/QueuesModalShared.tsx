@@ -89,6 +89,14 @@ export function ErrorText({ message }: { message: string }) {
   return message ? <p className="rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">{message}</p> : null;
 }
 
+// The product's free-text storage location ("shelf") so staff know where to physically
+// fetch or return the item during handover. Renders nothing when no shelf is recorded.
+export function ShelfLine({ location }: { location?: string | null }) {
+  return location ? (
+    <p className="text-xs text-muted">Shelf: <span className="font-medium text-ink">{location}</span></p>
+  ) : null;
+}
+
 export function submitForm(event: React.FormEvent<HTMLFormElement>, submit: () => void) {
   event.preventDefault();
   submit();

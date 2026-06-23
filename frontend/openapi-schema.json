@@ -11309,6 +11309,10 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "storage_location": {
+                        "type": "string",
+                        "readOnly": true
+                    },
                     "tracking_mode": {
                         "type": "string",
                         "readOnly": true
@@ -11364,6 +11368,7 @@
                     "requested_quantity",
                     "requires_asset_qr",
                     "returned_quantity",
+                    "storage_location",
                     "tracking_mode"
                 ]
             },

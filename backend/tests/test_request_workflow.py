@@ -855,7 +855,7 @@ def test_wrong_action_accept_in_own_makerspace_returns_403_for_guest_and_request
 
 def test_guest_admin_cannot_reject_but_can_get_accepted_queue_not_pending_queue():
     makerspace = make_space("guest-queues")
-    product = make_product(makerspace)
+    product = make_product(makerspace, storage_location="Shelf B3")
     pending_request = make_hardware_request(makerspace, product)
     accepted_request = make_hardware_request(
         makerspace,
@@ -882,6 +882,8 @@ def test_guest_admin_cannot_reject_but_can_get_accepted_queue_not_pending_queue(
     assert [item["id"] for item in response.data["results"]] == [accepted_request.id]
     assert response.data["results"][0]["items"][0]["id"]
     assert response.data["results"][0]["items"][0]["product_name"] == product.name
+    # The handout/handover payload exposes the shelf so staff know where to fetch the item.
+    assert response.data["results"][0]["items"][0]["storage_location"] == "Shelf B3"
 
     response = client.get(pending_requests_url(makerspace))
     assert response.status_code == 403

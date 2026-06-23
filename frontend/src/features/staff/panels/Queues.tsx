@@ -22,6 +22,7 @@ export type RequestItem = {
   id: number;
   product_id: number;
   product_name: string;
+  storage_location: string;
   tracking_mode: string;
   requires_asset_qr: boolean;
   requested_quantity: number;

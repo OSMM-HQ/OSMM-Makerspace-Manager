@@ -80,6 +80,11 @@ class AdminRequestItemSerializer(serializers.Serializer):
     id = serializers.IntegerField(read_only=True)
     product_id = serializers.IntegerField(read_only=True)
     product_name = serializers.CharField(source="product.name", read_only=True)
+    # Free-text shelf/storage location so staff know where to physically fetch (issue) or
+    # return each item during handover. Same prefetched product row as product_name (no N+1).
+    storage_location = serializers.CharField(
+        source="product.storage_location", read_only=True, allow_blank=True
+    )
     # Exposed so the staff issue UI knows which accepted units require a scanned asset QR.
     # individual-mode products must be issued with one AVAILABLE asset QR per accepted unit
     # (handover_issue_helpers.issue_individual_assets), so the modal must collect scans for them.
