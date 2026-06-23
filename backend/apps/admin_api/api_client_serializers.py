@@ -10,7 +10,12 @@ from apps.makerspaces.models import Makerspace
 
 
 class ApiClientSerializer(serializers.ModelSerializer):
-    client_secret = serializers.CharField(read_only=True)
+    scopes = serializers.ListField(
+        child=serializers.CharField(), required=False, allow_empty=True
+    )
+    allowed_origins = serializers.ListField(
+        child=serializers.CharField(), allow_empty=False
+    )
     backend_base_url = serializers.SerializerMethodField()
     public_api_base_url = serializers.SerializerMethodField()
     public_makerspace_code = serializers.CharField(
@@ -24,7 +29,6 @@ class ApiClientSerializer(serializers.ModelSerializer):
             "id",
             "label",
             "client_id",
-            "client_secret",
             "client_type",
             "scopes",
             "rate_limit_tier",
@@ -40,7 +44,6 @@ class ApiClientSerializer(serializers.ModelSerializer):
         read_only_fields = [
             "id",
             "client_id",
-            "client_secret",
             "makerspace",
             "public_makerspace_code",
             "backend_base_url",
@@ -96,6 +99,32 @@ class ApiClientSerializer(serializers.ModelSerializer):
             return ""
         code = obj.makerspace.public_code if obj.makerspace_id else ""
         return request.build_absolute_uri(f"/api/v1/public/{code}/").rstrip("/")
+
+class ApiClientCreateResponseSerializer(ApiClientSerializer):
+    client_secret = serializers.CharField(read_only=True)
+
+    class Meta(ApiClientSerializer.Meta):
+        fields = [
+            "id",
+            "label",
+            "client_id",
+            "client_secret",
+            "client_type",
+            "scopes",
+            "rate_limit_tier",
+            "makerspace",
+            "public_makerspace_code",
+            "allowed_origins",
+            "backend_base_url",
+            "public_api_base_url",
+            "is_active",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            *ApiClientSerializer.Meta.read_only_fields,
+            "client_secret",
+        ]
 
 
 class ApiKeyRequestSerializer(serializers.ModelSerializer):

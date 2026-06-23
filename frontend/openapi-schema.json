@@ -2255,7 +2255,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ApiClient"
+                                    "$ref": "#/components/schemas/ApiClientCreateResponse"
                                 }
                             }
                         },
@@ -7290,6 +7290,13 @@
                 ],
                 "responses": {
                     "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TenantBootstrap"
+                                }
+                            }
+                        },
                         "description": "Frontend-safe tenant bootstrap payload."
                     },
                     "404": {
@@ -11375,14 +11382,15 @@
                         "type": "string",
                         "readOnly": true
                     },
-                    "client_secret": {
-                        "type": "string",
-                        "readOnly": true
-                    },
                     "client_type": {
                         "$ref": "#/components/schemas/ClientTypeEnum"
                     },
-                    "scopes": {},
+                    "scopes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
                     "rate_limit_tier": {
                         "$ref": "#/components/schemas/RateLimitTierEnum"
                     },
@@ -11395,7 +11403,12 @@
                         "type": "string",
                         "readOnly": true
                     },
-                    "allowed_origins": {},
+                    "allowed_origins": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
                     "backend_base_url": {
                         "type": "string",
                         "readOnly": true
@@ -11419,6 +11432,88 @@
                     }
                 },
                 "required": [
+                    "allowed_origins",
+                    "backend_base_url",
+                    "client_id",
+                    "created_at",
+                    "id",
+                    "label",
+                    "makerspace",
+                    "public_api_base_url",
+                    "public_makerspace_code",
+                    "updated_at"
+                ]
+            },
+            "ApiClientCreateResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "client_id": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "client_secret": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "client_type": {
+                        "$ref": "#/components/schemas/ClientTypeEnum"
+                    },
+                    "scopes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "rate_limit_tier": {
+                        "$ref": "#/components/schemas/RateLimitTierEnum"
+                    },
+                    "makerspace": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "public_makerspace_code": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "allowed_origins": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "backend_base_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "public_api_base_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "allowed_origins",
                     "backend_base_url",
                     "client_id",
                     "client_secret",
@@ -14748,14 +14843,15 @@
                         "type": "string",
                         "readOnly": true
                     },
-                    "client_secret": {
-                        "type": "string",
-                        "readOnly": true
-                    },
                     "client_type": {
                         "$ref": "#/components/schemas/ClientTypeEnum"
                     },
-                    "scopes": {},
+                    "scopes": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
                     "rate_limit_tier": {
                         "$ref": "#/components/schemas/RateLimitTierEnum"
                     },
@@ -14768,7 +14864,12 @@
                         "type": "string",
                         "readOnly": true
                     },
-                    "allowed_origins": {},
+                    "allowed_origins": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
                     "backend_base_url": {
                         "type": "string",
                         "readOnly": true
@@ -18667,6 +18768,134 @@
                         "additionalProperties": {}
                     }
                 }
+            },
+            "TenantBootstrap": {
+                "type": "object",
+                "properties": {
+                    "makerspace": {
+                        "$ref": "#/components/schemas/TenantBootstrapMakerspace"
+                    },
+                    "frontend": {
+                        "$ref": "#/components/schemas/TenantBootstrapFrontend"
+                    },
+                    "modules": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "workflows": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "theme": {},
+                    "branding": {},
+                    "email_enabled": {
+                        "type": "boolean"
+                    },
+                    "public_api": {
+                        "$ref": "#/components/schemas/TenantBootstrapPublicApi"
+                    }
+                },
+                "required": [
+                    "branding",
+                    "email_enabled",
+                    "frontend",
+                    "makerspace",
+                    "modules",
+                    "public_api",
+                    "theme",
+                    "workflows"
+                ]
+            },
+            "TenantBootstrapFrontend": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "type": "string"
+                    },
+                    "hostname": {
+                        "type": "string"
+                    },
+                    "allowed_origins": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "allowed_origins",
+                    "hostname",
+                    "type"
+                ]
+            },
+            "TenantBootstrapMakerspace": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "public_code": {
+                        "type": "string"
+                    },
+                    "location": {
+                        "type": "string"
+                    },
+                    "map_url": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "logo_url": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "cover_image_url": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "public_stats_enabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "cover_image_url",
+                    "id",
+                    "location",
+                    "logo_url",
+                    "map_url",
+                    "name",
+                    "public_code",
+                    "public_stats_enabled",
+                    "slug"
+                ]
+            },
+            "TenantBootstrapPublicApi": {
+                "type": "object",
+                "properties": {
+                    "base_url": {
+                        "type": "string"
+                    },
+                    "publishable_key": {
+                        "type": "string"
+                    },
+                    "inventory_path": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "base_url",
+                    "inventory_path",
+                    "publishable_key"
+                ]
             },
             "ToBuyItem": {
                 "type": "object",

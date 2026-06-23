@@ -406,10 +406,12 @@ def test_api_client_rest_allows_makerspace_admin_and_scopes_others():
     listed = admin_client.get(f"/api/v1/admin/makerspace/{makerspace.id}/api-clients")
     assert listed.status_code == 200
     assert listed.data["results"][0]["client_id"] == created.data["client_id"]
+    assert "client_secret" not in listed.data["results"][0]
 
     detail = admin_client.get(f"/api/v1/admin/api-clients/{created.data['id']}")
     assert detail.status_code == 200
     assert detail.data["client_id"] == created.data["client_id"]
+    assert "client_secret" not in detail.data
 
     # An admin of a different makerspace cannot create here, and the client detail
     # is scoped out (404 before 403).
@@ -668,6 +670,8 @@ def test_admin_can_manage_api_integration_settings_from_api_clients_area(monkeyp
     assert response.data["public_api_key"] == makerspace.public_api_key
     assert response.data["telegram_bot_token_set"] is True
     assert response.data["smtp_password_set"] is True
+    assert "telegram_bot_token" not in response.data
+    assert "smtp_password" not in response.data
     makerspace.refresh_from_db()
     assert makerspace.telegram_group_chat_id == "-100123"
     assert makerspace.telegram_bot_token != "bot-token"

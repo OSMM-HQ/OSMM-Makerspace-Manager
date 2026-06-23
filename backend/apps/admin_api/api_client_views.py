@@ -8,6 +8,7 @@ from apps.accounts import rbac
 from apps.accounts.models import User
 from apps.admin_api.api_client_serializers import (
     ApiClientSerializer,
+    ApiClientCreateResponseSerializer,
     ApiKeyRequestSerializer,
     ApiIntegrationSettingsSerializer,
 )
@@ -40,6 +41,10 @@ class ApiClientListCreateView(generics.ListCreateAPIView):
             .filter(makerspace_id=makerspace_id)
             .order_by("label")
         )
+
+    @extend_schema(responses={201: ApiClientCreateResponseSerializer})
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
 
     def create(self, request, *args, **kwargs):
         makerspace_id = self.kwargs["makerspace_id"]

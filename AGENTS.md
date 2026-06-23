@@ -81,7 +81,7 @@ keep localhost identical; only managed deployments set them.
 docker compose up -d db                     # 1. Database
 cd backend && pip install -r requirements.txt
 python manage.py migrate && python manage.py seed_demo
-python manage.py runserver                  # http://localhost:8000  (Swagger: /api/docs/)
+python manage.py runserver                  # http://localhost:8000  (Swagger: /docs/, ReDoc: /redoc/, schema: /schema/)
 cd frontend && npm install && npm run dev   # http://localhost:5000
 cd backend && pytest                        # tests (DB must be up)
 ```
