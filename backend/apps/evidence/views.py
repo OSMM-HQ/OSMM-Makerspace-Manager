@@ -21,6 +21,7 @@ from apps.evidence.serializers import (
     EvidenceUrlRequestSerializer,
     EvidenceUrlResponseSerializer,
 )
+from apps.evidence.responses import storage_unavailable_response
 from apps.evidence.storage import (
     StorageUnavailable,
     evidence_object_key,
@@ -74,7 +75,7 @@ class EvidenceUploadUrlView(StaffAPIView):
                 extra={"makerspace_id": makerspace_id, "evidence_type": evidence_type},
                 exc_info=True,
             )
-            return Response(status=503)
+            return storage_unavailable_response()
 
         with transaction.atomic():
             makerspace = get_object_or_404(Makerspace, pk=makerspace_id)
@@ -145,7 +146,7 @@ class EvidenceDetailView(generics.RetrieveAPIView):
                 extra={"evidence_id": photo.pk, "makerspace_id": photo.makerspace_id},
                 exc_info=True,
             )
-            return Response(status=503)
+            return storage_unavailable_response()
         if not exists:
             return Response(status=409)
 
@@ -157,7 +158,7 @@ class EvidenceDetailView(generics.RetrieveAPIView):
                 extra={"evidence_id": photo.pk, "makerspace_id": photo.makerspace_id},
                 exc_info=True,
             )
-            return Response(status=503)
+            return storage_unavailable_response()
 
         audit.record(
             request.user,

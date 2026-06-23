@@ -21,6 +21,7 @@ from apps.admin_api.serializers_makerspaces import (
     ReturnPolicySerializer,
 )
 from apps.audit import services as audit
+from apps.evidence.responses import storage_unavailable_response
 from apps.evidence.storage import StorageUnavailable
 from apps.inventory import public_image_storage
 from apps.makerspaces.models import Makerspace
@@ -201,7 +202,7 @@ class MakerspaceImageView(APIView):
         try:
             upload = public_image_storage.presigned_upload(object_key, content_type)
         except StorageUnavailable:
-            return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            return storage_unavailable_response()
         return Response(
             PublicImageUploadResponseSerializer({"object_key": object_key, **upload}).data,
             status=status.HTTP_201_CREATED,
@@ -228,7 +229,7 @@ class MakerspaceImageView(APIView):
         try:
             size = public_image_storage.finalize_upload(object_key)
         except StorageUnavailable:
-            return Response(status=status.HTTP_503_SERVICE_UNAVAILABLE)
+            return storage_unavailable_response()
         if size is None or not (1 <= size <= settings.PUBLIC_IMAGE_MAX_BYTES):
             raise ValidationError({"object_key": "Uploaded image is missing or invalid."})
 

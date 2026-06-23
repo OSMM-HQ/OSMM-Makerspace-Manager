@@ -16,13 +16,10 @@ from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from apps.accounts.auth_cookies import (
-    assert_csrf,
-    clear_refresh_cookies,
-    set_refresh_cookies,
-)
+from apps.accounts.auth_cookies import assert_csrf, clear_refresh_cookies, set_refresh_cookies
 from apps.accounts.models import User
 from apps.accounts.serializers import LoginSerializer, user_payload
+from apps.accounts.services_tokens import blacklist_outstanding_tokens
 from apps.accounts.throttles import PasswordResetEmailThrottle
 from apps.audit import services as audit
 from apps.integrations.email import send_password_reset_email
@@ -58,18 +55,9 @@ LoginResponseSerializer = inline_serializer(
         "user": UserPayloadSerializer,
     },
 )
-RefreshResponseSerializer = inline_serializer(
-    name="RefreshResponse",
-    fields={"access": serializers.CharField()},
-)
-LogoutResponseSerializer = inline_serializer(
-    name="LogoutResponse",
-    fields={"detail": serializers.CharField()},
-)
-ChangePasswordResponseSerializer = inline_serializer(
-    name="ChangePasswordResponse",
-    fields={"detail": serializers.CharField()},
-)
+RefreshResponseSerializer = inline_serializer(name="RefreshResponse", fields={"access": serializers.CharField()})
+LogoutResponseSerializer = inline_serializer(name="LogoutResponse", fields={"detail": serializers.CharField()})
+ChangePasswordResponseSerializer = inline_serializer(name="ChangePasswordResponse", fields={"detail": serializers.CharField()})
 
 
 class ForgotPasswordRequestSerializer(serializers.Serializer):
@@ -242,7 +230,7 @@ class ChangePasswordView(APIView):
         user.set_password(new_password)
         user.must_change_password = False
         user.save(update_fields=["password", "must_change_password"])
-        _blacklist_outstanding_tokens(user)
+        blacklist_outstanding_tokens(user)
         audit.record(user, "user.password_changed", target=user)
         return Response({"detail": "Password updated."})
 
@@ -325,19 +313,6 @@ class ResetPasswordConfirmView(APIView):
         user.set_password(data["new_password"])
         user.must_change_password = False
         user.save(update_fields=["password", "must_change_password"])
-        _blacklist_outstanding_tokens(user)
+        blacklist_outstanding_tokens(user)
         audit.record(user, "user.password_reset_via_email", target=user)
         return Response({"detail": "Password updated."})
-
-
-def _blacklist_outstanding_tokens(user):
-    # Invalidate every refresh token issued before the rotation so a session that
-    # authenticated with the old (e.g. default super123) password can't persist —
-    # the rotating user simply logs in again with the new password.
-    from rest_framework_simplejwt.token_blacklist.models import (
-        BlacklistedToken,
-        OutstandingToken,
-    )
-
-    for token in OutstandingToken.objects.filter(user=user):
-        BlacklistedToken.objects.get_or_create(token=token)

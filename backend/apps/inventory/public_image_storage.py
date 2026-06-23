@@ -101,9 +101,6 @@ def object_exists(object_key):
 
 
 def object_size(object_key):
-    if not object_exists(object_key):
-        return None
-
     try:
         response = _client().head_object(
             Bucket=settings.PUBLIC_IMAGE_BUCKET,

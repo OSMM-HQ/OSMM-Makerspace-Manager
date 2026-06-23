@@ -42,9 +42,9 @@ def reset_user_password(actor, target_pk, password=None, data=None):
     target.must_change_password = True
     target.save(update_fields=["password", "must_change_password"])
 
-    from apps.accounts.views import _blacklist_outstanding_tokens
+    from apps.accounts.services_tokens import blacklist_outstanding_tokens
 
-    _blacklist_outstanding_tokens(target)
+    blacklist_outstanding_tokens(target)
     audit.record(
         actor,
         (

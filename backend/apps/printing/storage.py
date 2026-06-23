@@ -159,9 +159,6 @@ def print_get_url(
 
 
 def print_object_size(object_key):
-    if not object_exists(object_key):
-        return None
-
     try:
         response = _client().head_object(
             Bucket=settings.AWS_STORAGE_BUCKET_NAME,
