@@ -130,7 +130,7 @@ export function PublicInventoryPage() {
   return (
     <main className="desk-shell">
       <header className="border-b border-line bg-panel">
-        <div className="mx-auto flex max-w-screen-2xl flex-col gap-4 px-5 py-6 sm:px-8">
+        <div className="mx-auto flex max-w-screen-2xl flex-col gap-2 px-5 py-4 sm:px-8">
           <p className="text-sm font-semibold tracking-wide text-accent-ink">
             Public Inventory
           </p>
@@ -139,14 +139,14 @@ export function PublicInventoryPage() {
               <MakerspaceBrand
                 name={displayName}
                 logoUrl={bootstrap?.makerspace.logo_url}
-                size="lg"
+                size="xl"
               />
-              <p className="mt-2 text-sm text-muted">
+              <p className="mt-1 text-sm text-muted">
                 Shared tools and equipment published by this makerspace.
               </p>
               <MakerspaceMapLink
                 makerspace={bootstrap?.makerspace}
-                className="mt-2"
+                className="mt-1"
               />
             </div>
             <div className="flex flex-wrap items-center gap-2">

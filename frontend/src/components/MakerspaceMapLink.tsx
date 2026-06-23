@@ -24,8 +24,8 @@ export function MakerspaceMapLink({
   }
 
   return (
-    <div className={`grid gap-1 ${className}`}>
-      {location ? <p className={locationClassName}>{location}</p> : null}
+    <div className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 ${className}`}>
+      {location ? <span className={locationClassName}>{location}</span> : null}
       {mapUrl ? (
         <a
           className={linkClassName}

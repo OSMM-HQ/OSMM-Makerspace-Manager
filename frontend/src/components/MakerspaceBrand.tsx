@@ -2,7 +2,7 @@ type MakerspaceBrandProps = {
   name: string;
   logoUrl?: string | null;
   /** Visual size of the mark. */
-  size?: "sm" | "md" | "lg";
+  size?: "sm" | "md" | "lg" | "xl";
   /** Hide the text name beside the logo (logo-only lockup). */
   hideName?: boolean;
   className?: string;
@@ -12,12 +12,14 @@ const LOGO_SIZE: Record<NonNullable<MakerspaceBrandProps["size"]>, string> = {
   sm: "h-8 w-8",
   md: "h-10 w-10",
   lg: "h-14 w-14",
+  xl: "h-16 w-16",
 };
 
 const NAME_SIZE: Record<NonNullable<MakerspaceBrandProps["size"]>, string> = {
   sm: "text-base",
   md: "text-xl",
   lg: "text-2xl",
+  xl: "text-3xl sm:text-4xl",
 };
 
 /**
