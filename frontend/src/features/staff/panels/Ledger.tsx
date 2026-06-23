@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Skeleton, SkeletonRows } from "../../../components/ui";
 import { useDebouncedValue } from "../../../lib/useDebouncedValue";
@@ -35,8 +35,11 @@ const sourceLabels: Record<LedgerSource, string> = {
   direct_handout: "Direct",
 };
 
+const LEDGER_PAGE_SIZE = 50;
+
 export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; isSuperadmin: boolean }) {
   const [allMakerspaces, setAllMakerspaces] = useState(false);
+  const [page, setPage] = useState(1);
   const [filter, setFilter] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; direction: SortDirection }>({
     key: "due",
@@ -44,10 +47,15 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
   });
   const debouncedFilter = useDebouncedValue(filter);
   const aggregate = isSuperadmin && allMakerspaces;
+  const ledgerPath = aggregate ? "/admin/ledger" : `/admin/makerspace/${makerspace.id}/ledger`;
   const ledger = useStaffGet<LedgerResponse>(
-    ["ledger", aggregate ? "all" : makerspace.id],
-    aggregate ? "/admin/ledger" : `/admin/makerspace/${makerspace.id}/ledger`,
+    ["ledger", aggregate ? "all" : makerspace.id, page, LEDGER_PAGE_SIZE],
+    `${ledgerPath}?page=${page}&page_size=${LEDGER_PAGE_SIZE}`,
   );
+
+  useEffect(() => {
+    setPage(1);
+  }, [aggregate, makerspace.id]);
 
   const rows = ledger.data?.results ?? [];
   const now = Date.now();
@@ -60,6 +68,8 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
     return [...filtered].sort((a, b) => compareRows(a, b, sort.key, sort.direction));
   }, [debouncedFilter, rows, sort.direction, sort.key]);
   const itemCount = visibleRows.reduce((total, row) => total + row.quantity, 0);
+  const totalRows = ledger.data?.count ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalRows / LEDGER_PAGE_SIZE));
 
   const setSortKey = (key: SortKey) => {
     setSort((current) => ({
@@ -84,7 +94,10 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
               <input
                 type="checkbox"
                 checked={allMakerspaces}
-                onChange={(event) => setAllMakerspaces(event.target.checked)}
+                onChange={(event) => {
+                  setAllMakerspaces(event.target.checked);
+                  setPage(1);
+                }}
               />
               All makerspaces
             </label>
@@ -150,6 +163,18 @@ export function Ledger({ makerspace, isSuperadmin }: { makerspace: Makerspace; i
             </table>
           </div>
         ) : null}
+
+        {ledger.data && totalRows > LEDGER_PAGE_SIZE ? (
+          <div className="flex flex-wrap items-center justify-end gap-2 text-sm text-muted">
+            <button className="desk-button" type="button" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>
+              Previous
+            </button>
+            <span>Page {page} of {totalPages}</span>
+            <button className="desk-button" type="button" disabled={page >= totalPages} onClick={() => setPage((value) => Math.min(totalPages, value + 1))}>
+              Next
+            </button>
+          </div>
+        ) : null}
       </div>
     </Panel>
   );
@@ -185,7 +210,7 @@ function UnitLines({ row }: { row: LedgerRow }) {
         {row.units.map((unit) => (
           <span className="break-words" key={`${unit.asset_tag}-${unit.serial_number || "no-serial"}`}>
             #{unit.asset_tag}
-            {unit.serial_number ? ` · ${unit.serial_number}` : ""}
+            {unit.serial_number ? ` - ${unit.serial_number}` : ""}
           </span>
         ))}
       </div>

@@ -286,6 +286,13 @@
                 "summary": "Get aggregate analytics report",
                 "parameters": [
                     {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
                         "in": "path",
                         "name": "report_key",
                         "schema": {
@@ -1550,6 +1557,22 @@
             "get": {
                 "operationId": "api_v1_admin_ledger_retrieve",
                 "summary": "List outstanding inventory loans across all makerspaces",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page_size",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
                 "tags": [
                     "Ledger"
                 ],
@@ -1708,6 +1731,13 @@
                 "summary": "Get analytics report",
                 "parameters": [
                     {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
                         "in": "path",
                         "name": "makerspace_id",
                         "schema": {
@@ -1744,6 +1774,13 @@
                 "operationId": "api_v1_admin_makerspace_analytics_damaged_lost_retrieve",
                 "summary": "Get analytics report",
                 "parameters": [
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
                     {
                         "in": "path",
                         "name": "makerspace_id",
@@ -1782,6 +1819,13 @@
                 "summary": "Get analytics report",
                 "parameters": [
                     {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
                         "in": "path",
                         "name": "makerspace_id",
                         "schema": {
@@ -1818,6 +1862,13 @@
                 "operationId": "api_v1_admin_makerspace_analytics_most_lent_retrieve",
                 "summary": "Get analytics report",
                 "parameters": [
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
                     {
                         "in": "path",
                         "name": "makerspace_id",
@@ -1856,6 +1907,13 @@
                 "summary": "Get analytics report",
                 "parameters": [
                     {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
                         "in": "path",
                         "name": "makerspace_id",
                         "schema": {
@@ -1892,6 +1950,13 @@
                 "operationId": "api_v1_admin_makerspace_analytics_recently_added_retrieve",
                 "summary": "Get analytics report",
                 "parameters": [
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
                     {
                         "in": "path",
                         "name": "makerspace_id",
@@ -1930,6 +1995,13 @@
                 "summary": "Get analytics report",
                 "parameters": [
                     {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
                         "in": "path",
                         "name": "makerspace_id",
                         "schema": {
@@ -1966,6 +2038,13 @@
                 "operationId": "api_v1_admin_makerspace_analytics_summary_retrieve",
                 "summary": "Get analytics report",
                 "parameters": [
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
                     {
                         "in": "path",
                         "name": "makerspace_id",
@@ -2004,6 +2083,13 @@
                 "summary": "Get analytics report",
                 "parameters": [
                     {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
                         "in": "path",
                         "name": "makerspace_id",
                         "schema": {
@@ -2040,6 +2126,13 @@
                 "operationId": "api_v1_admin_makerspace_analytics_top_borrowers_retrieve",
                 "summary": "Get analytics report",
                 "parameters": [
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
                     {
                         "in": "path",
                         "name": "makerspace_id",
@@ -3547,6 +3640,20 @@
                             "type": "integer"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "page_size",
+                        "schema": {
+                            "type": "integer"
+                        }
                     }
                 ],
                 "tags": [
@@ -9825,6 +9932,13 @@
                 "operationId": "api_v1_procurement_makerspace_to_buy_list",
                 "summary": "List to-buy items for a makerspace",
                 "parameters": [
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
                     {
                         "in": "path",
                         "name": "makerspace_id",

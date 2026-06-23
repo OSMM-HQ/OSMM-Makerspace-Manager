@@ -7,6 +7,10 @@ from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
 from apps.inventory.models import InventoryAsset, InventoryProduct
 
 
+DEFAULT_REPORT_LIMIT = 100
+MAX_REPORT_LIMIT = 500
+
+
 REPORT_KEYS = [
     "summary",
     "taken-items",
@@ -21,10 +25,18 @@ REPORT_KEYS = [
 ]
 
 
-def report_data(report_key="summary", makerspace_id=None):
+def report_data(report_key="summary", makerspace_id=None, *, limit=None):
     if report_key == "summary":
         return _summary(makerspace_id)
-    return {"rows": report_rows(report_key, makerspace_id)}
+    return {"rows": _limited_rows(report_rows(report_key, makerspace_id), limit)}
+
+
+
+def _limited_rows(rows, limit):
+    if limit is None:
+        limit = DEFAULT_REPORT_LIMIT
+    limit = max(0, min(int(limit), MAX_REPORT_LIMIT))
+    return rows[:1] + rows[1 : limit + 1]
 
 
 def report_rows(report_key, makerspace_id=None):

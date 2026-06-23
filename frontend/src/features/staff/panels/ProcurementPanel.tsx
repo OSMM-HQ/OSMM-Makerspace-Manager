@@ -33,7 +33,7 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
   const [form, setForm] = useState<Form>(emptyForm);
   const base = `/procurement/makerspace/${makerspace.id}/to-buy`;
   const queryKey = ["procurement", makerspace.id];
-  const items = useStaffGet<ToBuyItem[]>(queryKey, base);
+  const items = useStaffGet<ToBuyItem[]>(queryKey, `${base}?limit=200`);
   const invalidate = () => queryClient.invalidateQueries({ queryKey });
 
   const create = useMutation({
