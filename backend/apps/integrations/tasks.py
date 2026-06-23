@@ -1,13 +1,15 @@
 import random
-from datetime import timedelta
 
 from celery import shared_task
 from django.db import transaction
-from django.utils import timezone
 
 from apps.integrations.dispatch import _deliver
 from apps.integrations.models import EmailLog
-from apps.integrations.smtp_validation import email_task_hard_limit, email_task_soft_limit
+from apps.integrations.smtp_validation import (
+    email_task_hard_limit,
+    email_task_soft_limit,
+    sending_claim_is_stale,
+)
 
 @shared_task(
     bind=True,
@@ -39,13 +41,9 @@ def _claim_log(log_id):
         log = EmailLog.objects.select_for_update().filter(pk=log_id).first()
         if log is None or log.status == EmailLog.Status.SENT:
             return None
-        if log.status == EmailLog.Status.SENDING and not _sending_claim_is_stale(log):
+        if log.status == EmailLog.Status.SENDING and not sending_claim_is_stale(log):
             return None
         log.status = EmailLog.Status.SENDING
         log.error = ""
         log.save(update_fields=["status", "error", "updated_at"])
         return log
-
-def _sending_claim_is_stale(log) -> bool:
-    stale_after = timezone.now() - timedelta(seconds=email_task_hard_limit() + 5)
-    return log.updated_at <= stale_after

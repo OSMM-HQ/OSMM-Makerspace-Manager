@@ -105,7 +105,7 @@ export function EmailLogPanel({ makerspace }: { makerspace: Makerspace }) {
                   {log.status === "failed" ? truncate(log.error) : ""}
                 </td>
                 <td className="whitespace-nowrap px-2 py-2">
-                  {log.status === "failed" ? (
+                  {log.status === "failed" || log.status === "sending" ? (
                     <button
                       className="desk-button"
                       disabled={retry.isPending}

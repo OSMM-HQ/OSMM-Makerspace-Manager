@@ -252,7 +252,9 @@ def test_email_retry_countdown_uses_backoff_and_jitter(monkeypatch):
     assert email_tasks._retry_countdown(5) == 930
 
 def test_claim_skips_fresh_sending_and_reclaims_stale_sending(monkeypatch):
-    monkeypatch.setattr(email_tasks, "email_task_hard_limit", lambda: 60)
+    monkeypatch.setattr(
+        "apps.integrations.smtp_validation.email_task_hard_limit", lambda: 60
+    )
     log = EmailLog.objects.create(
         to_email="borrower@example.com",
         subject="Claim",
@@ -271,3 +273,30 @@ def test_claim_skips_fresh_sending_and_reclaims_stale_sending(monkeypatch):
     assert claimed is not None
     assert claimed.status == EmailLog.Status.SENDING
     assert claimed.error == ""
+
+def test_retry_endpoint_reclaims_stale_sending_and_rejects_fresh():
+    makerspace = make_space("email-async-retry-stale")
+    manager = make_member("email-async-retry-stale-manager", makerspace)
+    log = EmailLog.objects.create(
+        makerspace=makerspace,
+        to_email="stuck@example.com",
+        subject="Stuck",
+        text_body="Stored body",
+        status=EmailLog.Status.SENDING,
+    )
+    client = authenticated_client(manager)
+
+    # A fresh SENDING claim is in-flight — retrying would double-deliver, so reject it.
+    assert client.post(retry_url(log)).status_code == 400
+    log.refresh_from_db()
+    assert log.status == EmailLog.Status.SENDING
+
+    # A SENDING row older than the hard task limit is a crashed-worker leftover that no
+    # task will re-fire — the Retry path must reclaim it so it isn't stuck forever.
+    EmailLog.objects.filter(pk=log.pk).update(
+        updated_at=timezone.now()
+        - timedelta(seconds=email_tasks.email_task_hard_limit() + 30),
+    )
+    assert client.post(retry_url(log)).status_code == 200
+    log.refresh_from_db()
+    assert log.status == EmailLog.Status.PENDING

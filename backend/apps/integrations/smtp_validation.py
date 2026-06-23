@@ -1,13 +1,16 @@
 import ipaddress
 import socket
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 
 ALLOWED_SMTP_PORTS = {25, 465, 587, 2525}
 DEFAULT_SMTP_TIMEOUT_SECONDS = 10
 DEFAULT_EMAIL_TASK_SOFT_SECONDS = 15
 DEFAULT_EMAIL_TASK_HARD_SECONDS = 20
+SENDING_CLAIM_STALE_BUFFER_SECONDS = 5
 
 
 def smtp_timeout_seconds() -> int:
@@ -24,6 +27,16 @@ def email_task_hard_limit() -> int:
     return int(
         getattr(settings, "EMAIL_TASK_HARD_TIME_LIMIT", DEFAULT_EMAIL_TASK_HARD_SECONDS)
     )
+
+
+def sending_claim_is_stale(log) -> bool:
+    """A ``SENDING`` EmailLog whose claim predates the hard task limit is stuck — the
+    worker crashed/was killed after claiming the row but before committing SENT/FAILED
+    (Celery acks early), so no retry will re-fire. Such a row is safe to reclaim."""
+    stale_after = timezone.now() - timedelta(
+        seconds=email_task_hard_limit() + SENDING_CLAIM_STALE_BUFFER_SECONDS
+    )
+    return log.updated_at <= stale_after
 
 
 
