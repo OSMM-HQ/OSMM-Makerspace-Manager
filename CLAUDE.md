@@ -1267,7 +1267,7 @@ The goal is not just to ship code, but to understand why each production-quality
 
 ## What This System Is
 
-A multi-tenant system for managing community hardware loans across makerspaces. The central concern is **traceability of physical handovers**: every issue and return must produce evidence (QR scans + photos + remarks + audit log) so that accountability for lost/damaged hardware is never ambiguous. Public users browse and request; only authorized staff (Space Manager, Inventory Manager, Guest Admin, or Super Admin according to action scope) physically issue items.
+A multi-tenant system for managing community hardware loans across makerspaces. The central concern is **traceability of physical handovers**: every issue and return must produce evidence (QR scans + photos + remarks + audit log) so that accountability for lost/damaged hardware is never ambiguous. Public users browse and request; when self-checkout is enabled they may also issue/return eligible QR tools after Check-In verification and evidence upload. Staff physically issue reviewed requests and direct handouts according to action scope.
 
 ## Architecture: Concepts That Span Multiple Modules
 
@@ -1302,8 +1302,9 @@ Every domain entity is scoped to a `makerspace_id`. A makerspace owns its invent
 
 ## Hard Rules Baked Into Workflows (don't regress these)
 
-- Hardware **cannot be issued** without both a box QR scan and an issue photo.
-- Hardware **cannot be returned** without a return photo and a return remark.
+- Reviewed-request hardware **cannot be issued** without both a box QR scan and an issue photo.
+- Public self-checkout and staff direct handout **cannot be issued** without uploaded issue evidence and an eligible scanned/selected tool.
+- Hardware **cannot be returned** without a return photo and a return remark/notes.
 - Issued quantity cannot exceed accepted quantity without authorized workflow permission.
 - Guest Admins can issue accepted requests and process scoped returns through the
   same evidence/QR/remark/audit workflow as staff. They **cannot** accept/reject,

@@ -10821,7 +10821,9 @@
                                         "payload": "BOX-ABC123",
                                         "requester_name": "Shaan Shoukath",
                                         "contact_email": "shaans@example.com",
-                                        "contact_phone": "+919876543210"
+                                        "contact_phone": "+919876543210",
+                                        "evidence_id": 122,
+                                        "remark": "Borrowing for electronics workshop diagnostics."
                                     },
                                     "summary": "Public QR tool checkout"
                                 }
@@ -11028,7 +11030,9 @@
                                 "PublicQRToolReturnScan": {
                                     "value": {
                                         "identifier": "shaans@example.com",
-                                        "payload": "BOX-ABC123"
+                                        "payload": "BOX-ABC123",
+                                        "evidence_id": 123,
+                                        "remark": "Returned to the electronics shelf in good condition."
                                     },
                                     "summary": "Public QR tool return scan"
                                 }

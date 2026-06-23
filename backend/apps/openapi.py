@@ -84,7 +84,12 @@ QR_SCAN_EXAMPLE = OpenApiExample(
 
 PUBLIC_TOOL_SCAN_EXAMPLE = OpenApiExample(
     "Public QR tool return scan",
-    value={"identifier": "shaans@example.com", "payload": "BOX-ABC123"},
+    value={
+        "identifier": "shaans@example.com",
+        "payload": "BOX-ABC123",
+        "evidence_id": 123,
+        "remark": "Returned to the electronics shelf in good condition.",
+    },
     request_only=True,
 )
 
@@ -95,6 +100,8 @@ PUBLIC_TOOL_CHECKOUT_EXAMPLE = OpenApiExample(
         "requester_name": "Shaan Shoukath",
         "contact_email": "shaans@example.com",
         "contact_phone": "+919876543210",
+        "evidence_id": 122,
+        "remark": "Borrowing for electronics workshop diagnostics.",
     },
     request_only=True,
 )

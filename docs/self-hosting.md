@@ -1,4 +1,4 @@
-﻿# Self-Hosting Guide
+# Self-Hosting Guide
 
 This project is Docker-first for operators who do not want to build Django or Vite locally.
 
@@ -138,7 +138,7 @@ frontend port.
 
 Secrets (`SECRET_KEY`, `API_CLIENT_ENC_KEY`, makerspace Telegram bot tokens, makerspace SMTP
 passwords) live only in the backend. `API_CLIENT_ENC_KEY` is the Fernet key that encrypts the
-per-makerspace integration secrets at rest â€” **back it up and do not rotate it casually**, or
+per-makerspace integration secrets at rest — **back it up and do not rotate it casually**, or
 previously stored tokens/passwords can no longer be decrypted.
 
 ## Environment reference
@@ -227,7 +227,7 @@ Restore order is database first, then object files. Stop the stack, restore the 
 ## Tenant Frontends
 
 One backend can serve **many makerspaces**. A makerspace without its own server can be hosted as an
-additional tenant on another makerspace's instance â€” each tenant gets its own makerspace record,
+additional tenant on another makerspace's instance — each tenant gets its own makerspace record,
 public URL/slug, branding, and (optionally) its own branded domain, all isolated by makerspace
 scoping. To give a tenant its own branded site, set its **Custom domain**
 (`Makerspace.frontend_domain`) in the staff console Settings tab; that single field drives CORS,
@@ -242,6 +242,12 @@ Use `GET /api/v1/bootstrap?tenant=<public-code>` or `GET /api/v1/bootstrap?slug=
 - enabled modules and workflows
 - theme and branding
 - publishable public API hints
+
+The React public and staff frontends use `enabled_modules` as live navigation gates. If a tenant does
+not see a workflow, check the makerspace module flags first: `self_checkout` gates public
+self-checkout and staff direct handout, `printing` gates 3D-printing workflows, `stocktake` gates
+stocktake, `containers` gates container tools, `qr_management` gates QR tools/scanner, and reports
+appear for `reports` or printing-related workflows.
 
 A makerspace's `frontend_domain` and its `cors_allowed_origins` (API-client origins) are used for
 per-tenant browser access; only the `frontend_domain` origin may hold a staff session.

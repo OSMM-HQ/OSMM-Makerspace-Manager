@@ -81,7 +81,11 @@ Log into the **staff console** address (`/admin`) and:
    Inventory Manager, Guest Admin, Print Manager). Your staff use this **staff console** for
    everything. (See the roles table in the [README](../README.md#roles--permissions) — the
    roles are fixed by the system; you only choose who gets which one.)
-4. **(Optional) Email & Telegram alerts** — set your makerspace's email (SMTP) and Telegram bot in
+4. **Check enabled modules** - in makerspace settings, enable the workflows your space actually
+   uses. Public self-checkout/direct handout, 3D printing, stocktake, containers, QR tools, reports,
+   transfers, and procurement are shown or hidden from the public/staff screens based on these module
+   switches.
+5. **(Optional) Email & Telegram alerts** - set your makerspace's email (SMTP) and Telegram bot in
    the staff console's **Integration settings**. These are stored encrypted and never shown again.
 
 ---

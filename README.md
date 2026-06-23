@@ -21,14 +21,13 @@ This repo is open for people to explore in a fun way. Read through it, break it 
 improve flows, remix the features, or use it as a starting point for your own space. If your
 community works differently, fork it, edit it, and host your own version.
 
-Open-source, multi-tenant **inventory and 3D printing manager for makerspaces**. The public can
-browse a makerspace's inventory and request to borrow tools; staff can manage hardware, returns,
-3D printing work, evidence, QR scans, remarks, and audit logs so accountability stays clear.
+Open-source, multi-tenant **inventory and 3D printing manager for makerspaces**. The public can browse a makerspace's inventory, request to borrow tools, and use QR-based self-checkout when a space enables it. Staff can manage hardware, direct handouts, returns, 3D printing work, evidence, QR scans, remarks, and audit logs so accountability stays clear.
 
 One deployment can host many makerspaces (tenants). Each owns its inventory, public URL,
 staff, Telegram group, QR namespace, and audit scope.
 
-- **Public** → React catalog: pick a makerspace, browse by category, request hardware. No login.
+- **Public** -> React catalog: pick a makerspace, browse by category, request hardware, or
+  self-checkout eligible tools with Check-In verification and uploaded issue/return photos. No platform login.
 - **Super Admin** → the **React staff console** at `/admin` is for day-to-day work. The
   **Django control plane** at `/control/` is an operator-only backend surface.
 - **All other staff** → the **React staff console** (JWT login). They have **no Django admin access**.
@@ -56,7 +55,7 @@ per-makerspace membership.
 | **Inventory Manager** | React staff console | Full hardware lifecycle + inventory edit + QR + evidence + audit for their space | Printing, staff, makerspace settings; Django admin |
 | **Guest Admin** | React staff console | Issue accepted requests + process returns (evidence/QR/remark/audit) | Accept/reject, edit inventory, manage QR, direct handouts; Django admin |
 | **Print Manager** | React staff console | 3D-printing request lifecycle (accept/start/complete/fail), printers & spools | Hardware lifecycle, inventory, staff; Django admin |
-| **Public** | React catalog | Browse public inventory, submit borrow requests | Anything authenticated |
+| **Public** | React catalog | Browse public inventory, submit borrow requests, self-checkout/return eligible QR tools with Check-In verification, uploaded issue/return photo evidence, and return remarks | Anything authenticated |
 
 > **These roles are defined by the system, not by any user.** A Space Manager (or anyone else)
 > cannot invent new roles or grant themselves extra powers — they can only assign people to the
@@ -70,6 +69,15 @@ Two architectural rules are load-bearing:
    no module mutates `HardwareRequest.status` directly.
 2. **The Inventory Availability module owns all quantity math.** Reserve / issue / return /
    mark-lost all flow through it; availability never goes below zero.
+
+Operational evidence rules are also enforced in the workflows:
+
+- Reviewed hardware requests cannot be issued without a box QR scan and issue photo.
+- Reviewed returns cannot be processed without a return photo and return remark.
+- Public self-checkout and staff direct handouts require issue evidence; their returns require
+  return evidence plus notes before stock moves back.
+- QR scanner actions are advisory only: the backend advertises checkout/direct actions only when
+  the matching workflow can actually accept the scanned box, product, or asset.
 
 **Stack:** Django 5 + DRF backend · React 18 + Vite + TypeScript frontend (TanStack Query) ·
 PostgreSQL 16 · django-unfold admin · drf-spectacular / OpenAPI.

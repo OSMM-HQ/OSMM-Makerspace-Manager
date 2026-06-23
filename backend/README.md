@@ -25,7 +25,7 @@ python manage.py runserver
 The backend runs at:
 
 ```text
-http://localhost:8000/api
+http://localhost:8000/api/v1
 ```
 
 ## Admin Panel
@@ -60,7 +60,7 @@ unique slug
 The frontend public directory lists enabled makerspaces automatically through:
 
 ```text
-GET /api/public/makerspaces/
+GET /api/v1/public/makerspaces/
 ```
 
 ## API Docs
@@ -76,7 +76,7 @@ OpenAPI schema: http://localhost:8000/schema/
 When running through `docker compose`, the backend host port is `8001`:
 
 ```text
-Backend API: http://localhost:8001/api
+Backend API: http://localhost:8001/api/v1
 Swagger UI: http://localhost:8001/docs/
 ReDoc: http://localhost:8001/redoc/
 OpenAPI schema: http://localhost:8001/schema/
@@ -92,9 +92,29 @@ The routes are defined in `config/urls.py`:
 /redoc/
 ```
 
+Important workflow routes:
+
+```text
+POST /api/v1/public/<makerspace_slug>/tools/evidence-url
+POST /api/v1/public/<makerspace_slug>/tools/checkout
+POST /api/v1/public/<makerspace_slug>/tools/return
+GET/POST /api/v1/admin/makerspace/<makerspace_id>/direct-loans
+POST /api/v1/admin/makerspace/<makerspace_id>/checkin/verify
+POST /api/v1/admin/direct-loans/<id>/return
+POST /api/v1/admin/qr/resolve
+```
+
+The public tool and direct-loan issue paths require issue evidence. Return paths require return
+evidence plus notes/remarks before inventory availability is updated. QR resolve responses include
+`allowed_actions`, but the scanner UI must still submit through the dedicated workflow endpoint.
+
 ## Run Tests
 
 ```powershell
 cd backend
 pytest
+python manage.py spectacular --format openapi-json --file ..\frontend\openapi-schema.json
+cd ..\frontend
+npm run generate:api
+npm run build
 ```
