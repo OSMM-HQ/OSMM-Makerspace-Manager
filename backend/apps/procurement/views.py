@@ -19,6 +19,8 @@ from apps.procurement.models import ToBuyItem
 from apps.procurement.serializers import ToBuyItemSerializer
 
 MODULE_KEY = "procurement"
+DEFAULT_LIST_LIMIT = 200
+MAX_LIST_LIMIT = 500
 
 
 def _csv_safe(value):
@@ -29,6 +31,18 @@ def _csv_safe(value):
     if text[:1] in ("=", "+", "-", "@", "\t", "\r"):
         return "'" + text
     return text
+
+
+def _list_limit(request):
+    raw = request.query_params.get("limit", DEFAULT_LIST_LIMIT)
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return DEFAULT_LIST_LIMIT
+    if value < 1:
+        return DEFAULT_LIST_LIMIT
+    return min(value, MAX_LIST_LIMIT)
+
 
 KIND_PARAM = OpenApiParameter(
     "kind", OpenApiTypes.STR, OpenApiParameter.QUERY,
@@ -50,9 +64,17 @@ class ToBuyListCreateView(generics.ListCreateAPIView):
         kinds = access.viewable_kinds(self.request.user, makerspace_id)
         if not kinds:
             return ToBuyItem.objects.none()
-        return ToBuyItem.objects.filter(makerspace_id=makerspace_id, kind__in=kinds)
+        limit = _list_limit(self.request)
+        return (
+            ToBuyItem.objects.filter(makerspace_id=makerspace_id, kind__in=kinds)
+            .select_related("created_by")
+            .order_by("-created_at", "-id")[:limit]
+        )
 
-    @extend_schema(summary="List to-buy items for a makerspace")
+    @extend_schema(
+        summary="List to-buy items for a makerspace",
+        parameters=[OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY)],
+    )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 
@@ -163,7 +185,11 @@ class ToBuyExportView(APIView):
         kinds = access.viewable_kinds(request.user, makerspace_id)
         if not kinds:
             raise PermissionDenied()
-        items = ToBuyItem.objects.filter(makerspace_id=makerspace_id, kind__in=kinds)
+        items = (
+            ToBuyItem.objects.filter(makerspace_id=makerspace_id, kind__in=kinds)
+            .select_related("created_by")
+            .order_by("-created_at", "-id")
+        )
         buffer = StringIO()
         writer = csv.writer(buffer)
         writer.writerow(

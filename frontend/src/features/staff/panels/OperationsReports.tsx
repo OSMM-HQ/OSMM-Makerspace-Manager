@@ -42,16 +42,17 @@ export function OperationsReports({
   const scopeKey = aggregate ? "all" : makerspace.id;
   const analyticsBase = aggregate ? "/admin/analytics" : `/admin/makerspace/${makerspace.id}/analytics`;
   const reportsBase = aggregate ? "/admin/reports" : `/admin/makerspace/${makerspace.id}/reports`;
+  const analyticsPreview = (report: string) => `${analyticsBase}/${report}?limit=100`;
 
   // Print managers (printingOnly) lack VIEW_INVENTORY, so the hardware analytics
   // endpoints would 403. Disable those queries entirely rather than render empty,
   // erroring panels — the printing report is the only one they can see.
   const hardwareEnabled = !printingOnly;
   const summary = useStaffGet<Summary>(["operations-report", "summary", scopeKey], `${analyticsBase}/summary`, hardwareEnabled);
-  const mostLent = useStaffGet<ReportRows>(["operations-report", "most-lent", scopeKey], `${analyticsBase}/most-lent`, hardwareEnabled);
-  const topBorrowers = useStaffGet<ReportRows>(["operations-report", "top-borrowers", scopeKey], `${analyticsBase}/top-borrowers`, hardwareEnabled);
-  const damagedLost = useStaffGet<ReportRows>(["operations-report", "damaged-lost", scopeKey], `${analyticsBase}/damaged-lost`, hardwareEnabled);
-  const recentlyAdded = useStaffGet<ReportRows>(["operations-report", "recently-added", scopeKey], `${analyticsBase}/recently-added`, hardwareEnabled);
+  const mostLent = useStaffGet<ReportRows>(["operations-report", "most-lent", scopeKey], analyticsPreview("most-lent"), hardwareEnabled);
+  const topBorrowers = useStaffGet<ReportRows>(["operations-report", "top-borrowers", scopeKey], analyticsPreview("top-borrowers"), hardwareEnabled);
+  const damagedLost = useStaffGet<ReportRows>(["operations-report", "damaged-lost", scopeKey], analyticsPreview("damaged-lost"), hardwareEnabled);
+  const recentlyAdded = useStaffGet<ReportRows>(["operations-report", "recently-added", scopeKey], analyticsPreview("recently-added"), hardwareEnabled);
 
   const scopeLabel = aggregate ? "all makerspaces" : makerspace.name;
   const makerspaceName = (id: number) => makerspaces.find((space) => space.id === id)?.name ?? `#${id}`;

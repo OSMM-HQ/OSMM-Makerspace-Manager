@@ -51,6 +51,12 @@ class ToBuyItem(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        indexes = [
+            models.Index(
+                fields=["makerspace", "kind", "-created_at"],
+                name="proc_tobuy_scope_created_idx",
+            ),
+        ]
         ordering = ["-created_at"]
 
     def __str__(self):

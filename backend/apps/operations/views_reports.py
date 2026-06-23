@@ -26,13 +26,17 @@ class LedgerView(APIView):
         tags=["Ledger"],
         summary="List outstanding inventory loans",
         request=None,
+        parameters=[
+            OpenApiParameter("page", OpenApiTypes.INT, OpenApiParameter.QUERY),
+            OpenApiParameter("page_size", OpenApiTypes.INT, OpenApiParameter.QUERY),
+        ],
         responses={200: LedgerResponseSerializer},
     )
     def get(self, request, makerspace_id, *args, **kwargs):
         makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
         require_action(request.user, rbac.Action.VIEW_INVENTORY, makerspace.id)
         require_module(makerspace, "staff_admin")
-        return Response(_ledger_payload(ledger.ledger_rows(makerspace.id)))
+        return Response(_ledger_payload(ledger.ledger_rows(makerspace.id), request))
 
 
 class AggregateLedgerView(APIView):
@@ -43,23 +47,33 @@ class AggregateLedgerView(APIView):
         tags=["Ledger"],
         summary="List outstanding inventory loans across all makerspaces",
         request=None,
+        parameters=[
+            OpenApiParameter("page", OpenApiTypes.INT, OpenApiParameter.QUERY),
+            OpenApiParameter("page_size", OpenApiTypes.INT, OpenApiParameter.QUERY),
+        ],
         responses={200: LedgerResponseSerializer},
     )
     def get(self, request, *args, **kwargs):
         _require_superadmin(request.user)
-        return Response(_ledger_payload(ledger.ledger_rows()))
+        return Response(_ledger_payload(ledger.ledger_rows(), request))
 
 
 class AnalyticsView(APIView):
     permission_classes = [IsActiveStaff]
     serializer_class = GenericObjectSerializer
 
-    @extend_schema(tags=["Analytics"], summary="Get analytics report", request=None, responses={200: OpenApiTypes.OBJECT})
+    @extend_schema(
+        tags=["Analytics"],
+        summary="Get analytics report",
+        request=None,
+        parameters=[OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY)],
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request, makerspace_id, report_key="summary", *args, **kwargs):
         makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
         require_action(request.user, rbac.Action.VIEW_INVENTORY, makerspace.id)
         require_module(makerspace, "reports")
-        return Response(reports.report_data(report_key, makerspace.id))
+        return Response(reports.report_data(report_key, makerspace.id, limit=_limit_param(request)))
 
 
 class AggregateAnalyticsView(APIView):
@@ -72,12 +86,13 @@ class AggregateAnalyticsView(APIView):
         request=None,
         parameters=[
             OpenApiParameter("report_key", OpenApiTypes.STR, OpenApiParameter.PATH, enum=reports.REPORT_KEYS),
+            OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY),
         ],
         responses={200: OpenApiTypes.OBJECT},
     )
     def get(self, request, report_key="summary", *args, **kwargs):
         _require_superadmin(request.user)
-        return Response(reports.report_data(report_key))
+        return Response(reports.report_data(report_key, limit=_limit_param(request)))
 
 
 class ReportExportView(APIView):
@@ -160,9 +175,34 @@ def _require_superadmin(user):
         raise PermissionDenied()
 
 
-def _ledger_payload(rows):
-    serializer = LedgerResponseSerializer({"count": len(rows), "results": rows})
+def _ledger_payload(rows, request):
+    page, page_size = _page_params(request)
+    start = (page - 1) * page_size
+    page_rows = rows[start : start + page_size]
+    serializer = LedgerResponseSerializer({"count": len(rows), "results": page_rows})
     return serializer.data
+
+
+def _positive_int_param(request, name, default, maximum):
+    raw = request.query_params.get(name, default)
+    try:
+        value = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError({name: "Enter a positive integer."}) from exc
+    if value < 1:
+        raise ValidationError({name: "Enter a positive integer."})
+    return min(value, maximum)
+
+
+def _page_params(request):
+    return (
+        _positive_int_param(request, "page", 1, 1000000),
+        _positive_int_param(request, "page_size", 100, 500),
+    )
+
+
+def _limit_param(request):
+    return _positive_int_param(request, "limit", reports.DEFAULT_REPORT_LIMIT, reports.MAX_REPORT_LIMIT)
 
 
 def _csv_response(rows, filename):

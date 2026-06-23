@@ -4,14 +4,11 @@ from django.conf import settings
 from django.core.validators import FileExtensionValidator, MinValueValidator
 from django.db import models
 from django.db.models import Q
+from django.db.models.functions import Lower
 
 
 class PrintBucket(models.Model):
-    makerspace = models.ForeignKey(
-        "makerspaces.Makerspace",
-        on_delete=models.CASCADE,
-        related_name="print_buckets",
-    )
+    makerspace = models.ForeignKey("makerspaces.Makerspace", on_delete=models.CASCADE, related_name="print_buckets")
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
@@ -37,11 +34,7 @@ class PrintPrinter(models.Model):
         MAINTENANCE = "maintenance", "Maintenance"
         OFFLINE = "offline", "Offline"
 
-    makerspace = models.ForeignKey(
-        "makerspaces.Makerspace",
-        on_delete=models.CASCADE,
-        related_name="print_printers",
-    )
+    makerspace = models.ForeignKey("makerspaces.Makerspace", on_delete=models.CASCADE, related_name="print_printers")
     name = models.CharField(max_length=200)
     model = models.CharField(max_length=200, blank=True)
     status = models.CharField(
@@ -70,11 +63,7 @@ class PrintPrinter(models.Model):
 
 
 class FilamentSpool(models.Model):
-    makerspace = models.ForeignKey(
-        "makerspaces.Makerspace",
-        on_delete=models.CASCADE,
-        related_name="filament_spools",
-    )
+    makerspace = models.ForeignKey("makerspaces.Makerspace", on_delete=models.CASCADE, related_name="filament_spools")
     printer = models.ForeignKey(
         PrintPrinter,
         null=True,
@@ -110,11 +99,7 @@ class FilamentSpool(models.Model):
 
 
 class ManualPrintLog(models.Model):
-    makerspace = models.ForeignKey(
-        "makerspaces.Makerspace",
-        on_delete=models.CASCADE,
-        related_name="manual_print_logs",
-    )
+    makerspace = models.ForeignKey("makerspaces.Makerspace", on_delete=models.CASCADE, related_name="manual_print_logs")
     printer = models.ForeignKey(
         PrintPrinter,
         null=True,
@@ -135,12 +120,7 @@ class ManualPrintLog(models.Model):
     duration_minutes = models.PositiveIntegerField(default=0)
     title = models.CharField(max_length=200)
     note = models.TextField(blank=True)
-    logged_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        null=True,
-        on_delete=models.SET_NULL,
-        related_name="+",
-    )
+    logged_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -171,16 +151,8 @@ class PrintRequest(models.Model):
         PENDING = "pending", "Pending"
         PAID = "paid", "Paid"
 
-    bucket = models.ForeignKey(
-        PrintBucket,
-        on_delete=models.PROTECT,
-        related_name="print_requests",
-    )
-    requester = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.PROTECT,
-        related_name="print_requests",
-    )
+    bucket = models.ForeignKey(PrintBucket, on_delete=models.PROTECT, related_name="print_requests")
+    requester = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="print_requests")
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     material = models.CharField(max_length=100, blank=True)
@@ -302,18 +274,10 @@ class PrintRequest(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(
-                fields=["requester", "-created_at"],
-                name="printreq_requester_created_idx",
-            ),
-            models.Index(
-                fields=["bucket", "status", "-created_at"],
-                name="printreq_bucket_status_idx",
-            ),
-            models.Index(
-                fields=["bucket", "payment_status", "status"],
-                name="printreq_bucket_payment_idx",
-            ),
+            models.Index(fields=["requester", "-created_at"], name="printreq_requester_created_idx"),
+            models.Index(fields=["bucket", "status", "-created_at"], name="printreq_bucket_status_idx"),
+            models.Index(fields=["bucket", "payment_status", "status"], name="printreq_bucket_payment_idx"),
+            models.Index(Lower("contact_email"), name="printreq_contact_email_l_idx"),
         ]
         ordering = ["-created_at"]
 
@@ -341,11 +305,7 @@ class PrintRequestFile(models.Model):
         on_delete=models.CASCADE,
         related_name="files",
     )
-    makerspace = models.ForeignKey(
-        "makerspaces.Makerspace",
-        on_delete=models.CASCADE,
-        related_name="print_request_files",
-    )
+    makerspace = models.ForeignKey("makerspaces.Makerspace", on_delete=models.CASCADE, related_name="print_request_files")
     kind = models.CharField(max_length=16, choices=Kind.choices)
     object_key = models.CharField(max_length=255, unique=True)
     content_type = models.CharField(max_length=128, blank=True)
