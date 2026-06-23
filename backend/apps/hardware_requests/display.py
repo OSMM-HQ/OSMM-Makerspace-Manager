@@ -68,7 +68,7 @@ def requester_label(request, *, fallback="Member", allow_internal_fallback=False
     if allow_internal_fallback:
         for value in candidates:
             label = clean_label(value)
-            if label:
+            if label and not is_internal_checkin_username(label):
                 return label
     return fallback
 

@@ -12,69 +12,16 @@ import {
   type StaffAuthUser,
 } from "../../lib/api";
 import { OsmmBadge } from "../../components/OsmmLogo";
-import { ThemeToggle } from "../../components/ThemeToggle";
 import { ChangePasswordGate } from "./ChangePasswordGate";
 import { LoginPanel } from "./LoginPanel";
 import { MakerspacePicker } from "./MakerspacePicker";
+import { StaffAccessDenied } from "./StaffAccessDenied";
+import { StaffHeader } from "./StaffHeader";
+import { StaffSidebar } from "./StaffSidebar";
 import { StaffTabContent } from "./StaffTabContent";
-import {
-  type Makerspace,
-  useStaffGet,
-} from "./StaffPanels";
+import { getStaffAccess } from "./staffAccess";
+import { type Makerspace, useStaffGet } from "./StaffPanels";
 import { useTenant } from "../../lib/tenant";
-
-const ALL_TABS = [
-  "requests", "direct", "inventory", "needsfix", "categories", "printing", "tobuy", "transfers",
-  "stocktake", "containers", "ledger", "reports", "bulk", "qr", "scanner", "api", "settings", "emailtemplates", "users", "platform", "audit",
-  "email-logs",
-] as const;
-// Membership roles that get the full staff console. Anything else (print_manager,
-// or an unknown role) is failed closed to the 3D-printing surfaces only.
-const FULL_ACCESS_ROLES = ["space_manager", "inventory_manager", "guest_admin"];
-// Print managers also get a To-Buy list (their items are auto-tagged "printing").
-// "requests" is included so they reach the (printing-only) unified Requests tab.
-const PRINTING_TABS = ["requests", "printing", "tobuy", "reports", "api", "emailtemplates"];
-
-// Human labels for every tab key (single source — was an inline ternary in the nav).
-const TAB_LABELS: Record<string, string> = {
-  requests: "Requests",
-  direct: "Direct handout",
-  ledger: "Ledger",
-  inventory: "Inventory",
-  categories: "Categories",
-  needsfix: "To-be-fixed",
-  stocktake: "Stocktake",
-  transfers: "Transfers",
-  containers: "Containers",
-  bulk: "Bulk import",
-  qr: "QR Tools",
-  scanner: "Scanner",
-  printing: "3D Printing",
-  tobuy: "To Buy",
-  reports: "Reports",
-  audit: "Audit log",
-  users: "Users",
-  settings: "Settings",
-  emailtemplates: "Email templates",
-  "email-logs": "Email log",
-  api: "API access",
-  platform: "Platform email",
-};
-
-// The flat 20-tab list, grouped into labelled sections (permissions unchanged —
-// each section only renders the tabs the active role is allowed; empty sections
-// are hidden). Reduces scan cost without changing what a role can reach.
-const TAB_GROUPS: { label: string; tabs: string[] }[] = [
-  { label: "Operate", tabs: ["requests", "direct", "ledger", "transfers", "stocktake", "tobuy"] },
-  {
-    label: "Inventory",
-    tabs: ["inventory", "categories", "needsfix", "containers", "bulk", "qr", "scanner"],
-  },
-  { label: "3D Printing", tabs: ["printing"] },
-  { label: "Insights", tabs: ["reports", "audit"] },
-  // Rarely-used admin tabs collapsed behind one expander by default.
-  { label: "Admin", tabs: ["users", "settings", "emailtemplates", "email-logs", "api", "platform"] },
-];
 
 export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   const tenant = useTenant();
@@ -238,28 +185,10 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
 
   if (!hasSingleTenantAccess) {
     return (
-      <main className="desk-shell grid place-items-center px-5">
-        <section className="desk-panel w-full max-w-md bg-tone-yellow p-6 text-tone-yellow-ink dark:bg-[#332b00] dark:text-[#fcdf46]">
-          <OsmmBadge className="mb-5" />
-          <p className="text-xs font-semibold tracking-wide">
-            Access denied
-          </p>
-          <h1 className="mt-2 text-xl font-bold">
-            You do not have access to this makerspace.
-          </h1>
-          <p className="mt-2 text-sm leading-6">
-            This branded admin dashboard is locked to{" "}
-            {tenant.bootstrap?.makerspace.name ?? "this makerspace"}. Sign in with an
-            account that has a membership for it.
-          </p>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <ThemeToggle />
-            <button className="desk-button" type="button" onClick={signOut}>
-              Sign out
-            </button>
-          </div>
-        </section>
-      </main>
+      <StaffAccessDenied
+        makerspaceName={tenant.bootstrap?.makerspace.name}
+        onSignOut={signOut}
+      />
     );
   }
 
@@ -282,61 +211,26 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   // Fail closed: only known full-access roles (or superadmin) see the full nav;
   // print managers + unknown roles get the 3D-printing surfaces only.
   const activeRole = user.makerspaces.find((item) => item.id === selected)?.role;
-  const fullAccess = isSuperadmin || (!!activeRole && FULL_ACCESS_ROLES.includes(activeRole));
-  const printingOnly = !fullAccess;
-  // Request-stream visibility mirrors the backend RBAC matrix exactly:
-  //   hardware (accept/reject/issue/return) -> space/inventory/guest admins + superadmin
-  //   3D printing (MANAGE_PRINTING)         -> space + print managers + superadmin
-  // Inventory Manager has no MANAGE_PRINTING, so it must NOT see the printing tab/section.
-  const canSeeHardware = isSuperadmin || ["space_manager", "inventory_manager", "guest_admin"].includes(activeRole ?? "");
-  const canSeePrinting = isSuperadmin || ["space_manager", "print_manager"].includes(activeRole ?? "");
-  // To-Buy access mirrors the backend matrix: superadmin + space/inventory/print
-  // managers. Guest admins (and unknown roles) have none, so hide the tab for them
-  // rather than render an empty list whose actions 403.
-  const canUseToBuy = isSuperadmin || ["space_manager", "inventory_manager", "print_manager"].includes(activeRole ?? "");
-  // EDIT_INVENTORY roles only (guest admins can't repair/scrap stock).
-  const canEditInventory = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
-  const canViewAudit = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
-  const canManageQr = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
-  // MANAGE_MAKERSPACE holders (Space Manager + superadmin) manage custom domains,
-  // API clients, and makerspace settings.
-  // Declared before allowedTabs because the filter callback below reads it immediately.
-  const canManageMakerspace = isSuperadmin || activeRole === "space_manager";
-  const allowedTabs: readonly string[] = (fullAccess ? ALL_TABS : PRINTING_TABS).filter((tabName) => {
-    if (tabName === "tobuy") return canUseToBuy;
-    if (tabName === "needsfix") return canEditInventory;
-    if (tabName === "categories") return canEditInventory;
-    if (tabName === "bulk") return canEditInventory;
-    if (tabName === "stocktake") return canEditInventory;
-    if (tabName === "direct") return canEditInventory;
-    if (tabName === "transfers") return canEditInventory || isSuperadmin;
-    if (tabName === "containers") return canManageQr;
-    if (tabName === "qr") return canManageQr;
-    if (tabName === "scanner") return canManageQr;
-    if (tabName === "audit") return canViewAudit;
-    if (tabName === "users") return canManageMakerspace;
-    if (tabName === "settings") return canManageMakerspace;
-    // Match the backend's edit-level gate: hardware templates need EDIT_INVENTORY/MANAGE_MAKERSPACE
-    // (canEditInventory), printing needs MANAGE_PRINTING/MANAGE_MAKERSPACE (canSeePrinting). A guest
-    // admin has neither, so the tab stays hidden instead of 404-ing on open.
-    if (tabName === "emailtemplates") return canEditInventory || canSeePrinting;
-    if (tabName === "email-logs") return canManageMakerspace;
-    if (tabName === "platform") return isSuperadmin && !singleTenantLocked;
-    if (tabName === "printing") return canSeePrinting; // hide printer/spool mgmt from inventory managers
-    if (tabName === "requests") return canSeeHardware || canSeePrinting;
-    return true;
-  });
-  // Only the makerspace admin (Space Manager) + superadmin may pick which stream
-  // (hardware/printing) a To-Buy item goes to; other roles are auto-tagged.
-  const canChooseToBuyKind = isSuperadmin || activeRole === "space_manager";
+  const {
+    allowedTabs,
+    canChooseToBuyKind,
+    canEditInventory,
+    canManageMakerspace,
+    canManageQr,
+    canSeeHardware,
+    canSeePrinting,
+    canUseToBuy,
+    canViewAudit,
+    defaultTab,
+    printingOnly,
+  } = getStaffAccess(activeRole, isSuperadmin, singleTenantLocked);
   const visibleMakerspaces =
     singleTenantLocked && activeMakerspace
       ? [activeMakerspace]
       : makerspaces.data ?? [];
   // Derived (no useEffect): switching makerspace recomputes synchronously, and a
-  // tab that isn't allowed for the current role falls back to the role-appropriate
+  // tab that is not allowed for the current role falls back to the role-appropriate
   // default landing tab (then the first allowed tab).
-  const defaultTab = printingOnly ? "printing" : "requests";
   const activeTab = allowedTabs.includes(tab)
     ? tab
     : allowedTabs.includes(defaultTab)
@@ -355,99 +249,31 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
 
   return (
     <main className="desk-shell grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)]">
-      <aside className="min-w-0 border-b border-line bg-panel lg:min-h-screen lg:border-b-0 lg:border-r">
-        <div className="flex min-w-0 items-center gap-3 border-b border-line px-5 py-4">
-          <OsmmBadge className="shrink-0" />
-          <div className="min-w-0">
-            <p className="truncate font-mono text-xs uppercase text-muted">
-              {guestOnly ? "Guest admin" : isSuperadmin ? "Super Admin" : printingOnly ? "Print Manager" : "Space Manager"}
-            </p>
-          </div>
-        </div>
-        <div className="p-4">
-          {singleTenantLocked ? (
-            <div className="break-words rounded-lg border border-line bg-tone-blue px-3 py-2 text-sm font-semibold text-tone-blue-ink dark:bg-[#0b2a38] dark:text-[#7dd3fc]">
-              {activeMakerspace?.name ?? "Configured makerspace"}
-            </div>
-          ) : (
-            <select
-              className="desk-input w-full"
-              value={selected ?? ""}
-              onChange={(event) => setSelected(Number(event.target.value))}
-            >
-              {makerspaces.data?.map((makerspace) => (
-                <option key={makerspace.id} value={makerspace.id}>
-                  {makerspace.name}
-                </option>
-              ))}
-            </select>
-          )}
-          <nav className="mt-4 space-y-3">
-            {TAB_GROUPS.map((group) => {
-              const tabs = group.tabs.filter((t) => allowedTabs.includes(t));
-              if (tabs.length === 0) {
-                return null;
-              }
-              // A group is open unless collapsed — but always open if it holds the
-              // active tab, so the current section is never hidden.
-              const open = !collapsedGroups.has(group.label) || tabs.includes(activeTab);
-              return (
-                <div key={group.label}>
-                  <button
-                    className="flex w-full items-center justify-between border-b border-line px-1 pb-1 font-display text-sm font-bold tracking-tight text-ink transition hover:text-accent-ink"
-                    type="button"
-                    onClick={() => toggleGroup(group.label)}
-                  >
-                    <span className="min-w-0 truncate">{group.label}</span>
-                    <span aria-hidden>{open ? "−" : "+"}</span>
-                  </button>
-                  {open ? (
-                    <div className="mt-1 grid gap-1">
-                      {tabs.map((item) => (
-                        <button
-                          key={item}
-                          className={`desk-nav-item ${activeTab === item ? "desk-nav-item-active" : ""}`}
-                          onClick={() => setTab(item)}
-                        >
-                          <span className="min-w-0 truncate">{TAB_LABELS[item] ?? item}</span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
-          </nav>
-        </div>
-      </aside>
+      <StaffSidebar
+        activeMakerspace={activeMakerspace}
+        activeTab={activeTab}
+        allowedTabs={allowedTabs}
+        collapsedGroups={collapsedGroups}
+        guestOnly={guestOnly}
+        isSuperadmin={isSuperadmin}
+        makerspaces={makerspaces.data ?? []}
+        printingOnly={printingOnly}
+        selected={selected}
+        setSelected={setSelected}
+        setTab={setTab}
+        singleTenantLocked={singleTenantLocked}
+        toggleGroup={toggleGroup}
+      />
 
       <section className="min-w-0">
-        <header className="border-b border-line bg-surface px-5 py-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate font-mono text-xs font-semibold uppercase tracking-tight text-accent-ink">
-                {activeMakerspace?.public_code ?? activeMakerspace?.slug ?? "No workspace"}
-              </p>
-              <h1 className="break-words font-display text-2xl font-bold uppercase tracking-tight text-ink">
-                {activeMakerspace?.name ?? "Inventory Control"}
-              </h1>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="max-w-full truncate rounded-lg border border-line bg-panel px-3 py-2 font-mono text-xs uppercase text-muted sm:max-w-56">
-                {user.username}
-              </span>
-              {isSuperadmin && !singleTenantLocked ? (
-                <button className="desk-button" onClick={() => setSelected(null)}>
-                  Switch makerspace
-                </button>
-              ) : null}
-              <ThemeToggle />
-              <button className="desk-button" onClick={signOut}>
-                Sign out
-              </button>
-            </div>
-          </div>
-        </header>
+        <StaffHeader
+          activeMakerspace={activeMakerspace}
+          isSuperadmin={isSuperadmin}
+          onSignOut={signOut}
+          onSwitchMakerspace={() => setSelected(null)}
+          singleTenantLocked={singleTenantLocked}
+          user={user}
+        />
 
         <div className="min-w-0 p-5">
           <StaffTabContent

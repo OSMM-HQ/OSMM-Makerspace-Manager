@@ -1,6 +1,8 @@
 import io
 import zipfile
 
+from openpyxl import load_workbook
+
 import pytest
 
 from apps.accounts.models import User
@@ -528,6 +530,51 @@ def test_reports_export_csv_and_xlsx():
     assert xlsx_response.status_code == 200
     assert xlsx_response["Content-Type"].startswith("application/vnd.openxmlformats")
 
+
+
+
+def test_guest_admin_cannot_view_hardware_reports():
+    makerspace = make_space("ops-reports-guest")
+    guest = make_member(
+        "ops-reports-guest-user",
+        makerspace,
+        membership_role="guest_admin",
+        role="guest_admin",
+    )
+    client = authenticated_client(guest)
+
+    analytics = client.get(f"/api/v1/admin/makerspace/{makerspace.id}/analytics/summary")
+    export = client.get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/reports/damaged-missing/export"
+    )
+
+    assert analytics.status_code == 403
+    assert export.status_code == 403
+
+
+def test_reports_export_prefixes_formula_cells():
+    makerspace = make_space("ops-reports-formula")
+    manager = make_member("ops-reports-formula-manager", makerspace)
+    make_product(
+        makerspace,
+        name="=HYPERLINK(\"https://evil.test\")",
+        available_quantity=9,
+        damaged_quantity=1,
+        lost_quantity=0,
+    )
+    client = authenticated_client(manager)
+
+    csv_response = client.get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/reports/damaged-missing/export?format=csv"
+    )
+    xlsx_response = client.get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/reports/damaged-missing/export?format=xlsx"
+    )
+
+    assert csv_response.status_code == 200
+    assert b"'=HYPERLINK" in csv_response.content
+    workbook = load_workbook(io.BytesIO(xlsx_response.content))
+    assert workbook.active["A2"].value.startswith("'=")
 
 def test_asset_generation_creates_qr_labels_in_print_batch():
     makerspace = make_space("ops-assets")

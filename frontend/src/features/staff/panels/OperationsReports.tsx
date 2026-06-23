@@ -32,11 +32,15 @@ export function OperationsReports({
   makerspaces,
   isSuperadmin,
   printingOnly = false,
+  canViewAudit,
+  canSeePrinting,
 }: {
   makerspace: Makerspace;
   makerspaces: Makerspace[];
   isSuperadmin: boolean;
   printingOnly?: boolean;
+  canViewAudit: boolean;
+  canSeePrinting: boolean;
 }) {
   const [allMakerspaces, setAllMakerspaces] = useState(false);
   const aggregate = isSuperadmin && allMakerspaces;
@@ -45,10 +49,9 @@ export function OperationsReports({
   const reportsBase = aggregate ? "/admin/reports" : `/admin/makerspace/${makerspace.id}/reports`;
   const analyticsPreview = (report: string) => `${analyticsBase}/${report}?limit=100`;
 
-  // Print managers (printingOnly) lack VIEW_INVENTORY, so the hardware analytics
-  // endpoints would 403. Disable those queries entirely rather than render empty,
-  // erroring panels - the printing report is the only one they can see.
-  const hardwareEnabled = !printingOnly;
+  // Hardware report data contains borrower PII and requires VIEW_AUDIT; print-only
+  // users keep this tab for printing reports without firing hardware queries.
+  const hardwareEnabled = canViewAudit;
   const summary = useStaffGet<Summary>(["operations-report", "summary", scopeKey], `${analyticsBase}/summary`, hardwareEnabled);
   const mostLent = useStaffGet<ReportRows>(["operations-report", "most-lent", scopeKey], analyticsPreview("most-lent"), hardwareEnabled);
   const topBorrowers = useStaffGet<ReportRows>(["operations-report", "top-borrowers", scopeKey], analyticsPreview("top-borrowers"), hardwareEnabled);
@@ -167,7 +170,9 @@ export function OperationsReports({
       </>
       ) : null}
 
-      <PrintingReportSection makerspace={makerspace} aggregate={aggregate} makerspaceName={makerspaceName} />
+      {canSeePrinting ? (
+        <PrintingReportSection makerspace={makerspace} aggregate={aggregate} makerspaceName={makerspaceName} />
+      ) : null}
     </div>
   );
 }
