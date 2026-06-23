@@ -223,8 +223,10 @@ def test_hardware_submitted_emails_requester_and_staff(
         response = APIClient().post(
             public_hardware_submit_url(makerspace),
             {
-                "identifier": "staff-hardware-submitted",
+                "requester_name": "Hardware Requester",
                 "contact_email": "hardware-submitted-requester@example.com",
+                "contact_phone": "+15550101010",
+                "requested_for": "Staff notification coverage",
                 "items": [{"product_id": product.id, "quantity": 1}],
             },
             format="json",
@@ -460,10 +462,11 @@ def test_public_print_submit_emails_printing_staff_once(
         response = APIClient().post(
             public_print_submit_url(makerspace),
             {
-                "identifier": "print-public-submit",
+                "requester_name": "Print Requester",
                 "bucket_id": bucket.id,
                 "title": "Public bracket",
                 "contact_email": "print-public-requester@example.com",
+                "contact_phone": "+15550101010",
             },
             format="json",
         )

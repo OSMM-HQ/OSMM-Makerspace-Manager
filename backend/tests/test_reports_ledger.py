@@ -104,6 +104,16 @@ def _direct_url(makerspace):
     return f"/api/v1/admin/makerspace/{makerspace.id}/direct-loans"
 
 
+def _direct_payload(**overrides):
+    payload = {
+        "requester_name": "Ledger Holder",
+        "contact_email": "ledger-holder@example.com",
+        "contact_phone": "+15550101010",
+    }
+    payload.update(overrides)
+    return payload
+
+
 def _direct_return_url(loan):
     return f"/api/v1/admin/direct-loans/{loan.id}/return"
 
@@ -189,7 +199,11 @@ def test_container_only_direct_handout_appears_once_in_ledger_and_returns(
 
     issued = client.post(
         _direct_url(makerspace),
-        {"identifier": "empty-container-holder", "container_id": container.id},
+        _direct_payload(
+            requester_name="Empty Container Holder",
+            contact_email="empty-container-holder@example.com",
+            container_id=container.id,
+        ),
         format="json",
     )
 
@@ -291,7 +305,11 @@ def test_container_only_handout_rejected_when_container_has_available_contents()
 
     response = client.post(
         _direct_url(makerspace),
-        {"identifier": "nonempty-container-holder", "container_id": container.id},
+        _direct_payload(
+            requester_name="Nonempty Container Holder",
+            contact_email="nonempty-container-holder@example.com",
+            container_id=container.id,
+        ),
         format="json",
     )
 
@@ -313,7 +331,11 @@ def test_container_only_handout_rejected_when_child_box_has_contents():
 
     response = client.post(
         _direct_url(makerspace),
-        {"identifier": "childbox-holder", "container_id": parent.id},
+        _direct_payload(
+            requester_name="Childbox Holder",
+            contact_email="childbox-holder@example.com",
+            container_id=parent.id,
+        ),
         format="json",
     )
 
@@ -362,7 +384,7 @@ def test_direct_handout_requires_item_qr_or_container_even_after_module_gate():
 
     empty = client.post(
         _direct_url(makerspace),
-        {"identifier": "empty-direct-holder"},
+        _direct_payload(contact_email="empty-direct-holder@example.com"),
         format="json",
     )
 
@@ -375,7 +397,10 @@ def test_direct_handout_requires_item_qr_or_container_even_after_module_gate():
     makerspace.save(update_fields=["enabled_modules"])
     module_disabled = client.post(
         _direct_url(makerspace),
-        {"identifier": "module-disabled-holder", "container_id": container.id},
+        _direct_payload(
+            contact_email="module-disabled-holder@example.com",
+            container_id=container.id,
+        ),
         format="json",
     )
 

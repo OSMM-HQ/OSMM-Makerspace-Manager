@@ -1,5 +1,6 @@
 import logging
 
+from apps.hardware_requests.display import requester_label
 from apps.hardware_requests.models import HardwareRequest
 from apps.integrations.email import send_makerspace_email
 from apps.integrations.email_templates import hardware_context, render
@@ -64,7 +65,7 @@ def send_staff_hardware_email(request, event, *, sync=False) -> bool:
 def _staff_summary(request):
     lines = [
         f"Status: {request.status}",
-        f"Requester: {request.requester_username or 'Unknown requester'}",
+        f"Requester: {requester_label(request, fallback='Unknown requester')}",
     ]
     if request.requester_contact_email:
         lines.append(f"Email: {request.requester_contact_email}")

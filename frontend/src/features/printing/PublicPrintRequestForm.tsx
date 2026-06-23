@@ -112,6 +112,7 @@ export function PrintDetailsForm({
             />
             <TextInput
               label="Your name"
+              required
               value={form.requesterName}
               onChange={(value) => updateField("requesterName", value)}
             />
@@ -173,8 +174,7 @@ export function PrintDetailsForm({
               />
             </label>
             <TextInput label="Source link (optional)" value={form.sourceLink} onChange={(value) => updateField("sourceLink", value)} />
-            <TextInput label="Contact email" type="email" value={form.contactEmail} onChange={(value) => updateField("contactEmail", value)} />
-            <TextInput label="Contact phone" value={form.contactPhone} onChange={(value) => updateField("contactPhone", value)} />
+            <TextInput label="Contact phone" required value={form.contactPhone} onChange={(value) => updateField("contactPhone", value)} />
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <FilePicker
@@ -205,7 +205,14 @@ export function PrintDetailsForm({
         ) : null}
         <button
           className="desk-button-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={!verified || !form.title.trim() || submitPending}
+          disabled={
+            !verified ||
+            !form.requesterName.trim() ||
+            !form.contactEmail.trim() ||
+            !form.contactPhone.trim() ||
+            !form.title.trim() ||
+            submitPending
+          }
           type="submit"
         >
           {submitPending ? "Submitting..." : "Submit print request"}

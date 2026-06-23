@@ -7,6 +7,15 @@ class PublicToolScanSerializer(serializers.Serializer):
     payload = serializers.CharField()
 
 
+# Checkout collects full identity; email IS the Check-In identifier (no separate
+# `identifier` field). Return keeps using PublicToolScanSerializer above.
+class PublicToolCheckoutSerializer(serializers.Serializer):
+    payload = serializers.CharField()
+    requester_name = serializers.CharField(max_length=120)
+    contact_email = serializers.EmailField()
+    contact_phone = serializers.CharField(max_length=32)
+
+
 class PublicToolLoanItemSerializer(serializers.Serializer):
     product_name = serializers.CharField()
     quantity = serializers.IntegerField()

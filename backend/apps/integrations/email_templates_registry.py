@@ -85,6 +85,7 @@ HARDWARE_FIELDS = [
     {"name": "request.status", "description": "Current request status."},
     {"name": "request.return_due_at", "description": "Due date/time for returned hardware."},
     {"name": "request.rejection_reason", "description": "Reason recorded when rejected."},
+    {"name": "request.requester_name", "description": "Requester display name."},
     {"name": "request.requester_username", "description": "Requester Check-In username."},
     {"name": "request.requester_contact_email", "description": "Requester contact email."},
     {"name": "request.requester_contact_phone", "description": "Requester contact phone."},
@@ -148,6 +149,7 @@ def _hardware_sample_context(staff=False):
         status="issued",
         return_due_at=datetime(2026, 6, 28, 18, 0, tzinfo=timezone.utc),
         rejection_reason="",
+        requester_name="Alex Maker",
         requester_username="alex",
         requester_contact_email="alex@example.com",
         requester_contact_phone="+15550101010",
@@ -165,7 +167,7 @@ def _hardware_sample_context(staff=False):
     if staff:
         context["staff_summary"] = (
             "Status: issued\n"
-            "Requester: alex\n"
+            "Requester: Alex Maker\n"
             "Email: alex@example.com\n"
             "Phone: +15550101010\n"
             "Box: BOX-7\n"

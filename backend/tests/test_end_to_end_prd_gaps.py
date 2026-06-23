@@ -99,7 +99,9 @@ def test_individual_mode_manual_direct_handout_requires_asset_scan():
     response = authenticated_client(manager).post(
         f"/api/v1/admin/makerspace/{makerspace.id}/direct-loans",
         {
-            "identifier": "member@example.com",
+            "requester_name": "Serialized Member",
+            "contact_email": "member@example.com",
+            "contact_phone": "+15550101010",
             "items": [{"product_id": product.id, "quantity": 1}],
         },
         format="json",

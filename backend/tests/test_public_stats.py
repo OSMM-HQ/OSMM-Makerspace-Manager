@@ -118,6 +118,7 @@ def make_request_item(
     username,
     *,
     display_name=None,
+    requester_name="",
     quantity=1,
     returned=0,
     status=HardwareRequest.Status.ISSUED,
@@ -129,6 +130,7 @@ def make_request_item(
         makerspace=makerspace,
         requester=requester,
         requester_username=display_name or requester.username,
+        requester_name=requester_name,
         status=status,
         issued_at=issued_at,
         return_due_at=issued_at + timedelta(days=7),
@@ -399,7 +401,7 @@ def test_build_public_stats_returns_exact_schema(monkeypatch):
     assert stats["current_loans"] == []
 
 
-def test_public_display_name_masks_unsafe_names_and_prefers_request_username():
+def test_public_display_name_prefers_safe_requester_name_and_masks_unsafe_names():
     requester = make_user(
         "plainuser",
         first_name="Real",
@@ -407,26 +409,95 @@ def test_public_display_name_masks_unsafe_names_and_prefers_request_username():
     )
 
     assert public_display_name(
-        request=SimpleNamespace(requester_username="Display Name"),
+        request=SimpleNamespace(
+            requester_name="Display Name",
+            requester_username="Ignored Username",
+        ),
         requester=requester,
     ) == "Display Name"
     assert public_display_name(
-        request=SimpleNamespace(requester_username="person@example.com"),
+        request=SimpleNamespace(
+            requester_name="person@example.com",
+            requester_username="person@example.com",
+        ),
     ) == "Member"
     assert public_display_name(
-        request=SimpleNamespace(requester_username="member 9876543210"),
+        request=SimpleNamespace(
+            requester_name="member 9876543210",
+            requester_username="member 9876543210",
+        ),
     ) == "Member"
     # Phone digits separated by common separators must still be masked.
     assert public_display_name(
-        request=SimpleNamespace(requester_username="555-123-4567"),
+        request=SimpleNamespace(
+            requester_name="555-123-4567",
+            requester_username="555-123-4567",
+        ),
     ) == "Member"
     assert public_display_name(
-        request=SimpleNamespace(requester_username="(555) 123 4567"),
+        request=SimpleNamespace(
+            requester_name="(555) 123 4567",
+            requester_username="(555) 123 4567",
+        ),
     ) == "Member"
     assert public_display_name(
-        request=SimpleNamespace(requester_username="checkin_" + "a" * 64),
+        request=SimpleNamespace(
+            requester_name="checkin_" + "a" * 64,
+            requester_username="checkin_" + "a" * 64,
+        ),
     ) == "Member"
+    long_name = "Very Long Member Name " * 5
+    assert public_display_name(
+        request=SimpleNamespace(
+            requester_name=long_name,
+            requester_username="ignored",
+        ),
+    ) == long_name[:60]
+    assert public_display_name(
+        request=SimpleNamespace(requester_name="", requester_username="Fallback Name"),
+    ) == "Fallback Name"
     assert public_display_name(requester=make_user("accepted_name")) == "accepted_name"
+
+
+def test_current_loans_show_safe_requester_name_and_mask_unsafe_names():
+    makerspace = make_space("stats-requester-names")
+    cases = [
+        ("Clean Tool", "Clean Maker", "holder-clean", "Clean Maker"),
+        ("Email Tool", "borrower@example.com", "leaky@example.com", "Member"),
+        ("Phone Tool", "555-123-4567", "555-123-4567", "Member"),
+        ("Hash Tool", "checkin_" + "a" * 64, "checkin_" + "b" * 64, "Member"),
+    ]
+    for product_name, requester_name, username, expected in cases:
+        product = make_product(
+            makerspace,
+            product_name,
+            available_quantity=4,
+            issued_quantity=1,
+        )
+        request, _ = make_request_item(
+            makerspace,
+            product,
+            username,
+            requester_name=requester_name,
+            display_name=username,
+        )
+        request.requester_contact_email = f"{product_name.lower().replace(' ', '-')}@example.com"
+        request.requester_contact_phone = "+15550109999"
+        request.save(
+            update_fields=[
+                "requester_contact_email",
+                "requester_contact_phone",
+                "updated_at",
+            ]
+        )
+
+    rows = build_public_stats(makerspace)["current_loans"]
+
+    holders_by_item = {row["item_name"]: row["holder_name"] for row in rows}
+    assert holders_by_item == {item: expected for item, _name, _username, expected in cases}
+    body = json.dumps(rows, default=str)
+    assert "example.com" not in body
+    assert "+15550109999" not in body
 
 
 def test_current_loans_excludes_hidden_availability_products():

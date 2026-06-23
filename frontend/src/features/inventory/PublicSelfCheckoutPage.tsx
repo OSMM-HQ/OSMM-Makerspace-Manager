@@ -15,7 +15,6 @@ import { useTenantBootstrap } from "./usePublicInventory";
 type Mode = "checkout" | "return";
 
 type MutationInput = {
-  identifier: string;
   payload: string;
 };
 
@@ -54,7 +53,9 @@ export function PublicSelfCheckoutPage() {
   const makerspaceSlug = tenant.mode === "single" ? tenant.slug : slug ?? "";
   const tenantPath = useTenantPath(makerspaceSlug);
   const [mode, setMode] = useState<Mode>("checkout");
-  const [identifier, setIdentifier] = useState("");
+  const [requesterName, setRequesterName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
 
   const bootstrapQuery = useTenantBootstrap(makerspaceSlug, tenant.mode === "central");
@@ -71,19 +72,29 @@ export function PublicSelfCheckoutPage() {
   const enabled = modules.has("self_checkout");
 
   const loanMutation = useMutation({
-    mutationFn: ({ identifier: scanIdentifier, payload }: MutationInput) =>
+    mutationFn: ({ payload }: MutationInput) =>
       mode === "checkout"
-        ? checkoutTool(makerspaceSlug, scanIdentifier, payload)
-        : returnTool(makerspaceSlug, scanIdentifier, payload),
+        ? checkoutTool(makerspaceSlug, {
+            payload,
+            requester_name: requesterName.trim(),
+            contact_email: contactEmail.trim(),
+            contact_phone: contactPhone.trim(),
+          })
+        : returnTool(makerspaceSlug, contactEmail.trim(), payload),
   });
+  const canScan =
+    mode === "checkout"
+      ? requesterName.trim().length > 0 &&
+        contactEmail.trim().length > 0 &&
+        contactPhone.trim().length > 0
+      : contactEmail.trim().length > 0;
 
   function scanTool(payload: string) {
-    const scanIdentifier = identifier.trim();
-    if (!scanIdentifier) {
+    if (!canScan) {
       return;
     }
     setScannerOpen(false);
-    loanMutation.mutate({ identifier: scanIdentifier, payload });
+    loanMutation.mutate({ payload });
   }
 
   return (
@@ -166,21 +177,54 @@ export function PublicSelfCheckoutPage() {
               </button>
             </div>
 
+            {mode === "checkout" ? (
+              <label className="mt-4 block">
+                <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
+                  Name
+                </span>
+                <input
+                  className="desk-input w-full"
+                  placeholder="Your full name"
+                  required
+                  value={requesterName}
+                  onChange={(event) => setRequesterName(event.target.value)}
+                />
+              </label>
+            ) : null}
+
             <label className="mt-4 block">
               <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
-                Check-In ID
+                Email
               </span>
               <input
                 className="desk-input w-full"
+                placeholder="you@example.com"
                 required
-                value={identifier}
-                onChange={(event) => setIdentifier(event.target.value)}
+                type="email"
+                value={contactEmail}
+                onChange={(event) => setContactEmail(event.target.value)}
               />
             </label>
 
+            {mode === "checkout" ? (
+              <label className="mt-4 block">
+                <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
+                  Phone
+                </span>
+                <input
+                  className="desk-input w-full"
+                  placeholder="+91 98765 43210"
+                  required
+                  type="tel"
+                  value={contactPhone}
+                  onChange={(event) => setContactPhone(event.target.value)}
+                />
+              </label>
+            ) : null}
+
             <button
               className="desk-button-primary mt-4 w-full disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={!identifier.trim() || loanMutation.isPending}
+              disabled={!canScan || loanMutation.isPending}
               type="button"
               onClick={() => setScannerOpen(true)}
             >

@@ -74,7 +74,9 @@ class DirectLoanListCreateView(generics.ListAPIView):
         loan = direct_loan_workflow.issue_direct_loan(
             makerspace,
             request.user,
-            serializer.validated_data["identifier"],
+            requester_name=serializer.validated_data["requester_name"],
+            contact_email=serializer.validated_data["contact_email"],
+            contact_phone=serializer.validated_data["contact_phone"],
             qr_payloads=serializer.validated_data.get("qr_payloads") or [],
             items=serializer.validated_data.get("items") or [],
             container_id=container_id,

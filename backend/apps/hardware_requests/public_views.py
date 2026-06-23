@@ -104,7 +104,6 @@ class RequestSubmitView(APIView):
 
         hardware_request = workflow.submit_request(
             makerspace,
-            data["identifier"],
             [
                 {
                     "product": products[item["product_id"]],
@@ -113,6 +112,7 @@ class RequestSubmitView(APIView):
                 for item in data["items"]
             ],
             data["requested_for"],
+            requester_name=data["requester_name"],
             contact_email=data["contact_email"],
             contact_phone=data["contact_phone"],
         )

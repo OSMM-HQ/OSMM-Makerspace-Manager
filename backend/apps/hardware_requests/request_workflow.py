@@ -20,13 +20,14 @@ from apps.inventory import availability
 
 def submit_request(
     makerspace,
-    identifier,
     items,
     requested_for="",
+    *,
+    requester_name,
     contact_email="",
     contact_phone="",
 ):
-    result = checkin.verify(makerspace, identifier)
+    result = checkin.verify(makerspace, contact_email)
 
     with transaction.atomic():
         requester = get_or_create_requester(result.external_id)
@@ -37,6 +38,7 @@ def submit_request(
             makerspace=makerspace,
             requester=requester,
             requester_username=result.username,
+            requester_name=requester_name.strip(),
             requester_contact_email=contact_email.strip(),
             requester_contact_phone=contact_phone.strip(),
             status=HardwareRequest.Status.PENDING_APPROVAL,

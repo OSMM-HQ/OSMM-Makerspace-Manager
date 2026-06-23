@@ -93,7 +93,7 @@ export async function verifyCheckin(
 export async function submitPublicRequest(
   slug: string,
   payload: {
-    identifier: string;
+    requester_name: string;
     contact_email: string;
     contact_phone: string;
     requested_for: string;
@@ -134,7 +134,12 @@ export async function fetchRequestsByIdentifier(
 
 export async function publicToolCheckout(
   slug: string,
-  payload: { identifier: string; payload: string },
+  payload: {
+    payload: string;
+    requester_name: string;
+    contact_email: string;
+    contact_phone: string;
+  },
 ): Promise<PublicToolLoan> {
   return tenantPublicRequest<PublicToolLoan>(
     slug,

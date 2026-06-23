@@ -79,13 +79,35 @@ def checkin_verify_url(makerspace):
     )
 
 
+def print_submit_payload(**overrides):
+    payload = {
+        "requester_name": "Uma Example",
+        "contact_email": "u@e.com",
+        "contact_phone": "+15550101010",
+        "title": "Bracket",
+    }
+    payload.update(overrides)
+    return payload
+
+
+def presign_payload(**overrides):
+    payload = {
+        "contact_email": "u@e.com",
+        "kind": "stl",
+        "filename": "p.stl",
+        "content_type": "application/octet-stream",
+    }
+    payload.update(overrides)
+    return payload
+
+
 def test_checkin_verify_omits_external_id():
     makerspace = make_space("public-print-verify")
     enable_printing(makerspace)
 
     response = public_client().post(
         checkin_verify_url(makerspace),
-        {"identifier": "u@e.com"},
+        {"contact_email": "u@e.com"},
         format="json",
     )
 
@@ -107,12 +129,7 @@ def test_presign_blocked_for_inactive_requester(monkeypatch):
 
     response = public_client().post(
         presign_url(makerspace),
-        {
-            "identifier": "blocked@e.com",
-            "kind": "stl",
-            "filename": "p.stl",
-            "content_type": "application/octet-stream",
-        },
+        presign_payload(contact_email="blocked@e.com"),
         format="json",
     )
 
@@ -140,7 +157,7 @@ def test_public_submit_creates_pending_request():
 
     response = public_client().post(
         submit_url(makerspace),
-        {"identifier": "u@e.com", "bucket_id": bucket.id, "title": "Bracket"},
+        print_submit_payload(bucket_id=bucket.id),
         format="json",
     )
 
@@ -149,6 +166,28 @@ def test_public_submit_creates_pending_request():
     assert response.data["status"] == PrintRequest.Status.PENDING
     created = PrintRequest.objects.get()
     assert created.requester.external_checkin_user_id == "u@e.com"
+    assert created.requester_name == "Uma Example"
+    assert created.contact_email == "u@e.com"
+    assert created.contact_phone == "+15550101010"
+
+
+@pytest.mark.parametrize("missing_field", ["requester_name", "contact_email", "contact_phone"])
+def test_public_submit_requires_name_email_and_phone(missing_field):
+    makerspace = make_space(f"public-print-missing-{missing_field.replace('_', '-')}")
+    enable_printing(makerspace)
+    bucket = make_bucket(makerspace)
+    payload = print_submit_payload(bucket_id=bucket.id)
+    payload.pop(missing_field)
+
+    response = public_client().post(
+        submit_url(makerspace),
+        payload,
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert missing_field in response.data
+    assert not PrintRequest.objects.exists()
 
 
 def test_public_submit_without_bucket_uses_public_requests_bucket():
@@ -157,7 +196,7 @@ def test_public_submit_without_bucket_uses_public_requests_bucket():
 
     response = public_client().post(
         submit_url(makerspace),
-        {"identifier": "u@e.com", "title": "Bracket"},
+        print_submit_payload(),
         format="json",
     )
 
@@ -183,12 +222,11 @@ def test_public_submit_with_requested_spool_preserves_operational_spool():
 
     response = public_client().post(
         submit_url(makerspace),
-        {
-            "identifier": "u@e.com",
-            "bucket_id": bucket.id,
-            "title": "Spool request",
-            "filament_spool_id": spool.id,
-        },
+        print_submit_payload(
+            bucket_id=bucket.id,
+            title="Spool request",
+            filament_spool_id=spool.id,
+        ),
         format="json",
     )
 
@@ -219,12 +257,11 @@ def test_public_submit_rejects_foreign_or_inactive_requested_spool(spool_case):
 
     response = public_client().post(
         submit_url(makerspace),
-        {
-            "identifier": "u@e.com",
-            "bucket_id": bucket.id,
-            "title": "Bad spool request",
-            "filament_spool_id": spool.id,
-        },
+        print_submit_payload(
+            bucket_id=bucket.id,
+            title="Bad spool request",
+            filament_spool_id=spool.id,
+        ),
         format="json",
     )
 
@@ -239,12 +276,7 @@ def test_public_submit_persists_requester_name():
 
     response = public_client().post(
         submit_url(makerspace),
-        {
-            "identifier": "u@e.com",
-            "bucket_id": bucket.id,
-            "requester_name": "Uma Example",
-            "title": "Named request",
-        },
+        print_submit_payload(bucket_id=bucket.id, title="Named request"),
         format="json",
     )
 
@@ -309,12 +341,7 @@ def test_honeypot_returns_decoy_and_creates_nothing():
 
     response = public_client().post(
         submit_url(makerspace),
-        {
-            "identifier": "u@e.com",
-            "bucket_id": bucket.id,
-            "title": "X",
-            "website": "bot",
-        },
+        print_submit_payload(bucket_id=bucket.id, title="X", website="bot"),
         format="json",
     )
 
@@ -331,7 +358,7 @@ def test_module_off_blocks_submit():
 
     response = public_client().post(
         submit_url(makerspace),
-        {"identifier": "u@e.com", "bucket_id": bucket.id, "title": "Bracket"},
+        print_submit_payload(bucket_id=bucket.id),
         format="json",
     )
 
@@ -345,7 +372,7 @@ def test_status_lookup_by_token_hides_pii():
     client = public_client()
     client.post(
         submit_url(makerspace),
-        {"identifier": "u@e.com", "bucket_id": bucket.id, "title": "Bracket"},
+        print_submit_payload(bucket_id=bucket.id),
         format="json",
     )
     print_request = PrintRequest.objects.get()
@@ -369,6 +396,8 @@ def test_status_lookup_by_token_hides_pii():
 
 
 def test_status_lookup_by_email_lists_recent_same_space_requests():
+    # ACCEPTED RISK: this public lookup is intentionally email-addressable and
+    # enumerable so requesters can recover print status without a token.
     makerspace = make_space("public-print-status-email")
     other_space = make_space("public-print-status-email-other")
     enable_printing(makerspace)
@@ -449,30 +478,42 @@ def test_presign_rejects_bad_mime_and_accepts_good(monkeypatch):
 
     response = client.post(
         presign_url(makerspace),
-        {
-            "identifier": "u@e.com",
-            "kind": "screenshot",
-            "filename": "x.png",
-            "content_type": "application/pdf",
-        },
+        presign_payload(
+            kind="screenshot",
+            filename="x.png",
+            content_type="application/pdf",
+        ),
         format="json",
     )
     assert response.status_code == 400
 
     response = client.post(
         presign_url(makerspace),
-        {
-            "identifier": "u@e.com",
-            "kind": "stl",
-            "filename": "p.stl",
-            "content_type": "application/octet-stream",
-        },
+        presign_payload(),
         format="json",
     )
     assert response.status_code == 201
     assert "file_id" in response.data
     assert "upload" in response.data
     assert PrintRequestFile.objects.get(pk=response.data["file_id"]).original_filename == "p.stl"
+
+
+def test_presign_requires_contact_email(monkeypatch):
+    makerspace = make_space("public-print-presign-email-required")
+    enable_printing(makerspace)
+    mock_upload(monkeypatch)
+    payload = presign_payload()
+    payload.pop("contact_email")
+
+    response = public_client().post(
+        presign_url(makerspace),
+        payload,
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "contact_email" in response.data
+    assert not PrintRequestFile.objects.exists()
 
 
 def test_submit_rejects_foreign_file_id(monkeypatch):
@@ -491,12 +532,7 @@ def test_submit_rejects_foreign_file_id(monkeypatch):
 
     response = public_client().post(
         submit_url(makerspace),
-        {
-            "identifier": "u@e.com",
-            "bucket_id": bucket.id,
-            "title": "Bracket",
-            "file_ids": [upload.id],
-        },
+        print_submit_payload(bucket_id=bucket.id, file_ids=[upload.id]),
         format="json",
     )
 
@@ -512,25 +548,16 @@ def test_submit_attaches_owned_file(monkeypatch):
     client = public_client()
     response = client.post(
         presign_url(makerspace),
-        {
-            "identifier": "u@e.com",
-            "kind": "stl",
-            "filename": "p.stl",
-            "content_type": "application/octet-stream",
-        },
+        presign_payload(),
         format="json",
     )
     file_id = response.data["file_id"]
+    assert PrintRequestFile.objects.get(pk=file_id).owner_checkin_user_id == "u@e.com"
     monkeypatch.setattr("apps.printing.public_workflow.print_object_size", lambda key: 123)
 
     response = client.post(
         submit_url(makerspace),
-        {
-            "identifier": "u@e.com",
-            "bucket_id": bucket.id,
-            "title": "Bracket",
-            "file_ids": [file_id],
-        },
+        print_submit_payload(bucket_id=bucket.id, file_ids=[file_id]),
         format="json",
     )
 
@@ -556,12 +583,7 @@ def test_public_submit_rejects_zero_byte_upload(monkeypatch):
 
     response = public_client().post(
         submit_url(makerspace),
-        {
-            "identifier": "u@e.com",
-            "bucket_id": bucket.id,
-            "title": "Bracket",
-            "file_ids": [upload.id],
-        },
+        print_submit_payload(bucket_id=bucket.id, file_ids=[upload.id]),
         format="json",
     )
 
@@ -582,12 +604,7 @@ def test_public_submit_emails_contact_email(settings, django_capture_on_commit_c
     with django_capture_on_commit_callbacks(execute=True):
         response = public_client().post(
             submit_url(makerspace),
-            {
-                "identifier": "u@e.com",
-                "bucket_id": bucket.id,
-                "title": "Bracket",
-                "contact_email": "buyer@example.com",
-            },
+            print_submit_payload(bucket_id=bucket.id, contact_email="buyer@example.com"),
             format="json",
         )
 

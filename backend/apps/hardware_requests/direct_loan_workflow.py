@@ -33,9 +33,17 @@ from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 
 
 def issue_direct_loan(
-    makerspace, actor, identifier, *, qr_payloads, items, container_id=None
+    makerspace,
+    actor,
+    *,
+    requester_name,
+    contact_email,
+    contact_phone,
+    qr_payloads,
+    items,
+    container_id=None,
 ):
-    result = checkin.verify(makerspace, identifier)
+    result = checkin.verify(makerspace, contact_email)
     due_at = timezone.now() + timedelta(days=(makerspace.default_loan_days or 7))
     with transaction.atomic():
         if container_id is None and not qr_payloads and not items:
@@ -119,6 +127,10 @@ def issue_direct_loan(
             requester,
             result.username,
             dict(product_quantities),
+            requester_name=requester_name,
+            contact_email=contact_email,
+            contact_phone=contact_phone,
+            return_due_at=due_at,
             requested_for="Admin direct handout",
             issued_by=actor,
         )

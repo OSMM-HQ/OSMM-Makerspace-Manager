@@ -3,6 +3,7 @@ import re
 from django.db.models import Count, F, Sum
 from django.utils import timezone
 
+from apps.hardware_requests.display import is_internal_checkin_username
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
 from apps.hardware_requests.self_checkout_models import PublicToolLoan
 from apps.inventory.models import InventoryProduct, PublicAvailabilityMode
@@ -33,6 +34,9 @@ COMPLETED_PRINT_STATUSES = (
 def public_display_name(*, request=None, requester=None) -> str:
     candidates = []
     if request is not None:
+        label = _safe_public_requester_name(getattr(request, "requester_name", ""))
+        if label:
+            return label
         candidates.append(getattr(request, "requester_username", ""))
         requester = requester or getattr(request, "requester", None)
     if requester is not None:
@@ -300,11 +304,26 @@ def _clean_label(value):
 
 
 def _safe_public_name(value):
-    if not value or "@" in value or value.lower().startswith("checkin_"):
+    if not value or "@" in value or _is_internal_checkin_label(value):
         return False
     # Reject phone-shaped labels even when digits are separated by spaces / ()+-
     # (e.g. "555-123-4567") by normalizing to digits before counting.
     return len(re.sub(r"\D", "", value)) < 7
+
+
+def _safe_public_requester_name(value):
+    label = "".join(char for char in _clean_label(value) if char.isprintable()).strip()
+    if not _has_visible_text(label) or not _safe_public_name(label):
+        return ""
+    return label[:60]
+
+
+def _has_visible_text(value):
+    return any(not char.isspace() and char.isprintable() for char in value)
+
+
+def _is_internal_checkin_label(value):
+    return value.lower().startswith("checkin_") or is_internal_checkin_username(value)
 
 
 def _float(value):

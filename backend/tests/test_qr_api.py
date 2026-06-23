@@ -58,7 +58,12 @@ def test_cannot_revoke_qr_with_outstanding_loan():
 
     checkout = APIClient().post(
         f"/api/v1/public/{makerspace.slug}/tools/checkout",
-        {"identifier": "member-1", "payload": qr.payload},
+        {
+            "payload": qr.payload,
+            "requester_name": "QR Borrower",
+            "contact_email": "member-1@example.com",
+            "contact_phone": "+15550101010",
+        },
         format="json",
     )
     assert checkout.status_code == 201

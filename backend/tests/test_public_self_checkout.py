@@ -55,6 +55,17 @@ def api_client():
     return APIClient(REMOTE_ADDR="10.20.30.40")
 
 
+def checkout_payload(payload, **overrides):
+    body = {
+        "payload": payload,
+        "requester_name": "Self Checkout",
+        "contact_email": "member-1@example.com",
+        "contact_phone": "+15550101010",
+    }
+    body.update(overrides)
+    return body
+
+
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_public_checkout_requires_tool_opt_in():
     makerspace = make_space("checkout-disabled")
@@ -63,7 +74,7 @@ def test_public_checkout_requires_tool_opt_in():
 
     response = api_client().post(
         checkout_url(makerspace),
-        {"identifier": "member-1", "payload": qr.payload},
+        checkout_payload(qr.payload),
         format="json",
     )
 
@@ -86,7 +97,7 @@ def test_public_checkout_requires_public_self_checkout_flags():
 
     response = api_client().post(
         checkout_url(makerspace),
-        {"identifier": "member-1", "payload": qr.payload},
+        checkout_payload(qr.payload),
         format="json",
     )
 
@@ -96,6 +107,26 @@ def test_public_checkout_requires_public_self_checkout_flags():
     product.refresh_from_db()
     assert product.available_quantity == 2
     assert product.issued_quantity == 0
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+@pytest.mark.parametrize("missing_field", ["requester_name", "contact_email", "contact_phone"])
+def test_public_checkout_requires_name_email_and_phone(missing_field):
+    makerspace = make_space(f"checkout-missing-{missing_field.replace('_', '-')}")
+    product = make_product(makerspace, public_self_checkout_enabled=True)
+    qr = make_qr(makerspace, product)
+    payload = checkout_payload(qr.payload)
+    payload.pop(missing_field)
+
+    response = api_client().post(
+        checkout_url(makerspace),
+        payload,
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert missing_field in response.data
+    assert HardwareRequest.objects.count() == 0
 
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
@@ -110,7 +141,7 @@ def test_public_checkout_rejects_product_qr_for_individual_tracked_product():
 
     response = api_client().post(
         checkout_url(makerspace),
-        {"identifier": "member-1", "payload": qr.payload},
+        checkout_payload(qr.payload),
         format="json",
     )
 
@@ -144,7 +175,7 @@ def test_public_checkout_accepts_asset_qr_for_individual_tracked_product():
 
     response = api_client().post(
         checkout_url(makerspace),
-        {"identifier": "member-1", "payload": qr.payload},
+        checkout_payload(qr.payload),
         format="json",
     )
 
@@ -177,7 +208,7 @@ def test_public_checkout_rejects_box_qr_fallback_for_individual_tracked_product(
 
     response = api_client().post(
         checkout_url(makerspace),
-        {"identifier": "member-1", "payload": qr.payload},
+        checkout_payload(qr.payload),
         format="json",
     )
 
@@ -200,7 +231,7 @@ def test_public_checkout_and_return_move_inventory_and_record_scans():
 
     checkout = client.post(
         checkout_url(makerspace),
-        {"identifier": "member-1", "payload": qr.payload},
+        checkout_payload(qr.payload),
         format="json",
     )
 
@@ -214,11 +245,16 @@ def test_public_checkout_and_return_move_inventory_and_record_scans():
     assert product.issued_quantity == 1
     request = HardwareRequest.objects.get()
     assert request.status == HardwareRequest.Status.ISSUED
+    assert request.requester_name == "Self Checkout"
+    assert request.requester_contact_email == "member-1@example.com"
+    assert request.requester_contact_phone == "+15550101010"
+    loan = PublicToolLoan.objects.get()
+    assert request.return_due_at == loan.due_at
     assert QrScanEvent.objects.get(context=QrScanEvent.Context.ISSUE).request == request
 
     returned = client.post(
         return_url(makerspace),
-        {"identifier": "member-1", "payload": qr.payload},
+        {"identifier": "member-1@example.com", "payload": qr.payload},
         format="json",
     )
 
@@ -257,7 +293,7 @@ def test_public_box_checkout_return_restores_all_items():
 
     checkout = client.post(
         checkout_url(makerspace),
-        {"identifier": "member-1", "payload": qr.payload},
+        checkout_payload(qr.payload),
         format="json",
     )
 
@@ -275,7 +311,7 @@ def test_public_box_checkout_return_restores_all_items():
 
     returned = client.post(
         return_url(makerspace),
-        {"identifier": "member-1", "payload": qr.payload},
+        {"identifier": "member-1@example.com", "payload": qr.payload},
         format="json",
     )
 
@@ -296,13 +332,13 @@ def test_public_return_requires_same_verified_user():
     client = api_client()
     client.post(
         checkout_url(makerspace),
-        {"identifier": "member-1", "payload": qr.payload},
+        checkout_payload(qr.payload),
         format="json",
     )
 
     response = client.post(
         return_url(makerspace),
-        {"identifier": "member-2", "payload": qr.payload},
+        {"identifier": "member-2@example.com", "payload": qr.payload},
         format="json",
     )
 

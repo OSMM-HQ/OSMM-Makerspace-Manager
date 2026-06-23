@@ -3,8 +3,6 @@ import type { RequestCartItem } from "../../types/inventory";
 
 type BorrowRequestCardProps = {
   canSubmit: boolean;
-  contactEmail: string;
-  contactPhone: string;
   items: RequestCartItem[];
   requestedFor: string;
   submitError?: string;
@@ -12,16 +10,12 @@ type BorrowRequestCardProps = {
   submitted: boolean;
   totalItems: number;
   onClear: () => void;
-  onContactEmailChange: (value: string) => void;
-  onContactPhoneChange: (value: string) => void;
   onRequestedForChange: (value: string) => void;
   onSubmit: () => void;
 };
 
 export function BorrowRequestCard({
   canSubmit,
-  contactEmail,
-  contactPhone,
   items,
   requestedFor,
   submitError,
@@ -29,8 +23,6 @@ export function BorrowRequestCard({
   submitted,
   totalItems,
   onClear,
-  onContactEmailChange,
-  onContactPhoneChange,
   onRequestedForChange,
   onSubmit,
 }: BorrowRequestCardProps) {
@@ -53,7 +45,7 @@ export function BorrowRequestCard({
       {items.length === 0 ? (
         <p className="mt-4 text-sm leading-6 text-muted">
           Add public items from the inventory list, then submit the request with
-          your Check-In email or phone number.
+          your verified Check-In email.
         </p>
       ) : (
         <div className="mt-4 space-y-2">
@@ -75,23 +67,6 @@ export function BorrowRequestCard({
       )}
 
       <div className="mt-5 space-y-3">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <ContactInput
-            label="Email for updates"
-            placeholder="you@example.com"
-            value={contactEmail}
-            onChange={onContactEmailChange}
-            type="email"
-          />
-          <ContactInput
-            label="Phone number"
-            placeholder="+91 98765 43210"
-            value={contactPhone}
-            onChange={onContactPhoneChange}
-            type="tel"
-          />
-        </div>
-
         <label className="block">
           <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
             Request purpose
@@ -116,42 +91,12 @@ export function BorrowRequestCard({
           <div className="rounded-xl border border-tone-mint bg-tone-mint px-3 py-2 text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]">
             <p className="text-sm font-semibold">Request submitted</p>
             <p className="mt-1 text-xs">
-              Check this page with your email or phone to follow the request.
+              Check this page with your email to follow the request.
             </p>
           </div>
         ) : null}
       </div>
     </Card>
-  );
-}
-
-function ContactInput({
-  label,
-  onChange,
-  placeholder,
-  type,
-  value,
-}: {
-  label: string;
-  onChange: (value: string) => void;
-  placeholder: string;
-  type: "email" | "tel";
-  value: string;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
-        {label}
-      </span>
-      <input
-        className="desk-input w-full"
-        inputMode={type}
-        placeholder={placeholder}
-        type={type === "email" ? "email" : "text"}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-      />
-    </label>
   );
 }
 

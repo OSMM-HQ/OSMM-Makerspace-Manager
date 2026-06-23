@@ -26,6 +26,7 @@ class HardwareRequest(models.Model):
         related_name="hardware_requests",
     )
     requester_username = models.CharField(max_length=150)
+    requester_name = models.CharField(max_length=120, blank=True, default="")
     requester_contact_email = models.EmailField(blank=True)
     requester_contact_phone = models.CharField(max_length=32, blank=True)
     status = models.CharField(

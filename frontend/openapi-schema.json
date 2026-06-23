@@ -10404,7 +10404,7 @@
                             "examples": {
                                 "SubmitPublicEquipmentRequest": {
                                     "value": {
-                                        "identifier": "shaans@example.com",
+                                        "requester_name": "Shaan Shoukath",
                                         "contact_email": "shaans@example.com",
                                         "contact_phone": "+919876543210",
                                         "requested_for": "Electronics workshop diagnostics",
@@ -10692,26 +10692,28 @@
                     "content": {
                         "application/json": {
                             "schema": {
-                                "$ref": "#/components/schemas/PublicToolScan"
+                                "$ref": "#/components/schemas/PublicToolCheckout"
                             },
                             "examples": {
-                                "PublicQRToolScan": {
+                                "PublicQRToolCheckout": {
                                     "value": {
-                                        "identifier": "shaans@example.com",
-                                        "payload": "BOX-ABC123"
+                                        "payload": "BOX-ABC123",
+                                        "requester_name": "Shaan Shoukath",
+                                        "contact_email": "shaans@example.com",
+                                        "contact_phone": "+919876543210"
                                     },
-                                    "summary": "Public QR tool scan"
+                                    "summary": "Public QR tool checkout"
                                 }
                             }
                         },
                         "application/x-www-form-urlencoded": {
                             "schema": {
-                                "$ref": "#/components/schemas/PublicToolScan"
+                                "$ref": "#/components/schemas/PublicToolCheckout"
                             }
                         },
                         "multipart/form-data": {
                             "schema": {
-                                "$ref": "#/components/schemas/PublicToolScan"
+                                "$ref": "#/components/schemas/PublicToolCheckout"
                             }
                         }
                     },
@@ -10803,12 +10805,12 @@
                                 "$ref": "#/components/schemas/PublicToolScan"
                             },
                             "examples": {
-                                "PublicQRToolScan": {
+                                "PublicQRToolReturnScan": {
                                     "value": {
                                         "identifier": "shaans@example.com",
                                         "payload": "BOX-ABC123"
                                     },
-                                    "summary": "Public QR tool scan"
+                                    "summary": "Public QR tool return scan"
                                 }
                             }
                         },
@@ -11023,6 +11025,10 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "requester_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
                     "requester_display": {
                         "type": "string",
                         "readOnly": true
@@ -11141,6 +11147,7 @@
                     "requester_contact_email",
                     "requester_contact_phone",
                     "requester_display",
+                    "requester_name",
                     "requester_username",
                     "return_due_at",
                     "return_evidence_ids",
@@ -12091,8 +12098,17 @@
             "DirectLoanIssue": {
                 "type": "object",
                 "properties": {
-                    "identifier": {
-                        "type": "string"
+                    "requester_name": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "contact_email": {
+                        "type": "string",
+                        "format": "email"
+                    },
+                    "contact_phone": {
+                        "type": "string",
+                        "maxLength": 32
                     },
                     "container_id": {
                         "type": "integer",
@@ -12112,7 +12128,9 @@
                     }
                 },
                 "required": [
-                    "identifier"
+                    "contact_email",
+                    "contact_phone",
+                    "requester_name"
                 ]
             },
             "DirectLoanItem": {
@@ -15236,12 +15254,13 @@
             "PrintCheckinVerifyRequest": {
                 "type": "object",
                 "properties": {
-                    "identifier": {
-                        "type": "string"
+                    "contact_email": {
+                        "type": "string",
+                        "format": "email"
                     }
                 },
                 "required": [
-                    "identifier"
+                    "contact_email"
                 ]
             },
             "PrintCheckinVerifyResponse": {
@@ -15270,8 +15289,9 @@
             "PrintPresignRequest": {
                 "type": "object",
                 "properties": {
-                    "identifier": {
-                        "type": "string"
+                    "contact_email": {
+                        "type": "string",
+                        "format": "email"
                     },
                     "kind": {
                         "$ref": "#/components/schemas/PrintPresignRequestKindEnum"
@@ -15286,8 +15306,8 @@
                     }
                 },
                 "required": [
+                    "contact_email",
                     "filename",
-                    "identifier",
                     "kind"
                 ]
             },
@@ -15738,9 +15758,6 @@
                     "website": {
                         "type": "string"
                     },
-                    "identifier": {
-                        "type": "string"
-                    },
                     "bucket_id": {
                         "type": "integer",
                         "nullable": true
@@ -15801,7 +15818,9 @@
                     }
                 },
                 "required": [
-                    "identifier",
+                    "contact_email",
+                    "contact_phone",
+                    "requester_name",
                     "title"
                 ]
             },
@@ -17098,6 +17117,32 @@
                     "quantity_out"
                 ]
             },
+            "PublicToolCheckout": {
+                "type": "object",
+                "properties": {
+                    "payload": {
+                        "type": "string"
+                    },
+                    "requester_name": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
+                    "contact_email": {
+                        "type": "string",
+                        "format": "email"
+                    },
+                    "contact_phone": {
+                        "type": "string",
+                        "maxLength": 32
+                    }
+                },
+                "required": [
+                    "contact_email",
+                    "contact_phone",
+                    "payload",
+                    "requester_name"
+                ]
+            },
             "PublicToolLoan": {
                 "type": "object",
                 "properties": {
@@ -17622,17 +17667,16 @@
                         "type": "string",
                         "writeOnly": true
                     },
-                    "identifier": {
-                        "type": "string"
+                    "requester_name": {
+                        "type": "string",
+                        "maxLength": 120
                     },
                     "contact_email": {
                         "type": "string",
-                        "format": "email",
-                        "default": ""
+                        "format": "email"
                     },
                     "contact_phone": {
                         "type": "string",
-                        "default": "",
                         "maxLength": 32
                     },
                     "requested_for": {
@@ -17647,8 +17691,10 @@
                     }
                 },
                 "required": [
-                    "identifier",
-                    "items"
+                    "contact_email",
+                    "contact_phone",
+                    "items",
+                    "requester_name"
                 ]
             },
             "RequestSubmitResponse": {

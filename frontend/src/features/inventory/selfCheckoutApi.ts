@@ -10,15 +10,19 @@ export type PublicToolLoanResult = {
 
 export function checkoutTool(
   slug: string,
-  identifier: string,
-  payload: string,
+  body: {
+    payload: string;
+    requester_name: string;
+    contact_email: string;
+    contact_phone: string;
+  },
 ) {
   return tenantPublicRequest<PublicToolLoanResult>(
     slug,
     `/public/${slug}/tools/checkout`,
     {
       method: "POST",
-      body: JSON.stringify({ identifier, payload }),
+      body: JSON.stringify(body),
     },
   );
 }

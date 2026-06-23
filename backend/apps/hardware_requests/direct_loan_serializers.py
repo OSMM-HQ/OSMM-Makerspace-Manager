@@ -10,7 +10,9 @@ class DirectLoanItemSerializer(serializers.Serializer):
 
 
 class DirectLoanIssueSerializer(serializers.Serializer):
-    identifier = serializers.CharField()
+    requester_name = serializers.CharField(max_length=120)
+    contact_email = serializers.EmailField()
+    contact_phone = serializers.CharField(max_length=32)
     container_id = serializers.IntegerField(required=False, allow_null=True)
     qr_payloads = serializers.ListField(
         child=serializers.CharField(),

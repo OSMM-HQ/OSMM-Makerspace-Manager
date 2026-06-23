@@ -1,4 +1,5 @@
 from collections import Counter
+from datetime import timedelta
 
 from django.db import transaction
 from django.db.models import Q
@@ -35,8 +36,9 @@ from apps.inventory import availability
 from apps.inventory.models import InventoryAsset, InventoryProduct
 
 
-def checkout_tool(makerspace, identifier, payload):
-    result = checkin.verify(makerspace, identifier)
+def checkout_tool(makerspace, contact_email, payload, *, requester_name, contact_phone):
+    result = checkin.verify(makerspace, contact_email)
+    due_at = timezone.now() + timedelta(days=(makerspace.default_loan_days or 7))
     with transaction.atomic():
         requester = _requester(result.external_id)
         qr = _locked_qr(makerspace, payload)
@@ -49,6 +51,10 @@ def checkout_tool(makerspace, identifier, payload):
             requester,
             result.username,
             product_quantities,
+            requester_name=requester_name,
+            contact_email=contact_email,
+            contact_phone=contact_phone,
+            return_due_at=due_at,
         )
         loan = PublicToolLoan.objects.create(
             makerspace=makerspace,
@@ -60,6 +66,7 @@ def checkout_tool(makerspace, identifier, payload):
             target_id=qr.target_id,
             target_label=target_label,
             asset_ids=asset_ids,
+            due_at=due_at,
         )
         QrScanEvent.objects.create(
             makerspace=makerspace,

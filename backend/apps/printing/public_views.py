@@ -106,7 +106,7 @@ class PrintCheckinVerifyView(APIView):
         _require_module(makerspace)
         serializer = PrintCheckinVerifyRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        result = checkin.verify(makerspace, serializer.validated_data["identifier"])
+        result = checkin.verify(makerspace, serializer.validated_data["contact_email"])
         return Response({"username": result.username})
 
 
@@ -127,7 +127,7 @@ class PrintUploadPresignView(APIView):
         serializer = PrintPresignRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        result = checkin.verify(makerspace, data["identifier"])
+        result = checkin.verify(makerspace, data["contact_email"])
         # Block suspended/restricted requesters BEFORE issuing an upload URL, matching the
         # submit gate — otherwise a blocked identity could upload files that submit rejects.
         requester = get_or_create_requester(result.external_id)
@@ -184,7 +184,9 @@ class PrintRequestSubmitView(APIView):
 
         serializer = PrintRequestSubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        result = checkin.verify(makerspace, serializer.validated_data["identifier"])
+        result = checkin.verify(
+            makerspace, serializer.validated_data["contact_email"]
+        )
         print_request = public_workflow.submit_public_print_request(
             makerspace,
             serializer.validated_data,
