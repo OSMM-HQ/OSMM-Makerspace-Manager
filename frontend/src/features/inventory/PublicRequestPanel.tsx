@@ -12,6 +12,7 @@ import {
 import { invalidatePublicInventory } from "../staff/queryInvalidation";
 import { PublicToolScanPanel } from "./PublicToolScanPanel";
 import { RequestSummary } from "./RequestSummary";
+import { readStorage, writeStorage } from "../../lib/safeStorage";
 
 type ActiveTab = "borrow" | "scan" | "requests";
 
@@ -38,7 +39,7 @@ export function PublicRequestPanel({
   const [requestedFor, setRequestedFor] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [lookupValue, setLookupValue] = useState(
-    () => localStorage.getItem(lookupStorageKey) ?? "",
+    () => readStorage(lookupStorageKey),
   );
   const totalItems = useMemo(
     () => items.reduce((total, item) => total + item.quantity, 0),
@@ -88,11 +89,11 @@ export function PublicRequestPanel({
   }
 
   function cacheLookup(value: string) {
-    localStorage.setItem(lookupStorageKey, value);
+    writeStorage(lookupStorageKey, value);
     setLookupValue(value);
   }
 
-  // Each tab carries its own palette tone — a touch of colour so the action row
+  // Each tab carries its own palette tone - a touch of colour so the action row
   // doesn't read as flat. Active = filled pastel (+ dark deep-tint); idle = neutral
   // with a faint tone hover hint.
   const tabTone: Record<ActiveTab, { active: string; idle: string }> = {
@@ -210,36 +211,29 @@ export function PublicRequestPanel({
           <div
             aria-label="Request actions"
             className="grid shrink-0 grid-cols-3 gap-2"
-            role="tablist"
           >
             <button
-              aria-controls="public-request-borrow-panel"
-              aria-selected={activeTab === "borrow"}
+              aria-pressed={activeTab === "borrow"}
               className={tabClass("borrow")}
               id="public-request-borrow-tab"
-              role="tab"
               type="button"
               onClick={() => setActiveTab("borrow")}
             >
               Borrow request
             </button>
             <button
-              aria-controls="public-request-scan-panel"
-              aria-selected={activeTab === "scan"}
+              aria-pressed={activeTab === "scan"}
               className={tabClass("scan")}
               id="public-request-scan-tab"
-              role="tab"
               type="button"
               onClick={() => setActiveTab("scan")}
             >
               Scan a tool
             </button>
             <button
-              aria-controls="public-request-status-panel"
-              aria-selected={activeTab === "requests"}
+              aria-pressed={activeTab === "requests"}
               className={tabClass("requests")}
               id="public-request-status-tab"
-              role="tab"
               type="button"
               onClick={() => setActiveTab("requests")}
             >
@@ -250,9 +244,7 @@ export function PublicRequestPanel({
           <div className="lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
             {activeTab === "borrow" ? (
               <div
-                aria-labelledby="public-request-borrow-tab"
                 id="public-request-borrow-panel"
-                role="tabpanel"
               >
                 <BorrowRequestCard
                   canSubmit={canSubmit}
@@ -286,9 +278,7 @@ export function PublicRequestPanel({
 
             {activeTab === "requests" ? (
               <div
-                aria-labelledby="public-request-status-tab"
                 id="public-request-status-panel"
-                role="tabpanel"
               >
                 <Card>
                   <div className="flex flex-wrap items-start justify-between gap-3">

@@ -88,7 +88,7 @@ export function BarChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: 
   if (!rows.length || maxValue <= 0) return <p className="text-sm text-muted">No chart data.</p>;
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" aria-label={`Bar chart of ${valueLabel ?? "values"}`} role="img">
       {rows.map((row, index) => {
         const width = `${Math.max((row.value / maxValue) * 100, 4)}%`;
         return (
@@ -96,8 +96,8 @@ export function BarChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: 
             <span className="truncate text-ink" title={row.label}>
               {row.label}
             </span>
-            <div className="h-3 overflow-hidden rounded bg-bg">
-              <div className="h-full rounded bg-accent" style={{ width }} />
+            <div className="h-3 overflow-hidden rounded border border-line bg-bg">
+              <div className="h-full rounded bg-accent" style={{ width }} aria-hidden="true" />
             </div>
             <span className="min-w-14 text-right text-xs text-muted">
               {formatNumber(row.value)} {valueLabel ?? ""}
@@ -110,12 +110,12 @@ export function BarChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: 
 }
 
 // Fixed categorical palette aligned to the pastel reskin. Kept dependency-free
-// per repo convention — no chart library.
+// per repo convention - no chart library.
 const PIE_COLORS = [
-  "#7dd3fc",
-  "#fcdf46",
-  "#74dd9c",
-  "#f9a8d4",
+  "#0284c7",
+  "#a16207",
+  "#15803d",
+  "#be185d",
   "#a4243b",
 ];
 
@@ -149,8 +149,9 @@ export function PieChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: 
 
   return (
     <div className="flex flex-wrap items-center gap-4">
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0" role="img" aria-label="Pie chart">
-        <g transform={`rotate(-90 ${center} ${center})`}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0" role="img" aria-label={`Pie chart of ${valueLabel ?? "values"}`}>
+        <g transform={`rotate(-90 ${center} ${center})`} aria-hidden="true">
+          <circle cx={center} cy={center} r={radius} fill="none" stroke="rgb(var(--color-line))" strokeWidth={strokeWidth} />
           {segments.map((segment, index) => (
             <circle
               key={`${segment.label}-${index}`}
@@ -169,13 +170,13 @@ export function PieChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: 
       <ul className="min-w-0 flex-1 space-y-1 text-sm">
         {segments.map((segment, index) => (
           <li key={`${segment.label}-legend-${index}`} className="flex items-center gap-2">
-            <span className="h-3 w-3 shrink-0 rounded-full" style={{ backgroundColor: segment.color }} />
+            <span className="h-3 w-3 shrink-0 rounded-full border border-line" style={{ backgroundColor: segment.color }} aria-hidden="true" />
             <span className="truncate text-ink" title={segment.label}>
               {segment.label}
             </span>
             <span className="ml-auto whitespace-nowrap text-xs text-muted">
               {formatNumber(segment.value)}
-              {valueLabel ?? ""} · {segment.pct.toFixed(0)}%
+              {valueLabel ?? ""} - {segment.pct.toFixed(0)}%
             </span>
           </li>
         ))}

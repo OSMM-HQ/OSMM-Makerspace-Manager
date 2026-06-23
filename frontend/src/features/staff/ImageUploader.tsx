@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 import { staffRequest } from "../../lib/api";
 
@@ -27,7 +27,7 @@ type ImageUploaderProps = {
 
 /**
  * Reusable public-image uploader for staff (item photos, makerspace logo/cover).
- * Drives the Phase-2 flow: POST → presign, upload via the returned method
+ * Drives the Phase-2 flow: POST -> presign, upload via the returned method
  * (POST multipart or PUT), then PUT { object_key } to finalize+attach. The
  * storage upload itself is an unauthenticated direct-to-bucket request.
  */
@@ -40,8 +40,10 @@ export function ImageUploader({
   fit = "cover",
   shape = "square",
 }: ImageUploaderProps) {
-  // Cover images are wide banners — give them a rectangular preview that matches
-  // how they render publicly, instead of cropping into an 80×80 square.
+  const inputId = useId();
+  const objectUrlRef = useRef<string | null>(null);
+  // Cover images are wide banners - give them a rectangular preview that matches
+  // how they render publicly, instead of cropping into an 80x80 square.
   const previewBox = shape === "wide" ? "h-20 w-44" : "h-20 w-20";
   const [status, setStatus] = useState<"idle" | "uploading" | "error">("idle");
   const [error, setError] = useState("");
@@ -50,8 +52,22 @@ export function ImageUploader({
   // refetch. Re-sync whenever the parent does send a new URL.
   const [preview, setPreview] = useState<string | null>(currentUrl ?? null);
   useEffect(() => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
     setPreview(currentUrl ?? null);
   }, [currentUrl]);
+
+  useEffect(() => () => {
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+  }, []);
+
+  function setLocalPreview(file: File) {
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    objectUrlRef.current = URL.createObjectURL(file);
+    setPreview(objectUrlRef.current);
+  }
 
   async function handleFile(file: File) {
     setStatus("uploading");
@@ -76,7 +92,7 @@ export function ImageUploader({
         const formData = new FormData();
         Object.entries(presigned.fields ?? {}).forEach(([k, v]) => formData.append(k, v));
         formData.append("file", file);
-        // Direct presigned POST — no auth header, and do NOT set Content-Type so the
+        // Direct presigned POST - no auth header, and do NOT set Content-Type so the
         // browser supplies the multipart boundary.
         const res = await fetch(presigned.url, { method: "POST", body: formData });
         if (!res.ok) throw new Error(`Storage upload failed (${res.status})`);
@@ -87,7 +103,7 @@ export function ImageUploader({
         body: JSON.stringify({ object_key: presigned.object_key }),
       });
       setStatus("idle");
-      setPreview(URL.createObjectURL(file));
+      setLocalPreview(file);
       onChanged();
     } catch (err) {
       setStatus("error");
@@ -101,6 +117,10 @@ export function ImageUploader({
     try {
       await staffRequest(endpoint, { method: "DELETE" });
       setStatus("idle");
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current);
+        objectUrlRef.current = null;
+      }
       setPreview(null);
       onChanged();
     } catch (err) {
@@ -111,7 +131,7 @@ export function ImageUploader({
 
   return (
     <div className="space-y-2">
-      <p className="font-mono text-xs uppercase tracking-tight text-muted">{label}</p>
+      <label htmlFor={inputId} className="block font-mono text-xs uppercase tracking-tight text-muted">{label}</label>
       <div className="flex items-center gap-3">
         <div className={`${previewBox} shrink-0 overflow-hidden rounded-lg border border-line bg-surface`}>
           {preview ? (
@@ -128,6 +148,7 @@ export function ImageUploader({
         </div>
         <div className="space-y-1">
           <input
+            id={inputId}
             type="file"
             accept="image/jpeg,image/png,image/webp"
             disabled={disabled || status === "uploading"}
@@ -148,7 +169,7 @@ export function ImageUploader({
             </button>
           ) : null}
           {status === "uploading" ? (
-            <p className="font-mono text-xs text-muted">Working…</p>
+            <p className="font-mono text-xs text-muted">Working...</p>
           ) : null}
           {status === "error" ? <p className="text-xs text-danger">{error}</p> : null}
         </div>

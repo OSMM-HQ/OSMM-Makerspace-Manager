@@ -159,25 +159,22 @@ export function PublicSelfCheckoutPage() {
             <div
               aria-label="Checkout mode"
               className="desk-panel mt-4 flex gap-1 p-1"
-              role="tablist"
             >
               <button
-                aria-selected={mode === "checkout"}
+                aria-pressed={mode === "checkout"}
                 className={
                   mode === "checkout" ? "desk-tab desk-tab-active" : "desk-tab"
                 }
-                role="tab"
                 type="button"
                 onClick={() => setMode("checkout")}
               >
                 Use (check out)
               </button>
               <button
-                aria-selected={mode === "return"}
+                aria-pressed={mode === "return"}
                 className={
                   mode === "return" ? "desk-tab desk-tab-active" : "desk-tab"
                 }
-                role="tab"
                 type="button"
                 onClick={() => setMode("return")}
               >

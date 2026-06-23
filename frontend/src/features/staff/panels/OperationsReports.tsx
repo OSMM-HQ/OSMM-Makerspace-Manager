@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 
 import { downloadStaffFile } from "../../../lib/api";
 import {
@@ -46,7 +47,7 @@ export function OperationsReports({
 
   // Print managers (printingOnly) lack VIEW_INVENTORY, so the hardware analytics
   // endpoints would 403. Disable those queries entirely rather than render empty,
-  // erroring panels — the printing report is the only one they can see.
+  // erroring panels - the printing report is the only one they can see.
   const hardwareEnabled = !printingOnly;
   const summary = useStaffGet<Summary>(["operations-report", "summary", scopeKey], `${analyticsBase}/summary`, hardwareEnabled);
   const mostLent = useStaffGet<ReportRows>(["operations-report", "most-lent", scopeKey], analyticsPreview("most-lent"), hardwareEnabled);
@@ -57,9 +58,13 @@ export function OperationsReports({
   const scopeLabel = aggregate ? "all makerspaces" : makerspace.name;
   const makerspaceName = (id: number) => makerspaces.find((space) => space.id === id)?.name ?? `#${id}`;
 
-  function exportReport(report: string, format: "csv" | "xlsx") {
-    downloadStaffFile(`${reportsBase}/${report}/export?format=${format}`, `${aggregate ? "all-makerspaces-" : ""}${report}.${format}`);
-  }
+  const exportReport = useMutation({
+    mutationFn: ({ report, format }: { report: string; format: "csv" | "xlsx" }) =>
+      downloadStaffFile(
+        `${reportsBase}/${report}/export?format=${format}`,
+        `${aggregate ? "all-makerspaces-" : ""}${report}.${format}`,
+      ),
+  });
 
   return (
     <div className="space-y-4">
@@ -112,10 +117,10 @@ export function OperationsReports({
             <div key={report} className="rounded-md border border-line bg-bg p-3">
               <p className="text-sm font-semibold capitalize text-ink">{report.replace(/-/g, " ")}</p>
               <div className="mt-3 flex gap-2">
-                <button className="desk-button" type="button" onClick={() => exportReport(report, "csv")}>
+                <button className="desk-button" type="button" disabled={exportReport.isPending} onClick={() => exportReport.mutate({ report, format: "csv" })}>
                   CSV
                 </button>
-                <button className="desk-button" type="button" onClick={() => exportReport(report, "xlsx")}>
+                <button className="desk-button" type="button" disabled={exportReport.isPending} onClick={() => exportReport.mutate({ report, format: "xlsx" })}>
                   XLSX
                 </button>
               </div>

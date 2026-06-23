@@ -1,3 +1,4 @@
+import { removeStorage } from "./safeStorage";
 import { configuredApiUrl } from "./runtimeConfig";
 
 export const API_URL = configuredApiUrl();
@@ -89,7 +90,7 @@ export function getAccessToken() {
 }
 
 export function cleanupLegacyAccessToken() {
-  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  removeStorage(ACCESS_TOKEN_KEY);
 }
 
 export function authHeaders(): HeadersInit {
@@ -295,7 +296,7 @@ export async function staffRequest<T>(
       `Request failed (${response.status})`;
     throw new Error(message);
   }
-  // 204 No Content (e.g. DRF destroy) has an empty body — parsing it as JSON
+  // 204 No Content (e.g. DRF destroy) has an empty body - parsing it as JSON
   // would throw and surface a successful mutation as a failure.
   if (response.status === 204) {
     return undefined as T;

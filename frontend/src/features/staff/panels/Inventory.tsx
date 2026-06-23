@@ -6,6 +6,7 @@ import { ConfirmDialog, DataTable, FilterBar, Modal, StatusBadge } from "../../.
 import type { DataTableColumn } from "../../../components/ui";
 import { staffRequest } from "../../../lib/api";
 import { useDebouncedValue } from "../../../lib/useDebouncedValue";
+import { readStorage, writeStorage } from "../../../lib/safeStorage";
 import { ImageUploader } from "../ImageUploader";
 import { invalidateInventoryViews } from "../queryInvalidation";
 import { categoryResults, Panel, type Category, type CategoryListResponse, type Makerspace, type Product, useStaffGet } from "./shared";
@@ -35,7 +36,7 @@ const emptyAdjust: AdjustmentForm = { delta_available: "0", delta_damaged: "0", 
 export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = false }: { makerspace: Makerspace; canViewAudit?: boolean; canUseToBuy?: boolean }) {
   const queryClient = useQueryClient();
   const storageKey = `inventory.view.${makerspace.id}`;
-  const [search, setSearch] = useState(() => localStorage.getItem(storageKey) ?? "");
+  const [search, setSearch] = useState(() => readStorage(storageKey));
   const [selectedIds, setSelectedIds] = useState<Key[]>([]);
   const [form, setForm] = useState<ItemForm>(emptyForm);
   const [adjustForm, setAdjustForm] = useState<AdjustmentForm>(emptyAdjust);
@@ -49,7 +50,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
   const [bulkQrMessage, setBulkQrMessage] = useState("");
   const debouncedSearch = useDebouncedValue(search);
   useEffect(() => {
-    setSearch(localStorage.getItem(`inventory.view.${makerspace.id}`) ?? "");
+    setSearch(readStorage(`inventory.view.${makerspace.id}`));
     setSelectedIds([]);
     setForm(emptyForm);
     setAdjustForm(emptyAdjust);
@@ -172,7 +173,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
           actions={(
             <>
               <button className="desk-button" type="button" onClick={() => { setForm(emptyForm); setAddOpen(true); }}>Add item</button>
-              <button className="desk-button" type="button" onClick={() => localStorage.setItem(storageKey, search)}>Save view</button>
+              <button className="desk-button" type="button" onClick={() => writeStorage(storageKey, search)}>Save view</button>
               <button className="desk-button" type="button" disabled={!selectedIds.length || bulkQr.isPending} onClick={() => { setBulkQrMessage(""); setQrConfirm(true); }}>Enable QR</button>
               <button className="desk-button" type="button" disabled={!selectedIds.length || bulkQr.isPending} onClick={() => { setBulkQrMessage(""); setQrConfirm(false); }}>Disable QR</button>
             </>
@@ -259,7 +260,7 @@ function LendingHistory({ productId }: { productId: number }) {
         <ul className="grid gap-1 text-sm text-muted">
           {recent.map((entry) => (
             <li key={entry.id}>
-              {entry.username} — {entry.quantity} on {formatDate(entry.issued_at)}
+              {entry.username} â€” {entry.quantity} on {formatDate(entry.issued_at)}
               <AttributionLine acceptedBy={entry.accepted_by} issuedBy={entry.issued_by} />
             </li>
           ))}

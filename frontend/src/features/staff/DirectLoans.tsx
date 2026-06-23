@@ -316,7 +316,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
           <div className="grid gap-2">
             {lineRows.map((line) => (
               <div key={line.key} className="grid gap-2 md:grid-cols-[1fr_120px_auto]">
-                <select className="desk-input" value={line.productId} disabled={products.isLoading} onChange={(e) => updateLine(line.key, { productId: e.target.value })}>
+                <select aria-label="Product" className="desk-input" value={line.productId} disabled={products.isLoading} onChange={(e) => updateLine(line.key, { productId: e.target.value })}>
                   <option value="">Product</option>
                   {eligibleProducts.map((product) => (
                     <option key={product.id} value={product.id}>
@@ -324,7 +324,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
                     </option>
                   ))}
                 </select>
-                <input className="desk-input" min={1} inputMode="numeric" type="number" value={line.quantity} onChange={(e) => updateLine(line.key, { quantity: e.target.value })} />
+                <input aria-label="Quantity" className="desk-input" min={1} inputMode="numeric" type="number" value={line.quantity} onChange={(e) => updateLine(line.key, { quantity: e.target.value })} />
                 <button className="desk-button" type="button" onClick={() => removeLine(line.key)}>Remove</button>
               </div>
             ))}
@@ -347,6 +347,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
           ) : null}
         </div>
         <textarea
+          aria-label="QR payloads"
           className="desk-input mt-3 h-24 w-full font-mono text-sm"
           placeholder="Optional QR payloads, one per line"
           value={qrPayloads}
