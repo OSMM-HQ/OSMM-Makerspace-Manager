@@ -7,12 +7,16 @@ from rest_framework.test import APIClient
 from apps.accounts.models import User
 from apps.audit.models import AuditLog
 from apps.boxes.models import Box, QrCode
+from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests.models import HardwareRequest, PublicToolLoan
+from apps.hardware_requests.workflow_utils import get_or_create_requester
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 from tests.return_helpers import make_issue_evidence, make_return_evidence
 
 pytestmark = pytest.mark.django_db
+
+_current_direct_makerspace = None
 
 
 def return_body(evidence, notes="Returned in good condition."):
@@ -67,6 +71,8 @@ def authed(user):
 
 
 def direct_url(makerspace):
+    global _current_direct_makerspace
+    _current_direct_makerspace = makerspace
     return f"/api/v1/admin/makerspace/{makerspace.id}/direct-loans"
 
 
@@ -77,8 +83,27 @@ def direct_payload(**overrides):
         "contact_phone": "+15550101010",
     }
     payload.update(overrides)
+    if "evidence_id" not in payload and _current_direct_makerspace_is_live():
+        payload["evidence_id"] = _direct_issue_evidence().id
     return payload
 
+def _current_direct_makerspace_is_live():
+    return _current_direct_makerspace is not None and Makerspace.objects.filter(pk=_current_direct_makerspace.pk).exists()
+
+def _direct_issue_evidence():
+    assert _current_direct_makerspace is not None
+    actor = User.objects.filter(makerspace_memberships__makerspace=_current_direct_makerspace).first()
+    if actor is None:
+        actor = User.objects.create_user(
+            username=f"evidence-{_current_direct_makerspace.slug}",
+            access_status=User.AccessStatus.ACTIVE,
+        )
+    return EvidencePhoto.objects.create(
+        makerspace=_current_direct_makerspace,
+        evidence_type=EvidencePhoto.EvidenceType.ISSUE,
+        object_key=f"evidence/{_current_direct_makerspace.id}/issue/direct-{EvidencePhoto.objects.count() + 1}",
+        uploaded_by=actor,
+    )
 
 def issue_direct_product_loan(makerspace, admin, product=None):
     product = product or make_product(makerspace)
@@ -777,6 +802,7 @@ def test_direct_return_rejects_self_checkout_loan():
             "requester_name": "Self Checkout",
             "contact_email": "member-x@example.com",
             "contact_phone": "+15550101010",
+                "evidence_id": _public_issue_evidence(makerspace, "member-x@example.com").id,
         },
         format="json",
     )
@@ -878,3 +904,19 @@ def test_direct_return_rejects_evidence_used_by_reviewed_return(monkeypatch):
     assert response.status_code == 400
     loan.refresh_from_db()
     assert loan.status == PublicToolLoan.Status.CHECKED_OUT
+
+
+
+
+
+
+def _public_issue_evidence(makerspace, identifier):
+    return EvidencePhoto.objects.create(
+        makerspace=makerspace,
+        evidence_type=EvidencePhoto.EvidenceType.ISSUE,
+        object_key=f"evidence/{makerspace.id}/issue/{identifier}-{EvidencePhoto.objects.count() + 1}",
+        uploaded_by=get_or_create_requester(identifier),
+    )
+
+
+

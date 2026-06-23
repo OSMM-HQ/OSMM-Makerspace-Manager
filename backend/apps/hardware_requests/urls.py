@@ -26,6 +26,11 @@ urlpatterns = [
         name="request-lookup",
     ),
     path(
+        "public/<slug:makerspace_slug>/tools/evidence-url",
+        views.PublicToolEvidenceUploadUrlView.as_view(),
+        name="public-tool-evidence-url",
+    ),
+    path(
         "public/<slug:makerspace_slug>/tools/checkout",
         views.PublicToolCheckoutView.as_view(),
         name="public-tool-checkout",
@@ -116,3 +121,4 @@ urlpatterns = [
         name="guest-admin-request-return",
     ),
 ]
+

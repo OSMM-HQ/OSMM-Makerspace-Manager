@@ -10894,6 +10894,105 @@
                 }
             }
         },
+        "/api/v1/public/{makerspace_slug}/tools/evidence-url": {
+            "post": {
+                "operationId": "api_v1_public_tools_evidence_url_create",
+                "summary": "Create a public self-checkout evidence upload URL",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "X-Publishable-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Public API key for a makerspace public client. Required when API_CLIENT_AUTH_REQUIRED is enabled."
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Public requests"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicToolEvidenceUrlRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicToolEvidenceUrlRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicToolEvidenceUrlRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EvidenceUrlResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Not found."
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Service unavailable."
+                    }
+                }
+            }
+        },
         "/api/v1/public/{makerspace_slug}/tools/return": {
             "post": {
                 "operationId": "api_v1_public_tools_return_create",
@@ -12328,6 +12427,12 @@
                         "type": "string",
                         "maxLength": 32
                     },
+                    "evidence_id": {
+                        "type": "integer"
+                    },
+                    "remark": {
+                        "type": "string"
+                    },
                     "container_id": {
                         "type": "integer",
                         "nullable": true
@@ -12350,6 +12455,7 @@
                 "required": [
                     "contact_email",
                     "contact_phone",
+                    "evidence_id",
                     "requester_name"
                 ]
             },
@@ -12690,19 +12796,11 @@
                     "url"
                 ]
             },
-            "EvidenceTypeEnum": {
-                "enum": [
-                    "issue",
-                    "return"
-                ],
-                "type": "string",
-                "description": "* `issue` - Issue\n* `return` - Return"
-            },
             "EvidenceUrlRequest": {
                 "type": "object",
                 "properties": {
                     "evidence_type": {
-                        "$ref": "#/components/schemas/EvidenceTypeEnum"
+                        "$ref": "#/components/schemas/EvidenceUrlRequestEvidenceTypeEnum"
                     },
                     "content_type": {
                         "type": "string"
@@ -12712,6 +12810,14 @@
                     "content_type",
                     "evidence_type"
                 ]
+            },
+            "EvidenceUrlRequestEvidenceTypeEnum": {
+                "enum": [
+                    "issue",
+                    "return"
+                ],
+                "type": "string",
+                "description": "* `issue` - Issue\n* `return` - Return"
             },
             "EvidenceUrlResponse": {
                 "type": "object",
@@ -17587,14 +17693,49 @@
                     "contact_phone": {
                         "type": "string",
                         "maxLength": 32
+                    },
+                    "evidence_id": {
+                        "type": "integer"
+                    },
+                    "remark": {
+                        "type": "string"
                     }
                 },
                 "required": [
                     "contact_email",
                     "contact_phone",
+                    "evidence_id",
                     "payload",
                     "requester_name"
                 ]
+            },
+            "PublicToolEvidenceUrlRequest": {
+                "type": "object",
+                "properties": {
+                    "identifier": {
+                        "type": "string",
+                        "maxLength": 254
+                    },
+                    "evidence_type": {
+                        "$ref": "#/components/schemas/PublicToolEvidenceUrlRequestEvidenceTypeEnum"
+                    },
+                    "content_type": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "content_type",
+                    "evidence_type",
+                    "identifier"
+                ]
+            },
+            "PublicToolEvidenceUrlRequestEvidenceTypeEnum": {
+                "enum": [
+                    "issue",
+                    "return"
+                ],
+                "type": "string",
+                "description": "* `issue` - issue\n* `return` - return"
             },
             "PublicToolLoan": {
                 "type": "object",
@@ -17647,11 +17788,19 @@
                     "payload": {
                         "type": "string",
                         "maxLength": 64
+                    },
+                    "evidence_id": {
+                        "type": "integer"
+                    },
+                    "remark": {
+                        "type": "string"
                     }
                 },
                 "required": [
+                    "evidence_id",
                     "identifier",
-                    "payload"
+                    "payload",
+                    "remark"
                 ]
             },
             "QrCode": {

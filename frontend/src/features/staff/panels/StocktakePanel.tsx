@@ -20,7 +20,7 @@ type ProductOption = { id: number; name: string };
 
 const CONDITIONS = ["available", "damaged", "lost", "unknown"];
 
-export function StocktakePanel({ makerspace }: { makerspace: Makerspace }) {
+export function StocktakePanel({ makerspace, isSuperadmin = false }: { makerspace: Makerspace; isSuperadmin?: boolean }) {
   const queryClient = useQueryClient();
   const [openId, setOpenId] = useState<number | null>(null);
   const stocktakes = useStaffGet<{ results: StocktakeRow[] }>(["stocktakes", makerspace.id], `/admin/makerspace/${makerspace.id}/stocktakes`);
@@ -55,10 +55,18 @@ export function StocktakePanel({ makerspace }: { makerspace: Makerspace }) {
             <div className="flex flex-wrap items-center gap-2">
               <strong>#{row.id}</strong>
               <span className="rounded-md border border-line bg-bg px-2 py-0.5 text-xs text-muted">{row.status}</span>
-              <button onClick={() => setOpenId((id) => (id === row.id ? null : row.id))}>{openId === row.id ? "Hide counts" : "Count items"}</button>
-              <button disabled={action.isPending} onClick={() => action.mutate(`/admin/stocktakes/${row.id}/complete`)}>Complete</button>
-              <button disabled={action.isPending} onClick={() => action.mutate(`/admin/stocktakes/${row.id}/approve`)}>Approve</button>
-              <button disabled={action.isPending} onClick={() => action.mutate(`/admin/stocktakes/${row.id}/apply-adjustments`)}>Apply</button>
+              {canCount(row.status) ? (
+                <button type="button" onClick={() => setOpenId((id) => (id === row.id ? null : row.id))}>{openId === row.id ? "Hide counts" : "Count items"}</button>
+              ) : null}
+              {row.status === "counting" ? (
+                <button type="button" disabled={action.isPending} onClick={() => action.mutate(`/admin/stocktakes/${row.id}/complete`)}>Complete</button>
+              ) : null}
+              {isSuperadmin && row.status === "completed" ? (
+                <button type="button" disabled={action.isPending} onClick={() => action.mutate(`/admin/stocktakes/${row.id}/approve`)}>Approve</button>
+              ) : null}
+              {isSuperadmin && row.status === "approved" ? (
+                <button type="button" disabled={action.isPending} onClick={() => action.mutate(`/admin/stocktakes/${row.id}/apply-adjustments`)}>Apply</button>
+              ) : null}
             </div>
             <p className="mt-1 text-muted">{row.notes}</p>
             {openId === row.id ? <CountSection makerspace={makerspace} stocktakeId={row.id} /> : null}
@@ -70,7 +78,7 @@ export function StocktakePanel({ makerspace }: { makerspace: Makerspace }) {
 }
 
 // The count step is what moves a stocktake forward and produces the variance the Apply
-// step adjusts on — without it a stocktake has zero lines and Apply is a no-op. Records
+// step adjusts on - without it a stocktake has zero lines and Apply is a no-op. Records
 // a counted quantity per product, then shows expected/counted/variance from the detail.
 function CountSection({ makerspace, stocktakeId }: { makerspace: Makerspace; stocktakeId: number }) {
   const queryClient = useQueryClient();
@@ -79,7 +87,7 @@ function CountSection({ makerspace, stocktakeId }: { makerspace: Makerspace; sto
   const [condition, setCondition] = useState("available");
   const detail = useStaffGet<StocktakeDetail>(["stocktake-detail", stocktakeId], `/admin/stocktakes/${stocktakeId}`);
   const products = useStaffGet<{ results: ProductOption[] }>(["inventory-all", makerspace.id], `/admin/makerspace/${makerspace.id}/inventory?page_size=1000`);
-  const productName = (id: number | null) => products.data?.results.find((product) => product.id === id)?.name ?? (id ? `#${id}` : "—");
+  const productName = (id: number | null) => products.data?.results.find((product) => product.id === id)?.name ?? (id ? `#${id}` : "-");
 
   const record = useMutation({
     mutationFn: () =>
@@ -145,3 +153,8 @@ function CountSection({ makerspace, stocktakeId }: { makerspace: Makerspace; sto
     </div>
   );
 }
+
+function canCount(status: string) {
+  return status === "draft" || status === "counting";
+}
+

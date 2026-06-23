@@ -139,6 +139,8 @@ export async function publicToolCheckout(
     requester_name: string;
     contact_email: string;
     contact_phone: string;
+    evidence_id: number;
+    remark?: string;
   },
 ): Promise<PublicToolLoan> {
   return tenantPublicRequest<PublicToolLoan>(
@@ -153,7 +155,7 @@ export async function publicToolCheckout(
 
 export async function publicToolReturn(
   slug: string,
-  payload: { identifier: string; payload: string },
+  payload: { identifier: string; payload: string; evidence_id: number; remark: string },
 ): Promise<PublicToolLoan> {
   return tenantPublicRequest<PublicToolLoan>(
     slug,
@@ -164,3 +166,4 @@ export async function publicToolReturn(
     },
   );
 }
+

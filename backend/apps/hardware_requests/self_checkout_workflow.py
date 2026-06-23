@@ -9,10 +9,12 @@ from apps.accounts.models import User
 from apps.audit import services as audit
 from apps.boxes.models import Box, QrCode, QrScanEvent
 from apps.checkin import client as checkin
+from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests.models import (
     HardwareRequest,
     HardwareRequestItem,
     PublicToolLoan,
+    ReturnEvent,
 )
 from apps.hardware_requests.self_checkout_helpers import (
     _checkout_box,
@@ -30,17 +32,22 @@ from apps.hardware_requests.workflow_errors import (
     InvalidTransition,
     RequestValidationError,
     RequesterBlocked,
+    ReturnValidationError,
 )
 from apps.hardware_requests.workflow_utils import get_or_create_requester
+from apps.hardware_requests.direct_loan_returns import validate_evidence_upload
 from apps.inventory import availability
 from apps.inventory.models import InventoryAsset, InventoryProduct
 
 
-def checkout_tool(makerspace, contact_email, payload, *, requester_name, contact_phone):
+def checkout_tool(makerspace, contact_email, payload, *, requester_name, contact_phone, evidence_id, remark=""):
     result = checkin.verify(makerspace, contact_email)
     due_at = timezone.now() + timedelta(days=(makerspace.default_loan_days or 7))
     with transaction.atomic():
         requester = _requester(result.external_id)
+        evidence = _public_evidence(makerspace, requester, evidence_id, EvidencePhoto.EvidenceType.ISSUE)
+        _lock_unused_evidence(evidence, issue=True)
+        validate_evidence_upload(evidence, label="Issue")
         qr = _locked_qr(makerspace, payload)
         if qr_has_active_loan(makerspace, qr):
             raise InvalidTransition("This QR code is already checked out.")
@@ -56,6 +63,9 @@ def checkout_tool(makerspace, contact_email, payload, *, requester_name, contact
             contact_phone=contact_phone,
             return_due_at=due_at,
         )
+        hardware_request.issue_evidence = evidence
+        hardware_request.issue_remark = str(remark or "").strip()
+        hardware_request.save(update_fields=["issue_evidence", "issue_remark", "updated_at"])
         loan = PublicToolLoan.objects.create(
             makerspace=makerspace,
             qr_code=qr,
@@ -86,10 +96,16 @@ def checkout_tool(makerspace, contact_email, payload, *, requester_name, contact
         return loan
 
 
-def return_tool(makerspace, identifier, payload):
+def return_tool(makerspace, identifier, payload, *, evidence_id, remark):
     result = checkin.verify(makerspace, identifier)
+    remark = str(remark or "").strip()
+    if not remark:
+        raise RequestValidationError("Return remark is required.")
     with transaction.atomic():
         requester = _requester(result.external_id)
+        evidence = _public_evidence(makerspace, requester, evidence_id, EvidencePhoto.EvidenceType.RETURN)
+        _lock_unused_evidence(evidence, issue=False)
+        validate_evidence_upload(evidence, label="Return")
         qr = _locked_qr(makerspace, payload)
         loan = (
             PublicToolLoan.objects.select_for_update()
@@ -111,7 +127,9 @@ def return_tool(makerspace, identifier, payload):
 
         loan.status = PublicToolLoan.Status.RETURNED
         loan.returned_at = timezone.now()
-        loan.save(update_fields=["status", "returned_at"])
+        loan.return_evidence = evidence
+        loan.return_notes = remark
+        loan.save(update_fields=["status", "returned_at", "return_evidence", "return_notes"])
         loan.request.status = HardwareRequest.Status.RETURNED
         loan.request.closed_by = requester
         loan.request.closed_at = loan.returned_at
@@ -131,6 +149,31 @@ def return_tool(makerspace, identifier, payload):
             meta={"qr_id": qr.id, "target": loan.target_label},
         )
         return loan
+
+
+def _public_evidence(makerspace, requester, evidence_id, evidence_type):
+    evidence = EvidencePhoto.objects.filter(
+        pk=evidence_id,
+        makerspace=makerspace,
+        evidence_type=evidence_type,
+        uploaded_by=requester,
+    ).first()
+    if evidence is None:
+        raise RequestValidationError("Invalid evidence.")
+    return evidence
+
+
+def _lock_unused_evidence(evidence, *, issue):
+    EvidencePhoto.objects.select_for_update().get(pk=evidence.pk)
+    if issue:
+        if HardwareRequest.objects.filter(issue_evidence=evidence).exists():
+            raise RequestValidationError("Evidence already used.")
+        return
+    if (
+        PublicToolLoan.objects.filter(return_evidence=evidence).exists()
+        or ReturnEvent.objects.filter(evidence=evidence).exists()
+    ):
+        raise ReturnValidationError("Evidence already used.")
 
 
 def qr_has_active_loan(makerspace, qr):
@@ -186,3 +229,4 @@ __all__ = [
     "timezone",
     "transaction",
 ]
+

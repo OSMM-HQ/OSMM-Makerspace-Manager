@@ -12,6 +12,10 @@ type DetailDrawerProps = {
 export function DetailDrawer({ open, title, onClose, children }: DetailDrawerProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLElement>(null);
+  // See Modal.tsx: onClose lives in a ref so this focus effect depends only on `open`.
+  // Otherwise a fresh inline onClose each render re-runs the effect and steals focus.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
@@ -20,7 +24,7 @@ export function DetailDrawer({ open, title, onClose, children }: DetailDrawerPro
     if (panel) focusFirstDialogElement(panel);
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") onCloseRef.current();
       if (panel) trapDialogFocus(event, panel);
     };
 
@@ -29,7 +33,7 @@ export function DetailDrawer({ open, title, onClose, children }: DetailDrawerPro
       document.removeEventListener("keydown", handleKeyDown);
       previousFocus?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

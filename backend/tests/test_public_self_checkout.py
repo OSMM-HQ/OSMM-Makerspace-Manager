@@ -3,11 +3,15 @@ from django.test import override_settings
 from rest_framework.test import APIClient
 
 from apps.boxes.models import Box, QrCode, QrScanEvent
+from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests.models import HardwareRequest, PublicToolLoan
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 from apps.makerspaces.models import Makerspace
+from apps.hardware_requests.workflow_utils import get_or_create_requester
 
 pytestmark = pytest.mark.django_db
+
+_current_makerspace = None
 
 
 def make_space(slug="self-checkout-space"):
@@ -44,10 +48,14 @@ def make_asset_qr(makerspace, asset):
 
 
 def checkout_url(makerspace):
+    global _current_makerspace
+    _current_makerspace = makerspace
     return f"/api/v1/public/{makerspace.slug}/tools/checkout"
 
 
 def return_url(makerspace):
+    global _current_makerspace
+    _current_makerspace = makerspace
     return f"/api/v1/public/{makerspace.slug}/tools/return"
 
 
@@ -63,8 +71,36 @@ def checkout_payload(payload, **overrides):
         "contact_phone": "+15550101010",
     }
     body.update(overrides)
+    if "evidence_id" not in body and _current_makerspace_is_live():
+        body["evidence_id"] = _public_evidence(
+            body["contact_email"],
+            EvidencePhoto.EvidenceType.ISSUE,
+        ).id
     return body
 
+
+def return_payload(payload, identifier="member-1@example.com", remark="Returned in good condition.", **overrides):
+    body = {
+        "identifier": identifier,
+        "payload": payload,
+        "remark": remark,
+        "evidence_id": _public_evidence(identifier, EvidencePhoto.EvidenceType.RETURN).id,
+    }
+    body.update(overrides)
+    return body
+
+def _current_makerspace_is_live():
+    return _current_makerspace is not None and Makerspace.objects.filter(pk=_current_makerspace.pk).exists()
+
+def _public_evidence(identifier, evidence_type):
+    assert _current_makerspace is not None
+    requester = get_or_create_requester(identifier)
+    return EvidencePhoto.objects.create(
+        makerspace=_current_makerspace,
+        evidence_type=evidence_type,
+        object_key=f"evidence/{_current_makerspace.id}/{evidence_type}/{identifier}-{EvidencePhoto.objects.count() + 1}",
+        uploaded_by=requester,
+    )
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_public_checkout_requires_tool_opt_in():
@@ -254,7 +290,7 @@ def test_public_checkout_and_return_move_inventory_and_record_scans():
 
     returned = client.post(
         return_url(makerspace),
-        {"identifier": "member-1@example.com", "payload": qr.payload},
+        return_payload(qr.payload),
         format="json",
     )
 
@@ -311,7 +347,7 @@ def test_public_box_checkout_return_restores_all_items():
 
     returned = client.post(
         return_url(makerspace),
-        {"identifier": "member-1@example.com", "payload": qr.payload},
+        return_payload(qr.payload),
         format="json",
     )
 
@@ -338,10 +374,13 @@ def test_public_return_requires_same_verified_user():
 
     response = client.post(
         return_url(makerspace),
-        {"identifier": "member-2@example.com", "payload": qr.payload},
+        return_payload(qr.payload, identifier="member-2@example.com"),
         format="json",
     )
 
     assert response.status_code == 403
     assert response.data["code"] == "requester_blocked"
     assert PublicToolLoan.objects.get().status == PublicToolLoan.Status.CHECKED_OUT
+
+
+

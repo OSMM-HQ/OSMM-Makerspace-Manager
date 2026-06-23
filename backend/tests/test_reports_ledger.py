@@ -19,11 +19,14 @@ from tests.return_helpers import (
     make_member,
     make_product,
     make_return_evidence,
+    make_issue_evidence,
     make_space,
     make_user,
 )
 
 pytestmark = pytest.mark.django_db
+
+_current_direct_makerspace = None
 
 
 def _request_loan(
@@ -101,6 +104,8 @@ def _self_checkout_loan(
 
 
 def _direct_url(makerspace):
+    global _current_direct_makerspace
+    _current_direct_makerspace = makerspace
     return f"/api/v1/admin/makerspace/{makerspace.id}/direct-loans"
 
 
@@ -111,8 +116,22 @@ def _direct_payload(**overrides):
         "contact_phone": "+15550101010",
     }
     payload.update(overrides)
+    if "evidence_id" not in payload and _current_direct_makerspace_is_live():
+        payload["evidence_id"] = _direct_issue_evidence().id
     return payload
 
+def _current_direct_makerspace_is_live():
+    return _current_direct_makerspace is not None and _current_direct_makerspace.__class__.objects.filter(pk=_current_direct_makerspace.pk).exists()
+
+def _direct_issue_evidence():
+    assert _current_direct_makerspace is not None
+    actor = User.objects.filter(makerspace_memberships__makerspace=_current_direct_makerspace).first()
+    if actor is None:
+        actor = make_user(
+            f"evidence-{_current_direct_makerspace.slug}",
+            access_status=User.AccessStatus.ACTIVE,
+        )
+    return make_issue_evidence(_current_direct_makerspace, actor)
 
 def _direct_return_url(loan):
     return f"/api/v1/admin/direct-loans/{loan.id}/return"
@@ -868,3 +887,7 @@ def test_superadmin_aggregate_reports_work_and_non_superadmin_is_forbidden():
     assert denied_export.status_code == 403
     assert allowed_export.status_code == 200
     assert b"makerspace_id" in allowed_export.content
+
+
+
+

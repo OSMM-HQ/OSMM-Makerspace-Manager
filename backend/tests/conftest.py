@@ -35,3 +35,7 @@ def _reset_axes_state(request):
         reset()
     except NotImplementedError:
         pass
+
+@pytest.fixture(autouse=True)
+def evidence_objects_exist_by_default(monkeypatch):
+    monkeypatch.setattr("apps.evidence.storage.object_exists", lambda key: True)

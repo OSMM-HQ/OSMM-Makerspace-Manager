@@ -18,6 +18,7 @@ export type Makerspace = {
   public_stats_enabled?: boolean;
   logo_url?: string | null;
   cover_image_url?: string | null;
+  enabled_modules?: string[];
 };
 
 export type Product = {
@@ -81,3 +82,4 @@ export function Panel({ title, children }: { title: string; children: React.Reac
     </section>
   );
 }
+

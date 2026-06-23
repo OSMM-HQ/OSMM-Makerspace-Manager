@@ -67,6 +67,8 @@ export function PlatformEmailPanel() {
     },
   });
 
+  const formDisabled = settings.isLoading || save.isPending;
+
   return (
     <Panel title="Platform email">
       <p className="text-sm text-muted">
@@ -77,12 +79,14 @@ export function PlatformEmailPanel() {
         <div className="grid gap-2 sm:grid-cols-2">
           <input
             className="desk-input"
+            disabled={formDisabled}
             placeholder="SMTP host"
             value={form.smtp_host}
             onChange={(event) => setForm({ ...form, smtp_host: event.target.value })}
           />
           <input
             className="desk-input"
+            disabled={formDisabled}
             inputMode="numeric"
             placeholder="SMTP port"
             value={form.smtp_port}
@@ -90,12 +94,14 @@ export function PlatformEmailPanel() {
           />
           <input
             className="desk-input"
+            disabled={formDisabled}
             placeholder="SMTP username"
             value={form.smtp_username}
             onChange={(event) => setForm({ ...form, smtp_username: event.target.value })}
           />
           <input
             className="desk-input"
+            disabled={formDisabled}
             placeholder={settings.data?.smtp_password_set ? "SMTP password set" : "SMTP password"}
             type="password"
             value={form.smtp_password}
@@ -103,6 +109,7 @@ export function PlatformEmailPanel() {
           />
           <input
             className="desk-input sm:col-span-2"
+            disabled={formDisabled}
             placeholder="From email"
             value={form.from_email}
             onChange={(event) => setForm({ ...form, from_email: event.target.value })}
@@ -112,6 +119,7 @@ export function PlatformEmailPanel() {
           <label className="flex items-center gap-2 text-sm text-muted">
             <input
               type="checkbox"
+              disabled={formDisabled}
               checked={form.smtp_use_tls}
               onChange={(event) => setForm({ ...form, smtp_use_tls: event.target.checked })}
             />
@@ -120,6 +128,7 @@ export function PlatformEmailPanel() {
           <label className="flex items-center gap-2 text-sm text-muted">
             <input
               type="checkbox"
+              disabled={formDisabled}
               checked={form.smtp_use_ssl}
               onChange={(event) => setForm({ ...form, smtp_use_ssl: event.target.checked })}
             />
@@ -128,10 +137,10 @@ export function PlatformEmailPanel() {
         </div>
         <button
           className="desk-button-primary mt-3 w-full"
-          disabled={save.isPending}
+          disabled={formDisabled}
           onClick={() => save.mutate()}
         >
-          {save.isPending ? "Saving..." : "Save platform email settings"}
+          {settings.isLoading ? "Loading..." : save.isPending ? "Saving..." : "Save platform email settings"}
         </button>
         {save.error ? <p className="mt-2 text-sm text-danger">{save.error.message}</p> : null}
         {settings.error ? <p className="mt-2 text-sm text-danger">{settings.error.message}</p> : null}
@@ -152,3 +161,5 @@ function platformEmailPayload(form: PlatformEmailForm) {
   if (form.smtp_password) payload.smtp_password = form.smtp_password;
   return payload;
 }
+
+

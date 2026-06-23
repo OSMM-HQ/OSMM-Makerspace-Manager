@@ -1,11 +1,12 @@
 import type { QueryClient } from "@tanstack/react-query";
 
-export function invalidateInventoryViews(queryClient: QueryClient, makerspaceId: number) {
+export function invalidateInventoryViews(queryClient: QueryClient, makerspaceId: number, slug?: string) {
   queryClient.invalidateQueries({ queryKey: ["inventory", makerspaceId] });
   queryClient.invalidateQueries({ queryKey: ["inventory-all", makerspaceId] });
   queryClient.invalidateQueries({ queryKey: ["operations-report"] });
   queryClient.invalidateQueries({ queryKey: ["ledger", makerspaceId] });
   queryClient.invalidateQueries({ queryKey: ["ledger", "all"] });
+  if (slug) invalidatePublicInventory(queryClient, slug);
 }
 
 export function invalidatePublicInventory(queryClient: QueryClient, slug?: string) {

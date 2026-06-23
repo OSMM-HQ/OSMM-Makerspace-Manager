@@ -4,6 +4,8 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.boxes.models import QrCode, QrScanEvent
+from apps.evidence.models import EvidencePhoto
+from apps.hardware_requests.workflow_utils import get_or_create_requester
 from apps.hardware_requests.models import (
     HardwareRequest,
     PublicToolLoan,
@@ -198,6 +200,7 @@ def test_rebind_blocked_when_qr_has_outstanding_loan():
             "requester_name": "QR Borrower",
             "contact_email": "member-1@example.com",
             "contact_phone": "+15550101010",
+                "evidence_id": _public_issue_evidence(makerspace, "member-1@example.com").id,
         },
         format="json",
     )
@@ -231,3 +234,14 @@ def test_rebind_destination_conflict_returns_409():
     assert response.data["detail"] == "Target already has an active QR code."
     qr.refresh_from_db()
     assert qr.target_id == source.id
+
+
+def _public_issue_evidence(makerspace, identifier):
+    return EvidencePhoto.objects.create(
+        makerspace=makerspace,
+        evidence_type=EvidencePhoto.EvidenceType.ISSUE,
+        object_key=f"evidence/{makerspace.id}/issue/{identifier}-{EvidencePhoto.objects.count() + 1}",
+        uploaded_by=get_or_create_requester(identifier),
+    )
+
+

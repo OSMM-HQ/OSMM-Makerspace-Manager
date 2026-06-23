@@ -99,7 +99,7 @@ export function StaffTabContent({
           canEditInventory={canEditInventory}
         />
       ) : null}
-      {activeTab === "stocktake" && canEditInventory ? <StocktakePanel key={makerspaceKey} makerspace={activeMakerspace} /> : null}
+      {activeTab === "stocktake" && canEditInventory ? <StocktakePanel key={makerspaceKey} makerspace={activeMakerspace} isSuperadmin={isSuperadmin} /> : null}
       {activeTab === "containers" && canManageQr ? <ContainersPanel key={makerspaceKey} makerspace={activeMakerspace} /> : null}
       {activeTab === "ledger" ? (
         <Ledger
@@ -159,3 +159,4 @@ export function StaffTabContent({
     </Suspense>
   );
 }
+

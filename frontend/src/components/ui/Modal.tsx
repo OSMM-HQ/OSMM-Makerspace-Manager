@@ -13,6 +13,12 @@ type ModalProps = {
 export function Modal({ open, onClose, title, children, footer }: ModalProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  // Keep onClose in a ref so the focus effect depends only on `open`. Callers pass a
+  // fresh inline onClose every render; if it were in the dep array, every keystroke
+  // (which re-renders the parent) would re-run this effect and steal focus back to the
+  // first field. The ref lets Escape always call the latest onClose without that churn.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
@@ -21,7 +27,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
     if (panel) focusFirstDialogElement(panel);
 
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
+      if (event.key === "Escape") onCloseRef.current();
       if (panel) trapDialogFocus(event, panel);
     };
 
@@ -30,7 +36,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
       document.removeEventListener("keydown", handleKeyDown);
       previousFocus?.focus();
     };
-  }, [onClose, open]);
+  }, [open]);
 
   if (!open) return null;
 

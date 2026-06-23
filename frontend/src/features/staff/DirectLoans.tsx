@@ -7,6 +7,7 @@ import { DirectLoanList, type DirectLoan } from "./DirectLoanList";
 import { invalidateInventoryViews } from "./queryInvalidation";
 import { DirectLoanReturnModal } from "./DirectLoanReturnModal";
 import { Panel, type Makerspace, useStaffGet } from "./StaffPanels";
+import { EvidenceUpload } from "./panels/EvidenceUpload";
 
 type ProductOption = {
   id: number;
@@ -49,6 +50,9 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   const [verifiedIdentifier, setVerifiedIdentifier] = useState("");
   const [verifiedUsername, setVerifiedUsername] = useState("");
   const [returningLoan, setReturningLoan] = useState<DirectLoan | null>(null);
+  const [issueEvidenceId, setIssueEvidenceId] = useState<number | null>(null);
+  const [issueRemark, setIssueRemark] = useState("Issued from direct handout.");
+  const [issueUploadKey, setIssueUploadKey] = useState(0);
   const [returnEvidenceId, setReturnEvidenceId] = useState<number | null>(null);
   const [returnNotes, setReturnNotes] = useState("");
   useEffect(() => {
@@ -66,6 +70,9 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
     setVerifiedIdentifier("");
     setVerifiedUsername("");
     setReturningLoan(null);
+    setIssueEvidenceId(null);
+    setIssueRemark("Issued from direct handout.");
+    setIssueUploadKey((key) => key + 1);
     setReturnEvidenceId(null);
     setReturnNotes("");
   }, [makerspace.id]);
@@ -118,6 +125,8 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
           requester_name: requesterName.trim(),
           contact_email: contactEmail.trim(),
           contact_phone: contactPhone.trim(),
+          evidence_id: issueEvidenceId as number,
+          remark: issueRemark.trim(),
           container_id: containerId ? Number(containerId) : null,
           qr_payloads: Array.from(new Set([
             ...scanned.map((item) => item.payload),
@@ -129,7 +138,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["direct-loans", makerspace.id] });
-      invalidateInventoryViews(queryClient, makerspace.id);
+      invalidateInventoryViews(queryClient, makerspace.id, makerspace.slug);
       setLineRows([{ key: 1, productId: "", quantity: "1" }]);
       setNextLineKey(2);
       setScanned([]);
@@ -137,6 +146,9 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
       setContainerId("");
       setShowContainerScanner(false);
       setContainerScanError("");
+      setIssueEvidenceId(null);
+      setIssueRemark("Issued from direct handout.");
+      setIssueUploadKey((key) => key + 1);
     },
   });
   const pastedQrPayloads = qrPayloads.split("\n").map((value) => value.trim()).filter(Boolean);
@@ -151,6 +163,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
     contactEmail.trim().length > 0 &&
     contactPhone.trim().length > 0 &&
     hasIssueContent &&
+    issueEvidenceId !== null &&
     !issue.isPending;
   const returnLoan = useMutation({
     mutationFn: ({ loanId, evidenceId, notes }: ReturnLoanPayload) =>
@@ -160,7 +173,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["direct-loans", makerspace.id] });
-      invalidateInventoryViews(queryClient, makerspace.id);
+      invalidateInventoryViews(queryClient, makerspace.id, makerspace.slug);
       resetReturnState();
     },
   });
@@ -322,7 +335,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
                   {eligibleProducts.map((product) => (
                     <option key={product.id} value={product.id}>
                       {product.name} ({product.available_quantity} available)
-                      {product.storage_location ? ` — Shelf: ${product.storage_location}` : ""}
+                      {product.storage_location ? ` - Shelf: ${product.storage_location}` : ""}
                     </option>
                   ))}
                 </select>
@@ -355,6 +368,26 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
           value={qrPayloads}
           onChange={(e) => setQrPayloads(e.target.value)}
         />
+        <div className="mt-4 grid gap-3 md:grid-cols-[1fr_1fr]">
+          <EvidenceUpload
+            key={issueUploadKey}
+            makerspaceId={makerspace.id}
+            evidenceType="issue"
+            disabled={issue.isPending}
+            onUploaded={setIssueEvidenceId}
+          />
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
+              Issue remark
+            </span>
+            <textarea
+              className="desk-input min-h-20 w-full"
+              value={issueRemark}
+              onChange={(event) => setIssueRemark(event.target.value)}
+            />
+          </label>
+        </div>
+        {issueEvidenceId === null ? <p className="mt-3 text-sm text-muted">Upload an issue photo before issuing.</p> : null}
         {!hasIssueContent ? <p className="mt-3 text-sm text-muted">Add at least one item, QR payload, or container before issuing.</p> : null}
         <button className="desk-button-primary mt-3" disabled={!canIssue} onClick={() => issue.mutate()}>
           Issue direct handout
@@ -387,3 +420,9 @@ function labelForTarget(target: QrResolveResponse["target"], fallback: string) {
   if (target.type === "asset") return target.product || target.asset_tag || fallback;
   return target.label || target.code || fallback;
 }
+
+
+
+
+
+

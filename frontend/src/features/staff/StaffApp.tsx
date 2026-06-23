@@ -228,14 +228,15 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     singleTenantLocked && activeMakerspace
       ? [activeMakerspace]
       : makerspaces.data ?? [];
+  const moduleAllowedTabs = filterTabsByEnabledModules(allowedTabs, activeMakerspace);
   // Derived (no useEffect): switching makerspace recomputes synchronously, and a
   // tab that is not allowed for the current role falls back to the role-appropriate
   // default landing tab (then the first allowed tab).
-  const activeTab = allowedTabs.includes(tab)
+  const activeTab = moduleAllowedTabs.includes(tab)
     ? tab
-    : allowedTabs.includes(defaultTab)
+    : moduleAllowedTabs.includes(defaultTab)
       ? defaultTab
-      : allowedTabs[0];
+      : moduleAllowedTabs[0];
   const toggleGroup = (label: string) =>
     setCollapsedGroups((current) => {
       const next = new Set(current);
@@ -252,7 +253,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
       <StaffSidebar
         activeMakerspace={activeMakerspace}
         activeTab={activeTab}
-        allowedTabs={allowedTabs}
+        allowedTabs={moduleAllowedTabs}
         collapsedGroups={collapsedGroups}
         guestOnly={guestOnly}
         isSuperadmin={isSuperadmin}
@@ -297,3 +298,28 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     </main>
   );
 }
+
+const TAB_MODULES: Record<string, string[]> = {
+  direct: ["self_checkout"],
+  printing: ["printing"],
+  tobuy: ["procurement"],
+  transfers: ["stock_transfers"],
+  stocktake: ["stocktake"],
+  containers: ["containers"],
+  bulk: ["bulk_import"],
+  qr: ["qr_management"],
+  scanner: ["scanner"],
+  reports: ["reports", "printing"],
+};
+
+function filterTabsByEnabledModules(tabs: readonly string[], makerspace?: Makerspace) {
+  const modules = makerspace?.enabled_modules;
+  if (!modules) return tabs;
+  const enabled = new Set(modules);
+  return tabs.filter((tabName) => {
+    const required = TAB_MODULES[tabName];
+    return !required || required.some((moduleName) => enabled.has(moduleName));
+  });
+}
+
+

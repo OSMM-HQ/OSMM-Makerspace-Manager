@@ -8,6 +8,7 @@ import { Card } from "../../components/ui/Card";
 import QrScanner from "../../components/ui/QrScanner";
 import { useTenant, useTenantPath } from "../../lib/tenant";
 import { formatSlug } from "./PublicInventoryParts";
+import { PublicEvidenceUpload } from "./PublicEvidenceUpload";
 import { checkoutTool, returnTool } from "./selfCheckoutApi";
 import type { PublicToolLoanResult } from "./selfCheckoutApi";
 import { invalidatePublicInventory } from "../staff/queryInvalidation";
@@ -58,6 +59,10 @@ export function PublicSelfCheckoutPage() {
   const [requesterName, setRequesterName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [issueEvidenceId, setIssueEvidenceId] = useState<number | null>(null);
+  const [returnEvidenceId, setReturnEvidenceId] = useState<number | null>(null);
+  const [returnRemark, setReturnRemark] = useState("");
+  const [uploadKey, setUploadKey] = useState(0);
   const [scannerOpen, setScannerOpen] = useState(false);
 
   const bootstrapQuery = useTenantBootstrap(makerspaceSlug, tenant.mode === "central");
@@ -81,16 +86,34 @@ export function PublicSelfCheckoutPage() {
             requester_name: requesterName.trim(),
             contact_email: contactEmail.trim(),
             contact_phone: contactPhone.trim(),
+            evidence_id: issueEvidenceId as number,
           })
-        : returnTool(makerspaceSlug, contactEmail.trim(), payload),
-    onSuccess: () => invalidatePublicInventory(queryClient, makerspaceSlug),
+        : returnTool(makerspaceSlug, {
+            identifier: contactEmail.trim(),
+            payload,
+            evidence_id: returnEvidenceId as number,
+            remark: returnRemark.trim(),
+          }),
+    onSuccess: () => {
+      invalidatePublicInventory(queryClient, makerspaceSlug);
+      if (mode === "checkout") {
+        setIssueEvidenceId(null);
+      } else {
+        setReturnEvidenceId(null);
+        setReturnRemark("");
+      }
+      setUploadKey((key) => key + 1);
+    },
   });
   const canScan =
     mode === "checkout"
       ? requesterName.trim().length > 0 &&
         contactEmail.trim().length > 0 &&
-        contactPhone.trim().length > 0
-      : contactEmail.trim().length > 0;
+        contactPhone.trim().length > 0 &&
+        issueEvidenceId !== null
+      : contactEmail.trim().length > 0 &&
+        returnEvidenceId !== null &&
+        returnRemark.trim().length > 0;
 
   function scanTool(payload: string) {
     if (!canScan) {
@@ -226,6 +249,41 @@ export function PublicSelfCheckoutPage() {
                 />
               </label>
             ) : null}
+
+            <div className="mt-4">
+              {mode === "checkout" ? (
+                <PublicEvidenceUpload
+                  key={`issue-${uploadKey}`}
+                  slug={makerspaceSlug}
+                  identifier={contactEmail}
+                  evidenceType="issue"
+                  disabled={!contactEmail.trim() || loanMutation.isPending}
+                  onUploaded={setIssueEvidenceId}
+                />
+              ) : (
+                <>
+                  <PublicEvidenceUpload
+                    key={`return-${uploadKey}`}
+                    slug={makerspaceSlug}
+                    identifier={contactEmail}
+                    evidenceType="return"
+                    disabled={!contactEmail.trim() || loanMutation.isPending}
+                    onUploaded={setReturnEvidenceId}
+                  />
+                  <label className="mt-3 block">
+                    <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
+                      Return condition notes
+                    </span>
+                    <textarea
+                      className="desk-input min-h-24 w-full"
+                      required
+                      value={returnRemark}
+                      onChange={(event) => setReturnRemark(event.target.value)}
+                    />
+                  </label>
+                </>
+              )}
+            </div>
 
             <button
               className="desk-button-primary mt-4 w-full disabled:cursor-not-allowed disabled:opacity-50"

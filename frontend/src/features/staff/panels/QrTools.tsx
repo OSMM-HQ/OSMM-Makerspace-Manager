@@ -28,8 +28,8 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
   const [batchModalOpen, setBatchModalOpen] = useState(false);
   const [boxModalOpen, setBoxModalOpen] = useState(false);
   const batches = useStaffGet<ListResponse<Batch>>(["qr-batches", makerspace.id], `/admin/makerspace/${makerspace.id}/qr-print-batches`);
-  const products = useStaffGet<ListResponse<Product>>(["inventory", makerspace.id], `/admin/makerspace/${makerspace.id}/inventory`);
-  const containers = useStaffGet<ListResponse<Container>>(["containers", makerspace.id], `/admin/makerspace/${makerspace.id}/containers`);
+  const products = useStaffGet<ListResponse<Product>>(["inventory", makerspace.id], `/admin/makerspace/${makerspace.id}/inventory?page_size=1000`);
+  const containers = useStaffGet<ListResponse<Container>>(["containers", makerspace.id], `/admin/makerspace/${makerspace.id}/containers?page_size=1000`);
   const activeBatchId = Number(batchId) || 0;
   const batch = useStaffGet<BatchDetail>(["qr-batch", activeBatchId], `/admin/qr-print-batches/${activeBatchId}`, Boolean(activeBatchId));
   useEffect(() => {
@@ -261,4 +261,5 @@ function ModalActions(props: { pending: boolean; disabled: boolean; submitLabel:
     </div>
   );
 }
+
 

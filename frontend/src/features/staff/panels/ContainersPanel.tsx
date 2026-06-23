@@ -18,7 +18,7 @@ type History = { scans: { id: number; context: string; actor: number | null; cre
 // React - they were only manageable in the Django admin. This panel wires the operations
 // container endpoints (MANAGE_QR for edit/move, VIEW_INVENTORY for contents/history).
 export function ContainersPanel({ makerspace }: { makerspace: Makerspace }) {
-  const containers = useStaffGet<{ results: Container[] }>(["containers", makerspace.id], `/admin/makerspace/${makerspace.id}/containers`);
+  const containers = useStaffGet<{ results: Container[] }>(["containers", makerspace.id], `/admin/makerspace/${makerspace.id}/containers?page_size=1000`);
   return (
     <Panel title="Containers">
       {containers.isLoading ? <p className="text-sm text-muted">Loading containers...</p> : null}
@@ -131,3 +131,4 @@ function AssetQrRow({ asset }: { asset: { id: number; asset_tag: string; product
     </div>
   );
 }
+

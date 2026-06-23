@@ -7,11 +7,15 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.boxes.models import Box, QrCode
+from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests.models import HardwareRequest, PublicToolLoan
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.hardware_requests.workflow_utils import get_or_create_requester
 
 pytestmark = pytest.mark.django_db
+
+_current_makerspace = None
 
 
 def make_space(slug):
@@ -59,14 +63,18 @@ def checkout_payload(payload):
         "requester_name": "Box Borrower",
         "contact_email": "box-member@example.com",
         "contact_phone": "+15550101010",
+        "evidence_id": _evidence("box-member@example.com", EvidencePhoto.EvidenceType.ISSUE).id,
     }
 
-
 def public_checkout_url(makerspace):
+    global _current_makerspace
+    _current_makerspace = makerspace
     return f"/api/v1/public/{makerspace.slug}/tools/checkout"
 
 
 def direct_url(makerspace):
+    global _current_makerspace
+    _current_makerspace = makerspace
     return f"/api/v1/admin/makerspace/{makerspace.id}/direct-loans"
 
 
@@ -75,10 +83,20 @@ def direct_payload(**overrides):
         "requester_name": "Direct Box Borrower",
         "contact_email": "direct-box@example.com",
         "contact_phone": "+15550101010",
+        "evidence_id": _evidence("direct-box@example.com", EvidencePhoto.EvidenceType.ISSUE).id,
     }
     payload.update(overrides)
     return payload
 
+
+def _evidence(identifier, evidence_type):
+    assert _current_makerspace is not None
+    return EvidencePhoto.objects.create(
+        makerspace=_current_makerspace,
+        evidence_type=evidence_type,
+        object_key=f"evidence/{_current_makerspace.id}/{evidence_type}/{identifier}-{EvidencePhoto.objects.count() + 1}",
+        uploaded_by=get_or_create_requester(identifier),
+    )
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_public_box_checkout_issues_mixed_asset_and_quantity_contents():
@@ -202,3 +220,6 @@ def test_box_loan_container_backfill_migration_sets_matching_box():
 
     loan.refresh_from_db()
     assert loan.container == box
+
+
+

@@ -5,7 +5,7 @@ from apps.accounts.models import User
 from apps.apiclients.models import ApiClient
 from apps.boxes.models import QrCode, QrScanEvent
 from apps.inventory.models import TrackingMode
-from tests.return_helpers import authenticated_client, make_member, make_product, make_space, make_user
+from tests.return_helpers import authenticated_client, make_issue_evidence, make_member, make_product, make_space, make_user
 
 pytestmark = pytest.mark.django_db
 
@@ -102,6 +102,7 @@ def test_individual_mode_manual_direct_handout_requires_asset_scan():
             "requester_name": "Serialized Member",
             "contact_email": "member@example.com",
             "contact_phone": "+15550101010",
+            "evidence_id": make_issue_evidence(makerspace, manager).id,
             "items": [{"product_id": product.id, "quantity": 1}],
         },
         format="json",
@@ -109,3 +110,4 @@ def test_individual_mode_manual_direct_handout_requires_asset_scan():
 
     assert response.status_code == 400
     assert "asset QR" in str(response.data)
+

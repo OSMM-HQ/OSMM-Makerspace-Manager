@@ -130,6 +130,11 @@ export function OperationsReports({
             </div>
           ))}
         </div>
+        {exportReport.error ? (
+          <p className="mt-3 rounded-md border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
+            {exportReport.error instanceof Error ? exportReport.error.message : "Could not export report."}
+          </p>
+        ) : null}
       </Panel>
 
       <div className="grid gap-4 xl:grid-cols-2">
@@ -176,3 +181,5 @@ export function OperationsReports({
     </div>
   );
 }
+
+

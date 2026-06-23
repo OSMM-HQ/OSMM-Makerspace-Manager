@@ -5,6 +5,7 @@ import { ConfirmDialog, DataTable, EmptyState } from "../../../components/ui";
 import type { DataTableColumn } from "../../../components/ui";
 import { staffRequest } from "../../../lib/api";
 import { categoryResults, Panel, type Category, type CategoryListResponse, type Makerspace, useStaffGet } from "./shared";
+import { invalidatePublicInventory } from "../queryInvalidation";
 
 type CategoryForm = {
   name: string;
@@ -42,6 +43,7 @@ export function Categories({ makerspace }: { makerspace: Makerspace }) {
   const invalidateCategories = () => {
     queryClient.invalidateQueries({ queryKey: ["categories", makerspace.id] });
     queryClient.invalidateQueries({ queryKey: ["inventory", makerspace.id] });
+    invalidatePublicInventory(queryClient, makerspace.slug);
   };
   const create = useMutation({
     mutationFn: () =>
@@ -240,3 +242,4 @@ export function Categories({ makerspace }: { makerspace: Makerspace }) {
     </Panel>
   );
 }
+

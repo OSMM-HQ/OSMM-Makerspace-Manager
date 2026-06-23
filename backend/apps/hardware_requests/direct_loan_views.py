@@ -77,6 +77,8 @@ class DirectLoanListCreateView(generics.ListAPIView):
             requester_name=serializer.validated_data["requester_name"],
             contact_email=serializer.validated_data["contact_email"],
             contact_phone=serializer.validated_data["contact_phone"],
+            evidence_id=serializer.validated_data["evidence_id"],
+            remark=serializer.validated_data.get("remark", ""),
             qr_payloads=serializer.validated_data.get("qr_payloads") or [],
             items=serializer.validated_data.get("items") or [],
             container_id=container_id,

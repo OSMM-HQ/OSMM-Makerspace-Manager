@@ -157,3 +157,4 @@ function countAssetOutcomes(assets: Array<{ outcome: AssetReturnOutcome }>) {
 function remainingCount(item: NonNullable<FormModalProps<ReturnRequestValues>["row"]>["items"][number]) {
   return item.issued_quantity - item.returned_quantity - item.damaged_quantity - item.missing_quantity;
 }
+

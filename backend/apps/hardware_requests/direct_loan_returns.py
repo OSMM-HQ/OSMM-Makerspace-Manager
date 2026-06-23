@@ -43,7 +43,7 @@ def return_direct_loan(loan, actor, evidence_id, notes):
             or ReturnEvent.objects.filter(evidence=evidence).exists()
         ):
             raise ReturnValidationError("Evidence already used.")
-        _validate_return_upload(evidence)
+        validate_evidence_upload(evidence, label="Return")
         _return_request_items(locked.request)
         if locked.asset_ids:
             InventoryAsset.objects.select_for_update().filter(
@@ -85,14 +85,14 @@ def return_direct_loan(loan, actor, evidence_id, notes):
         return locked
 
 
-def _validate_return_upload(evidence):
+def validate_evidence_upload(evidence, *, label):
     if settings.STORAGE_PRESIGN_METHOD == "put":
         size = storage.finalize_upload(evidence.object_key, settings.EVIDENCE_MAX_BYTES)
         if size is None:
-            raise EvidenceNotUploaded("Return evidence has not been uploaded.")
+            raise EvidenceNotUploaded(f"{label} evidence has not been uploaded.")
         if not (1 <= size <= settings.EVIDENCE_MAX_BYTES):
             raise ReturnValidationError(
-                "Return evidence is invalid or exceeds the size limit."
+                f"{label} evidence is invalid or exceeds the size limit."
             )
     elif not storage.object_exists(evidence.object_key):
-        raise EvidenceNotUploaded("Return evidence has not been uploaded.")
+        raise EvidenceNotUploaded(f"{label} evidence has not been uploaded.")

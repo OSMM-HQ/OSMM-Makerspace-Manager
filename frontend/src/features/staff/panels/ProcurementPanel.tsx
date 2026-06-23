@@ -69,6 +69,10 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
     onSuccess: invalidate,
   });
 
+  const exportCsv = useMutation({
+    mutationFn: () => downloadStaffFile(`${base}/export`, `to-buy-${makerspace.slug}.csv`),
+  });
+
   const rows = items.data ?? [];
 
   return (
@@ -94,26 +98,27 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
             <option value="printing">Printing</option>
           </select>
         ) : (
-          <button className="desk-button-primary" type="submit" disabled={create.isPending}>
+          <button className="desk-button-primary" type="submit" disabled={create.isPending || !form.name.trim()}>
             Add
           </button>
         )}
         {canChooseKind ? (
-          <button className="desk-button-primary xl:col-span-6" type="submit" disabled={create.isPending}>
+          <button className="desk-button-primary xl:col-span-6" type="submit" disabled={create.isPending || !form.name.trim()}>
             Add item
           </button>
         ) : null}
       </form>
       {create.error ? <p className="mt-2 text-sm text-danger">{create.error instanceof Error ? create.error.message : "Could not add item."}</p> : null}
+      {exportCsv.error ? <p className="mt-2 text-sm text-danger">{exportCsv.error instanceof Error ? exportCsv.error.message : "Could not export CSV."}</p> : null}
 
       <div className="mt-4 flex flex-wrap justify-end gap-2">
-        <button className="desk-button" type="button" onClick={() => downloadStaffFile(`${base}/export`, `to-buy-${makerspace.slug}.csv`)}>
+        <button className="desk-button" type="button" disabled={exportCsv.isPending} onClick={() => exportCsv.mutate()}>
           Export CSV
         </button>
       </div>
 
       {items.isLoading ? (
-        <p className="mt-3 text-sm text-muted">Loading…</p>
+        <p className="mt-3 text-sm text-muted">Loading...</p>
       ) : items.error ? (
         <p className="mt-3 text-sm text-danger">{items.error instanceof Error ? items.error.message : "Unable to load list."}</p>
       ) : !rows.length ? (
@@ -168,3 +173,4 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
     </Panel>
   );
 }
+

@@ -1,4 +1,4 @@
-import type React from "react";
+import { useState, type ReactNode } from "react";
 
 import {
   type FilamentSpool,
@@ -104,16 +104,24 @@ export function PrintRows({
 }: {
   title: string;
   rows: PrintRequest[];
-  action: (row: PrintRequest) => React.ReactNode;
+  action: (row: PrintRequest) => ReactNode;
 }) {
+  const [fileError, setFileError] = useState("");
+
   async function openFile(id: number) {
-    const res = await printingRequest<{ url: string }>(`/printing/manage/files/${id}/url`);
-    window.open(res.url, "_blank", "noopener");
+    setFileError("");
+    try {
+      const res = await printingRequest<{ url: string }>(`/printing/manage/files/${id}/url`);
+      window.open(res.url, "_blank", "noopener");
+    } catch (err) {
+      setFileError(err instanceof Error ? err.message : "Could not open file.");
+    }
   }
 
   return (
     <div className="rounded-md border border-line">
       <h3 className="border-b border-line bg-surface px-3 py-2 text-sm font-semibold text-muted">{title}</h3>
+      {fileError ? <p className="border-b border-line px-3 py-2 text-sm text-danger">{fileError}</p> : null}
       <div className="grid gap-0">
         {rows.length ? rows.map((row) => (
           <article key={row.id} className="border-b border-line p-3 last:border-b-0">
@@ -233,3 +241,5 @@ function PaymentBadge({ request }: { request: PrintRequest }) {
 function humanize(value: string) {
   return value.replace(/_/g, " ").replace(/^\w/, (match) => match.toUpperCase());
 }
+
+

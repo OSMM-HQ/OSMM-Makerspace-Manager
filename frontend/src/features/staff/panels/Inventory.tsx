@@ -66,12 +66,15 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
   const products = useStaffGet<{ results: AdminProduct[] }>(["inventory", makerspace.id], `/admin/makerspace/${makerspace.id}/inventory`);
   const categories = useStaffGet<CategoryListResponse>(["categories", makerspace.id], `/admin/makerspace/${makerspace.id}/categories`);
   const invalidate = () => {
-    invalidateInventoryViews(queryClient, makerspace.id);
+    invalidateInventoryViews(queryClient, makerspace.id, makerspace.slug);
     queryClient.invalidateQueries({ queryKey: ["categories", makerspace.id] });
   };
   const create = useMutation({
-    mutationFn: () => staffRequest(`/admin/makerspace/${makerspace.id}/inventory`, { method: "POST", body: JSON.stringify(payloadFromForm(form, true)) }),
-    onSuccess: () => { setAddOpen(false); setForm(emptyForm); invalidate(); },
+    mutationFn: () => staffRequest<AdminProduct>(`/admin/makerspace/${makerspace.id}/inventory`, { method: "POST", body: JSON.stringify(payloadFromForm(form, true)) }),
+    // Reopen the just-created item in the edit modal so the user can add a photo.
+    // The image uploader needs an existing product id, so it can't live on the add
+    // form - this hands off straight into editing instead of forcing a manual re-open.
+    onSuccess: (created) => { setAddOpen(false); invalidate(); openEdit(created); },
   });
   const update = useMutation({
     mutationFn: () => editing ? staffRequest(`/admin/inventory/${editing.id}`, { method: "PATCH", body: JSON.stringify(payloadFromForm(form, false)) }) : Promise.resolve(),
@@ -211,16 +214,17 @@ function ItemModal({ title, open, onClose, form, setForm, categories, includeQua
   return (
     <Modal open={open} onClose={onClose} title={title} footer={<div className="desk-actions flex flex-wrap justify-end gap-2"><button className="desk-button" type="button" disabled={pending} onClick={onClose}>Cancel</button><button className="desk-button" type="button" disabled={pending || !form.name.trim()} onClick={onSubmit}>Save</button></div>}>
       <div className="grid gap-3 text-sm">
-        <input className="desk-input" placeholder="Name" value={form.name} onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))} />
+        <Field label="Name"><input className="desk-input" placeholder="e.g. Soldering iron" value={form.name} onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))} /></Field>
         <div className="grid gap-2 sm:grid-cols-2">
-          <select className="desk-input" value={form.tracking_mode} onChange={(e) => setForm((c) => ({ ...c, tracking_mode: e.target.value }))}><option value="quantity">Quantity</option><option value="individual">Individual</option></select>
-          <select className="desk-input" value={form.category} onChange={(e) => setForm((c) => ({ ...c, category: e.target.value }))}><option value="">Uncategorized</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select>
+          <Field label="Tracking mode"><select className="desk-input" value={form.tracking_mode} onChange={(e) => setForm((c) => ({ ...c, tracking_mode: e.target.value }))}><option value="quantity">Quantity</option><option value="individual">Individual</option></select></Field>
+          <Field label="Category"><select className="desk-input" value={form.category} onChange={(e) => setForm((c) => ({ ...c, category: e.target.value }))}><option value="">Uncategorized</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></Field>
         </div>
-        <textarea className="desk-input h-20" placeholder="Description" value={form.description} onChange={(e) => setForm((c) => ({ ...c, description: e.target.value }))} />
-        <input className="desk-input" placeholder="Storage location" value={form.storage_location} onChange={(e) => setForm((c) => ({ ...c, storage_location: e.target.value }))} />
-        {includeQuantities ? <div className="grid gap-2 sm:grid-cols-2"><input className="desk-input" type="number" min="0" value={form.total_quantity} onChange={(e) => setForm((c) => ({ ...c, total_quantity: e.target.value }))} /><input className="desk-input" type="number" min="0" value={form.available_quantity} onChange={(e) => setForm((c) => ({ ...c, available_quantity: e.target.value }))} /></div> : null}
-        <div className="grid gap-2 sm:grid-cols-3"><label><input type="checkbox" checked={form.is_public} onChange={(e) => setForm((c) => ({ ...c, is_public: e.target.checked }))} /> Public</label><label><input type="checkbox" checked={form.public_self_checkout_enabled} onChange={(e) => setForm((c) => ({ ...c, public_self_checkout_enabled: e.target.checked }))} /> Self checkout</label><label><input type="checkbox" checked={form.show_public_count} onChange={(e) => setForm((c) => ({ ...c, show_public_count: e.target.checked }))} /> Show count</label></div>
-        <select className="desk-input" value={form.public_availability_mode} onChange={(e) => setForm((c) => ({ ...c, public_availability_mode: e.target.value }))}><option value="status_only">Status only</option><option value="exact_count">Exact count</option><option value="hidden">Hidden</option></select>
+        <Field label="Description"><textarea className="desk-input h-20" placeholder="Optional notes" value={form.description} onChange={(e) => setForm((c) => ({ ...c, description: e.target.value }))} /></Field>
+        <Field label="Storage location"><input className="desk-input" placeholder="e.g. Shelf B3" value={form.storage_location} onChange={(e) => setForm((c) => ({ ...c, storage_location: e.target.value }))} /></Field>
+        {includeQuantities ? <div className="grid gap-2 sm:grid-cols-2"><Field label="Total quantity"><input className="desk-input" type="number" min="0" value={form.total_quantity} onChange={(e) => setForm((c) => ({ ...c, total_quantity: e.target.value }))} /></Field><Field label="Available quantity"><input className="desk-input" type="number" min="0" value={form.available_quantity} onChange={(e) => setForm((c) => ({ ...c, available_quantity: e.target.value }))} /></Field></div> : null}
+        <div className="grid gap-2 sm:grid-cols-3"><label className="inline-flex items-center gap-2"><input type="checkbox" checked={form.is_public} onChange={(e) => setForm((c) => ({ ...c, is_public: e.target.checked }))} /> Public</label><label className="inline-flex items-center gap-2"><input type="checkbox" checked={form.public_self_checkout_enabled} onChange={(e) => setForm((c) => ({ ...c, public_self_checkout_enabled: e.target.checked }))} /> Self checkout</label><label className="inline-flex items-center gap-2"><input type="checkbox" checked={form.show_public_count} onChange={(e) => setForm((c) => ({ ...c, show_public_count: e.target.checked }))} /> Show count</label></div>
+        <Field label="Public visibility"><select className="desk-input" value={form.public_availability_mode} onChange={(e) => setForm((c) => ({ ...c, public_availability_mode: e.target.value }))}><option value="status_only">Status only</option><option value="exact_count">Exact count</option><option value="hidden">Hidden</option></select></Field>
+        {includeQuantities ? <p className="text-xs text-muted">A photo can be added after saving — the item opens for editing so you can upload one.</p> : null}
         {children}
         {error ? <p className="text-sm text-danger">{error}</p> : null}
       </div>
@@ -231,8 +235,9 @@ function ItemModal({ title, open, onClose, form, setForm, categories, includeQua
 function QuantityAdjust({ product, form, setForm, pending, error, onSubmit }: { product: AdminProduct; form: AdjustmentForm; setForm: (updater: (current: AdjustmentForm) => AdjustmentForm) => void; pending: boolean; error?: string; onSubmit: () => void }) {
   return (
     <div className="grid gap-3 border-t border-line pt-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">Adjust quantities</p>
       <div className="grid gap-2 sm:grid-cols-3"><InventoryMetric label="Available" value={product.available_quantity} /><InventoryMetric label="Damaged" value={product.damaged_quantity} /><InventoryMetric label="Lost" value={product.lost_quantity} /></div>
-      <div className="grid gap-2 sm:grid-cols-3"><input className="desk-input" type="number" value={form.delta_available} onChange={(e) => setForm((c) => ({ ...c, delta_available: e.target.value }))} /><input className="desk-input" type="number" value={form.delta_damaged} onChange={(e) => setForm((c) => ({ ...c, delta_damaged: e.target.value }))} /><input className="desk-input" type="number" value={form.delta_lost} onChange={(e) => setForm((c) => ({ ...c, delta_lost: e.target.value }))} /></div>
+      <div className="grid gap-2 sm:grid-cols-3"><Field label="± Available"><input className="desk-input" type="number" value={form.delta_available} onChange={(e) => setForm((c) => ({ ...c, delta_available: e.target.value }))} /></Field><Field label="± Damaged"><input className="desk-input" type="number" value={form.delta_damaged} onChange={(e) => setForm((c) => ({ ...c, delta_damaged: e.target.value }))} /></Field><Field label="± Lost"><input className="desk-input" type="number" value={form.delta_lost} onChange={(e) => setForm((c) => ({ ...c, delta_lost: e.target.value }))} /></Field></div>
       <input className="desk-input" placeholder="Adjustment reason" value={form.reason} onChange={(e) => setForm((c) => ({ ...c, reason: e.target.value }))} />
       <div className="desk-actions flex justify-end"><button className="desk-button" type="button" disabled={pending || !form.reason.trim()} onClick={onSubmit}>Apply adjustment</button></div>
       {error ? <p className="text-sm text-danger">{error}</p> : null}
@@ -292,6 +297,10 @@ function InventoryAvailability({ product, canUseToBuy = false, onAddToBuy }: { p
   return <span className="inline-flex items-center gap-2"><span className="font-medium text-ink">{product.available_quantity}</span>{badge}{canUseToBuy && product.available_quantity <= 0 ? <button className="text-xs font-semibold text-accent-ink hover:text-ink" type="button" onClick={() => onAddToBuy(product)}>Add to To Buy</button> : null}</span>;
 }
 
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return <label className="grid gap-1"><span className="text-xs font-medium text-muted">{label}</span>{children}</label>;
+}
+
 function InventoryMetric({ label, value }: { label: string; value: number }) {
   return <div className="rounded-md border border-line bg-surface p-3"><p className="text-xs font-semibold uppercase text-muted">{label}</p><p className="mt-1 text-xl font-bold text-ink">{value}</p></div>;
 }
@@ -312,3 +321,4 @@ function formatDate(value: string) {
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
 }
+

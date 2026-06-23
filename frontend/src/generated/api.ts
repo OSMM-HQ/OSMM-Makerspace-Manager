@@ -199,6 +199,7 @@ export const openApiPaths = [
   "/api/v1/public/{makerspace_slug}/requests/status",
   "/api/v1/public/{makerspace_slug}/stats/",
   "/api/v1/public/{makerspace_slug}/tools/checkout",
+  "/api/v1/public/{makerspace_slug}/tools/evidence-url",
   "/api/v1/public/{makerspace_slug}/tools/return"
 ] as const;
 
