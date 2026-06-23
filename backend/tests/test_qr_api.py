@@ -111,7 +111,7 @@ def test_guest_admin_cannot_manage_qr():
         format="json",
     )
 
-    assert response.status_code == 403
+    assert response.status_code == 404
 
 
 @pytest.mark.parametrize(
@@ -204,3 +204,96 @@ def test_qr_scan_event_is_immutable_at_model_and_db():
     if connection.vendor == "postgresql":
         with pytest.raises(Exception):
             QrScanEvent.objects.filter(pk=scan.pk).update(context=QrScanEvent.Context.REASSIGNMENT)
+
+def test_qr_actions_hide_foreign_and_non_manageable_qr_ids():
+    own_space = make_space("qr-hide-own")
+    foreign_space = make_space("qr-hide-foreign")
+    own_admin = make_member("qr-hide-own-admin", own_space)
+    guest = make_member(
+        "qr-hide-guest",
+        own_space,
+        membership_role=MakerspaceMembership.Role.GUEST_ADMIN,
+        role=User.Role.GUEST_ADMIN,
+    )
+    own_qr = QrCode.objects.create(
+        makerspace=own_space,
+        target_type=QrCode.TargetType.PRODUCT,
+        target_id=make_product(own_space).id,
+    )
+    foreign_qr = QrCode.objects.create(
+        makerspace=foreign_space,
+        target_type=QrCode.TargetType.PRODUCT,
+        target_id=make_product(foreign_space).id,
+    )
+
+    client = authenticated_client(own_admin)
+    assert client.get(f"/api/v1/admin/qr/{foreign_qr.id}/print").status_code == 404
+    assert client.post(f"/api/v1/admin/qr/{foreign_qr.id}/revoke").status_code == 404
+    assert client.post(f"/api/v1/admin/qr/{foreign_qr.id + 999}/revoke").status_code == 404
+
+    guest_client = authenticated_client(guest)
+    assert guest_client.get(f"/api/v1/admin/qr/{own_qr.id}/print").status_code == 404
+    assert guest_client.post(f"/api/v1/admin/qr/{own_qr.id}/revoke").status_code == 404
+    own_qr.refresh_from_db()
+    assert own_qr.status == QrCode.Status.ACTIVE
+
+
+def test_qr_resolve_and_scan_hide_foreign_payloads():
+    own_space = make_space("qr-payload-own")
+    foreign_space = make_space("qr-payload-foreign")
+    own_admin = make_member("qr-payload-own-admin", own_space)
+    foreign_qr = QrCode.objects.create(
+        makerspace=foreign_space,
+        target_type=QrCode.TargetType.PRODUCT,
+        target_id=make_product(foreign_space).id,
+    )
+    client = authenticated_client(own_admin)
+
+    resolved = client.post("/api/v1/admin/qr/resolve", {"payload": foreign_qr.payload}, format="json")
+    scanned = client.post(
+        "/api/v1/admin/qr/scan",
+        {"payload": foreign_qr.payload, "context": QrScanEvent.Context.INVENTORY_CHECK},
+        format="json",
+    )
+
+    assert resolved.status_code == 404
+    assert scanned.status_code == 404
+    assert QrScanEvent.objects.count() == 0
+
+
+def test_qr_scan_endpoint_rejects_internal_only_context():
+    makerspace = make_space("qr-scan-context")
+    admin = make_member("qr-scan-context-admin", makerspace)
+    qr = QrCode.objects.create(
+        makerspace=makerspace,
+        target_type=QrCode.TargetType.PRODUCT,
+        target_id=make_product(makerspace).id,
+    )
+
+    response = authenticated_client(admin).post(
+        "/api/v1/admin/qr/scan",
+        {"payload": qr.payload, "context": QrScanEvent.Context.REASSIGNMENT},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert QrScanEvent.objects.count() == 0
+
+def test_qr_rebind_hides_foreign_source_qr_id():
+    own_space = make_space("qr-rebind-hide-own")
+    foreign_space = make_space("qr-rebind-hide-foreign")
+    own_admin = make_member("qr-rebind-hide-admin", own_space)
+    target = make_product(own_space)
+    foreign_qr = QrCode.objects.create(
+        makerspace=foreign_space,
+        target_type=QrCode.TargetType.PRODUCT,
+        target_id=make_product(foreign_space).id,
+    )
+
+    response = authenticated_client(own_admin).post(
+        f"/api/v1/admin/qr/{foreign_qr.id}/rebind-target",
+        {"target_type": QrCode.TargetType.PRODUCT, "target_id": target.id},
+        format="json",
+    )
+
+    assert response.status_code == 404

@@ -1,6 +1,5 @@
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -134,10 +133,8 @@ class SetReturnDueView(APIView):
 
 
 def _scoped_action_request(user, pk, action):
-    scoped = rbac.scope_by_makerspace(user, request_queryset())
+    scoped = rbac.scope_by_action(user, action, request_queryset())
     hardware_request = get_object_or_404(scoped, pk=pk)
-    if not rbac.can(user, action, hardware_request.makerspace_id):
-        raise PermissionDenied()
     module = "guest_handover" if action in {
         rbac.Action.ASSIGN_BOX,
         rbac.Action.ISSUE_REQUEST,

@@ -1,7 +1,6 @@
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics
-from rest_framework.exceptions import PermissionDenied
 
 from apps.accounts import rbac
 from apps.hardware_requests.models import HardwareRequest
@@ -97,7 +96,7 @@ class ActiveLoansView(generics.ListAPIView):
 
 
 class RequestHistoryView(generics.ListAPIView):
-    # Terminal requests (returned / rejected / closed_with_issue) had no staff surface —
+    # Terminal requests (returned / rejected / closed_with_issue) had no staff surface -
     # once a loan was returned or a request rejected it vanished from every queue, hiding
     # the accountability-bearing closed_with_issue loans (damaged/missing units). Gated on
     # ISSUE_REQUEST (the handover-queue viewers) to match the accepted/active loan views.
@@ -131,6 +130,5 @@ class RequestHistoryView(generics.ListAPIView):
 
 
 def _require_action(user, action, makerspace_id):
-    get_object_or_404(Makerspace, pk=makerspace_id)
-    if not rbac.can(user, action, makerspace_id):
-        raise PermissionDenied()
+    scoped = rbac.scope_by_action(user, action, Makerspace.objects.all(), field="id")
+    get_object_or_404(scoped, pk=makerspace_id)

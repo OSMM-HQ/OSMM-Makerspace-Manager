@@ -1,6 +1,5 @@
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -28,14 +27,7 @@ class AcceptRequestView(APIView):
         responses={200: AdminRequestSerializer, **ACTION_ERROR_RESPONSES},
     )
     def post(self, request, pk, *args, **kwargs):
-        hardware_request = _scoped_request(request.user, pk)
-        if not rbac.can(
-            request.user,
-            rbac.Action.ACCEPT_REQUEST,
-            hardware_request.makerspace_id,
-        ):
-            raise PermissionDenied()
-
+        hardware_request = _scoped_request(request.user, pk, rbac.Action.ACCEPT_REQUEST)
         updated = workflow.accept_request(request.user, hardware_request)
         return Response(AdminRequestSerializer(updated).data)
 
@@ -50,14 +42,7 @@ class RejectRequestView(APIView):
         responses={200: AdminRequestSerializer, **ACTION_ERROR_RESPONSES},
     )
     def post(self, request, pk, *args, **kwargs):
-        hardware_request = _scoped_request(request.user, pk)
-        if not rbac.can(
-            request.user,
-            rbac.Action.REJECT_REQUEST,
-            hardware_request.makerspace_id,
-        ):
-            raise PermissionDenied()
-
+        hardware_request = _scoped_request(request.user, pk, rbac.Action.REJECT_REQUEST)
         serializer = RejectRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         updated = workflow.reject_request(
@@ -68,8 +53,8 @@ class RejectRequestView(APIView):
         return Response(AdminRequestSerializer(updated).data)
 
 
-def _scoped_request(user, pk):
-    scoped = rbac.scope_by_makerspace(user, request_queryset())
+def _scoped_request(user, pk, action):
+    scoped = rbac.scope_by_action(user, action, request_queryset())
     hardware_request = get_object_or_404(scoped, pk=pk)
     require_module(hardware_request.makerspace, "request_workflow")
     return hardware_request

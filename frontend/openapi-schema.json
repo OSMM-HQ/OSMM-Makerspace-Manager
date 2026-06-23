@@ -11967,12 +11967,10 @@
                 "enum": [
                     "issue",
                     "return",
-                    "inventory_check",
-                    "reassignment",
-                    "scanner_lookup"
+                    "inventory_check"
                 ],
                 "type": "string",
-                "description": "* `issue` - Issue\n* `return` - Return\n* `inventory_check` - Inventory Check\n* `reassignment` - Reassignment\n* `scanner_lookup` - Scanner Lookup"
+                "description": "* `issue` - issue\n* `return` - return\n* `inventory_check` - inventory_check"
             },
             "CreateBoxQr": {
                 "type": "object",

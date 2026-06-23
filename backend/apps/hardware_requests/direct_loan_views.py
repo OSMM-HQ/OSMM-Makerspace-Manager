@@ -63,7 +63,7 @@ class DirectLoanListCreateView(generics.ListAPIView):
         responses={201: DirectLoanSerializer, **ACTION_ERROR_RESPONSES},
     )
     def post(self, request, makerspace_id, *args, **kwargs):
-        makerspace = get_object_or_404(Makerspace, pk=makerspace_id)
+        makerspace = _makerspace_for_action(request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace_id)
         require_module(makerspace, "self_checkout")
         _require(request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace.id)
         serializer = DirectLoanIssueSerializer(data=request.data)
@@ -138,7 +138,7 @@ class StaffCheckinVerifyView(APIView):
         },
     )
     def post(self, request, makerspace_id, *args, **kwargs):
-        makerspace = get_object_or_404(Makerspace, pk=makerspace_id)
+        makerspace = _makerspace_for_action(request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace_id)
         require_module(makerspace, "self_checkout")
         _require(request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace.id)
         serializer = StaffCheckinVerifyRequestSerializer(data=request.data)
@@ -146,6 +146,10 @@ class StaffCheckinVerifyView(APIView):
         result = checkin.verify(makerspace, serializer.validated_data["identifier"])
         return Response({"username": result.username})
 
+
+def _makerspace_for_action(user, action, makerspace_id):
+    scoped = rbac.scope_by_action(user, action, Makerspace.objects.all(), field="id")
+    return get_object_or_404(scoped, pk=makerspace_id)
 
 def _require(user, action, makerspace_id):
     # rbac.can() only checks membership/action, not account standing. Mirror the

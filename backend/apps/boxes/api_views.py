@@ -9,6 +9,7 @@ from apps.accounts import rbac
 from apps.accounts.models import User
 from apps.admin_api.permissions import IsActiveStaff
 from apps.audit import services as audit
+from apps.boxes.access import locked_qr_for_action, makerspace_for_action, qr_for_action
 from apps.boxes.models import Box, QrCode, QrScanEvent
 from apps.boxes.qr_render import render_qr_label_svg
 from apps.boxes.serializers import (
@@ -29,7 +30,6 @@ from apps.boxes.services import revoke_qr_code
 from apps.inventory.models import InventoryAsset, InventoryProduct
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.platform import module_enabled
-from apps.makerspaces.models import Makerspace
 from apps.openapi import QR_BOX_EXAMPLE, QR_SCAN_EXAMPLE
 
 
@@ -57,7 +57,7 @@ class CreateBoxQrView(QrPermissionMixin, APIView):
         serializer = CreateBoxQrSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        makerspace = get_object_or_404(Makerspace, pk=data["makerspace_id"])
+        makerspace = makerspace_for_action(request.user, rbac.Action.MANAGE_QR, data["makerspace_id"])
         self._require_qr(request.user, makerspace.id)
         parent = None
         if data.get("parent_id"):
@@ -91,7 +91,7 @@ class CreateToolQrView(QrPermissionMixin, APIView):
         serializer = CreateToolQrSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        makerspace = get_object_or_404(Makerspace, pk=data["makerspace_id"])
+        makerspace = makerspace_for_action(request.user, rbac.Action.MANAGE_QR, data["makerspace_id"])
         self._require_qr(request.user, makerspace.id)
         if data.get("asset_id"):
             target = get_object_or_404(InventoryAsset, pk=data["asset_id"], makerspace=makerspace)
@@ -129,11 +129,7 @@ class QrScanView(QrPermissionMixin, APIView):
         serializer = QrScanSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        qr = get_object_or_404(
-            QrCode,
-            payload=data["payload"],
-            status=QrCode.Status.ACTIVE,
-        )
+        qr = qr_for_action(request.user, rbac.Action.MANAGE_QR, payload=data["payload"], status=QrCode.Status.ACTIVE)
         self._require_qr(request.user, qr.makerspace_id)
         request_id = data.get("request_id")
         if request_id is not None:
@@ -179,14 +175,8 @@ class QrResolveView(QrPermissionMixin, APIView):
     def post(self, request, *args, **kwargs):
         serializer = QrResolveSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        qr = get_object_or_404(
-            QrCode,
-            payload=serializer.validated_data["payload"],
-            status=QrCode.Status.ACTIVE,
-        )
+        qr = qr_for_action(request.user, rbac.Action.VIEW_INVENTORY, payload=serializer.validated_data["payload"], status=QrCode.Status.ACTIVE)
         require_module(qr.makerspace, "scanner")
-        if not rbac.can(request.user, rbac.Action.VIEW_INVENTORY, qr.makerspace_id):
-            raise PermissionDenied()
         QrScanEvent.objects.create(
             makerspace=qr.makerspace,
             qr_code=qr,
@@ -209,7 +199,7 @@ class QrPrintView(QrPermissionMixin, APIView):
         responses={200: OpenApiResponse(description="SVG QR label.")},
     )
     def get(self, request, pk, *args, **kwargs):
-        qr = get_object_or_404(QrCode, pk=pk)
+        qr = qr_for_action(request.user, rbac.Action.MANAGE_QR, pk=pk)
         self._require_qr(request.user, qr.makerspace_id)
         return Response(
             {
@@ -228,7 +218,7 @@ class QrRevokeView(QrPermissionMixin, APIView):
         responses={200: QrCodeSerializer},
     )
     def post(self, request, pk, *args, **kwargs):
-        qr = get_object_or_404(QrCode, pk=pk)
+        qr = locked_qr_for_action(request.user, rbac.Action.MANAGE_QR, pk=pk)
         self._require_qr(request.user, qr.makerspace_id)
         revoke_qr_code(request.user, qr)
         return Response(QrCodeSerializer(qr).data)

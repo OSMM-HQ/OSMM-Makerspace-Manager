@@ -81,7 +81,11 @@ class CreateToolQrSerializer(serializers.Serializer):
 
 class QrScanSerializer(serializers.Serializer):
     payload = serializers.CharField()
-    context = serializers.ChoiceField(choices=QrScanEvent.Context.choices)
+    context = serializers.ChoiceField(choices=[
+        QrScanEvent.Context.ISSUE,
+        QrScanEvent.Context.RETURN,
+        QrScanEvent.Context.INVENTORY_CHECK,
+    ])
     request_id = serializers.IntegerField(required=False, allow_null=True)
 
 
