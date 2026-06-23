@@ -86,7 +86,7 @@ def test_dispatch_email_failure_logs_error_without_raising(monkeypatch):
     assert log.status == EmailLog.Status.FAILED
     assert log.sent_at is None
     assert log.attempts == 1
-    assert "smtp unavailable" in log.error
+    assert log.error == "email_delivery_failed:RuntimeError"
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
@@ -197,3 +197,4 @@ def test_email_log_api_returns_404_for_cross_tenant_hidden_and_archived():
     assert manager_client.get(log_url(other_space)).status_code == 404
     assert manager_client.get(log_url(archived_space)).status_code == 404
     assert authenticated_client(superadmin).get(log_url(hidden_space)).status_code == 404
+

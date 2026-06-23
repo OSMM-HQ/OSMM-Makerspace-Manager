@@ -7,6 +7,7 @@ from rest_framework import serializers
 from apps.accounts.models import User
 from apps.inventory import public_image_storage
 from apps.integrations.email import platform_email_configured
+from apps.integrations.smtp_validation import validate_smtp_settings
 from apps.makerspaces.models import Makerspace, normalize_frontend_domain
 from apps.makerspaces.validators import validate_google_maps_url
 
@@ -163,6 +164,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
                     )
                 }
             )
+        validate_smtp_settings(attrs, self.instance)
         return attrs
 
     def update(self, instance, validated_data):
@@ -247,3 +249,4 @@ class ReturnPolicySerializer(serializers.ModelSerializer):
         if value < 1:
             raise serializers.ValidationError("Default loan days must be at least 1.")
         return value
+

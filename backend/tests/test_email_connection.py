@@ -9,6 +9,14 @@ from apps.makerspaces.models import Makerspace
 pytestmark = pytest.mark.django_db
 
 
+@pytest.fixture(autouse=True)
+def public_smtp_dns(monkeypatch):
+    monkeypatch.setattr(
+        "apps.integrations.smtp_validation.socket.getaddrinfo",
+        lambda host, port, type=None: [(None, None, None, None, ("8.8.8.8", port))],
+    )
+
+
 def _connection_kwargs(space):
     # Assert the flags email.py passes to get_connection (independent of the test
     # mail backend, which doesn't expose use_ssl/use_tls).
@@ -31,6 +39,7 @@ def test_implicit_ssl_disables_starttls():
     kwargs = _connection_kwargs(space)
     assert kwargs["use_ssl"] is True
     assert kwargs["use_tls"] is False
+    assert kwargs["timeout"] == 10
 
 
 def test_starttls_used_when_ssl_off():
@@ -45,6 +54,7 @@ def test_starttls_used_when_ssl_off():
     kwargs = _connection_kwargs(space)
     assert kwargs["use_ssl"] is False
     assert kwargs["use_tls"] is True
+    assert kwargs["timeout"] == 10
 
 
 def test_no_smtp_host_uses_default_connection_when_platform_email_unconfigured():
@@ -73,3 +83,5 @@ def test_no_smtp_host_falls_back_to_platform_email():
     assert get_connection.call_args.kwargs["host"] == "platform-smtp.example.com"
     assert get_connection.call_args.kwargs["username"] == "platform-user"
     assert get_connection.call_args.kwargs["password"] == "platform-secret"
+    assert get_connection.call_args.kwargs["timeout"] == 10
+

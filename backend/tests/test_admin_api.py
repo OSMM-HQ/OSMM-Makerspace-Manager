@@ -640,10 +640,14 @@ def test_member_cannot_request_api_key_for_other_makerspace():
     assert ApiKeyRequest.objects.count() == 0
 
 
-def test_admin_can_manage_api_integration_settings_from_api_clients_area():
+def test_admin_can_manage_api_integration_settings_from_api_clients_area(monkeypatch):
     makerspace = make_space("client-settings")
     admin = make_member("client-settings-admin", makerspace)
     client = authenticated_client(admin)
+    monkeypatch.setattr(
+        "apps.integrations.smtp_validation.socket.getaddrinfo",
+        lambda host, port, type=None: [(None, None, None, None, ("8.8.8.8", port))],
+    )
 
     response = client.patch(
         f"/api/v1/admin/makerspace/{makerspace.id}/api-settings",
@@ -825,3 +829,5 @@ def test_space_manager_cannot_create_or_list_cross_tenant_inventory_managers():
     listed_usernames = [item["user"]["username"] for item in listed.data["results"]]
     assert own_inventory_manager.username in listed_usernames
     assert other_inventory_manager.username not in listed_usernames
+
+

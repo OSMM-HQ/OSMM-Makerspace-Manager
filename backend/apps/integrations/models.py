@@ -80,6 +80,7 @@ class PlatformEmailSettings(models.Model):
 class EmailLog(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
+        SENDING = "sending", "Sending"
         SENT = "sent", "Sent"
         FAILED = "failed", "Failed"
 
@@ -152,3 +153,4 @@ class EmailNotificationMute(models.Model):
 
     def __str__(self):
         return f"{self.makerspace}:{self.target}:{self.stream}/{self.event} muted"
+

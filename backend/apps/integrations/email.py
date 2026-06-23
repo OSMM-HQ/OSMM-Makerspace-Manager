@@ -3,24 +3,29 @@ import logging
 from django.conf import settings
 from django.core.mail import get_connection
 
+from apps.integrations.smtp_validation import smtp_timeout_seconds, validate_smtp_endpoint
+
 logger = logging.getLogger(__name__)
 
 
 def makerspace_mail_connection(makerspace):
-    if not makerspace.smtp_host:
+    smtp_host = (makerspace.smtp_host or "").strip()
+    if not smtp_host:
         return platform_mail_connection()
     # use_ssl (implicit SSL, port 465) and use_tls (STARTTLS, port 587) are
-    # mutually exclusive in Django's SMTP backend — prefer SSL when both are set.
+    # mutually exclusive in Django's SMTP backend; prefer SSL when both are set.
+    validate_smtp_endpoint(smtp_host, makerspace.smtp_port)
     use_ssl = makerspace.smtp_use_ssl
     use_tls = makerspace.smtp_use_tls and not use_ssl
     return (
         get_connection(
-            host=makerspace.smtp_host,
+            host=smtp_host,
             port=makerspace.smtp_port,
             username=makerspace.smtp_username or None,
             password=makerspace.get_smtp_password() or None,
             use_tls=use_tls,
             use_ssl=use_ssl,
+            timeout=smtp_timeout_seconds(),
         ),
         makerspace.smtp_from_email or settings.DEFAULT_FROM_EMAIL,
     )
@@ -40,6 +45,7 @@ def platform_mail_connection():
     smtp_host = (cfg.smtp_host or "").strip()
     if not smtp_host:
         return None, settings.DEFAULT_FROM_EMAIL
+    validate_smtp_endpoint(smtp_host, cfg.smtp_port)
     use_ssl = cfg.smtp_use_ssl
     use_tls = cfg.smtp_use_tls and not use_ssl
     return (
@@ -50,6 +56,7 @@ def platform_mail_connection():
             password=cfg.get_smtp_password() or None,
             use_tls=use_tls,
             use_ssl=use_ssl,
+            timeout=smtp_timeout_seconds(),
         ),
         cfg.from_email or settings.DEFAULT_FROM_EMAIL,
     )
@@ -70,7 +77,7 @@ def email_enabled() -> bool:
     # Can we actually DELIVER mail? platform_mail_connection()/makerspace_mail_connection()
     # build the connection via Django get_connection(), which uses settings.EMAIL_BACKEND as
     # the backend CLASS. So a configured SMTP *host* (platform DB row or env EMAIL_HOST) only
-    # delivers when EMAIL_BACKEND is the SMTP backend — with the console/locmem backend the
+    # delivers when EMAIL_BACKEND is the SMTP backend - with the console/locmem backend the
     # host args are ignored and mail is merely logged. Reporting enabled in that case would
     # advertise a Forgot-Password path that silently never sends (Codex Stage-4 P2).
     if _is_smtp_backend():
@@ -140,3 +147,5 @@ def send_makerspace_email(
         )
         sent += 1 if log.status == log.Status.SENT else 0
     return sent
+
+
