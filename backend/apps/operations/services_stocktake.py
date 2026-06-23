@@ -1,4 +1,4 @@
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
@@ -34,26 +34,33 @@ def add_stocktake_line(actor, stocktake, data):
         asset = None
         expected = 0
         condition = data.get("condition") or StocktakeLine.Condition.AVAILABLE
+        container = _container(data.get("container_id"), locked.makerspace_id)
+        _validate_line_container(locked, container)
         if data.get("asset_id"):
             asset = InventoryAsset.objects.get(pk=data["asset_id"], makerspace=locked.makerspace)
             _validate_asset_count(asset, data["counted_quantity"])
+            _validate_item_container(locked, container, asset=asset)
             expected = 1 if _asset_bucket(asset.status) == condition else 0
         else:
             product = InventoryProduct.objects.get(pk=data["product_id"], makerspace=locked.makerspace)
+            _validate_item_container(locked, container, product=product)
             expected = _product_expected(product, condition)
-        container = _container(data.get("container_id"), locked.makerspace_id)
+        _reject_duplicate_line(locked, product, asset, condition, container)
         counted = data["counted_quantity"]
-        line = StocktakeLine.objects.create(
-            stocktake=locked,
-            product=product,
-            asset=asset,
-            container=container,
-            expected_quantity=expected,
-            counted_quantity=counted,
-            variance_quantity=counted - expected,
-            condition=condition,
-            notes=data.get("notes", ""),
-        )
+        try:
+            line = StocktakeLine.objects.create(
+                stocktake=locked,
+                product=product,
+                asset=asset,
+                container=container,
+                expected_quantity=expected,
+                counted_quantity=counted,
+                variance_quantity=counted - expected,
+                condition=condition,
+                notes=data.get("notes", ""),
+            )
+        except IntegrityError as exc:
+            raise ValidationError("Duplicate stocktake line.") from exc
         audit.record(actor, "stocktake.line_counted", makerspace=locked.makerspace, target=locked, meta={"line_id": line.id})
         return line
 
@@ -90,6 +97,7 @@ def apply_stocktake_adjustments(actor, stocktake):
             raise ValidationError("Only approved stocktakes can be applied.")
         for line in locked.lines.select_related("product", "asset", "container"):
             _validate_line_scope(locked, line)
+            _validate_line_fresh(line)
             entries = _ledger_entries_for_line(actor, locked, line)
             _apply_ledger_entries(entries)
             _record_adjustment(actor, locked, line, entries)
@@ -138,6 +146,52 @@ def _validate_line_scope(stocktake, line):
         _validate_asset_count(line.asset, line.counted_quantity)
     if line.container_id and line.container.makerspace_id != stocktake.makerspace_id:
         raise ValidationError("Stocktake line container belongs to another makerspace.")
+    _validate_line_container(stocktake, line.container)
+    _validate_item_container(stocktake, line.container, product=line.product, asset=line.asset)
+
+
+def _validate_line_container(stocktake, container):
+    if not stocktake.container_id:
+        return
+    # Container-scoped stocktakes are exact: child boxes are out of scope unless
+    # they are counted by their own stocktake scoped to that child box.
+    if container is None or container.pk != stocktake.container_id:
+        raise ValidationError({"container_id": "Count line must match the stocktake container."})
+
+
+def _validate_item_container(stocktake, container, *, product=None, asset=None):
+    scope = stocktake.container or container
+    if scope is None:
+        return
+    if product is not None and product.box_id != scope.id:
+        raise ValidationError({"product_id": "Product is outside the stocktake container."})
+    if asset is not None and asset.box_id != scope.id:
+        raise ValidationError({"asset_id": "Asset is outside the stocktake container."})
+
+
+def _reject_duplicate_line(stocktake, product, asset, condition, container):
+    lines = StocktakeLine.objects.filter(stocktake=stocktake)
+    if asset is not None:
+        if lines.filter(asset=asset).exists():
+            raise ValidationError("Asset has already been counted in this stocktake.")
+        return
+    duplicates = lines.filter(product=product, condition=condition)
+    duplicates = duplicates.filter(container=container) if container else duplicates.filter(container__isnull=True)
+    if duplicates.exists():
+        raise ValidationError("Product bucket has already been counted in this stocktake.")
+
+
+def _validate_line_fresh(line):
+    if line.condition == StocktakeLine.Condition.UNKNOWN:
+        return
+    if line.asset_id:
+        asset = InventoryAsset.objects.select_for_update().get(pk=line.asset_id)
+        current = 1 if _asset_bucket(asset.status) == line.condition else 0
+    else:
+        product = InventoryProduct.objects.select_for_update().get(pk=line.product_id)
+        current = _product_expected(product, line.condition)
+    if current != line.expected_quantity:
+        raise ValidationError("Stocktake line is stale; recount before applying.")
 
 
 def _validate_asset_count(asset, counted_quantity):

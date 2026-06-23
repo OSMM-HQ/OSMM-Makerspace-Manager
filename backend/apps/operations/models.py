@@ -95,6 +95,21 @@ class StocktakeLine(models.Model):
         if bool(self.product_id) == bool(self.asset_id):
             raise ValidationError("Provide exactly one of product or asset.")
 
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["stocktake", "product", "condition", "container"],
+                condition=models.Q(product__isnull=False),
+                nulls_distinct=False,
+                name="uniq_stocktake_product_bucket_container",
+            ),
+            models.UniqueConstraint(
+                fields=["stocktake", "asset"],
+                condition=models.Q(asset__isnull=False),
+                name="uniq_stocktake_asset_line",
+            ),
+        ]
+
 
 class InventoryAdjustment(models.Model):
     makerspace = models.ForeignKey(Makerspace, on_delete=models.CASCADE, related_name="inventory_adjustments")
