@@ -5,7 +5,6 @@ from apps.integrations.models import EmailLog
 from apps.integrations.services import EmailRetryError, retry_email_log
 from config.admin_access import SuperuserOnlyModelAdmin
 
-
 @admin.register(EmailLog)
 class EmailLogAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     actions = ["retry_selected"]
@@ -16,8 +15,6 @@ class EmailLogAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         "makerspace",
         "to_email",
         "subject",
-        "text_body",
-        "html_body",
         "stream",
         "event",
         "audience",

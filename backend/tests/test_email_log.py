@@ -1,4 +1,5 @@
 import pytest
+from django.contrib import admin
 from django.contrib.auth import get_user_model
 from django.core.mail import EmailMultiAlternatives
 from django.test import override_settings
@@ -13,10 +14,8 @@ from apps.makerspaces.models import Makerspace, MakerspaceMembership
 
 pytestmark = pytest.mark.django_db
 
-
 def make_space(slug, **kwargs):
     return Makerspace.objects.create(name=slug, slug=slug, **kwargs)
-
 
 def make_user(username, **kwargs):
     return get_user_model().objects.create_user(
@@ -26,22 +25,18 @@ def make_user(username, **kwargs):
         **kwargs,
     )
 
-
 def make_member(username, makerspace, role=MakerspaceMembership.Role.SPACE_MANAGER):
     user = make_user(username, role=User.Role.SPACE_MANAGER)
     MakerspaceMembership.objects.create(user=user, makerspace=makerspace, role=role)
     return user
-
 
 def authenticated_client(user):
     client = APIClient()
     client.force_authenticate(user=user)
     return client
 
-
 def log_url(makerspace):
     return f"/api/v1/admin/makerspace/{makerspace.id}/email-logs"
-
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 def test_dispatch_email_creates_sent_log_row():
@@ -65,7 +60,6 @@ def test_dispatch_email_creates_sent_log_row():
     assert log.attempts == 1
     assert log.stream == "hardware"
 
-
 def test_dispatch_email_failure_logs_error_without_raising(monkeypatch):
     makerspace = make_space("email-log-failure")
 
@@ -88,7 +82,6 @@ def test_dispatch_email_failure_logs_error_without_raising(monkeypatch):
     assert log.attempts == 1
     assert log.error == "email_delivery_failed:RuntimeError"
 
-
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 def test_send_password_reset_email_logs_platform_account_stream(mailoutbox):
     reset_url = "https://example.test/reset?uid=abc&token=secret-live-token"
@@ -108,7 +101,6 @@ def test_send_password_reset_email_logs_platform_account_stream(mailoutbox):
     assert log.html_body == ""
     assert "secret-live-token" not in log.text_body
     assert reset_url in mailoutbox[0].body
-
 
 def test_send_makerspace_email_returns_true_sent_count(monkeypatch):
     makerspace = make_space("email-log-sent-count")
@@ -134,7 +126,6 @@ def test_send_makerspace_email_returns_true_sent_count(monkeypatch):
     assert sent == 1
     assert EmailLog.objects.filter(status=EmailLog.Status.SENT).count() == 1
     assert EmailLog.objects.filter(status=EmailLog.Status.FAILED).count() == 1
-
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 def test_manager_lists_own_email_logs_and_response_excludes_bodies():
@@ -162,7 +153,6 @@ def test_manager_lists_own_email_logs_and_response_excludes_bodies():
     assert "text_body" not in row
     assert "html_body" not in row
 
-
 def test_email_log_api_rejects_invalid_status_filter():
     makerspace = make_space("email-log-api-invalid-status")
     manager = make_member("email-log-api-invalid-manager", makerspace)
@@ -170,7 +160,6 @@ def test_email_log_api_rejects_invalid_status_filter():
     response = authenticated_client(manager).get(f"{log_url(makerspace)}?status=lost")
 
     assert response.status_code == 400
-
 
 def test_email_log_api_returns_404_for_cross_tenant_hidden_and_archived():
     own_space = make_space("email-log-api-own-404")
@@ -198,3 +187,20 @@ def test_email_log_api_returns_404_for_cross_tenant_hidden_and_archived():
     assert manager_client.get(log_url(archived_space)).status_code == 404
     assert authenticated_client(superadmin).get(log_url(hidden_space)).status_code == 404
 
+
+def test_dispatch_email_rejects_redacted_async_delivery():
+    with pytest.raises(ValueError, match="persist_body=False requires sync=True"):
+        dispatch_email(
+            to_email="person@example.com",
+            subject="Reset",
+            text_body="secret token",
+            persist_body=False,
+        )
+
+def test_control_email_log_admin_never_exposes_bodies():
+    model_admin = admin.site._registry[EmailLog]
+
+    assert "text_body" not in model_admin.fields
+    assert "html_body" not in model_admin.fields
+    assert "text_body" not in model_admin.readonly_fields
+    assert "html_body" not in model_admin.readonly_fields

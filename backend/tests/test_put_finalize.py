@@ -1,8 +1,8 @@
 import pytest
 
 from apps.evidence import storage as evidence_storage
+from apps.inventory import public_image_storage
 from apps.printing import storage as printing_storage
-
 
 @pytest.mark.parametrize(
     ("module", "finalize_name", "size_name"),
@@ -20,10 +20,13 @@ def test_put_finalize_promotes_valid_staging_upload(
     copied = []
     deleted = []
 
-    # Staging holds 123 bytes; after the copy the final key also reports 123
-    # (no race) — finalize re-HEADs the final object as the authoritative check.
-    monkeypatch.setattr(module, "object_exists", lambda key: key == staging_key)
-    monkeypatch.setattr(module, size_name, lambda key: 123)
+    def fake_size(key):
+        if key == final_key and not copied:
+            return None
+        return 123
+
+    _block_object_exists(monkeypatch, module)
+    monkeypatch.setattr(module, size_name, fake_size)
     monkeypatch.setattr(module, "copy_object", lambda source, dest: copied.append((source, dest)))
     monkeypatch.setattr(module, "delete_object", lambda key: deleted.append(key))
 
@@ -32,7 +35,6 @@ def test_put_finalize_promotes_valid_staging_upload(
     assert size == 123
     assert copied == [(staging_key, final_key)]
     assert deleted == [staging_key]
-
 
 @pytest.mark.parametrize(
     ("module", "finalize_name", "size_name"),
@@ -44,29 +46,28 @@ def test_put_finalize_promotes_valid_staging_upload(
 def test_put_finalize_rejects_and_deletes_final_when_staging_raced_oversized(
     monkeypatch, settings, module, finalize_name, size_name
 ):
-    # Codex Stage-4 P2 TOCTOU: staging passes the pre-copy size check (100), but a
-    # racing oversized PUT lands before the copy, so the COPIED final object is 999.
-    # finalize must re-validate the final, reject it, and delete the oversized object.
     settings.STORAGE_PRESIGN_METHOD = "put"
     final_key = "evidence/1/issue/object"
     staging_key = f"staging/{final_key}"
     copied = []
     deleted = []
 
-    monkeypatch.setattr(module, "object_exists", lambda key: False)
-    monkeypatch.setattr(module, size_name, lambda key: 100 if key == staging_key else 999)
+    def fake_size(key):
+        if key == final_key and not copied:
+            return None
+        return 100 if key == staging_key else 999
+
+    _block_object_exists(monkeypatch, module)
+    monkeypatch.setattr(module, size_name, fake_size)
     monkeypatch.setattr(module, "copy_object", lambda source, dest: copied.append((source, dest)))
     monkeypatch.setattr(module, "delete_object", lambda key: deleted.append(key))
 
     size = getattr(module, finalize_name)(final_key, max_bytes=500)
 
-    # Returns the oversized final size so the caller's range check rejects it,
-    # the staging key is cleaned up, and the oversized final is deleted (not kept).
     assert size == 999
     assert copied == [(staging_key, final_key)]
     assert staging_key in deleted
     assert final_key in deleted
-
 
 @pytest.mark.parametrize(
     ("module", "finalize_name", "size_name"),
@@ -84,7 +85,7 @@ def test_put_finalize_is_write_once_when_final_exists(
     copied = []
     deleted = []
 
-    monkeypatch.setattr(module, "object_exists", lambda key: key == final_key)
+    _block_object_exists(monkeypatch, module)
     monkeypatch.setattr(module, size_name, lambda key: 456 if key == final_key else None)
     monkeypatch.setattr(module, "copy_object", lambda source, dest: copied.append((source, dest)))
     monkeypatch.setattr(module, "delete_object", lambda key: deleted.append(key))
@@ -94,7 +95,6 @@ def test_put_finalize_is_write_once_when_final_exists(
     assert size == 456
     assert copied == []
     assert deleted == [staging_key]
-
 
 @pytest.mark.parametrize(
     ("module", "finalize_name", "size_name"),
@@ -111,7 +111,7 @@ def test_put_finalize_returns_oversized_staging_size_without_promoting(
     staging_key = f"staging/{final_key}"
     copied = []
 
-    monkeypatch.setattr(module, "object_exists", lambda key: False)
+    _block_object_exists(monkeypatch, module)
     monkeypatch.setattr(module, size_name, lambda key: 501 if key == staging_key else None)
     monkeypatch.setattr(module, "copy_object", lambda source, dest: copied.append((source, dest)))
     monkeypatch.setattr(module, "delete_object", lambda key: None)
@@ -120,7 +120,6 @@ def test_put_finalize_returns_oversized_staging_size_without_promoting(
 
     assert size == 501
     assert copied == []
-
 
 @pytest.mark.parametrize(
     ("module", "finalize_name", "size_name"),
@@ -136,7 +135,7 @@ def test_put_finalize_returns_none_for_missing_upload(
     copied = []
     deleted = []
 
-    monkeypatch.setattr(module, "object_exists", lambda key: False)
+    _block_object_exists(monkeypatch, module)
     monkeypatch.setattr(module, size_name, lambda key: None)
     monkeypatch.setattr(module, "copy_object", lambda source, dest: copied.append((source, dest)))
     monkeypatch.setattr(module, "delete_object", lambda key: deleted.append(key))
@@ -146,7 +145,6 @@ def test_put_finalize_returns_none_for_missing_upload(
     assert size is None
     assert copied == []
     assert deleted == []
-
 
 @pytest.mark.parametrize(
     ("module", "finalize_name", "size_name"),
@@ -164,7 +162,7 @@ def test_non_put_finalize_reads_final_object_only(
     copied = []
     deleted = []
 
-    monkeypatch.setattr(module, "object_exists", lambda key: pytest.fail("unexpected object_exists call"))
+    _block_object_exists(monkeypatch, module)
     monkeypatch.setattr(module, size_name, lambda key: sized.append(key) or 321)
     monkeypatch.setattr(module, "copy_object", lambda source, dest: copied.append((source, dest)))
     monkeypatch.setattr(module, "delete_object", lambda key: deleted.append(key))
@@ -176,6 +174,30 @@ def test_non_put_finalize_reads_final_object_only(
     assert copied == []
     assert deleted == []
 
+def test_public_image_finalize_uses_size_not_exists(monkeypatch, settings):
+    settings.STORAGE_PRESIGN_METHOD = "put"
+    settings.PUBLIC_IMAGE_MAX_BYTES = 500
+    final_key = "items/1/object.jpg"
+    staging_key = f"staging/{final_key}"
+    copied = []
+    sized = []
+
+    def fake_size(key):
+        sized.append(key)
+        if key == final_key and not copied:
+            return None
+        return 123
+
+    _block_object_exists(monkeypatch, public_image_storage)
+    monkeypatch.setattr(public_image_storage, "object_size", fake_size)
+    monkeypatch.setattr(public_image_storage, "copy_object", lambda source, dest: copied.append((source, dest)))
+    monkeypatch.setattr(public_image_storage, "delete_object", lambda key: None)
+
+    size = public_image_storage.finalize_upload(final_key)
+
+    assert size == 123
+    assert sized == [final_key, staging_key, final_key]
+    assert copied == [(staging_key, final_key)]
 
 def test_evidence_presigned_upload_put_mode_signs_staging_key(monkeypatch, settings):
     settings.STORAGE_PRESIGN_METHOD = "put"
@@ -203,3 +225,11 @@ def test_evidence_presigned_upload_put_mode_signs_staging_key(monkeypatch, setti
         "method": "PUT",
         "headers": {"Content-Type": "image/jpeg"},
     }
+
+def _block_object_exists(monkeypatch, module):
+    if hasattr(module, "object_exists"):
+        monkeypatch.setattr(
+            module,
+            "object_exists",
+            lambda key: pytest.fail("unexpected object_exists call"),
+        )

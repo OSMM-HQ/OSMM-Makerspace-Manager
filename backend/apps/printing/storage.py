@@ -11,7 +11,6 @@ from apps.evidence.storage import (
     StorageUnavailable,
     copy_object,
     delete_object,
-    object_exists,
     staging_key,
 )
 
@@ -180,9 +179,10 @@ def print_finalize_upload(object_key, max_bytes):
     if settings.STORAGE_PRESIGN_METHOD != "put":
         return print_object_size(object_key)
 
-    if object_exists(object_key):
+    final_size = print_object_size(object_key)
+    if final_size is not None:
         delete_object(staging_key(object_key))
-        return print_object_size(object_key)
+        return final_size
 
     upload_staging_key = staging_key(object_key)
     size = print_object_size(upload_staging_key)

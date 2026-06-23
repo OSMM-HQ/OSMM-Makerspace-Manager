@@ -72,9 +72,10 @@ def finalize_upload(object_key, max_bytes):
     if settings.STORAGE_PRESIGN_METHOD != "put":
         return object_size(object_key)
 
-    if object_exists(object_key):
+    final_size = object_size(object_key)
+    if final_size is not None:
         delete_object(staging_key(object_key))
-        return object_size(object_key)
+        return final_size
 
     upload_staging_key = staging_key(object_key)
     size = object_size(upload_staging_key)

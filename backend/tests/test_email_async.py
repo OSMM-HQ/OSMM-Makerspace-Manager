@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.mail import EmailMultiAlternatives
@@ -9,6 +11,7 @@ from rest_framework.test import APIClient
 from apps.accounts.models import User
 from apps.hardware_requests import notifications as hardware_notifications
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
+from apps.integrations import tasks as email_tasks
 from apps.integrations.dispatch import dispatch_email
 from apps.integrations.models import EmailLog
 from apps.integrations.tasks import deliver_email_task
@@ -17,10 +20,8 @@ from apps.makerspaces.models import Makerspace, MakerspaceMembership
 
 pytestmark = pytest.mark.django_db
 
-
 def make_space(slug, **kwargs):
     return Makerspace.objects.create(name=slug, slug=slug, **kwargs)
-
 
 def make_user(username, **kwargs):
     return get_user_model().objects.create_user(
@@ -30,12 +31,10 @@ def make_user(username, **kwargs):
         **kwargs,
     )
 
-
 def make_member(username, makerspace, role=MakerspaceMembership.Role.SPACE_MANAGER):
     user = make_user(username, role=User.Role.SPACE_MANAGER)
     MakerspaceMembership.objects.create(user=user, makerspace=makerspace, role=role)
     return user
-
 
 def make_product(makerspace):
     return InventoryProduct.objects.create(
@@ -46,7 +45,6 @@ def make_product(makerspace):
         issued_quantity=1,
         is_public=True,
     )
-
 
 def make_issued_request(makerspace, requester, product):
     hardware_request = HardwareRequest.objects.create(
@@ -66,16 +64,13 @@ def make_issued_request(makerspace, requester, product):
     )
     return hardware_request
 
-
 def authenticated_client(user):
     client = APIClient()
     client.force_authenticate(user=user)
     return client
 
-
 def retry_url(log):
     return f"/api/v1/admin/makerspace/{log.makerspace_id}/email-logs/{log.id}/retry"
-
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 def test_async_dispatch_delivers_after_commit(django_capture_on_commit_callbacks):
@@ -96,7 +91,6 @@ def test_async_dispatch_delivers_after_commit(django_capture_on_commit_callbacks
     assert log.status == EmailLog.Status.SENT
     assert log.sent_at is not None
     assert log.attempts == 1
-
 
 def test_async_dispatch_records_forced_send_failure(
     monkeypatch,
@@ -122,7 +116,6 @@ def test_async_dispatch_records_forced_send_failure(
     assert log.sent_at is None
     assert log.attempts >= 1
 
-
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 def test_return_reminder_path_stays_synchronous():
     makerspace = make_space("email-async-return-reminder")
@@ -142,7 +135,6 @@ def test_return_reminder_path_stays_synchronous():
     # The load-bearing assertion is that NOTHING is left pending (i.e. nothing went async).
     assert EmailLog.objects.filter(status=EmailLog.Status.SENT).count() >= 2
     assert EmailLog.objects.filter(status=EmailLog.Status.PENDING).count() == 0
-
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 def test_retry_endpoint_reenqueues_failed_log(django_capture_on_commit_callbacks):
@@ -169,7 +161,6 @@ def test_retry_endpoint_reenqueues_failed_log(django_capture_on_commit_callbacks
     from apps.audit.models import AuditLog
 
     assert AuditLog.objects.filter(action="email.retried", target_id=str(log.pk)).exists()
-
 
 def test_retry_endpoint_scopes_cross_tenant_and_hidden_makerspaces():
     own_space = make_space("email-async-retry-own")
@@ -203,7 +194,6 @@ def test_retry_endpoint_scopes_cross_tenant_and_hidden_makerspaces():
     assert authenticated_client(manager).post(retry_url(other_log)).status_code == 404
     assert authenticated_client(superadmin).post(retry_url(hidden_log)).status_code == 404
 
-
 def test_retry_endpoint_rejects_non_failed_and_redacted_logs():
     makerspace = make_space("email-async-retry-rejects")
     manager = make_member("email-async-retry-rejects-manager", makerspace)
@@ -224,7 +214,6 @@ def test_retry_endpoint_rejects_non_failed_and_redacted_logs():
 
     assert client.post(retry_url(sent_log)).status_code == 400
     assert client.post(retry_url(redacted)).status_code == 400
-
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 def test_deliver_email_task_releases_lock_before_smtp(monkeypatch):
@@ -254,3 +243,31 @@ def test_deliver_email_task_releases_lock_before_smtp(monkeypatch):
     assert log.status == EmailLog.Status.SENT
 
 
+
+def test_email_retry_countdown_uses_backoff_and_jitter(monkeypatch):
+    monkeypatch.setattr(email_tasks.random, "randint", lambda low, high: high)
+
+    assert email_tasks._retry_countdown(0) == 90
+    assert email_tasks._retry_countdown(1) == 150
+    assert email_tasks._retry_countdown(5) == 930
+
+def test_claim_skips_fresh_sending_and_reclaims_stale_sending(monkeypatch):
+    monkeypatch.setattr(email_tasks, "email_task_hard_limit", lambda: 60)
+    log = EmailLog.objects.create(
+        to_email="borrower@example.com",
+        subject="Claim",
+        text_body="Stored body",
+        status=EmailLog.Status.SENDING,
+        error="old",
+    )
+
+    assert email_tasks._claim_log(log.id) is None
+
+    EmailLog.objects.filter(pk=log.pk).update(
+        updated_at=timezone.now() - timedelta(seconds=66),
+    )
+    claimed = email_tasks._claim_log(log.id)
+
+    assert claimed is not None
+    assert claimed.status == EmailLog.Status.SENDING
+    assert claimed.error == ""

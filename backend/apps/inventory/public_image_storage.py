@@ -56,7 +56,6 @@ def delete_object(object_key):
     except (BotoCoreError, ClientError):
         logger.exception("Failed to delete public image object %s.", object_key)
 
-
 def put_bytes(object_key, data, content_type):
     try:
         _client().put_object(
@@ -67,7 +66,6 @@ def put_bytes(object_key, data, content_type):
         )
     except (BotoCoreError, ClientError) as exc:
         raise StorageUnavailable from exc
-
 
 def copy_object(source_key, dest_key):
     try:
@@ -154,9 +152,10 @@ def finalize_upload(object_key):
     if settings.STORAGE_PRESIGN_METHOD != "put":
         return object_size(object_key)
 
-    if object_exists(object_key):
+    final_size = object_size(object_key)
+    if final_size is not None:
         delete_object(staging_key(object_key))
-        return object_size(object_key)
+        return final_size
 
     upload_staging_key = staging_key(object_key)
     size = object_size(upload_staging_key)

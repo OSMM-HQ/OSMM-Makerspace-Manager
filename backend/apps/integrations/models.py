@@ -4,7 +4,6 @@ from django.db import models
 from apps.integrations.email_templates_registry import validate_email_template_strings
 from apps.makerspaces.secrets import decrypt_value, encrypt_value
 
-
 class EmailTemplate(models.Model):
     class Stream(models.TextChoices):
         HARDWARE = "hardware", "Hardware"
@@ -51,7 +50,6 @@ class EmailTemplate(models.Model):
     def __str__(self):
         return f"{self.makerspace}:{self.stream}/{self.audience}/{self.key}"
 
-
 class PlatformEmailSettings(models.Model):
     smtp_host = models.CharField(max_length=200, blank=True)
     smtp_port = models.PositiveIntegerField(default=587)
@@ -75,7 +73,6 @@ class PlatformEmailSettings(models.Model):
 
     def __str__(self):
         return "Platform email settings"
-
 
 class EmailLog(models.Model):
     class Status(models.TextChoices):
@@ -115,11 +112,11 @@ class EmailLog(models.Model):
         indexes = [
             models.Index(fields=["makerspace", "-created_at"]),
             models.Index(fields=["status"]),
+            models.Index(fields=["makerspace", "status", "-created_at"]),
         ]
 
     def __str__(self):
         return f"{self.to_email} {self.subject} [{self.status}]"
-
 
 class EmailNotificationMute(models.Model):
     makerspace = models.ForeignKey(
@@ -153,4 +150,3 @@ class EmailNotificationMute(models.Model):
 
     def __str__(self):
         return f"{self.makerspace}:{self.target}:{self.stream}/{self.event} muted"
-
