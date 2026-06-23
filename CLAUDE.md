@@ -1087,7 +1087,7 @@ cd backend && pytest
 ```
 
 - Public inventory page: `http://localhost:5000/m/makerspace`
-- API: `http://localhost:8000/api` — Swagger docs at `http://localhost:8000/api/docs/`, schema at `/api/schema/`.
+- API: `http://localhost:8000/api` - Swagger UI at `http://localhost:8000/docs/`, ReDoc at `http://localhost:8000/redoc/`, schema at `/schema/`.
 
 ### Current source map (real paths)
 

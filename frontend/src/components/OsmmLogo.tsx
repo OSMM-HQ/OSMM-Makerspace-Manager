@@ -1,3 +1,6 @@
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
+
 type OsmmLogoProps = {
   size?: number;
   withWordmark?: boolean;
@@ -68,15 +71,36 @@ export function OsmmLogo({
   return <OsmmMark className={className} size={size} />;
 }
 
+export function OsmmHomeLink({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <Link
+      aria-label="Open makerspace listing"
+      className={[
+        "inline-flex text-left transition hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40",
+        className,
+      ].filter(Boolean).join(" ")}
+      to="/"
+    >
+      {children}
+    </Link>
+  );
+}
+
 export function OsmmBadge({ className }: { className?: string }) {
   return (
-    <OsmmLogo
+    <OsmmHomeLink
       className={[
         "text-muted",
         className,
       ].filter(Boolean).join(" ")}
-      size={22}
-      withWordmark
-    />
+    >
+      <OsmmLogo size={22} withWordmark />
+    </OsmmHomeLink>
   );
 }

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-import { OsmmLogo } from "../components/OsmmLogo";
+import { OsmmHomeLink, OsmmLogo } from "../components/OsmmLogo";
 import { SiteFooter } from "../components/SiteFooter";
 import { ThemeToggle } from "../components/ThemeToggle";
 
@@ -9,13 +9,13 @@ export function AboutPage() {
     <main className="desk-shell flex min-h-screen flex-col">
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-          <Link className="flex min-w-0 items-center gap-3" to="/">
-            <OsmmLogo className="shrink-0 text-ink" size={36} />
+          <OsmmHomeLink className="flex min-w-0 items-center gap-3 text-ink">
+            <OsmmLogo className="shrink-0" size={36} />
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-ink">OSMM</p>
+              <p className="text-sm font-semibold">OSMM</p>
               <p className="text-xs text-muted">Shared equipment portal</p>
             </div>
-          </Link>
+          </OsmmHomeLink>
           <div className="flex flex-wrap items-center gap-2">
             <ThemeToggle />
             <Link className="desk-button" to="/admin">

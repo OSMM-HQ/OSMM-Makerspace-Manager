@@ -33,8 +33,8 @@ http://localhost:8000/api
 The Django admin panel is backend-only:
 
 ```text
-Local: http://localhost:8000/admin/
-Docker: http://localhost:8001/admin/
+Local: http://localhost:8000/control/
+Docker: http://localhost:8001/control/
 ```
 
 Create an admin user with:
@@ -68,8 +68,8 @@ GET /api/public/makerspaces/
 Swagger UI and ReDoc are set up in the backend through `drf-spectacular`.
 
 ```text
-ReDoc: http://localhost:8000/
 Swagger UI: http://localhost:8000/docs/
+ReDoc: http://localhost:8000/redoc/
 OpenAPI schema: http://localhost:8000/schema/
 ```
 
@@ -77,8 +77,8 @@ When running through `docker compose`, the backend host port is `8001`:
 
 ```text
 Backend API: http://localhost:8001/api
-ReDoc: http://localhost:8001/
 Swagger UI: http://localhost:8001/docs/
+ReDoc: http://localhost:8001/redoc/
 OpenAPI schema: http://localhost:8001/schema/
 ```
 
@@ -86,9 +86,10 @@ The routes are defined in `config/urls.py`:
 
 ```text
 /
-/admin/
+/control/
 /schema/
 /docs/
+/redoc/
 ```
 
 ## Run Tests

@@ -1,8 +1,9 @@
+import { useDeferredValue, useMemo, useState } from "react";
 import { Link, Navigate, Route, Routes } from "react-router-dom";
 
 import { MakerspaceBrand } from "./components/MakerspaceBrand";
 import { MakerspaceMapLink } from "./components/MakerspaceMapLink";
-import { OsmmBadge, OsmmLogo } from "./components/OsmmLogo";
+import { OsmmBadge, OsmmHomeLink, OsmmLogo } from "./components/OsmmLogo";
 import { SiteFooter } from "./components/SiteFooter";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Card } from "./components/ui/Card";
@@ -18,10 +19,51 @@ import { ResetPasswordPage } from "./features/staff/ResetPasswordPage";
 import { StaffApp } from "./features/staff/StaffApp";
 import { PublicStatsPage } from "./features/stats/PublicStatsPage";
 import { useTenant } from "./lib/tenant";
+import type { Makerspace } from "./types/inventory";
 
+function normalizeSearch(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function makerspaceSearchText(makerspace: Makerspace) {
+  return normalizeSearch([
+    makerspace.name,
+    makerspace.public_code,
+    makerspace.slug,
+    makerspace.location,
+  ].filter(Boolean).join(" "));
+}
 function LandingPage() {
   const makerspacesQuery = usePublicMakerspaces();
-  const onlyMakerspace = makerspacesQuery.data?.length === 1 ? makerspacesQuery.data[0] : null;
+  const [searchInput, setSearchInput] = useState("");
+  const deferredSearchInput = useDeferredValue(searchInput);
+  const searchQuery = normalizeSearch(deferredSearchInput);
+  const searchTokens = useMemo(
+    () => searchQuery.split(" ").filter(Boolean),
+    [searchQuery],
+  );
+  const indexedMakerspaces = useMemo(
+    () => (makerspacesQuery.data ?? []).map((makerspace) => ({
+      makerspace,
+      searchText: makerspaceSearchText(makerspace),
+    })),
+    [makerspacesQuery.data],
+  );
+  const filteredMakerspaces = useMemo(() => {
+    if (searchTokens.length === 0) {
+      return indexedMakerspaces.map(({ makerspace }) => makerspace);
+    }
+
+    return indexedMakerspaces
+      .filter(({ searchText }) =>
+        searchTokens.every((token) => searchText.includes(token)),
+      )
+      .map(({ makerspace }) => makerspace);
+  }, [indexedMakerspaces, searchTokens]);
+  const totalMakerspaces = makerspacesQuery.data?.length ?? 0;
+  const isSearching = searchQuery.length > 0;
+  const onlyMakerspace =
+    makerspacesQuery.data?.length === 1 ? makerspacesQuery.data[0] : null;
 
   if (onlyMakerspace) {
     return <Navigate replace to={`/m/${onlyMakerspace.slug}`} />;
@@ -31,13 +73,13 @@ function LandingPage() {
     <main className="desk-shell flex min-h-screen flex-col">
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <OsmmLogo className="shrink-0 text-ink" size={36} />
+          <OsmmHomeLink className="flex min-w-0 items-center gap-3 text-ink">
+            <OsmmLogo className="shrink-0" size={36} />
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-ink">OSMM</p>
+              <p className="text-sm font-semibold">OSMM</p>
               <p className="text-xs text-muted">Shared equipment portal</p>
             </div>
-          </div>
+          </OsmmHomeLink>
           <div className="flex flex-wrap items-center gap-2">
             <ThemeToggle />
             <Link className="desk-button" to="/admin">
@@ -59,7 +101,7 @@ function LandingPage() {
           <div className="mt-6 grid grid-cols-2 gap-3 text-sm">
             <div className="rounded-md border border-line bg-surface p-3">
               <p className="text-2xl font-bold text-ink">
-                {makerspacesQuery.data?.length ?? "-"}
+                {makerspacesQuery.isLoading ? "-" : totalMakerspaces}
               </p>
               <p className="text-xs text-muted">Public spaces</p>
             </div>
@@ -71,14 +113,50 @@ function LandingPage() {
         </aside>
 
         <div className="min-w-0 space-y-4">
-          <div className="desk-panel flex flex-wrap items-center justify-between gap-3 p-4">
-            <div>
-              <h2 className="text-lg font-semibold text-ink">Available public catalogs</h2>
-              <p className="text-sm text-muted">Select a makerspace to view shared equipment.</p>
+          <div className="desk-panel space-y-4 p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold text-ink">Available public catalogs</h2>
+                <p className="text-sm text-muted">Select a makerspace to view shared equipment.</p>
+              </div>
+              <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-muted">
+                Standard public portal
+              </span>
             </div>
-            <span className="rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-muted">
-              Standard public portal
-            </span>
+            <form
+              className="flex flex-col gap-3 sm:flex-row sm:items-center"
+              role="search"
+              onSubmit={(event) => event.preventDefault()}
+            >
+              <label className="sr-only" htmlFor="makerspace-search">
+                Search makerspaces
+              </label>
+              <input
+                id="makerspace-search"
+                className="desk-input min-w-0 flex-1"
+                placeholder="Search by name, code, slug, or location"
+                type="search"
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+              />
+              {searchInput ? (
+                <button
+                  className="desk-button shrink-0"
+                  type="button"
+                  onClick={() => setSearchInput("")}
+                >
+                  Clear
+                </button>
+              ) : null}
+              <span
+                className="shrink-0 rounded-lg border border-line bg-surface px-3 py-2 font-mono text-xs text-muted"
+                aria-live="polite"
+              >
+                {isSearching
+                  ? `${filteredMakerspaces.length}/${totalMakerspaces}`
+                  : totalMakerspaces} shown
+              </span>
+            </form>
           </div>
 
         {makerspacesQuery.isLoading ? (
@@ -108,10 +186,22 @@ function LandingPage() {
             </p>
           </Card>
         ) : null}
+        {makerspacesQuery.data &&
+        makerspacesQuery.data.length > 0 &&
+        filteredMakerspaces.length === 0 ? (
+          <Card>
+            <h2 className="text-xl font-semibold text-ink">
+              No matching makerspaces
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted">
+              Try another name, makerspace code, URL slug, or location.
+            </p>
+          </Card>
+        ) : null}
 
-        {makerspacesQuery.data && makerspacesQuery.data.length > 0 ? (
+        {filteredMakerspaces.length > 0 ? (
           <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-            {makerspacesQuery.data.map((makerspace) => (
+            {filteredMakerspaces.map((makerspace) => (
               <article
                 key={makerspace.slug}
                 className="group relative flex flex-col rounded-xl border border-line bg-panel shadow-soft transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-soft-lg"
