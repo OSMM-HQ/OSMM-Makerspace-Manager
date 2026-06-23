@@ -56,15 +56,7 @@ def _target_value(target):
 
 
 def is_event_mutable(stream, audience, event) -> bool:
-    try:
-        return event in EVENT_CATALOG.get((stream, audience), ())
-    except Exception:
-        logger.warning(
-            "email_notification_mutability_check_failed",
-            extra={"stream": stream, "audience": audience, "event": event},
-            exc_info=True,
-        )
-        return False
+    return event in EVENT_CATALOG.get((stream, audience), ())
 
 
 def role_muted(makerspace, stream, event, role) -> bool:
@@ -89,7 +81,7 @@ def role_muted(makerspace, stream, event, role) -> bool:
             },
             exc_info=True,
         )
-        return False
+        return is_event_mutable(stream, "staff", event)
 
 
 def is_requester_muted(makerspace, stream, event) -> bool:
@@ -113,7 +105,7 @@ def is_requester_muted(makerspace, stream, event) -> bool:
             },
             exc_info=True,
         )
-        return False
+        return is_event_mutable(stream, "requester", event)
 
 
 def muted_targets(makerspace, stream, event) -> set[str]:
@@ -145,4 +137,15 @@ def muted_targets(makerspace, stream, event) -> set[str]:
             },
             exc_info=True,
         )
-        return set()
+        return _fail_closed_targets(stream, event)
+
+
+def _fail_closed_targets(stream, event) -> set[str]:
+    targets = set()
+    if is_event_mutable(stream, "requester", event):
+        targets.add("requester")
+    if is_event_mutable(stream, "staff", event):
+        targets.update(valid_targets_for_stream(stream)[1:])
+    return targets
+
+

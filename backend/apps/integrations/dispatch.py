@@ -5,6 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from apps.integrations.models import EmailLog
+from apps.integrations.smtp_validation import sanitize_email_error
 
 logger = logging.getLogger(__name__)
 
@@ -23,8 +24,11 @@ def dispatch_email(
     persist_body=True,
     sync=False,
 ):
+    if not persist_body and not sync:
+        raise ValueError("persist_body=False requires sync=True")
+
     # persist_body=False keeps the rendered body OUT of the stored row (e.g. password
-    # reset emails embed a live recovery token in the body — persisting it would leave a
+    # reset emails embed a live recovery token in the body - persisting it would leave a
     # usable token in the DB + Django admin until expiry). We still deliver the real body:
     # it's set on the in-memory instance below and _deliver never re-saves the body fields.
     log = EmailLog.objects.create(
@@ -39,7 +43,7 @@ def dispatch_email(
         connection_kind=connection,
     )
     if not persist_body:
-        # In-memory only — _deliver's save(update_fields=...) excludes the body fields,
+        # In-memory only - _deliver's save(update_fields=...) excludes the body fields,
         # so the stored row stays redacted while delivery uses the real content.
         log.text_body = text_body
         log.html_body = html_body
@@ -57,7 +61,7 @@ def _enqueue(log_id):
     except Exception as exc:
         EmailLog.objects.filter(pk=log_id).update(
             status=EmailLog.Status.FAILED,
-            error=("enqueue failed: " + str(exc))[:2000],
+            error=sanitize_email_error(exc),
         )
         logger.exception("email_enqueue_failed", extra={"email_log_id": log_id})
 
@@ -88,7 +92,7 @@ def _deliver(log):
         msg.send()
     except Exception as exc:
         log.status = EmailLog.Status.FAILED
-        log.error = str(exc)[:2000]
+        log.error = sanitize_email_error(exc)
         logger.exception(
             "email_delivery_failed",
             extra={"email_log_id": log.pk, "to_email": log.to_email},
@@ -109,3 +113,4 @@ def _deliver(log):
             ]
         )
     return log
+

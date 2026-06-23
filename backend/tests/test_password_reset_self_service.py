@@ -111,13 +111,17 @@ def test_reset_password_confirm_rejects_inactive_user():
     assert response.status_code == 400
 
 
-def test_platform_email_settings_superadmin_only_and_write_only_password():
+def test_platform_email_settings_superadmin_only_and_write_only_password(monkeypatch):
     regular = make_user(
         "platform-email-regular",
         access_status=User.AccessStatus.ACTIVE,
     )
     superadmin = make_superadmin("platform-email-super")
     url = reverse("admin-platform-email-settings")
+    monkeypatch.setattr(
+        "apps.integrations.smtp_validation.socket.getaddrinfo",
+        lambda host, port, type=None: [(None, None, None, None, ("8.8.8.8", port))],
+    )
 
     regular_get = authenticated_client(regular).get(url)
     regular_patch = authenticated_client(regular).patch(
@@ -143,3 +147,5 @@ def test_platform_email_settings_superadmin_only_and_write_only_password():
     assert fetched.data["smtp_password_set"] is True
     assert fetched.data["smtp_host"] == "smtp.example.com"
     assert "secret" not in str(fetched.data)
+
+

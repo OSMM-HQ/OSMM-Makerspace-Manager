@@ -4,6 +4,7 @@ from rest_framework import generics, serializers
 from apps.admin_api.permissions import IsActiveSuperAdmin
 from apps.audit import services as audit
 from apps.integrations.models import PlatformEmailSettings
+from apps.integrations.smtp_validation import validate_smtp_settings
 
 
 class PlatformEmailSettingsSerializer(serializers.ModelSerializer):
@@ -32,6 +33,10 @@ class PlatformEmailSettingsSerializer(serializers.ModelSerializer):
 
     def get_smtp_password_set(self, obj) -> bool:
         return bool(obj.smtp_password)
+
+    def validate(self, attrs):
+        validate_smtp_settings(attrs, self.instance)
+        return attrs
 
     def update(self, instance, validated_data):
         smtp_password = validated_data.pop("smtp_password", None)
@@ -62,3 +67,4 @@ class PlatformEmailSettingsView(generics.RetrieveUpdateAPIView):
             "platform.email_settings_updated",
             target=instance,
         )
+

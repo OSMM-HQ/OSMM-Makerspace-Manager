@@ -5,6 +5,7 @@ from rest_framework import serializers
 from apps.accounts import rbac
 from apps.accounts.models import User
 from apps.apiclients.models import ApiClient, ApiKeyRequest
+from apps.integrations.smtp_validation import validate_smtp_settings
 from apps.makerspaces.models import Makerspace
 
 
@@ -207,6 +208,10 @@ class ApiIntegrationSettingsSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Default loan days must be at least 1.")
         return value
 
+    def validate(self, attrs):
+        validate_smtp_settings(attrs, self.instance)
+        return attrs
+
     def update(self, instance, validated_data):
         telegram_bot_token = validated_data.pop("telegram_bot_token", None)
         smtp_password = validated_data.pop("smtp_password", None)
@@ -218,3 +223,4 @@ class ApiIntegrationSettingsSerializer(serializers.ModelSerializer):
             instance.set_smtp_password(smtp_password)
         instance.save()
         return instance
+

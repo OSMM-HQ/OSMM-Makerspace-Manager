@@ -1,6 +1,7 @@
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.mail import EmailMultiAlternatives
+from django.db import connection
 from django.test import override_settings
 from django.utils import timezone
 from rest_framework.test import APIClient
@@ -10,6 +11,7 @@ from apps.hardware_requests import notifications as hardware_notifications
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
 from apps.integrations.dispatch import dispatch_email
 from apps.integrations.models import EmailLog
+from apps.integrations.tasks import deliver_email_task
 from apps.inventory.models import InventoryProduct
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 
@@ -222,3 +224,33 @@ def test_retry_endpoint_rejects_non_failed_and_redacted_logs():
 
     assert client.post(retry_url(sent_log)).status_code == 400
     assert client.post(retry_url(redacted)).status_code == 400
+
+
+@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
+def test_deliver_email_task_releases_lock_before_smtp(monkeypatch):
+    makerspace = make_space("email-async-lock-release")
+    log = EmailLog.objects.create(
+        makerspace=makerspace,
+        to_email="borrower@example.com",
+        subject="Ready",
+        text_body="Stored body",
+    )
+    observed_atomic_state = []
+    outer_atomic_depth = len(connection.savepoint_ids)
+
+    def fake_deliver(claimed_log):
+        observed_atomic_state.append(len(connection.savepoint_ids))
+        claimed_log.status = EmailLog.Status.SENT
+        claimed_log.error = ""
+        claimed_log.save(update_fields=["status", "error", "updated_at"])
+        return claimed_log
+
+    monkeypatch.setattr("apps.integrations.tasks._deliver", fake_deliver)
+
+    deliver_email_task(log.id)
+
+    assert observed_atomic_state == [outer_atomic_depth]
+    log.refresh_from_db()
+    assert log.status == EmailLog.Status.SENT
+
+

@@ -1,77 +1,15 @@
 import secrets
 
-from django import forms
 from django.contrib import admin, messages
 from django.utils import timezone
 from unfold.admin import ModelAdmin
-from unfold.widgets import (
-    UnfoldAdminEmailInputWidget,
-    UnfoldAdminIntegerFieldWidget,
-    UnfoldAdminPasswordWidget,
-    UnfoldAdminTextInputWidget,
-    UnfoldBooleanSwitchWidget,
-)
-
 from apps.apiclients.models import ApiClient, ApiKeyRequest
+from apps.apiclients.admin_forms import ApiClientAdminForm
 from apps.apiclients.notifications import notify_api_key_request_resolved
 from apps.apiclients.services import sync_makerspace_origins
 from apps.audit import services as audit
 from config.admin_access import SuperuserOnlyModelAdmin
 
-
-class ApiClientAdminForm(forms.ModelForm):
-    telegram_group_chat_id = forms.CharField(
-        required=False, widget=UnfoldAdminTextInputWidget
-    )
-    telegram_bot_token = forms.CharField(
-        required=False, widget=UnfoldAdminPasswordWidget(render_value=False)
-    )
-    smtp_host = forms.CharField(required=False, widget=UnfoldAdminTextInputWidget)
-    smtp_port = forms.IntegerField(
-        required=False, min_value=1, widget=UnfoldAdminIntegerFieldWidget
-    )
-    smtp_username = forms.CharField(required=False, widget=UnfoldAdminTextInputWidget)
-    smtp_password = forms.CharField(
-        required=False, widget=UnfoldAdminPasswordWidget(render_value=False)
-    )
-    smtp_use_tls = forms.BooleanField(
-        required=False, widget=UnfoldBooleanSwitchWidget
-    )
-    smtp_use_ssl = forms.BooleanField(
-        required=False, widget=UnfoldBooleanSwitchWidget
-    )
-    smtp_from_email = forms.EmailField(
-        required=False, widget=UnfoldAdminEmailInputWidget
-    )
-
-    class Meta:
-        model = ApiClient
-        fields = "__all__"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        makerspace = getattr(self.instance, "makerspace", None)
-        if makerspace:
-            for field in (
-                "telegram_group_chat_id",
-                "smtp_host",
-                "smtp_port",
-                "smtp_username",
-                "smtp_use_tls",
-                "smtp_use_ssl",
-                "smtp_from_email",
-            ):
-                self.fields[field].initial = getattr(makerspace, field)
-            self.fields["telegram_bot_token"].help_text = (
-                "Token is already set. Leave blank to keep it."
-                if makerspace.telegram_bot_token
-                else "Enter bot token."
-            )
-            self.fields["smtp_password"].help_text = (
-                "SMTP password is already set. Leave blank to keep it."
-                if makerspace.smtp_password
-                else "Enter SMTP password."
-            )
 
 
 @admin.register(ApiClient)
@@ -307,3 +245,4 @@ class ApiKeyRequestAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
                 f"Skipped {skipped_count} non-pending API key request(s).",
                 level=messages.WARNING,
             )
+
