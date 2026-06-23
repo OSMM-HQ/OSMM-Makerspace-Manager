@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { useEffect } from "react";
+import { useEffect, useId, useRef } from "react";
+import { focusFirstDialogElement, trapDialogFocus } from "./dialogFocus";
 
 type DetailDrawerProps = {
   open: boolean;
@@ -9,36 +10,47 @@ type DetailDrawerProps = {
 };
 
 export function DetailDrawer({ open, title, onClose, children }: DetailDrawerProps) {
+  const titleId = useId();
+  const panelRef = useRef<HTMLElement>(null);
+
   useEffect(() => {
     if (!open) return;
+    const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const panel = panelRef.current;
+    if (panel) focusFirstDialogElement(panel);
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") onClose();
+      if (panel) trapDialogFocus(event, panel);
     };
 
     document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      previousFocus?.focus();
+    };
   }, [open, onClose]);
 
+  if (!open) return null;
+
   return (
-    <div
-      aria-hidden={!open}
-      className={`fixed inset-0 z-50 transition ${open ? "pointer-events-auto" : "pointer-events-none"}`}
-    >
+    <div className="fixed inset-0 z-50">
       <button
         type="button"
         aria-label="Close detail drawer"
-        className={`absolute inset-0 bg-ink/30 transition-opacity ${open ? "opacity-100" : "opacity-0"}`}
+        className="absolute inset-0 bg-ink/30"
         onClick={onClose}
       />
       <aside
         aria-modal="true"
         role="dialog"
-        aria-labelledby="detail-drawer-title"
-        className={`absolute right-0 top-0 flex h-full w-full max-w-xl flex-col border-l border-line bg-panel shadow-xl transition-transform duration-200 ${open ? "translate-x-0" : "translate-x-full"}`}
+        aria-labelledby={titleId}
+        ref={panelRef}
+        tabIndex={-1}
+        className="absolute right-0 top-0 flex h-full w-full max-w-xl flex-col border-l border-line bg-panel shadow-xl outline-none"
       >
         <header className="flex items-center gap-3 border-b border-line px-4 py-3">
-          <h2 id="detail-drawer-title" className="text-sm font-semibold tracking-wide text-muted">
+          <h2 id={titleId} className="text-sm font-semibold tracking-wide text-muted">
             {title}
           </h2>
           <button type="button" className="desk-button ml-auto" onClick={onClose}>
