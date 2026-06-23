@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { staffRequest } from "../../../lib/api";
+import { invalidateInventoryViews } from "../queryInvalidation";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 
 type ShelfItem = {
@@ -32,7 +33,7 @@ export function NeedsFixShelf({ makerspace }: { makerspace: Makerspace }) {
     onSuccess: () => {
       setError("");
       queryClient.invalidateQueries({ queryKey: ["needs-fix-shelf", makerspace.id] });
-      queryClient.invalidateQueries({ queryKey: ["inventory", makerspace.id] });
+      invalidateInventoryViews(queryClient, makerspace.id);
     },
     onError: (err) => setError(err instanceof Error ? err.message : "Action failed."),
   });

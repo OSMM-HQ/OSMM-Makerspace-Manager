@@ -1,4 +1,5 @@
-﻿import type { QueryClient } from "@tanstack/react-query";
+import type { QueryClient } from "@tanstack/react-query";
+import { invalidateInventoryViews } from "../queryInvalidation";
 
 export type InvalidationScope = {
   inventory: boolean;
@@ -20,9 +21,7 @@ export function invalidateRequestQueues(queryClient: QueryClient, makerspaceId: 
   queryClient.invalidateQueries({ queryKey: ["request-history", makerspaceId] });
 
   if (scope.inventory) {
-    queryClient.invalidateQueries({ queryKey: ["inventory", makerspaceId] });
-    queryClient.invalidateQueries({ queryKey: ["inventory-all", makerspaceId] });
-    queryClient.invalidateQueries({ queryKey: ["operations-report"] });
+    invalidateInventoryViews(queryClient, makerspaceId);
   }
   if (scope.needsFix) {
     queryClient.invalidateQueries({ queryKey: ["needs-fix-shelf", makerspaceId] });

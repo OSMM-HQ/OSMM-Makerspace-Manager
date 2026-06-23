@@ -15,6 +15,7 @@ import {
 } from "./PrintingPanelParts";
 import { PrinterCard, SpoolRow } from "./PrintingPanelCards";
 import { PrinterEditDialog, SpoolEditDialog } from "./PrintingPanelDialogs";
+import { invalidatePrintingViews } from "../queryInvalidation";
 
 type DeactivateTarget =
   | { kind: "printer"; id: number; label: string }
@@ -44,11 +45,7 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
   const [deletePrinterTarget, setDeletePrinterTarget] = useState<{ id: number; label: string } | null>(null);
   const [deleteSpoolTarget, setDeleteSpoolTarget] = useState<{ id: number; label: string } | null>(null);
 
-  const invalidatePrinting = () => {
-    queryClient.invalidateQueries({ queryKey: ["print-printers", makerspace.id] });
-    queryClient.invalidateQueries({ queryKey: ["print-spools", makerspace.id] });
-    queryClient.invalidateQueries({ queryKey: ["print-requests", makerspace.id] });
-  };
+  const invalidatePrinting = () => invalidatePrintingViews(queryClient, makerspace.id);
 
   const createPrinter = useMutation({
     mutationFn: () =>

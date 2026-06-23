@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import QrScanner from "../../components/ui/QrScanner";
 import { staffRequest } from "../../lib/api";
 import { DirectLoanList, type DirectLoan } from "./DirectLoanList";
+import { invalidateInventoryViews } from "./queryInvalidation";
 import { DirectLoanReturnModal } from "./DirectLoanReturnModal";
 import { Panel, type Makerspace, useStaffGet } from "./StaffPanels";
 
@@ -128,10 +129,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["direct-loans", makerspace.id] });
-      queryClient.invalidateQueries({ queryKey: ["inventory-all", makerspace.id] });
-      queryClient.invalidateQueries({ queryKey: ["inventory", makerspace.id] });
-      queryClient.invalidateQueries({ queryKey: ["ledger", makerspace.id] });
-      queryClient.invalidateQueries({ queryKey: ["ledger", "all"] });
+      invalidateInventoryViews(queryClient, makerspace.id);
       setLineRows([{ key: 1, productId: "", quantity: "1" }]);
       setNextLineKey(2);
       setScanned([]);
@@ -155,8 +153,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["direct-loans", makerspace.id] });
-      queryClient.invalidateQueries({ queryKey: ["ledger", makerspace.id] });
-      queryClient.invalidateQueries({ queryKey: ["ledger", "all"] });
+      invalidateInventoryViews(queryClient, makerspace.id);
       resetReturnState();
     },
   });

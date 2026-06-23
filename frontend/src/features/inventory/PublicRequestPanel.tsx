@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Card } from "../../components/ui/Card";
 import type { RequestCartItem } from "../../types/inventory";
@@ -9,6 +9,7 @@ import {
   submitPublicRequest,
   verifyCheckin,
 } from "./api";
+import { invalidatePublicInventory } from "../staff/queryInvalidation";
 import { PublicToolScanPanel } from "./PublicToolScanPanel";
 import { RequestSummary } from "./RequestSummary";
 
@@ -27,6 +28,7 @@ export function PublicRequestPanel({
   onClear,
   disabled = false,
 }: PublicRequestPanelProps) {
+  const queryClient = useQueryClient();
   const lookupStorageKey = `makerspace.request.lookup.${makerspaceSlug}`;
   const [activeTab, setActiveTab] = useState<ActiveTab>("borrow");
   const [requesterName, setRequesterName] = useState("");
@@ -60,6 +62,7 @@ export function PublicRequestPanel({
         })),
       }),
     onSuccess: (response) => {
+      invalidatePublicInventory(queryClient, makerspaceSlug);
       void response;
       setSubmitted(true);
       cacheLookup(contactEmail.trim());

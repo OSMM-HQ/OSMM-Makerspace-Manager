@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import QrScanner from "../../../components/ui/QrScanner";
 import { staffRequest, type StaffAuthUser } from "../../../lib/api";
 import { Panel, type Makerspace, type Product, useStaffGet } from "./shared";
+import { invalidateInventoryViews, invalidateQrViews } from "../queryInvalidation";
 
 type ResolveTarget =
   | { type: "product"; id: number; name: string }
@@ -32,6 +33,7 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
   isSuperadmin: boolean;
   makerspaces: Makerspace[];
 }) {
+  const queryClient = useQueryClient();
   const [payload, setPayload] = useState("");
   const [scanNote, setScanNote] = useState("");
   const [showScanner, setShowScanner] = useState(false);
@@ -87,7 +89,10 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
   });
   const revoke = useMutation({
     mutationFn: (qrId: number) => staffRequest(`/admin/qr/${qrId}/revoke`, { method: "POST", body: JSON.stringify({}) }),
-    onSuccess: () => resolved && resolve.mutate(resolved.qr.payload),
+    onSuccess: () => {
+      if (resolvedQrMakerspaceId) invalidateQrViews(queryClient, resolvedQrMakerspaceId, resolved?.qr.id);
+      if (resolved) resolve.mutate(resolved.qr.payload);
+    },
   });
   const loadContents = useMutation({
     mutationFn: (boxId: number) => staffRequest<BoxContents>(`/admin/containers/${boxId}/contents`),
@@ -104,6 +109,8 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
         }),
       }),
     onSuccess: (data) => {
+      if (resolvedQrMakerspaceId) invalidateInventoryViews(queryClient, resolvedQrMakerspaceId);
+      invalidateQrViews(queryClient, data.qr.makerspace_id ?? data.qr.makerspace, data.qr.id);
       setShowRebind(false);
       setNewName("");
       setSuccessNote("Rebound.");
@@ -131,6 +138,9 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
       });
     },
     onSuccess: (data) => {
+      if (resolvedQrMakerspaceId) invalidateInventoryViews(queryClient, resolvedQrMakerspaceId);
+      if (destMakerspaceId) invalidateInventoryViews(queryClient, Number(destMakerspaceId));
+      invalidateQrViews(queryClient, data.qr.makerspace_id ?? data.qr.makerspace, data.qr.id);
       setShowMove(false);
       setDestMakerspaceId("");
       setDestProductId("");

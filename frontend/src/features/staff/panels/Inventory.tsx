@@ -7,6 +7,7 @@ import type { DataTableColumn } from "../../../components/ui";
 import { staffRequest } from "../../../lib/api";
 import { useDebouncedValue } from "../../../lib/useDebouncedValue";
 import { ImageUploader } from "../ImageUploader";
+import { invalidateInventoryViews } from "../queryInvalidation";
 import { categoryResults, Panel, type Category, type CategoryListResponse, type Makerspace, type Product, useStaffGet } from "./shared";
 
 type AdminProduct = Product & {
@@ -64,7 +65,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
   const products = useStaffGet<{ results: AdminProduct[] }>(["inventory", makerspace.id], `/admin/makerspace/${makerspace.id}/inventory`);
   const categories = useStaffGet<CategoryListResponse>(["categories", makerspace.id], `/admin/makerspace/${makerspace.id}/categories`);
   const invalidate = () => {
-    queryClient.invalidateQueries({ queryKey: ["inventory", makerspace.id] });
+    invalidateInventoryViews(queryClient, makerspace.id);
     queryClient.invalidateQueries({ queryKey: ["categories", makerspace.id] });
   };
   const create = useMutation({

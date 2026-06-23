@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
 import { OsmmBadge } from "../../components/OsmmLogo";
@@ -10,6 +10,7 @@ import { useTenant, useTenantPath } from "../../lib/tenant";
 import { formatSlug } from "./PublicInventoryParts";
 import { checkoutTool, returnTool } from "./selfCheckoutApi";
 import type { PublicToolLoanResult } from "./selfCheckoutApi";
+import { invalidatePublicInventory } from "../staff/queryInvalidation";
 import { useTenantBootstrap } from "./usePublicInventory";
 
 type Mode = "checkout" | "return";
@@ -48,6 +49,7 @@ function ResultCard({ result }: { result: PublicToolLoanResult }) {
 }
 
 export function PublicSelfCheckoutPage() {
+  const queryClient = useQueryClient();
   const { slug } = useParams();
   const tenant = useTenant();
   const makerspaceSlug = tenant.mode === "single" ? tenant.slug : slug ?? "";
@@ -81,6 +83,7 @@ export function PublicSelfCheckoutPage() {
             contact_phone: contactPhone.trim(),
           })
         : returnTool(makerspaceSlug, contactEmail.trim(), payload),
+    onSuccess: () => invalidatePublicInventory(queryClient, makerspaceSlug),
   });
   const canScan =
     mode === "checkout"

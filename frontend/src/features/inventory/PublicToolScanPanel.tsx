@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Card } from "../../components/ui/Card";
 import QrScanner from "../../components/ui/QrScanner";
 import type { PublicToolLoan } from "../../types/inventory";
+import { invalidatePublicInventory } from "../staff/queryInvalidation";
 import { publicToolCheckout, publicToolReturn } from "./api";
 
 type PublicToolScanPanelProps = {
@@ -38,6 +39,7 @@ export function PublicToolScanPanel({
   contactPhone,
   makerspaceSlug,
 }: PublicToolScanPanelProps) {
+  const queryClient = useQueryClient();
   // A camera-scanned token is held here, NOT shown in the visible input - the QR
   // payload is an opaque physical-possession token, not something to render.
   const [scannedToken, setScannedToken] = useState("");
@@ -51,6 +53,7 @@ export function PublicToolScanPanel({
         contact_email: contactEmail.trim(),
         contact_phone: contactPhone.trim(),
       }),
+    onSuccess: () => invalidatePublicInventory(queryClient, makerspaceSlug),
   });
   const returnTool = useMutation({
     mutationFn: () =>
@@ -58,6 +61,7 @@ export function PublicToolScanPanel({
         identifier: contactEmail.trim(),
         payload: effectivePayload,
       }),
+    onSuccess: () => invalidatePublicInventory(queryClient, makerspaceSlug),
   });
   const checkoutDisabled =
     !requesterName.trim() ||

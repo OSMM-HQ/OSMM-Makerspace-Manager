@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { staffRequest } from "../../../lib/api";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
+import { invalidateInventoryViews } from "../queryInvalidation";
 
 type StocktakeRow = { id: number; status: string; notes: string };
 type StocktakeLine = {
@@ -33,7 +34,7 @@ export function StocktakePanel({ makerspace }: { makerspace: Makerspace }) {
     onSuccess: (_data, path) => {
       queryClient.invalidateQueries({ queryKey: ["stocktakes", makerspace.id] });
       if (path.endsWith("/apply-adjustments")) {
-        queryClient.invalidateQueries({ queryKey: ["inventory", makerspace.id] });
+        invalidateInventoryViews(queryClient, makerspace.id);
         queryClient.invalidateQueries({ queryKey: ["needs-fix-shelf", makerspace.id] });
       }
     },

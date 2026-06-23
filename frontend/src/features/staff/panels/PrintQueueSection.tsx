@@ -12,6 +12,7 @@ import {
 } from "./PrintingPanelParts";
 import { PrintRows } from "./PrintingPanelCards";
 import { AcceptPrintDialog, FailPrintDialog } from "./PrintingPanelDialogs";
+import { invalidatePrintingViews } from "../queryInvalidation";
 
 // The print queue lives here so it can be shown inside the unified "Requests" tab
 // alongside hardware requests. It now covers the FULL lifecycle to match hardware:
@@ -76,9 +77,7 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
       setAcceptingRequest(null);
       setFailingRequest(null);
       setRejectingRequest(null);
-      queryClient.invalidateQueries({ queryKey: ["print-printers", makerspace.id] });
-      queryClient.invalidateQueries({ queryKey: ["print-spools", makerspace.id] });
-      queryClient.invalidateQueries({ queryKey: ["print-requests", makerspace.id] });
+      invalidatePrintingViews(queryClient, makerspace.id);
     },
   });
 

@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { staffRequest } from "../../../lib/api";
 import { Panel, type Makerspace, type Product, useStaffGet } from "./shared";
 import { ErrorText, TransferTable } from "./StockTransferTable";
+import { invalidateContainerViews, invalidateInventoryViews } from "../queryInvalidation";
 
 type ListResponse<T> = { count?: number; results: T[] };
 type Container = { id: number; code?: string; label: string; location?: string };
@@ -115,7 +116,13 @@ export function StockTransferPanel({
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["transfers", sourceMakerspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["inventory", sourceMakerspaceId] });
+      invalidateInventoryViews(queryClient, sourceMakerspaceId);
+      invalidateContainerViews(queryClient, sourceMakerspaceId, sourceContainerId ? Number(sourceContainerId) : undefined);
+      if (destinationMakerspaceId !== sourceMakerspaceId) {
+        queryClient.invalidateQueries({ queryKey: ["transfers", destinationMakerspaceId] });
+        invalidateInventoryViews(queryClient, destinationMakerspaceId);
+      }
+      invalidateContainerViews(queryClient, destinationMakerspaceId, destinationContainerId ? Number(destinationContainerId) : undefined);
       setSourceContainerId("");
       setDestinationContainerId("");
       setReason("");

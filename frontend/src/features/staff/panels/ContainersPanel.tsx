@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { staffRequest } from "../../../lib/api";
+import { invalidateContainerViews } from "../queryInvalidation";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 import { QrImage } from "./QrImage";
 
@@ -53,7 +54,7 @@ function ContainerRow({ container, makerspaceId }: { container: Container; maker
       }),
     onSuccess: () => {
       setEditing(false);
-      queryClient.invalidateQueries({ queryKey: ["containers", makerspaceId] });
+      invalidateContainerViews(queryClient, makerspaceId, container.id);
     },
   });
   const saveError = save.error instanceof Error ? save.error.message : undefined;

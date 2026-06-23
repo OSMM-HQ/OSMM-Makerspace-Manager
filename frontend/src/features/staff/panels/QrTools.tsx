@@ -6,6 +6,7 @@ import { Modal } from "../../../components/ui/Modal";
 import { downloadStaffFile, staffRequest } from "../../../lib/api";
 import { Panel, type Makerspace, type Product, useStaffGet } from "./shared";
 import { QrImage } from "./QrImage";
+import { invalidateContainerViews, invalidateInventoryViews, invalidateQrViews } from "../queryInvalidation";
 
 type ListResponse<T> = { results: T[] };
 type Container = { id: number; code: string; label: string; location: string; qr_code_id: number | null };
@@ -69,6 +70,7 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
       if (!box) throw new Error("Choose a box to add.");
       if (!box.qr_code_id) throw new Error("This box has no QR code.");
       await addItem(box.qr_code_id, box.label);
+      return box;
     },
     onSuccess: refreshBatch,
   });
@@ -80,12 +82,13 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
       });
       if (!box.qr_code_id) throw new Error("Box created without a QR code.");
       await addItem(box.qr_code_id, box.label);
+      return box;
     },
-    onSuccess: () => {
+    onSuccess: (box) => {
       setBoxLabel("");
       setBoxLocation("");
       setBoxModalOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["containers", makerspace.id] });
+      invalidateContainerViews(queryClient, makerspace.id, box.id);
       refreshBatch();
     },
   });
@@ -112,7 +115,8 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
         }),
       }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inventory", makerspace.id] });
+      invalidateInventoryViews(queryClient, makerspace.id);
+      invalidateQrViews(queryClient, makerspace.id);
       refreshBatch();
     },
   });
