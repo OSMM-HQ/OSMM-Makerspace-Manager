@@ -1,4 +1,5 @@
-import type { Makerspace } from "./StaffPanels";
+import type { Makerspace } from "./panels/shared";
+import { readStorage, removeStorage, writeStorage } from "../../lib/safeStorage";
 
 const TAB_MODULES: Record<string, string[]> = {
   direct: ["self_checkout"],
@@ -13,6 +14,24 @@ const TAB_MODULES: Record<string, string[]> = {
   reports: ["reports", "printing"],
 };
 
+const TAB_PATHS: Record<string, string> = {
+  direct: "direct-handout",
+  needsfix: "to-be-fixed",
+  tobuy: "to-buy",
+  bulk: "bulk-import",
+  qr: "qr-tools",
+  api: "api-access",
+  emailtemplates: "email-templates",
+  "email-logs": "email-log",
+};
+
+const PATH_TABS = Object.fromEntries(
+  Object.entries(TAB_PATHS).map(([tab, path]) => [path, tab]),
+);
+
+export const STAFF_SELECTED_MAKERSPACE_KEY = "osmm.staff.selectedMakerspace";
+export const STAFF_ACTIVE_TAB_KEY = "osmm.staff.activeTab";
+
 export function filterTabsByEnabledModules(tabs: readonly string[], makerspace?: Makerspace) {
   const modules = makerspace?.enabled_modules;
   if (!modules) return tabs;
@@ -23,3 +42,49 @@ export function filterTabsByEnabledModules(tabs: readonly string[], makerspace?:
   });
 }
 
+export function readStoredMakerspace() {
+  const value = Number(readStorage(STAFF_SELECTED_MAKERSPACE_KEY));
+  return Number.isFinite(value) && value > 0 ? value : null;
+}
+
+export function readStoredStaffTab() {
+  return pathToTab(readStorage(STAFF_ACTIVE_TAB_KEY));
+}
+
+export function persistSelectedMakerspace(value: number | null) {
+  if (value === null) removeStorage(STAFF_SELECTED_MAKERSPACE_KEY);
+  else writeStorage(STAFF_SELECTED_MAKERSPACE_KEY, String(value));
+}
+
+export function persistStaffTab(tab: string) {
+  if (tab) writeStorage(STAFF_ACTIVE_TAB_KEY, tab);
+  else removeStorage(STAFF_ACTIVE_TAB_KEY);
+}
+
+export function staffBasePath(guestOnly: boolean) {
+  return guestOnly ? "/guest-admin" : "/admin";
+}
+
+export function staffTabPath(tab: string, guestOnly: boolean) {
+  return `${staffBasePath(guestOnly)}/${tabToPath(tab)}`;
+}
+
+export function tabFromStaffPath(pathname: string, guestOnly: boolean) {
+  const basePath = staffBasePath(guestOnly);
+  if (!pathname.startsWith(basePath)) {
+    return "";
+  }
+  const relative = pathname.slice(basePath.length).replace(/^\/+/, "");
+  return pathToTab(relative.split("/")[0] ?? "");
+}
+
+export function tabToPath(tab: string) {
+  return TAB_PATHS[tab] ?? tab;
+}
+
+function pathToTab(path: string | null) {
+  if (!path) {
+    return "";
+  }
+  return PATH_TABS[path] ?? path;
+}

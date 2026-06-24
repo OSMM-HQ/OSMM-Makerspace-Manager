@@ -306,8 +306,8 @@ export default function App() {
         <Route path="/stats" element={<PublicStatsPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/admin" element={<StaffApp />} />
-        <Route path="/guest-admin" element={<StaffApp guestOnly />} />
+        <Route path="/admin/*" element={<StaffApp />} />
+        <Route path="/guest-admin/*" element={<StaffApp guestOnly />} />
         <Route path="/scanner" element={<ScannerPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Routes>
@@ -324,8 +324,8 @@ export default function App() {
       <Route path="/m/:slug/stats" element={<PublicStatsPage />} />
       <Route path="/kiosk/:slug" element={<KioskPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
-      <Route path="/admin" element={<StaffApp />} />
-      <Route path="/guest-admin" element={<StaffApp guestOnly />} />
+      <Route path="/admin/*" element={<StaffApp />} />
+      <Route path="/guest-admin/*" element={<StaffApp guestOnly />} />
       <Route path="/scanner" element={<ScannerPage />} />
       <Route path="/superadmin" element={<SuperadminPage />} />
       <Route path="*" element={<NotFoundPage />} />
