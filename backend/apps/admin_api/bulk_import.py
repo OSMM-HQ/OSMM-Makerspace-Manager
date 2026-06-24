@@ -1,18 +1,20 @@
-import csv
-import io
-import json
-
 from django.db import transaction
 from django.utils.text import slugify
 
 from apps.audit import services as audit
 from apps.boxes.models import Box
+from apps.admin_api.bulk_import_parsers import (
+    MAX_IMPORT_ROWS,
+    MAX_IMPORT_UPLOAD_BYTES,
+    rows_from_upload,
+)
 from apps.inventory.models import Category, InventoryProduct, PublicAvailabilityMode, TrackingMode
 
 
 REQUIRED_FIELDS = {"name", "total_quantity", "available_quantity"}
 OPTIONAL_FIELDS = {
     "description",
+    "image_key",
     "tracking_mode",
     "is_public",
     "public_self_checkout_enabled",
@@ -27,102 +29,46 @@ OPTIONAL_FIELDS = {
     "lost_quantity",
 }
 VALID_FIELDS = REQUIRED_FIELDS | OPTIONAL_FIELDS
-QUANTITY_BUCKET_FIELDS = {"total_quantity", "available_quantity", "reserved_quantity", "issued_quantity", "damaged_quantity", "lost_quantity"}
-MAX_IMPORT_ROWS = 5000
-MAX_IMPORT_UPLOAD_BYTES = 5 * 1024 * 1024
-
-
-class _BulkImportLimitError(ValueError):
-    pass
-
-
-def rows_from_upload(uploaded_file):
-    name = uploaded_file.name.lower()
-    size = getattr(uploaded_file, "size", None)
-    if size is not None and size > MAX_IMPORT_UPLOAD_BYTES:
-        raise ValueError(
-            f"Import file must be {MAX_IMPORT_UPLOAD_BYTES} bytes or smaller."
-        )
-    data = uploaded_file.read()
-    if name.endswith(".json"):
-        parsed = json.loads(data.decode("utf-8-sig"))
-        if not isinstance(parsed, list):
-            raise ValueError("JSON import must be a list of row objects.")
-        _validate_row_count(parsed)
-        return parsed
-    if name.endswith(".tsv"):
-        return _delimited_rows(data, "\t")
-    if name.endswith(".xlsx"):
-        return _xlsx_rows(data)
-    return _delimited_rows(data, ",")
-
-
-def _delimited_rows(data, delimiter):
-    text = data.decode("utf-8-sig")
-    rows = []
-    for row in csv.DictReader(io.StringIO(text), delimiter=delimiter):
-        rows.append(row)
-        if len(rows) > MAX_IMPORT_ROWS:
-            raise _BulkImportLimitError(
-                f"Bulk import is limited to {MAX_IMPORT_ROWS} rows."
-            )
-    return rows
-
-
-def _xlsx_rows(data):
-    try:
-        import openpyxl
-    except ImportError as exc:
-        raise ValueError("XLSX import requires openpyxl to be installed.") from exc
-    try:
-        workbook = openpyxl.load_workbook(io.BytesIO(data), read_only=True, data_only=True)
-        sheet = workbook.active
-        rows = sheet.iter_rows(values_only=True)
-        header_row = next(rows, None)
-        if not header_row:
-            return []
-        headers = [str(value or "").strip() for value in header_row]
-        parsed_rows = []
-        for row in rows:
-            parsed_rows.append(
-                {headers[index]: value for index, value in enumerate(row) if index < len(headers)}
-            )
-            if len(parsed_rows) > MAX_IMPORT_ROWS:
-                raise _BulkImportLimitError(
-                    f"Bulk import is limited to {MAX_IMPORT_ROWS} rows."
-                )
-        return parsed_rows
-    except _BulkImportLimitError:
-        raise
-    except Exception as exc:  # corrupt/unsupported workbook -> treat as bad input
-        raise ValueError("XLSX file could not be read.") from exc
-
-
-def _validate_row_count(rows):
-    if len(rows) > MAX_IMPORT_ROWS:
-        raise _BulkImportLimitError(f"Bulk import is limited to {MAX_IMPORT_ROWS} rows.")
-
+QUANTITY_BUCKET_FIELDS = {
+    "total_quantity",
+    "available_quantity",
+    "reserved_quantity",
+    "issued_quantity",
+    "damaged_quantity",
+    "lost_quantity",
+}
+DETAIL_WARNING_FIELDS = {"description", "storage_location", "category", "image_key"}
 
 def preview_import(makerspace, rows, mapping):
     mapping = mapping or _default_mapping(rows)
     mapped = []
     errors = []
+    warnings = []
     existing_names = _existing_names(makerspace, rows, mapping)
     for index, row in enumerate(rows, start=2):
-        normalized, row_errors = _normalize_row(makerspace, row, mapping)
+        normalized, row_errors, row_warnings = _normalize_row(makerspace, row, mapping)
         if row_errors:
             errors.append({"row": index, "errors": row_errors})
+        if row_warnings:
+            warnings.append({"row": index, "warnings": row_warnings})
         action = "error" if row_errors else _row_action(normalized, existing_names)
-        mapped.append({"row": index, "action": action, "data": normalized})
+        mapped.append({
+            "row": index,
+            "action": action,
+            "data": normalized,
+            "warnings": row_warnings,
+        })
     return {
         "mapping": mapping,
         "valid": not errors,
         "errors": errors,
+        "warnings": warnings,
         "rows": mapped,
         "summary": {
             "create": sum(1 for item in mapped if item["action"] == "create"),
             "update": sum(1 for item in mapped if item["action"] == "update"),
             "errors": len(errors),
+            "warnings": len(warnings),
             "total": len(mapped),
         },
     }
@@ -137,7 +83,8 @@ def apply_import(actor, makerspace, rows, mapping):
     with transaction.atomic():
         for item in preview["rows"]:
             data = dict(item["data"])
-            box = data.pop("box", None)
+            box_id = data.pop("box_id", None)
+            box = Box.objects.filter(makerspace=makerspace, pk=box_id).first() if box_id else None
             name = data.pop("name")
             category_name = data.pop("category_name", "")
             if category_name:
@@ -186,6 +133,7 @@ def _default_mapping(rows):
 def _normalize_row(makerspace, row, mapping):
     data = {}
     errors = {}
+    warnings = {}
     for field in VALID_FIELDS:
         column = mapping.get(field)
         if column:
@@ -193,6 +141,10 @@ def _normalize_row(makerspace, row, mapping):
     for field in REQUIRED_FIELDS:
         if data.get(field) in {None, ""}:
             errors[field] = "This field is required."
+    for field in DETAIL_WARNING_FIELDS:
+        column = mapping.get(field)
+        if column and data.get(field) in {None, ""}:
+            warnings[field] = "Optional detail is blank."
 
     for field in [
         "total_quantity",
@@ -236,17 +188,24 @@ def _normalize_row(makerspace, row, mapping):
         errors["total_quantity"] = "Quantity buckets cannot exceed total quantity."
 
     box_code = data.pop("box_code", None)
-    data["box"] = None
+    data["box_id"] = None
     if box_code:
-        data["box"] = Box.objects.filter(makerspace=makerspace, code=box_code).first()
-        if data["box"] is None:
+        box = Box.objects.filter(makerspace=makerspace, code=box_code).first()
+        if box is None:
             errors["box_code"] = "Box code does not exist in this makerspace."
+        else:
+            data["box_id"] = box.id
+    image_key = str(data.get("image_key") or "").strip()
+    if image_key and not image_key.startswith(f"items/{makerspace.id}/"):
+        errors["image_key"] = "Image key must belong to this makerspace."
+    data["image_key"] = image_key
+
     category_name = str(data.pop("category", "") or "").strip()
     if category_name:
         category = Category.objects.filter(makerspace=makerspace, name__iexact=category_name).first()
         data["category_name"] = category_name
         data["category_id"] = category.id if category else None
-    return data, errors
+    return data, errors, warnings
 
 
 def _int_value(value, field, errors):
@@ -297,3 +256,4 @@ def _category_for_name(makerspace, name):
         slug = f"{base_slug}-{suffix}"
         suffix += 1
     return Category.objects.create(makerspace=makerspace, name=name, slug=slug), True
+

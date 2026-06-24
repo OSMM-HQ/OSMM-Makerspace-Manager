@@ -236,6 +236,105 @@ def test_bulk_import_apply_creates_missing_category_by_name():
     assert AuditLog.objects.filter(action="category.created", target_id=str(category.id)).exists()
 
 
+def test_bulk_import_preview_warns_on_blank_mapped_details():
+    makerspace = make_space("bulk-warning")
+    admin = make_member("bulk-warning-admin", makerspace)
+
+    response = authenticated_client(admin).post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/inventory/import/preview",
+        {
+            "rows": [
+                {
+                    "Name": "Oscilloscope",
+                    "Total": "1",
+                    "Available": "1",
+                    "Storage": "",
+                    "Image": "",
+                }
+            ],
+            "mapping": {
+                "name": "Name",
+                "total_quantity": "Total",
+                "available_quantity": "Available",
+                "storage_location": "Storage",
+                "image_key": "Image",
+            },
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["valid"] is True
+    assert response.data["summary"]["warnings"] == 1
+    assert response.data["warnings"][0]["row"] == 2
+    assert "storage_location" in response.data["warnings"][0]["warnings"]
+    assert "image_key" in response.data["warnings"][0]["warnings"]
+
+
+def test_bulk_import_apply_maps_full_supported_inventory_fields():
+    makerspace = make_space("bulk-full-map")
+    admin = make_member("bulk-full-map-admin", makerspace)
+    box = make_box(makerspace, label="BIN-A")
+    image_key = f"items/{makerspace.id}/meter.png"
+
+    response = authenticated_client(admin).post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/inventory/import/apply",
+        {
+            "rows": [
+                {
+                    "Item": "Clamp Meter",
+                    "Total": "5",
+                    "Available": "2",
+                    "Reserved": "1",
+                    "Issued": "1",
+                    "Damaged": "1",
+                    "Lost": "0",
+                    "Tracking": "quantity",
+                    "Public": "yes",
+                    "Self checkout": "true",
+                    "Show count": "1",
+                    "Availability": "exact_count",
+                    "Storage": "Cabinet 4",
+                    "Image": image_key,
+                    "Box": box.code,
+                }
+            ],
+            "mapping": {
+                "name": "Item",
+                "total_quantity": "Total",
+                "available_quantity": "Available",
+                "reserved_quantity": "Reserved",
+                "issued_quantity": "Issued",
+                "damaged_quantity": "Damaged",
+                "lost_quantity": "Lost",
+                "tracking_mode": "Tracking",
+                "is_public": "Public",
+                "public_self_checkout_enabled": "Self checkout",
+                "show_public_count": "Show count",
+                "public_availability_mode": "Availability",
+                "storage_location": "Storage",
+                "image_key": "Image",
+                "box_code": "Box",
+            },
+        },
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["applied"] is True
+    product = InventoryProduct.objects.get(makerspace=makerspace, name="Clamp Meter")
+    assert product.available_quantity == 2
+    assert product.reserved_quantity == 1
+    assert product.issued_quantity == 1
+    assert product.damaged_quantity == 1
+    assert product.lost_quantity == 0
+    assert product.storage_location == "Cabinet 4"
+    assert product.image_key == image_key
+    assert product.box_id == box.id
+    assert product.public_self_checkout_enabled is True
+    assert product.show_public_count is True
+    assert product.public_availability_mode == "exact_count"
+
 def test_bulk_import_rejects_bad_quantity_buckets():
     makerspace = make_space("bulk-bad")
     admin = make_member("bulk-bad-admin", makerspace)
@@ -833,5 +932,4 @@ def test_space_manager_cannot_create_or_list_cross_tenant_inventory_managers():
     listed_usernames = [item["user"]["username"] for item in listed.data["results"]]
     assert own_inventory_manager.username in listed_usernames
     assert other_inventory_manager.username not in listed_usernames
-
 

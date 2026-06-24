@@ -6,27 +6,75 @@ import { staffRequest } from "../../../lib/api";
 import { Panel, type Makerspace } from "./shared";
 
 type RawRow = Record<string, unknown>;
-type Field = "name" | "total_quantity" | "available_quantity" | "description" | "storage_location" | "category";
+type Field =
+  | "name"
+  | "total_quantity"
+  | "available_quantity"
+  | "reserved_quantity"
+  | "issued_quantity"
+  | "damaged_quantity"
+  | "lost_quantity"
+  | "description"
+  | "image_key"
+  | "tracking_mode"
+  | "is_public"
+  | "public_self_checkout_enabled"
+  | "show_public_count"
+  | "public_availability_mode"
+  | "storage_location"
+  | "category"
+  | "box_code";
 type Mapping = Partial<Record<Field, string>>;
-type ImportRow = { row: number; action?: string; data?: RawRow; errors?: Record<string, string> };
+type RowMessages = Record<string, string>;
+type ImportRow = { row: number; action?: string; data?: RawRow; errors?: RowMessages; warnings?: RowMessages };
 type ImportResult = {
   applied?: boolean;
   created?: number;
   updated?: number;
   valid?: boolean;
-  summary?: { create?: number; update?: number; errors?: number; total?: number };
+  summary?: { create?: number; update?: number; errors?: number; warnings?: number; total?: number };
   rows?: ImportRow[];
-  errors?: { row: number; errors: Record<string, string> }[];
+  errors?: { row: number; errors: RowMessages }[];
+  warnings?: { row: number; warnings: RowMessages }[];
 };
 
-const fields: Field[] = ["name", "total_quantity", "available_quantity", "description", "storage_location", "category"];
+const fields: Field[] = [
+  "name",
+  "total_quantity",
+  "available_quantity",
+  "reserved_quantity",
+  "issued_quantity",
+  "damaged_quantity",
+  "lost_quantity",
+  "description",
+  "image_key",
+  "tracking_mode",
+  "is_public",
+  "public_self_checkout_enabled",
+  "show_public_count",
+  "public_availability_mode",
+  "storage_location",
+  "category",
+  "box_code",
+];
 const aliases: Record<Field, string[]> = {
   name: ["name", "item", "product"],
   total_quantity: ["total", "total quantity", "quantity", "qty"],
   available_quantity: ["available", "available quantity", "in stock"],
+  reserved_quantity: ["reserved", "reserved quantity"],
+  issued_quantity: ["issued", "issued quantity", "loaned", "checked out"],
+  damaged_quantity: ["damaged", "damaged quantity"],
+  lost_quantity: ["lost", "lost quantity"],
   description: ["description", "details", "notes"],
+  image_key: ["image", "image key", "image object key", "photo", "photo key"],
+  tracking_mode: ["tracking", "tracking mode"],
+  is_public: ["public", "is public", "visible"],
+  public_self_checkout_enabled: ["self checkout", "public self checkout", "self checkout enabled"],
+  show_public_count: ["show count", "show public count", "public count"],
+  public_availability_mode: ["availability", "public availability", "public availability mode"],
   storage_location: ["location", "storage", "storage location", "shelf"],
   category: ["category", "category name", "type"],
+  box_code: ["box", "box code", "container", "container code"],
 };
 
 export function BulkImport({ makerspace }: { makerspace: Makerspace }) {
@@ -121,6 +169,7 @@ export function BulkImport({ makerspace }: { makerspace: Makerspace }) {
             </button>
           </div>
         </details>
+        {pending ? <ProgressBar /> : null}
         {error ? <p className="text-sm text-danger">{error}</p> : null}
         {mutation.error ? <p className="text-sm text-danger">{mutation.error.message}</p> : null}
         {mutation.data ? <ImportSummary result={mutation.data} /> : null}
@@ -138,7 +187,7 @@ export function BulkImport({ makerspace }: { makerspace: Makerspace }) {
           </div>
         )}
       >
-        <div className="grid gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           {fields.map((field) => (
             <label key={field} className="grid gap-1 text-sm">
               <span className="font-medium text-ink">{labelFor(field)}</span>
@@ -154,23 +203,38 @@ export function BulkImport({ makerspace }: { makerspace: Makerspace }) {
   );
 }
 
+function ProgressBar() {
+  return (
+    <div className="grid gap-1" role="status" aria-live="polite">
+      <div className="h-2 overflow-hidden rounded-sm bg-line">
+        <div className="h-full w-1/2 animate-pulse rounded-sm bg-accent" />
+      </div>
+      <p className="text-xs text-muted">Processing import...</p>
+    </div>
+  );
+}
+
 function ImportSummary({ result }: { result: ImportResult }) {
   const errorRows = new Map((result.errors ?? []).map((item) => [item.row, item.errors]));
+  const warningRows = new Map((result.warnings ?? []).map((item) => [item.row, item.warnings]));
   return (
     <div className="grid gap-3 rounded-md border border-line bg-panel p-3">
-      <div className="grid gap-2 text-sm sm:grid-cols-4">
+      <div className="grid gap-2 text-sm sm:grid-cols-5">
         <Metric label="Create" value={result.created ?? result.summary?.create ?? 0} />
         <Metric label="Update" value={result.updated ?? result.summary?.update ?? 0} />
         <Metric label="Errors" value={result.summary?.errors ?? result.errors?.length ?? 0} />
+        <Metric label="Warnings" value={result.summary?.warnings ?? result.warnings?.length ?? 0} />
         <Metric label="Rows" value={result.summary?.total ?? result.rows?.length ?? 0} />
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[560px] text-left text-sm">
+        <table className="w-full min-w-[640px] text-left text-sm">
           <thead className="text-xs uppercase text-muted"><tr><th className="px-2 py-1">Row</th><th className="px-2 py-1">Status</th><th className="px-2 py-1">Name</th><th className="px-2 py-1">Message</th></tr></thead>
           <tbody>
             {(result.rows ?? []).map((row) => {
-              const errors = errorRows.get(row.row);
-              return <tr key={row.row} className="border-t border-line"><td className="px-2 py-1">{row.row}</td><td className="px-2 py-1">{errors ? "error" : row.action ?? "ready"}</td><td className="px-2 py-1">{String(row.data?.name ?? "")}</td><td className="px-2 py-1 text-muted">{errors ? Object.entries(errors).map(([k, v]) => `${k}: ${v}`).join("; ") : ""}</td></tr>;
+              const errors = errorRows.get(row.row) ?? row.errors;
+              const warnings = warningRows.get(row.row) ?? row.warnings;
+              const message = errors ? messageFor(errors) : warnings ? messageFor(warnings) : "";
+              return <tr key={row.row} className="border-t border-line"><td className="px-2 py-1">{row.row}</td><td className="px-2 py-1">{errors ? "error" : row.action ?? "ready"}</td><td className="px-2 py-1">{String(row.data?.name ?? "")}</td><td className={errors ? "px-2 py-1 text-danger" : "px-2 py-1 text-amber-700"}>{message}</td></tr>;
             })}
           </tbody>
         </table>
@@ -220,9 +284,6 @@ function csvRows(text: string, delimiter: string) {
   return rows;
 }
 
-// Normalize headers + aliases so "total_quantity", "Total Quantity", and
-// "total quantity" all collapse to one form. This lets canonical snake_case
-// headers (e.g. from an API export) auto-map instead of being dropped.
 function normalizeHeader(value: string): string {
   return value.trim().toLowerCase().replace(/[_\s]+/g, " ");
 }
@@ -231,7 +292,6 @@ function suggestMapping(headers: string[]): Mapping {
   return Object.fromEntries(
     fields
       .map((field) => {
-        // The canonical field name itself is always an accepted header.
         const accepted = new Set([field, ...aliases[field]].map(normalizeHeader));
         return [field, headers.find((header) => accepted.has(normalizeHeader(header)))];
       })
@@ -240,9 +300,14 @@ function suggestMapping(headers: string[]): Mapping {
 }
 
 function mapRow(row: RawRow, mapping: Mapping) {
-  return Object.fromEntries(fields.map((field) => [field, mapping[field] ? row[mapping[field]] : undefined]).filter(([, value]) => value !== undefined && value !== "")) as RawRow;
+  return Object.fromEntries(fields.filter((field) => mapping[field]).map((field) => [field, row[mapping[field] as string] ?? ""])) as RawRow;
+}
+
+function messageFor(messages: RowMessages) {
+  return Object.entries(messages).map(([key, value]) => `${key}: ${value}`).join("; ");
 }
 
 function labelFor(field: Field) {
   return field.replace(/_/g, " ");
 }
+
