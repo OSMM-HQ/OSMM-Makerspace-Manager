@@ -77,14 +77,16 @@ def preview_import(makerspace, rows, mapping, progress_callback=None):
     }
 
 
-def apply_import(actor, makerspace, rows, mapping, progress_callback=None):
+def apply_import(actor, makerspace, rows, mapping, progress_callback=None, allow_partial=False):
     preview = preview_import(makerspace, rows, mapping, progress_callback)
-    if not preview["valid"]:
+    if not preview["valid"] and not allow_partial:
         return {**preview, "applied": False}
     created = 0
     updated = 0
     with transaction.atomic():
         for item in preview["rows"]:
+            if item["action"] == "error":
+                continue
             data = dict(item["data"])
             box_id = data.pop("box_id", None)
             box = Box.objects.filter(makerspace=makerspace, pk=box_id).first() if box_id else None
@@ -123,7 +125,13 @@ def apply_import(actor, makerspace, rows, mapping, progress_callback=None):
             target=makerspace,
             meta={"created": created, "updated": updated},
         )
-    return {**preview, "applied": True, "created": created, "updated": updated}
+    return {
+        **preview,
+        "applied": True,
+        "partial": bool(preview["errors"]),
+        "created": created,
+        "updated": updated,
+    }
 
 
 def _default_mapping(rows):
@@ -259,6 +267,4 @@ def _category_for_name(makerspace, name):
         slug = f"{base_slug}-{suffix}"
         suffix += 1
     return Category.objects.create(makerspace=makerspace, name=name, slug=slug), True
-
-
 

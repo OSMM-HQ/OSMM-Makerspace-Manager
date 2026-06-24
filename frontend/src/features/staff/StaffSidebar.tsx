@@ -1,5 +1,3 @@
-import type { Dispatch, SetStateAction } from "react";
-
 import { OsmmBadge } from "../../components/OsmmLogo";
 import type { Makerspace } from "./StaffPanels";
 import { TAB_GROUPS, TAB_LABELS } from "./staffAccess";
@@ -29,7 +27,7 @@ export function StaffSidebar({
   printingOnly: boolean;
   selected: number | null;
   setSelected: (id: number) => void;
-  setTab: Dispatch<SetStateAction<string>>;
+  setTab: (tab: string) => void;
   singleTenantLocked: boolean;
   toggleGroup: (label: string) => void;
 }) {
@@ -97,3 +95,4 @@ export function StaffSidebar({
     </aside>
   );
 }
+

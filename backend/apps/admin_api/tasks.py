@@ -29,6 +29,7 @@ def process_bulk_import_job(self, job_id):
                 rows,
                 job.mapping,
                 progress_callback=progress,
+                allow_partial=True,
             )
         else:
             result = bulk_import.preview_import(
@@ -97,3 +98,4 @@ def _complete_job(job_id, result, total_rows):
         warning_count=summary.get("warnings") or len(result.get("warnings") or []),
         completed_at=timezone.now(),
     )
+

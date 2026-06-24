@@ -349,6 +349,49 @@ def test_bulk_import_job_serializer_accepts_json_mapping_string():
     assert serializer.is_valid(), serializer.errors
     assert serializer.validated_data["mapping"]["name"] == "Name"
 
+def test_bulk_import_csv_upload_ignores_blank_rows():
+    makerspace = make_space("bulk-blank-csv")
+    admin = make_member("bulk-blank-csv-admin", makerspace)
+    upload = SimpleUploadedFile(
+        "items.csv",
+        b"name,total_quantity,available_quantity\nCalipers,1,1\n,,\nMeter,2,2\n",
+        content_type="text/csv",
+    )
+
+    response = authenticated_client(admin).post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/inventory/import/preview",
+        {"file": upload},
+        format="multipart",
+    )
+
+    assert response.status_code == 200
+    assert response.data["summary"]["total"] == 2
+    assert response.data["valid"] is True
+
+
+def test_bulk_import_async_apply_partially_imports_valid_rows():
+    makerspace = make_space("bulk-job-partial")
+    admin = make_member("bulk-job-partial-admin", makerspace)
+    response = authenticated_client(admin).post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/inventory/import/jobs",
+        {
+            "mode": "apply",
+            "rows": [
+                {"name": "Good Meter", "total_quantity": "2", "available_quantity": "2"},
+                {"name": "", "total_quantity": "", "available_quantity": ""},
+            ],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.data["status"] == BulkImportJob.Status.COMPLETED
+    assert response.data["created_count"] == 1
+    assert response.data["error_count"] == 1
+    assert response.data["result"]["applied"] is True
+    assert response.data["result"]["partial"] is True
+    assert InventoryProduct.objects.filter(makerspace=makerspace, name="Good Meter").exists()
+
 def test_bulk_import_async_job_applies_rows_and_exposes_status():
     makerspace = make_space("bulk-job")
     admin = make_member("bulk-job-admin", makerspace)
@@ -1001,7 +1044,4 @@ def test_space_manager_cannot_create_or_list_cross_tenant_inventory_managers():
     listed_usernames = [item["user"]["username"] for item in listed.data["results"]]
     assert own_inventory_manager.username in listed_usernames
     assert other_inventory_manager.username not in listed_usernames
-
-
-
 

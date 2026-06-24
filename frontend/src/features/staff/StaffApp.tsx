@@ -20,32 +20,41 @@ import { StaffHeader } from "./StaffHeader";
 import { StaffSidebar } from "./StaffSidebar";
 import { StaffTabContent } from "./StaffTabContent";
 import { getStaffAccess } from "./staffAccess";
+import { filterTabsByEnabledModules } from "./staffTabs";
 import { type Makerspace, useStaffGet } from "./StaffPanels";
 import { useTenant } from "../../lib/tenant";
+import { readStorage, removeStorage, writeStorage } from "../../lib/safeStorage";
 
 export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   const tenant = useTenant();
   const queryClient = useQueryClient();
   const [user, setUser] = useState<StaffAuthUser | null>(null);
-  const [selected, setSelected] = useState<number | null>(null);
-  // Empty until the user picks a tab, so the first render lands on the role-appropriate
-  // default (computed below) instead of always "requests".
-  const [tab, setTab] = useState("");
+  const [selected, setSelectedState] = useState<number | null>(() => readNumber(STAFF_SELECTED_MAKERSPACE_KEY));
+  const [tab, setTabState] = useState(() => readStorage(STAFF_ACTIVE_TAB_KEY));
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     () => new Set(["Admin"]),
   );
   const [restoring, setRestoring] = useState(true);
+  const setSelected = useCallback((value: number | null) => {
+    setSelectedState(value);
+    if (value === null) removeStorage(STAFF_SELECTED_MAKERSPACE_KEY);
+    else writeStorage(STAFF_SELECTED_MAKERSPACE_KEY, String(value));
+  }, []);
+  const setTab = useCallback((value: string) => {
+    setTabState(value);
+    if (value) writeStorage(STAFF_ACTIVE_TAB_KEY, value);
+    else removeStorage(STAFF_ACTIVE_TAB_KEY);
+  }, []);
   const hydrateUser = useCallback((nextUser: StaffAuthUser) => {
     setUser(nextUser);
     if (tenant.mode === "single" && tenant.makerspaceId !== null) {
       setSelected(tenant.makerspaceId);
       return;
     }
-    // Superadmin operates one makerspace at a time and must pick it explicitly
-    // first (the MakerspacePicker screen). Other staff drop into their first
-    // membership directly.
     const superadmin = nextUser.is_superuser || nextUser.role === "superadmin";
-    setSelected(superadmin ? null : nextUser.makerspaces[0]?.id ?? null);
+    const saved = readNumber(STAFF_SELECTED_MAKERSPACE_KEY);
+    const staffSaved = nextUser.makerspaces.some((item) => item.id === saved) ? saved : null;
+    setSelected(superadmin ? saved : staffSaved ?? nextUser.makerspaces[0]?.id ?? null);
   }, [tenant.makerspaceId, tenant.mode]);
 
   const expireSession = useCallback(() => {
@@ -102,8 +111,6 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   const makerspaces = useStaffGet<Makerspace[]>(
     ["staff", "makerspaces"],
     "/admin/makerspaces",
-    // Protected endpoints 403 while a forced password change is pending; keep this
-    // query disabled until the gate is cleared so it doesn't cache an error.
     Boolean(user) && !user?.must_change_password,
   );
   const activeMakerspace = useMemo(
@@ -135,9 +142,6 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     );
   }
 
-  // Force a password rotation before the console becomes usable. The backend
-  // surfaces must_change_password (true for the default super123 seed); the
-  // change-password endpoint clears it, after which we drop into the console.
   if (user.must_change_password) {
     return (
       <ChangePasswordGate
@@ -158,7 +162,6 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     );
   }
 
-  // Backend treats is_superuser OR role === "superadmin" as superadmin; mirror that.
   const isSuperadmin = user.is_superuser || user.role === "superadmin";
   const singleTenantLocked = tenant.mode === "single" && tenant.makerspaceId !== null;
 
@@ -192,8 +195,29 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     );
   }
 
-  // Superadmin must choose which makerspace to operate before the console loads.
-  // (Other roles auto-select their first membership at login.)
+  if (!singleTenantLocked && selected !== null && makerspaces.isLoading) {
+    return (
+      <main className="desk-shell grid place-items-center px-5">
+        <div className="desk-panel w-full max-w-md p-6 text-sm font-semibold text-muted">
+          <OsmmBadge className="mb-5" />
+          Restoring makerspace...
+        </div>
+      </main>
+    );
+  }
+
+  if (!singleTenantLocked && isSuperadmin && selected !== null && !activeMakerspace) {
+    return (
+      <MakerspacePicker
+        makerspaces={makerspaces.data ?? []}
+        loading={makerspaces.isLoading}
+        username={user.username}
+        onSelect={setSelected}
+        onSignOut={signOut}
+      />
+    );
+  }
+
   if (!singleTenantLocked && isSuperadmin && selected === null) {
     return (
       <MakerspacePicker
@@ -206,10 +230,6 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     );
   }
 
-  // Authority is per active makerspace (a user can be print_manager in one and
-  // space_manager in another), so recompute the nav from the selected membership.
-  // Fail closed: only known full-access roles (or superadmin) see the full nav;
-  // print managers + unknown roles get the 3D-printing surfaces only.
   const activeRole = user.makerspaces.find((item) => item.id === selected)?.role;
   const {
     allowedTabs,
@@ -229,9 +249,6 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
       ? [activeMakerspace]
       : makerspaces.data ?? [];
   const moduleAllowedTabs = filterTabsByEnabledModules(allowedTabs, activeMakerspace);
-  // Derived (no useEffect): switching makerspace recomputes synchronously, and a
-  // tab that is not allowed for the current role falls back to the role-appropriate
-  // default landing tab (then the first allowed tab).
   const activeTab = moduleAllowedTabs.includes(tab)
     ? tab
     : moduleAllowedTabs.includes(defaultTab)
@@ -299,27 +316,11 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   );
 }
 
-const TAB_MODULES: Record<string, string[]> = {
-  direct: ["self_checkout"],
-  printing: ["printing"],
-  tobuy: ["procurement"],
-  transfers: ["stock_transfers"],
-  stocktake: ["stocktake"],
-  containers: ["containers"],
-  bulk: ["bulk_import"],
-  qr: ["qr_management"],
-  scanner: ["scanner"],
-  reports: ["reports", "printing"],
-};
+const STAFF_SELECTED_MAKERSPACE_KEY = "osmm.staff.selectedMakerspace";
+const STAFF_ACTIVE_TAB_KEY = "osmm.staff.activeTab";
 
-function filterTabsByEnabledModules(tabs: readonly string[], makerspace?: Makerspace) {
-  const modules = makerspace?.enabled_modules;
-  if (!modules) return tabs;
-  const enabled = new Set(modules);
-  return tabs.filter((tabName) => {
-    const required = TAB_MODULES[tabName];
-    return !required || required.some((moduleName) => enabled.has(moduleName));
-  });
+function readNumber(key: string) {
+  const value = Number(readStorage(key));
+  return Number.isFinite(value) && value > 0 ? value : null;
 }
-
 

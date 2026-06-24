@@ -35,6 +35,8 @@ def delimited_rows(data, delimiter):
     text = data.decode("utf-8-sig")
     rows = []
     for row in csv.DictReader(io.StringIO(text), delimiter=delimiter):
+        if is_blank_row(row):
+            continue
         rows.append(row)
         if len(rows) > MAX_IMPORT_ROWS:
             raise BulkImportLimitError(
@@ -58,13 +60,14 @@ def xlsx_rows(data):
         headers = [str(value or "").strip() for value in header_row]
         parsed_rows = []
         for row in rows:
-            parsed_rows.append(
-                {
-                    headers[index]: value
-                    for index, value in enumerate(row)
-                    if index < len(headers)
-                }
-            )
+            parsed = {
+                headers[index]: value
+                for index, value in enumerate(row)
+                if index < len(headers)
+            }
+            if is_blank_row(parsed):
+                continue
+            parsed_rows.append(parsed)
             if len(parsed_rows) > MAX_IMPORT_ROWS:
                 raise BulkImportLimitError(
                     f"Bulk import is limited to {MAX_IMPORT_ROWS} rows."
@@ -79,3 +82,8 @@ def xlsx_rows(data):
 def validate_row_count(rows):
     if len(rows) > MAX_IMPORT_ROWS:
         raise BulkImportLimitError(f"Bulk import is limited to {MAX_IMPORT_ROWS} rows.")
+
+
+def is_blank_row(row):
+    return all(str(value or "").strip() == "" for value in row.values())
+
