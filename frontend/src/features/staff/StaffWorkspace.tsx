@@ -70,7 +70,9 @@ export function StaffWorkspace({
     : moduleAllowedTabs.includes(defaultTab)
       ? defaultTab
       : moduleAllowedTabs[0] ?? defaultTab;
-  const activeTabPath = activeTab ? staffTabPath(activeTab, guestOnly) : staffTabPath(defaultTab, guestOnly);
+  const activeTabPath = activeTab
+    ? staffTabPath(activeTab, guestOnly, activeMakerspace?.slug, singleTenantLocked)
+    : staffTabPath(defaultTab, guestOnly, activeMakerspace?.slug, singleTenantLocked);
 
   if (location.pathname !== activeTabPath) {
     return <Navigate replace to={activeTabPath} />;

@@ -320,6 +320,7 @@ export default function App() {
       <Route path="/about" element={<AboutPage />} />
       <Route path="/m/:slug" element={<PublicInventoryPage />} />
       <Route path="/m/:slug/checkout" element={<PublicSelfCheckoutPage />} />
+      <Route path="/m/:slug/admin/*" element={<StaffApp />} />
       <Route path="/m/:slug/print" element={<PublicPrintRequestPage />} />
       <Route path="/m/:slug/stats" element={<PublicStatsPage />} />
       <Route path="/kiosk/:slug" element={<KioskPage />} />

@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router-dom";
 
 import {
   addAuthExpiredListener,
@@ -17,19 +18,42 @@ import { LoginPanel } from "./LoginPanel";
 import { MakerspacePicker } from "./MakerspacePicker";
 import { StaffAccessDenied } from "./StaffAccessDenied";
 import { StaffWorkspace } from "./StaffWorkspace";
-import { persistSelectedMakerspace, persistStaffTab, readStoredMakerspace } from "./staffTabs";
+import {
+  persistSelectedMakerspace,
+  persistStaffTab,
+  readStoredMakerspace,
+  staffMakerspaceSlugFromPath,
+} from "./staffTabs";
 import { type Makerspace, useStaffGet } from "./panels/shared";
 import { useTenant } from "../../lib/tenant";
+
+function StaffLoading({ message, restoring = false }: { message: string; restoring?: boolean }) {
+  const panelClass = restoring
+    ? "desk-panel flex w-full max-w-md flex-col items-center gap-4 p-8 text-center text-sm font-semibold text-muted"
+    : "desk-panel w-full max-w-md p-6 text-sm font-semibold text-muted";
+  return (
+    <main className="desk-shell grid place-items-center px-5">
+      <div className={panelClass}>
+        <OsmmBadge className={restoring ? undefined : "mb-5"} />
+        <span>{message}</span>
+      </div>
+    </main>
+  );
+}
 
 export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   const tenant = useTenant();
   const queryClient = useQueryClient();
+  const location = useLocation();
   const [user, setUser] = useState<StaffAuthUser | null>(null);
   const [selected, setSelectedState] = useState<number | null>(() => readStoredMakerspace());
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     () => new Set(["Admin"]),
   );
   const [restoring, setRestoring] = useState(true);
+  const routeMakerspaceSlug = staffMakerspaceSlugFromPath(location.pathname, guestOnly);
+  const routeMakerspaceSlugRef = useRef(routeMakerspaceSlug);
+  const singleTenantLocked = tenant.mode === "single" && tenant.makerspaceId !== null;
   const setSelected = useCallback((value: number | null) => {
     setSelectedState(value);
     persistSelectedMakerspace(value);
@@ -37,6 +61,10 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   const setTab = useCallback((value: string) => {
     persistStaffTab(value);
   }, []);
+
+  useEffect(() => {
+    routeMakerspaceSlugRef.current = routeMakerspaceSlug;
+  }, [routeMakerspaceSlug]);
   const hydrateUser = useCallback((nextUser: StaffAuthUser) => {
     setUser(nextUser);
     if (tenant.mode === "single" && tenant.makerspaceId !== null) {
@@ -44,6 +72,11 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
       return;
     }
     const superadmin = nextUser.is_superuser || nextUser.role === "superadmin";
+    const routeMembership = nextUser.makerspaces.find((item) => item.slug === routeMakerspaceSlugRef.current);
+    if (routeMembership) {
+      setSelected(routeMembership.id);
+      return;
+    }
     const saved = readStoredMakerspace();
     const staffSaved = nextUser.makerspaces.some((item) => item.id === saved) ? saved : null;
     setSelected(superadmin ? saved : staffSaved ?? nextUser.makerspaces[0]?.id ?? null);
@@ -112,15 +145,22 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     [makerspaces.data, selected],
   );
 
+  const routeMakerspace = useMemo(() => {
+    if (!routeMakerspaceSlug || !makerspaces.data) {
+      return undefined;
+    }
+    return makerspaces.data.find((item) => item.slug === routeMakerspaceSlug);
+  }, [makerspaces.data, routeMakerspaceSlug]);
+
+  useEffect(() => {
+    if (singleTenantLocked || !routeMakerspace || routeMakerspace.id === selected) {
+      return;
+    }
+    setSelected(routeMakerspace.id);
+  }, [routeMakerspace, selected, setSelected, singleTenantLocked]);
+
   if (restoring) {
-    return (
-      <main className="desk-shell grid place-items-center px-5">
-        <div className="desk-panel flex w-full max-w-md flex-col items-center gap-4 p-8 text-center text-sm font-semibold text-muted">
-          <OsmmBadge />
-          <span>Restoring session...</span>
-        </div>
-      </main>
-    );
+    return <StaffLoading message="Restoring session..." restoring />;
   }
 
   if (!user) {
@@ -155,7 +195,6 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   }
 
   const isSuperadmin = user.is_superuser || user.role === "superadmin";
-  const singleTenantLocked = tenant.mode === "single" && tenant.makerspaceId !== null;
 
   const signOut = async () => {
     await logoutStaff();
@@ -165,14 +204,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   };
 
   if (singleTenantLocked && makerspaces.isLoading) {
-    return (
-      <main className="desk-shell grid place-items-center px-5">
-        <div className="desk-panel w-full max-w-md p-6 text-sm font-semibold text-muted">
-          <OsmmBadge className="mb-5" />
-          Checking makerspace access...
-        </div>
-      </main>
-    );
+    return <StaffLoading message="Checking makerspace access..." />;
   }
 
   const hasSingleTenantAccess =
@@ -187,15 +219,16 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     );
   }
 
+  if (!singleTenantLocked && routeMakerspaceSlug && makerspaces.isLoading) {
+    return <StaffLoading message="Opening makerspace..." />;
+  }
+
+  if (!singleTenantLocked && routeMakerspace && routeMakerspace.id !== selected) {
+    return <StaffLoading message="Opening makerspace..." />;
+  }
+
   if (!singleTenantLocked && selected !== null && makerspaces.isLoading) {
-    return (
-      <main className="desk-shell grid place-items-center px-5">
-        <div className="desk-panel w-full max-w-md p-6 text-sm font-semibold text-muted">
-          <OsmmBadge className="mb-5" />
-          Restoring makerspace...
-        </div>
-      </main>
-    );
+    return <StaffLoading message="Restoring makerspace..." />;
   }
 
   if (!singleTenantLocked && isSuperadmin && selected !== null && !activeMakerspace) {

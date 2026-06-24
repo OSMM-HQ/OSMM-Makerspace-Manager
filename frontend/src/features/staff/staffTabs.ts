@@ -65,17 +65,39 @@ export function staffBasePath(guestOnly: boolean) {
   return guestOnly ? "/guest-admin" : "/admin";
 }
 
-export function staffTabPath(tab: string, guestOnly: boolean) {
-  return `${staffBasePath(guestOnly)}/${tabToPath(tab)}`;
+export function staffTabPath(
+  tab: string,
+  guestOnly: boolean,
+  makerspaceSlug?: string | null,
+  singleTenantLocked = false,
+) {
+  const pagePath = tabToPath(tab);
+  if (makerspaceSlug && !singleTenantLocked) {
+    return `/m/${makerspaceSlug}/admin/${pagePath}`;
+  }
+  return `${staffBasePath(guestOnly)}/${pagePath}`;
+}
+
+export function staffPathState(pathname: string, guestOnly: boolean) {
+  const scoped = /^\/m\/([^/]+)\/admin(?:\/([^/]+))?/.exec(pathname);
+  if (scoped) {
+    return { makerspaceSlug: scoped[1], tab: pathToTab(scoped[2] ?? "") };
+  }
+
+  const basePath = staffBasePath(guestOnly);
+  if (!pathname.startsWith(basePath)) {
+    return { makerspaceSlug: "", tab: "" };
+  }
+  const relative = pathname.slice(basePath.length).replace(/^\/+/, "");
+  return { makerspaceSlug: "", tab: pathToTab(relative.split("/")[0] ?? "") };
+}
+
+export function staffMakerspaceSlugFromPath(pathname: string, guestOnly: boolean) {
+  return staffPathState(pathname, guestOnly).makerspaceSlug;
 }
 
 export function tabFromStaffPath(pathname: string, guestOnly: boolean) {
-  const basePath = staffBasePath(guestOnly);
-  if (!pathname.startsWith(basePath)) {
-    return "";
-  }
-  const relative = pathname.slice(basePath.length).replace(/^\/+/, "");
-  return pathToTab(relative.split("/")[0] ?? "");
+  return staffPathState(pathname, guestOnly).tab;
 }
 
 export function tabToPath(tab: string) {

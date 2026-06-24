@@ -83,7 +83,7 @@ export function StaffSidebar({
                         key={item}
                         aria-current={activeTab === item ? "page" : undefined}
                         className={`desk-nav-item ${activeTab === item ? "desk-nav-item-active" : ""}`}
-                        to={staffTabPath(item, guestOnly)}
+                        to={staffTabPath(item, guestOnly, activeMakerspace?.slug, singleTenantLocked)}
                         onClick={() => setTab(item)}
                       >
                         <span className="min-w-0 truncate">{TAB_LABELS[item] ?? item}</span>
