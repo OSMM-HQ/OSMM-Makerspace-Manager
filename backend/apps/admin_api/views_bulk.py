@@ -104,12 +104,14 @@ class BulkImportJobListCreateView(APIView):
         makerspace = _authorized_makerspace(request, makerspace_id)
         serializer = BulkImportJobCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        rows = serializer.validated_data.get("rows")
+        if rows is None:
+            rows = _rows_from_upload(serializer.validated_data["file"])
         job = BulkImportJob.objects.create(
             makerspace=makerspace,
             actor=request.user,
             mode=serializer.validated_data["mode"],
-            upload=serializer.validated_data.get("file"),
-            rows=serializer.validated_data.get("rows") or [],
+            rows=rows,
             mapping=serializer.validated_data.get("mapping") or {},
         )
         process_bulk_import_job.delay(job.id)

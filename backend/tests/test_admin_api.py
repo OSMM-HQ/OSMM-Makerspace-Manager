@@ -369,6 +369,33 @@ def test_bulk_import_csv_upload_ignores_blank_rows():
     assert response.data["valid"] is True
 
 
+def test_bulk_import_async_file_job_applies_csv_with_mapping():
+    makerspace = make_space("bulk-job-file")
+    admin = make_member("bulk-job-file-admin", makerspace)
+    upload = SimpleUploadedFile(
+        "items.csv",
+        b"Item,Total,Available,Location\nSoldering Iron,3,3,Bench 1\n",
+        content_type="text/csv",
+    )
+
+    response = authenticated_client(admin).post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/inventory/import/jobs",
+        {
+            "mode": "apply",
+            "file": upload,
+            "mapping": '{"name":"Item","total_quantity":"Total","available_quantity":"Available","storage_location":"Location"}',
+        },
+        format="multipart",
+    )
+
+    assert response.status_code == 201, response.data
+    assert response.data["status"] == BulkImportJob.Status.COMPLETED
+    assert response.data["created_count"] == 1
+    product = InventoryProduct.objects.get(makerspace=makerspace, name="Soldering Iron")
+    assert product.total_quantity == 3
+    assert product.available_quantity == 3
+    assert product.storage_location == "Bench 1"
+
 def test_bulk_import_async_apply_partially_imports_valid_rows():
     makerspace = make_space("bulk-job-partial")
     admin = make_member("bulk-job-partial-admin", makerspace)
