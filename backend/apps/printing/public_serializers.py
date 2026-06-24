@@ -15,17 +15,21 @@ class PublicFilamentSpoolSerializer(serializers.Serializer):
 
 
 class PrintCheckinVerifyRequestSerializer(serializers.Serializer):
-    contact_email = serializers.EmailField()
+    requester_name = serializers.CharField(max_length=120)
+    contact_email = serializers.EmailField(max_length=254)
+    contact_phone = serializers.CharField(max_length=40)
 
 
 class PrintCheckinVerifyResponseSerializer(serializers.Serializer):
-    # Only a display name — never the stable Check-In external_id (avoids identifier
+    # Only a display name â€” never the stable Check-In external_id (avoids identifier
     # disclosure; the server re-verifies the identifier on submit anyway).
     username = serializers.CharField()
 
 
 class PrintPresignRequestSerializer(serializers.Serializer):
-    contact_email = serializers.EmailField()
+    requester_name = serializers.CharField(max_length=120)
+    contact_email = serializers.EmailField(max_length=254)
+    contact_phone = serializers.CharField(max_length=40)
     kind = serializers.ChoiceField(choices=["stl", "screenshot"])
     filename = serializers.CharField(max_length=255)
     content_type = serializers.CharField(
@@ -101,4 +105,3 @@ class PublicPrintStatusSerializer(serializers.Serializer):
     def get_queue_awaiting_review_ahead(self, obj):
         counts = self.context.get("queue_counts", {}).get(obj.id)
         return counts["awaiting_review_ahead"] if counts else None
-

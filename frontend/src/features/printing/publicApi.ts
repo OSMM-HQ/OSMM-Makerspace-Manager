@@ -26,8 +26,13 @@ export type PrintStatus = {
   queue_awaiting_review_ahead: number | null;
 };
 
-export type PrintUploadBody = {
+export type PrintIdentityBody = {
+  requester_name: string;
   contact_email: string;
+  contact_phone: string;
+};
+
+export type PrintUploadBody = PrintIdentityBody & {
   kind: "stl" | "screenshot";
   filename: string;
   content_type: string;
@@ -40,10 +45,9 @@ export type PrintUpload = {
   headers?: Record<string, string>;
 };
 
-export type PrintRequestPayload = {
+export type PrintRequestPayload = PrintIdentityBody & {
   website?: string;
   bucket_id?: number;
-  requester_name: string;
   title: string;
   description?: string;
   project_brief?: string;
@@ -53,8 +57,6 @@ export type PrintRequestPayload = {
   filament_spool_id?: number | null;
   quantity: number;
   source_link?: string;
-  contact_email: string;
-  contact_phone: string;
   file_ids: number[];
 };
 
@@ -72,11 +74,11 @@ export function fetchPublicSpools(slug: string) {
   );
 }
 
-export function verifyPrintCheckin(slug: string, contactEmail: string) {
+export function verifyPrintCheckin(slug: string, body: PrintIdentityBody) {
   return tenantPublicRequest<{ username: string }>(
     slug,
     `/printing/public/${slug}/checkin/verify`,
-    { method: "POST", body: JSON.stringify({ contact_email: contactEmail }) },
+    { method: "POST", body: JSON.stringify(body) },
   );
 }
 
@@ -132,4 +134,3 @@ export function fetchPrintStatusByEmail(slug: string, email: string) {
     { method: "POST", body: JSON.stringify({ email }) },
   );
 }
-

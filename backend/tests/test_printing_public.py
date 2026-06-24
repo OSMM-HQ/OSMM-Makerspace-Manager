@@ -92,7 +92,9 @@ def print_submit_payload(**overrides):
 
 def presign_payload(**overrides):
     payload = {
+        "requester_name": "Uma Example",
         "contact_email": "u@e.com",
+        "contact_phone": "+15550101010",
         "kind": "stl",
         "filename": "p.stl",
         "content_type": "application/octet-stream",
@@ -107,12 +109,38 @@ def test_checkin_verify_omits_external_id():
 
     response = public_client().post(
         checkin_verify_url(makerspace),
-        {"contact_email": "u@e.com"},
+        {
+            "requester_name": "Uma Example",
+            "contact_email": "u@e.com",
+            "contact_phone": "+15550101010",
+        },
         format="json",
     )
 
     assert response.status_code == 200
     assert set(response.data.keys()) == {"username"}
+
+
+
+@pytest.mark.parametrize("missing_field", ["requester_name", "contact_email", "contact_phone"])
+def test_checkin_verify_requires_name_email_and_phone(missing_field):
+    makerspace = make_space(f"public-print-verify-missing-{missing_field.replace('_', '-')}")
+    enable_printing(makerspace)
+    payload = {
+        "requester_name": "Uma Example",
+        "contact_email": "u@e.com",
+        "contact_phone": "+15550101010",
+    }
+    payload.pop(missing_field)
+
+    response = public_client().post(
+        checkin_verify_url(makerspace),
+        payload,
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert missing_field in response.data
 
 
 def test_presign_blocked_for_inactive_requester(monkeypatch):
@@ -496,12 +524,13 @@ def test_presign_rejects_bad_mime_and_accepts_good(monkeypatch):
     assert PrintRequestFile.objects.get(pk=response.data["file_id"]).original_filename == "p.stl"
 
 
-def test_presign_requires_contact_email(monkeypatch):
-    makerspace = make_space("public-print-presign-email-required")
+@pytest.mark.parametrize("missing_field", ["requester_name", "contact_email", "contact_phone"])
+def test_presign_requires_name_email_and_phone(monkeypatch, missing_field):
+    makerspace = make_space(f"public-print-presign-missing-{missing_field.replace('_', '-')}")
     enable_printing(makerspace)
     mock_upload(monkeypatch)
     payload = presign_payload()
-    payload.pop("contact_email")
+    payload.pop(missing_field)
 
     response = public_client().post(
         presign_url(makerspace),
@@ -510,7 +539,7 @@ def test_presign_requires_contact_email(monkeypatch):
     )
 
     assert response.status_code == 400
-    assert "contact_email" in response.data
+    assert missing_field in response.data
     assert not PrintRequestFile.objects.exists()
 
 

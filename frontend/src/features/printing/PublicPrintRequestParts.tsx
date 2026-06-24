@@ -1,7 +1,6 @@
 import type { ChangeEvent, Dispatch, SetStateAction } from "react";
 import { useEffect, useState } from "react";
 
-import { Card } from "../../components/ui/Card";
 import { Spinner } from "../../components/ui/Spinner";
 import type { PrintStatus } from "./publicApi";
 
@@ -142,7 +141,7 @@ function printTimeLeftLabel(status: PrintStatus, now: number): string | null {
   const finish = new Date(status.started_at).getTime() + status.estimated_minutes * 60_000;
   const remainingMs = finish - now;
   if (remainingMs <= 0) {
-    return "Finishing up — past the estimate";
+    return "Finishing up Ã¢â‚¬â€ past the estimate";
   }
   const totalMinutes = Math.ceil(remainingMs / 60_000);
   const hours = Math.floor(totalMinutes / 60);
@@ -159,7 +158,7 @@ function queuePositionDetail(status: PrintStatus): string {
   return [
     `${approvedAhead} approved job${approvedAhead === 1 ? "" : "s"} ahead`,
     `${awaitingReviewAhead} awaiting review`,
-  ].join(" · ");
+  ].join(" Ã‚Â· ");
 }
 
 export function StatusStepper({ status }: { status: PrintStatus }) {
@@ -228,23 +227,6 @@ export function StatusStepper({ status }: { status: PrintStatus }) {
         </span>
       </p>
     </div>
-  );
-}
-
-export function SubmittedTokenCard({ token }: { token: string }) {
-  return (
-    <Card>
-      <p className="text-xs font-semibold tracking-wide text-success-ink">
-        Request submitted
-      </p>
-      <h2 className="mt-2 text-xl font-semibold text-ink">Save this token</h2>
-      <p className="mt-2 break-all rounded-lg border border-tone-mint bg-tone-mint px-3 py-2 text-sm font-semibold text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]">
-        {token}
-      </p>
-      <p className="mt-2 text-sm text-muted">
-        Use it later to check the status of this print request.
-      </p>
-    </Card>
   );
 }
 

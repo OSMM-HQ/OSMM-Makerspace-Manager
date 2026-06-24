@@ -103,20 +103,12 @@ export function PrintDetailsForm({
           onChange={(event) => onWebsiteChange(event.target.value)}
         />
         <fieldset className="space-y-4" disabled={!verified || submitPending}>
-          <div className="grid gap-4 md:grid-cols-2">
-            <TextInput
-              label="Title"
-              required
-              value={form.title}
-              onChange={(value) => updateField("title", value)}
-            />
-            <TextInput
-              label="Your name"
-              required
-              value={form.requesterName}
-              onChange={(value) => updateField("requesterName", value)}
-            />
-          </div>
+          <TextInput
+            label="Title"
+            required
+            value={form.title}
+            onChange={(value) => updateField("title", value)}
+          />
           <TextArea
             label="Project brief"
             value={form.projectBrief}
@@ -174,7 +166,6 @@ export function PrintDetailsForm({
               />
             </label>
             <TextInput label="Source link (optional)" value={form.sourceLink} onChange={(value) => updateField("sourceLink", value)} />
-            <TextInput label="Contact phone" required value={form.contactPhone} onChange={(value) => updateField("contactPhone", value)} />
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <FilePicker
@@ -221,5 +212,3 @@ export function PrintDetailsForm({
     </Card>
   );
 }
-
-

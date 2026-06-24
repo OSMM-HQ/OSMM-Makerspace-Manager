@@ -15822,13 +15822,24 @@
             "PrintCheckinVerifyRequest": {
                 "type": "object",
                 "properties": {
+                    "requester_name": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
                     "contact_email": {
                         "type": "string",
-                        "format": "email"
+                        "format": "email",
+                        "maxLength": 254
+                    },
+                    "contact_phone": {
+                        "type": "string",
+                        "maxLength": 40
                     }
                 },
                 "required": [
-                    "contact_email"
+                    "contact_email",
+                    "contact_phone",
+                    "requester_name"
                 ]
             },
             "PrintCheckinVerifyResponse": {
@@ -15857,9 +15868,18 @@
             "PrintPresignRequest": {
                 "type": "object",
                 "properties": {
+                    "requester_name": {
+                        "type": "string",
+                        "maxLength": 120
+                    },
                     "contact_email": {
                         "type": "string",
-                        "format": "email"
+                        "format": "email",
+                        "maxLength": 254
+                    },
+                    "contact_phone": {
+                        "type": "string",
+                        "maxLength": 40
                     },
                     "kind": {
                         "$ref": "#/components/schemas/PrintPresignRequestKindEnum"
@@ -15875,8 +15895,10 @@
                 },
                 "required": [
                     "contact_email",
+                    "contact_phone",
                     "filename",
-                    "kind"
+                    "kind",
+                    "requester_name"
                 ]
             },
             "PrintPresignRequestKindEnum": {

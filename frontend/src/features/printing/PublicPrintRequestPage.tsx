@@ -5,11 +5,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
 import { OsmmBadge } from "../../components/OsmmLogo";
-import { Card } from "../../components/ui/Card";
 import { useTenant, useTenantPath } from "../../lib/tenant";
 import { formatSlug } from "../inventory/PublicInventoryParts";
 import { useTenantBootstrap } from "../inventory/usePublicInventory";
-import { StatusResult, SubmittedTokenCard } from "./PublicPrintRequestParts";
 import {
   PrintDetailsForm,
   initialForm,
@@ -24,8 +22,38 @@ import {
   submitPrintRequest,
   uploadToStorage,
   verifyPrintCheckin,
+  type PrintIdentityBody,
 } from "./publicApi";
+import {
+  PrintAccessErrorPanel,
+  PrintAccessLoadingPanel,
+  PrintCheckInCard,
+  PrintStatusPanel,
+  PrintUnavailablePanel,
+} from "./PublicPrintRequestPanels";
 import { uploadPrintFilesBounded } from "./PublicPrintUploads";
+
+function identityFromForm(form: FormState): PrintIdentityBody {
+  return {
+    requester_name: form.requesterName.trim(),
+    contact_email: form.contactEmail.trim(),
+    contact_phone: form.contactPhone.trim(),
+  };
+}
+
+function identityKey(identity: PrintIdentityBody): string {
+  return [
+    identity.requester_name,
+    identity.contact_email,
+    identity.contact_phone,
+  ].join("\n");
+}
+
+function hasCompleteIdentity(identity: PrintIdentityBody): boolean {
+  return Boolean(
+    identity.requester_name && identity.contact_email && identity.contact_phone,
+  );
+}
 
 export function PublicPrintRequestPage() {
   const queryClient = useQueryClient();
@@ -33,18 +61,16 @@ export function PublicPrintRequestPage() {
   const tenant = useTenant();
   const makerspaceSlug = tenant.mode === "single" ? tenant.slug : slug ?? "";
   const tenantPath = useTenantPath(makerspaceSlug);
-  const [verifiedIdentifier, setVerifiedIdentifier] = useState("");
+  const [verifiedIdentity, setVerifiedIdentity] = useState("");
   const [verifiedName, setVerifiedName] = useState("");
   const [form, setForm] = useState<FormState>(initialForm);
   const [modelFiles, setModelFiles] = useState<File[]>([]);
   const [screenshotFiles, setScreenshotFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState("");
-  const [submittedToken, setSubmittedToken] = useState("");
+  const [submitted, setSubmitted] = useState(false);
   const [activeStatusToken, setActiveStatusToken] = useState("");
   const [statusEmail, setStatusEmail] = useState("");
   const statusLinkHandledRef = useRef(false);
-  // Anti-spam honeypot: hidden from real users; a bot that autofills it triggers the
-  // backend decoy-success (no request created).
   const [website, setWebsite] = useState("");
 
   const bootstrapQuery = useTenantBootstrap(makerspaceSlug, tenant.mode === "central");
@@ -54,6 +80,16 @@ export function PublicPrintRequestPage() {
     [bootstrap?.modules, tenant],
   );
   const enabled = modules.has("printing");
+  const currentIdentity = identityFromForm(form);
+  const currentIdentityKey = identityKey(currentIdentity);
+  const verified = hasCompleteIdentity(currentIdentity) &&
+    currentIdentityKey === verifiedIdentity;
+  const displayName =
+    bootstrap?.branding.display_name ||
+    bootstrap?.makerspace.name ||
+    formatSlug(makerspaceSlug) ||
+    "Makerspace";
+
   const spoolsQuery = useQuery({
     queryKey: ["public-print-spools", makerspaceSlug],
     queryFn: () => fetchPublicSpools(makerspaceSlug),
@@ -62,9 +98,6 @@ export function PublicPrintRequestPage() {
   const statusQuery = useQuery({
     queryKey: ["public-print-status", activeStatusToken],
     queryFn: () => fetchPrintStatus(activeStatusToken),
-    // Not gated on the printing module: the backend token-status endpoint stays
-    // available, so a requester opening an existing ?token= link must still see
-    // their status even if the makerspace later disables new submissions.
     enabled: Boolean(activeStatusToken),
     refetchInterval: (query) =>
       query.state.data?.status === "printing" ? 30_000 : false,
@@ -73,41 +106,49 @@ export function PublicPrintRequestPage() {
     mutationFn: (email: string) =>
       fetchPrintStatusByEmail(makerspaceSlug, email.trim()),
   });
-  useEffect(() => {
-    if (statusLinkHandledRef.current) {
-      return;
-    }
-    statusLinkHandledRef.current = true;
-    const token = new URLSearchParams(window.location.search).get("token")?.trim();
-    if (token) {
-      setActiveStatusToken(token);
-    }
-  }, []);
   const verifyMutation = useMutation({
-    mutationFn: (email: string) => verifyPrintCheckin(makerspaceSlug, email),
-    onSuccess: (data, email) => {
-      setVerifiedIdentifier(email);
+    mutationFn: (identity: PrintIdentityBody) =>
+      verifyPrintCheckin(makerspaceSlug, identity),
+    onSuccess: (data, identity) => {
+      setVerifiedIdentity(identityKey(identity));
       setVerifiedName(data.username);
     },
   });
-  const verified =
-    form.contactEmail.trim().length > 0 &&
-    form.contactEmail.trim() === verifiedIdentifier;
-  const displayName =
-    bootstrap?.branding.display_name ||
-    bootstrap?.makerspace.name ||
-    formatSlug(makerspaceSlug) ||
-    "Makerspace";
+
+  useEffect(() => {
+    if (statusLinkHandledRef.current) return;
+    statusLinkHandledRef.current = true;
+    const token = new URLSearchParams(window.location.search).get("token")?.trim();
+    if (token) setActiveStatusToken(token);
+  }, []);
+
+  function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function updateIdentityField(
+    key: "requesterName" | "contactEmail" | "contactPhone",
+    value: string,
+  ) {
+    const nextForm = { ...form, [key]: value };
+    updateField(key, value);
+    if (identityKey(identityFromForm(nextForm)) !== verifiedIdentity) {
+      setVerifiedIdentity("");
+      setVerifiedName("");
+      verifyMutation.reset();
+    }
+  }
 
   const submitMutation = useMutation({
     mutationFn: async () => {
+      const identity = identityFromForm(form);
       const files = [
         ...modelFiles.map((file) => ({ file, kind: "stl" as const })),
         ...screenshotFiles.map((file) => ({ file, kind: "screenshot" as const })),
       ];
       const fileIds = await uploadPrintFilesBounded(files, async (item) => {
         const presigned = await presignPrintUpload(makerspaceSlug, {
-          contact_email: form.contactEmail.trim(),
+          ...identity,
           kind: item.kind,
           filename: item.file.name,
           content_type:
@@ -120,14 +161,12 @@ export function PublicPrintRequestPage() {
       }, setUploadProgress);
 
       setUploadProgress(files.length ? "Submitting request..." : "");
-      // Material/color are no longer free-text fields; the chosen spool is the single
-      // source, so derive them from it for staff display (empty when "No preference").
       const chosenSpool = spoolsQuery.data?.find(
         (spool) => String(spool.id) === form.filamentSpoolId,
       );
       return submitPrintRequest(makerspaceSlug, {
+        ...identity,
         website,
-        requester_name: form.requesterName.trim(),
         title: form.title.trim(),
         project_brief: optional(form.projectBrief),
         preferred_settings: optional(form.preferredSettings),
@@ -138,8 +177,6 @@ export function PublicPrintRequestPage() {
           : null,
         quantity: form.quantity,
         source_link: optional(form.sourceLink),
-        contact_email: form.contactEmail.trim(),
-        contact_phone: form.contactPhone.trim(),
         file_ids: fileIds,
       });
     },
@@ -147,43 +184,21 @@ export function PublicPrintRequestPage() {
       queryClient.invalidateQueries({ queryKey: ["public-print-spools", makerspaceSlug] });
       queryClient.invalidateQueries({ queryKey: ["public-print-status"] });
       setUploadProgress("");
-      setSubmittedToken(response.public_token);
+      setSubmitted(true);
+      setStatusEmail(form.contactEmail.trim());
       setActiveStatusToken(response.public_token);
     },
     onError: () => setUploadProgress(""),
   });
 
-  function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setForm((current) => ({ ...current, [key]: value }));
-  }
-
-  function updateContactEmail(value: string) {
-    updateField("contactEmail", value);
-    if (value.trim() !== verifiedIdentifier) {
-      setVerifiedIdentifier("");
-      setVerifiedName("");
-      verifyMutation.reset();
-    }
-  }
-
   function submitForm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (
-      verified &&
-      form.requesterName.trim() &&
-      form.contactEmail.trim() &&
-      form.contactPhone.trim() &&
-      form.title.trim()
-    ) {
-      submitMutation.mutate();
-    }
+    if (verified && form.title.trim()) submitMutation.mutate();
   }
 
   function checkStatusByEmail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (statusEmail.trim()) {
-      statusByEmailMutation.mutate(statusEmail.trim());
-    }
+    if (statusEmail.trim()) statusByEmailMutation.mutate(statusEmail.trim());
   }
 
   return (
@@ -214,162 +229,64 @@ export function PublicPrintRequestPage() {
         </div>
       </header>
 
-      {bootstrapQuery.isLoading ? (
-        <section className="mx-auto max-w-screen-sm px-5 py-6 sm:px-8">
-          <Card>
-            <p className="text-sm text-muted">Loading printing access...</p>
-          </Card>
-        </section>
-      ) : null}
+      {bootstrapQuery.isLoading ? <PrintAccessLoadingPanel /> : null}
+      {bootstrapQuery.isError ? <PrintAccessErrorPanel /> : null}
 
-      {bootstrapQuery.isError ? (
-        <section className="mx-auto max-w-screen-sm px-5 py-6 sm:px-8">
-          <Card>
-            <p className="text-sm text-danger">Could not load printing access. Try again in a moment.</p>
-          </Card>
-        </section>
-      ) : null}
       {!bootstrapQuery.isLoading && !bootstrapQuery.isError && !enabled ? (
-        <section className="mx-auto max-w-screen-sm px-5 py-6 sm:px-8">
-          <Card>
-            <p className="text-xs font-semibold tracking-wide text-accent-ink">
-              3D printing
-            </p>
-            <h2 className="mt-2 text-xl font-semibold text-ink">
-              3D printing is not enabled for this makerspace.
-            </h2>
-            {/* New submissions are blocked when the module is off, but an existing
-                requester following a ?token= status link must still see their print
-                status (the backend token-status endpoint is not module-gated). */}
-            {activeStatusToken ? (
-              <div className="mt-4">
-                <StatusResult
-                  error={statusQuery.error}
-                  isPending={statusQuery.isPending}
-                  status={statusQuery.data}
-                />
-              </div>
-            ) : null}
-            <Link className="desk-button mt-4" to={tenantPath()}>
-              Back to inventory
-            </Link>
-          </Card>
-        </section>
+        <PrintUnavailablePanel
+          catalogPath={tenantPath()}
+          tokenStatus={statusQuery.data}
+          tokenStatusPending={Boolean(activeStatusToken) && statusQuery.isPending}
+          tokenStatusError={statusQuery.error}
+        />
       ) : null}
 
       {!bootstrapQuery.isLoading && !bootstrapQuery.isError && enabled ? (
         <section className="mx-auto grid max-w-screen-xl grid-cols-1 gap-5 px-5 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="min-w-0 space-y-4">
-          <Card className="bg-tone-yellow text-tone-yellow-ink dark:bg-[#332b00] dark:text-[#fcdf46]">
-            <p className="text-xs font-semibold tracking-wide">
-              Check-In
-            </p>
-            <label className="mt-3 block">
-                <span className="mb-1 block text-xs font-semibold tracking-wide opacity-80">
-                  Check-In email
-                </span>
-              <input
-                className="desk-input w-full"
-                placeholder="you@example.com"
-                required
-                type="email"
-                value={form.contactEmail}
-                onChange={(event) => updateContactEmail(event.target.value)}
-              />
-            </label>
-            <button
-              className="desk-button mt-3"
-              disabled={!form.contactEmail.trim() || verifyMutation.isPending}
-              type="button"
-              onClick={() => verifyMutation.mutate(form.contactEmail.trim())}
-            >
-              {verifyMutation.isPending ? "Verifying..." : "Verify Check-In"}
-            </button>
-            {verified ? (
-              <p className="mt-3 rounded-lg border border-tone-mint bg-tone-mint px-3 py-2 text-sm font-medium text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]">
-                Check-In verified{verifiedName ? ` for ${verifiedName}` : ""}
-              </p>
-            ) : null}
-            {verifyMutation.error ? (
-              <p className="mt-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
-                {verifyMutation.error.message}
-              </p>
-            ) : null}
-          </Card>
+          <div className="min-w-0 space-y-4">
+            <PrintCheckInCard
+              form={form}
+              verified={verified}
+              verifiedName={verifiedName}
+              verifyPending={verifyMutation.isPending}
+              verifyError={verifyMutation.error}
+              onRequesterNameChange={(value) => updateIdentityField("requesterName", value)}
+              onContactEmailChange={(value) => updateIdentityField("contactEmail", value)}
+              onContactPhoneChange={(value) => updateIdentityField("contactPhone", value)}
+              onVerify={() => verifyMutation.mutate(currentIdentity)}
+            />
+            <PrintDetailsForm
+              form={form}
+              updateField={updateField}
+              spoolsQuery={spoolsQuery}
+              modelFiles={modelFiles}
+              setModelFiles={setModelFiles}
+              screenshotFiles={screenshotFiles}
+              setScreenshotFiles={setScreenshotFiles}
+              verified={verified}
+              submitPending={submitMutation.isPending}
+              submitError={submitMutation.error}
+              uploadProgress={uploadProgress}
+              website={website}
+              onWebsiteChange={setWebsite}
+              onSubmit={submitForm}
+            />
+          </div>
 
-          <PrintDetailsForm
-            form={form}
-            updateField={updateField}
-            spoolsQuery={spoolsQuery}
-            modelFiles={modelFiles}
-            setModelFiles={setModelFiles}
-            screenshotFiles={screenshotFiles}
-            setScreenshotFiles={setScreenshotFiles}
-            verified={verified}
-            submitPending={submitMutation.isPending}
-            submitError={submitMutation.error}
-            uploadProgress={uploadProgress}
-            website={website}
-            onWebsiteChange={setWebsite}
-            onSubmit={submitForm}
-          />
-        </div>
-
-        <aside className="min-w-0 space-y-4 lg:sticky lg:top-0 lg:max-h-[100dvh] lg:overflow-y-auto">
-          {submittedToken ? <SubmittedTokenCard token={submittedToken} /> : null}
-          <Card className="bg-tone-pink text-tone-pink-ink dark:bg-[#3a1326] dark:text-[#f9a8d4]">
-            <p className="text-xs font-semibold tracking-wide">
-              Status Tracker
-            </p>
-            <form className="mt-3 space-y-3" onSubmit={checkStatusByEmail}>
-              <label className="block">
-                <span className="mb-1 block text-xs font-semibold tracking-wide opacity-80">
-                  Request email
-                </span>
-                <input
-                  className="desk-input w-full"
-                  type="email"
-                  value={statusEmail}
-                  onChange={(event) => setStatusEmail(event.target.value)}
-                />
-              </label>
-              <button
-                className="desk-button"
-                disabled={!statusEmail.trim() || statusByEmailMutation.isPending}
-                type="submit"
-              >
-                {statusByEmailMutation.isPending ? "Checking..." : "Check status"}
-              </button>
-            </form>
-            <div className="mt-4">
-              <StatusResult
-                error={statusQuery.error}
-                isPending={Boolean(activeStatusToken) && statusQuery.isPending}
-                status={statusQuery.data}
-              />
-            </div>
-            <div className="mt-4 space-y-4">
-              {statusByEmailMutation.error ? (
-                <p className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
-                  {statusByEmailMutation.error.message}
-                </p>
-              ) : null}
-              {statusByEmailMutation.data?.results.map((status) => (
-                <StatusResult
-                  error={null}
-                  isPending={false}
-                  key={status.public_token}
-                  status={status}
-                />
-              ))}
-              {statusByEmailMutation.data?.results.length === 0 ? (
-                <p className="rounded-lg border border-line bg-panel/80 px-3 py-2 text-sm">
-                  No requests found for that email.
-                </p>
-              ) : null}
-            </div>
-          </Card>
-        </aside>
+          <aside className="min-w-0 space-y-4 lg:sticky lg:top-0 lg:max-h-[100dvh] lg:overflow-y-auto">
+            <PrintStatusPanel
+              submitted={submitted}
+              statusEmail={statusEmail}
+              statusEmailPending={statusByEmailMutation.isPending}
+              statusEmailError={statusByEmailMutation.error}
+              statusEmailResults={statusByEmailMutation.data?.results}
+              tokenStatus={statusQuery.data}
+              tokenStatusPending={Boolean(activeStatusToken) && statusQuery.isPending}
+              tokenStatusError={statusQuery.error}
+              onStatusEmailChange={setStatusEmail}
+              onSubmitStatusEmail={checkStatusByEmail}
+            />
+          </aside>
         </section>
       ) : null}
     </main>
