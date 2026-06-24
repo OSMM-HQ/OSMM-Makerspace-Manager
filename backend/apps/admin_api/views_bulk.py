@@ -7,8 +7,14 @@ from rest_framework.views import APIView
 
 from apps.accounts import rbac
 from apps.admin_api import bulk_import
+from apps.admin_api.models import BulkImportJob
 from apps.admin_api.permissions import IsActiveStaff, require_action
-from apps.admin_api.serializers_bulk import BulkImportPreviewSerializer
+from apps.admin_api.serializers_bulk import (
+    BulkImportJobCreateSerializer,
+    BulkImportJobSerializer,
+    BulkImportPreviewSerializer,
+)
+from apps.admin_api.tasks import process_bulk_import_job
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.models import Makerspace
 from apps.openapi import BULK_IMPORT_ROWS_EXAMPLE
@@ -26,6 +32,13 @@ def _rows_from_upload(uploaded_file):
         raise ValidationError({"file": str(exc) or "Uploaded file could not be parsed."})
 
 
+def _authorized_makerspace(request, makerspace_id):
+    makerspace = get_object_or_404(Makerspace, pk=makerspace_id)
+    require_module(makerspace, "bulk_import")
+    require_action(request.user, rbac.Action.EDIT_INVENTORY, makerspace_id)
+    return makerspace
+
+
 class BulkImportPreviewView(APIView):
     permission_classes = [IsActiveStaff]
 
@@ -37,9 +50,7 @@ class BulkImportPreviewView(APIView):
         examples=[BULK_IMPORT_ROWS_EXAMPLE],
     )
     def post(self, request, makerspace_id, *args, **kwargs):
-        makerspace = get_object_or_404(Makerspace, pk=makerspace_id)
-        require_module(makerspace, "bulk_import")
-        require_action(request.user, rbac.Action.EDIT_INVENTORY, makerspace_id)
+        makerspace = _authorized_makerspace(request, makerspace_id)
         serializer = BulkImportPreviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         rows = serializer.validated_data.get("rows")
@@ -65,9 +76,7 @@ class BulkImportApplyView(APIView):
         examples=[BULK_IMPORT_ROWS_EXAMPLE],
     )
     def post(self, request, makerspace_id, *args, **kwargs):
-        makerspace = get_object_or_404(Makerspace, pk=makerspace_id)
-        require_module(makerspace, "bulk_import")
-        require_action(request.user, rbac.Action.EDIT_INVENTORY, makerspace_id)
+        makerspace = _authorized_makerspace(request, makerspace_id)
         serializer = BulkImportPreviewSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         rows = serializer.validated_data.get("rows")
@@ -80,3 +89,47 @@ class BulkImportApplyView(APIView):
             serializer.validated_data.get("mapping") or {},
         )
         return Response(result, status=status.HTTP_200_OK)
+
+
+class BulkImportJobListCreateView(APIView):
+    permission_classes = [IsActiveStaff]
+
+    @extend_schema(
+        tags=["Bulk import"],
+        summary="Create an async inventory bulk import job",
+        request=BulkImportJobCreateSerializer,
+        responses={201: BulkImportJobSerializer},
+    )
+    def post(self, request, makerspace_id, *args, **kwargs):
+        makerspace = _authorized_makerspace(request, makerspace_id)
+        serializer = BulkImportJobCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        job = BulkImportJob.objects.create(
+            makerspace=makerspace,
+            actor=request.user,
+            mode=serializer.validated_data["mode"],
+            upload=serializer.validated_data.get("file"),
+            rows=serializer.validated_data.get("rows") or [],
+            mapping=serializer.validated_data.get("mapping") or {},
+        )
+        process_bulk_import_job.delay(job.id)
+        job.refresh_from_db()
+        return Response(BulkImportJobSerializer(job).data, status=status.HTTP_201_CREATED)
+
+
+class BulkImportJobDetailView(APIView):
+    permission_classes = [IsActiveStaff]
+
+    @extend_schema(
+        tags=["Bulk import"],
+        summary="Get async inventory bulk import job status",
+        responses={200: BulkImportJobSerializer},
+    )
+    def get(self, request, makerspace_id, job_id, *args, **kwargs):
+        _authorized_makerspace(request, makerspace_id)
+        job = get_object_or_404(
+            BulkImportJob,
+            pk=job_id,
+            makerspace_id=makerspace_id,
+        )
+        return Response(BulkImportJobSerializer(job).data)

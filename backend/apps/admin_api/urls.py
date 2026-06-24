@@ -94,6 +94,16 @@ urlpatterns = [
         name="inventory-import-apply",
     ),
     path(
+        "makerspace/<int:makerspace_id>/inventory/import/jobs",
+        views.BulkImportJobListCreateView.as_view(),
+        name="inventory-import-jobs",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/inventory/import/jobs/<int:job_id>",
+        views.BulkImportJobDetailView.as_view(),
+        name="inventory-import-job-detail",
+    ),
+    path(
         "makerspace/<int:makerspace_id>/api-clients",
         api_client_views.ApiClientListCreateView.as_view(),
         name="admin-api-clients",
@@ -190,3 +200,4 @@ urlpatterns = [
     ),
     path("audit-logs", views.AuditLogListView.as_view(), name="admin-audit-logs"),
 ]
+

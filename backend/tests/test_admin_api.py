@@ -3,6 +3,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 
 from apps.accounts.models import User
 from apps.admin_api import bulk_import
+from apps.admin_api.models import BulkImportJob
 from apps.apiclients.models import ApiClient, ApiKeyRequest
 from apps.audit.models import AuditLog
 from apps.inventory.models import Category, InventoryProduct
@@ -334,6 +335,61 @@ def test_bulk_import_apply_maps_full_supported_inventory_fields():
     assert product.public_self_checkout_enabled is True
     assert product.show_public_count is True
     assert product.public_availability_mode == "exact_count"
+
+def test_bulk_import_async_job_applies_rows_and_exposes_status():
+    makerspace = make_space("bulk-job")
+    admin = make_member("bulk-job-admin", makerspace)
+    client = authenticated_client(admin)
+
+    created = client.post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/inventory/import/jobs",
+        {
+            "mode": "apply",
+            "rows": [
+                {
+                    "name": "Async Meter",
+                    "total_quantity": "2",
+                    "available_quantity": "2",
+                    "storage_location": "Rack 2",
+                }
+            ],
+        },
+        format="json",
+    )
+
+    assert created.status_code == 201
+    assert created.data["status"] == BulkImportJob.Status.COMPLETED
+    assert created.data["processed_rows"] == 1
+    assert created.data["created_count"] == 1
+    product = InventoryProduct.objects.get(makerspace=makerspace, name="Async Meter")
+    assert product.storage_location == "Rack 2"
+
+    status = client.get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/inventory/import/jobs/{created.data['id']}"
+    )
+
+    assert status.status_code == 200
+    assert status.data["status"] == BulkImportJob.Status.COMPLETED
+    assert status.data["result"]["applied"] is True
+
+
+def test_bulk_import_async_job_status_is_makerspace_scoped():
+    owner_space = make_space("bulk-job-owner")
+    other_space = make_space("bulk-job-other")
+    owner = make_member("bulk-job-owner-admin", owner_space)
+    other = make_member("bulk-job-other-admin", other_space)
+    job = BulkImportJob.objects.create(
+        makerspace=owner_space,
+        actor=owner,
+        mode=BulkImportJob.Mode.PREVIEW,
+        rows=[{"name": "Hidden", "total_quantity": "1", "available_quantity": "1"}],
+    )
+
+    response = authenticated_client(other).get(
+        f"/api/v1/admin/makerspace/{other_space.id}/inventory/import/jobs/{job.id}"
+    )
+
+    assert response.status_code == 404
 
 def test_bulk_import_rejects_bad_quantity_buckets():
     makerspace = make_space("bulk-bad")
@@ -932,4 +988,6 @@ def test_space_manager_cannot_create_or_list_cross_tenant_inventory_managers():
     listed_usernames = [item["user"]["username"] for item in listed.data["results"]]
     assert own_inventory_manager.username in listed_usernames
     assert other_inventory_manager.username not in listed_usernames
+
+
 

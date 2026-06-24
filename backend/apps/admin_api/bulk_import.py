@@ -39,18 +39,21 @@ QUANTITY_BUCKET_FIELDS = {
 }
 DETAIL_WARNING_FIELDS = {"description", "storage_location", "category", "image_key"}
 
-def preview_import(makerspace, rows, mapping):
+def preview_import(makerspace, rows, mapping, progress_callback=None):
     mapping = mapping or _default_mapping(rows)
     mapped = []
     errors = []
     warnings = []
     existing_names = _existing_names(makerspace, rows, mapping)
-    for index, row in enumerate(rows, start=2):
+    for offset, row in enumerate(rows, start=1):
+        index = offset + 1
         normalized, row_errors, row_warnings = _normalize_row(makerspace, row, mapping)
         if row_errors:
             errors.append({"row": index, "errors": row_errors})
         if row_warnings:
             warnings.append({"row": index, "warnings": row_warnings})
+        if progress_callback:
+            progress_callback(offset, len(rows))
         action = "error" if row_errors else _row_action(normalized, existing_names)
         mapped.append({
             "row": index,
@@ -74,8 +77,8 @@ def preview_import(makerspace, rows, mapping):
     }
 
 
-def apply_import(actor, makerspace, rows, mapping):
-    preview = preview_import(makerspace, rows, mapping)
+def apply_import(actor, makerspace, rows, mapping, progress_callback=None):
+    preview = preview_import(makerspace, rows, mapping, progress_callback)
     if not preview["valid"]:
         return {**preview, "applied": False}
     created = 0
@@ -256,4 +259,6 @@ def _category_for_name(makerspace, name):
         slug = f"{base_slug}-{suffix}"
         suffix += 1
     return Category.objects.create(makerspace=makerspace, name=name, slug=slug), True
+
+
 

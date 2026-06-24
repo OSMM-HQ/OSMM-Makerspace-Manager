@@ -1,5 +1,7 @@
 from apps.admin_api.views_bulk import (
     BulkImportApplyView,
+    BulkImportJobDetailView,
+    BulkImportJobListCreateView,
     BulkImportPreviewView,
     _rows_from_upload,
 )
@@ -42,6 +44,8 @@ __all__ = [
     "AuditLogListView",
     "AuditLogPagination",
     "BulkImportApplyView",
+    "BulkImportJobDetailView",
+    "BulkImportJobListCreateView",
     "BulkImportPreviewView",
     "CategoryDetailView",
     "CategoryListCreateView",
