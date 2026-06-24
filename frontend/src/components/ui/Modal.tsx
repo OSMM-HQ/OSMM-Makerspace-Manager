@@ -8,11 +8,24 @@ type ModalProps = {
   title: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  size?: "md" | "xl";
+  backdrop?: "plain" | "blur";
 };
 
-export function Modal({ open, onClose, title, children, footer }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  footer,
+  size = "md",
+  backdrop = "plain",
+}: ModalProps) {
   const titleId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
+  const maxWidthClass = size === "xl" ? "max-w-4xl" : "max-w-lg";
+  const backdropClass =
+    backdrop === "blur" ? "bg-ink/35 backdrop-blur-sm" : "bg-ink/40";
   // Keep onClose in a ref so the focus effect depends only on `open`. Callers pass a
   // fresh inline onClose every render; if it were in the dep array, every keystroke
   // (which re-renders the parent) would re-run this effect and steal focus back to the
@@ -42,7 +55,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
 
   return (
     <div
-      className="fixed inset-0 z-50 grid place-items-center bg-ink/40 p-3 sm:p-4"
+      className={`fixed inset-0 z-50 grid place-items-center ${backdropClass} p-3 sm:p-4`}
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) {
           onClose();
@@ -55,7 +68,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="desk-panel flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden outline-none sm:max-h-[calc(100dvh-2rem)]"
+        className={`desk-panel flex max-h-[calc(100dvh-1.5rem)] w-full ${maxWidthClass} flex-col overflow-hidden outline-none sm:max-h-[calc(100dvh-2rem)]`}
       >
         <div className="shrink-0 border-b border-line px-4 py-3">
           <h2 id={titleId} className="text-sm font-semibold tracking-wide text-muted">

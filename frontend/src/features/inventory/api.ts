@@ -29,8 +29,6 @@ export const publicInventoryKey = (
     category ?? "",
     sort ?? "name",
   ] as const;
-export const publicInventoryDetailKey = (slug: string, id: number) =>
-  ["public-inventory-detail", slug, id] as const;
 
 export async function fetchPublicMakerspaces(): Promise<Makerspace[]> {
   return apiGet<Makerspace[]>("/public/makerspaces/");
@@ -69,12 +67,6 @@ export async function fetchPublicInventory(
   );
 }
 
-export async function fetchPublicInventoryDetail(
-  slug: string,
-  id: number,
-): Promise<Product> {
-  return apiGet<Product>(`/public/${slug}/inventory/${id}/`);
-}
 
 export async function verifyCheckin(
   slug: string,
@@ -166,4 +158,3 @@ export async function publicToolReturn(
     },
   );
 }
-

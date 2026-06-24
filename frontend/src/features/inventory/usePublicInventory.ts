@@ -4,10 +4,8 @@ import { bootstrapTenant } from "../../lib/api";
 import {
   fetchPublicCategories,
   fetchPublicInventory,
-  fetchPublicInventoryDetail,
   fetchPublicMakerspaces,
   publicCategoriesKey,
-  publicInventoryDetailKey,
   publicInventoryKey,
   publicMakerspacesKey,
 } from "./api";
@@ -48,13 +46,5 @@ export function useTenantBootstrap(slug: string, enabled = true) {
     queryKey: ["tenant-bootstrap", slug],
     queryFn: () => bootstrapTenant({ slug }),
     enabled: enabled && Boolean(slug),
-  });
-}
-
-export function usePublicInventoryDetail(slug: string, id: number, enabled = true) {
-  return useQuery({
-    queryKey: publicInventoryDetailKey(slug, id),
-    queryFn: () => fetchPublicInventoryDetail(slug, id),
-    enabled: enabled && Boolean(slug && id),
   });
 }

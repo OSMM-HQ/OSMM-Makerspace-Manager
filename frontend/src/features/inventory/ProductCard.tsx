@@ -1,13 +1,11 @@
-import { Link } from "react-router-dom";
-
 import type { Availability, Product } from "../../types/inventory";
 
 type ProductCardProps = {
   product: Product;
-  detailPath: string;
   quantity: number;
   onDecrement: () => void;
   onIncrement: () => void;
+  onOpenDetails: () => void;
 };
 
 function isUnavailable(product: Product): boolean {
@@ -38,10 +36,10 @@ function statusChip(availability: Availability): { text: string; cls: string } |
 
 export function ProductCard({
   product,
-  detailPath,
   quantity,
   onDecrement,
   onIncrement,
+  onOpenDetails,
 }: ProductCardProps) {
   const disabled = isUnavailable(product);
   const chip = statusChip(product.availability);
@@ -49,14 +47,18 @@ export function ProductCard({
 
   return (
     <article className="group flex h-full flex-col rounded-xl border border-line bg-panel shadow-soft transition-transform duration-150 hover:-translate-y-0.5 hover:shadow-soft-lg">
-      {/* Image header — blueprint placeholder when no photo on file. */}
-      <div className="relative h-44 overflow-hidden rounded-t-xl border-b border-line bg-surface">
+      <button
+        className="relative h-44 overflow-hidden rounded-t-xl border-b border-line bg-surface text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+        type="button"
+        onClick={onOpenDetails}
+        aria-label={`Open details for ${product.name}`}
+      >
         {product.image_url ? (
           <img
             src={product.image_url}
             alt={product.name}
             loading="lazy"
-            className="h-full w-full object-cover"
+            className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.02]"
           />
         ) : (
           <div className="blueprint-bg grid h-full w-full place-items-center">
@@ -68,13 +70,16 @@ export function ProductCard({
         {chip ? (
           <span className={`absolute right-2 top-2 max-w-[calc(100%-1rem)] ${chip.cls}`}>{chip.text}</span>
         ) : null}
-      </div>
+      </button>
 
-      {/* Body */}
       <div className="flex flex-1 flex-col p-4">
-        <h2 className="break-words font-display text-lg font-semibold leading-tight text-ink">
+        <button
+          className="break-words text-left font-display text-lg font-semibold leading-tight text-ink underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+          type="button"
+          onClick={onOpenDetails}
+        >
           {product.name}
-        </h2>
+        </button>
         <p className="mt-1 font-mono text-xs uppercase text-muted">{idLabel}</p>
         <p className="mt-2 line-clamp-2 text-sm leading-6 text-muted">
           {product.description || "No description provided."}
@@ -89,7 +94,7 @@ export function ProductCard({
           <div className="flex items-center rounded-lg border border-line bg-bg">
             <button
               aria-label={`Remove ${product.name}`}
-                className="h-9 w-9 font-mono text-lg font-semibold text-ink transition hover:bg-surface hover:text-ink disabled:cursor-not-allowed disabled:text-muted"
+              className="h-9 w-9 font-mono text-lg font-semibold text-ink transition hover:bg-surface hover:text-ink disabled:cursor-not-allowed disabled:text-muted"
               disabled={quantity === 0}
               type="button"
               onClick={onDecrement}
@@ -101,7 +106,7 @@ export function ProductCard({
             </span>
             <button
               aria-label={`Add ${product.name}`}
-                className="h-9 w-9 font-mono text-lg font-semibold text-ink transition hover:bg-surface hover:text-ink disabled:cursor-not-allowed disabled:text-muted"
+              className="h-9 w-9 font-mono text-lg font-semibold text-ink transition hover:bg-surface hover:text-ink disabled:cursor-not-allowed disabled:text-muted"
               disabled={disabled}
               type="button"
               onClick={onIncrement}
@@ -109,12 +114,13 @@ export function ProductCard({
               +
             </button>
           </div>
-          <Link
-            className="min-w-0 break-words font-mono text-xs font-semibold tracking-tight text-secondary-ink underline-offset-4 hover:underline"
-            to={detailPath}
+          <button
+            className="min-w-0 break-words font-mono text-xs font-semibold tracking-tight text-secondary-ink underline-offset-4 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/40"
+            type="button"
+            onClick={onOpenDetails}
           >
-            Details &rarr;
-          </Link>
+            Details
+          </button>
         </div>
       </div>
     </article>

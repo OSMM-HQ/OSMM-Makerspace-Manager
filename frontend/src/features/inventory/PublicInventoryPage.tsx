@@ -13,6 +13,7 @@ import type {
   RequestCartItem,
 } from "../../types/inventory";
 import { ProductCard } from "./ProductCard";
+import { ProductQuickViewModal } from "./ProductQuickViewModal";
 import {
   CatalogSidebar,
   EmptyState,
@@ -40,6 +41,7 @@ export function PublicInventoryPage() {
   const [query, setQuery] = useState("");
   const [view, setView] = useState<View>({ kind: "all" });
   const [cart, setCart] = useState<Record<number, RequestCartItem>>({});
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const categoryParam = view.kind === "category" ? view.slug : "";
   const sortParam = view.kind === "sort" ? view.sort : "name";
   const bootstrapQuery = useTenantBootstrap(makerspaceSlug, tenant.mode === "central");
@@ -229,9 +231,9 @@ export function PublicInventoryPage() {
                     key={product.id}
                     product={product}
                     quantity={cart[product.id]?.quantity ?? 0}
-                    detailPath={tenantPath(`items/${product.id}`)}
                     onDecrement={() => decrementItem(product)}
                     onIncrement={() => incrementItem(product)}
+                    onOpenDetails={() => setSelectedProduct(product)}
                   />
                 ))}
               </div>
@@ -274,6 +276,12 @@ export function PublicInventoryPage() {
           />
         </div>
       </section>
+
+      <ProductQuickViewModal
+        product={selectedProduct}
+        open={Boolean(selectedProduct)}
+        onClose={() => setSelectedProduct(null)}
+      />
     </main>
   );
 }
