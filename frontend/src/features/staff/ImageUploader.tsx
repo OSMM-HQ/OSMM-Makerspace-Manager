@@ -10,6 +10,35 @@ type PresignResponse = {
   headers?: Record<string, string>;
 };
 
+export async function uploadPublicImage(endpoint: string, file: File) {
+  const presigned = await staffRequest<PresignResponse>(endpoint, {
+    method: "POST",
+    body: JSON.stringify({
+      content_type: file.type || "application/octet-stream",
+      filename: file.name,
+    }),
+  });
+
+  if (presigned.method === "PUT") {
+    const res = await fetch(presigned.url, {
+      method: "PUT",
+      body: file,
+      headers: presigned.headers,
+    });
+    if (!res.ok) throw new Error(`Storage upload failed (${res.status})`);
+  } else {
+    const formData = new FormData();
+    Object.entries(presigned.fields ?? {}).forEach(([k, v]) => formData.append(k, v));
+    formData.append("file", file);
+    const res = await fetch(presigned.url, { method: "POST", body: formData });
+    if (!res.ok) throw new Error(`Storage upload failed (${res.status})`);
+  }
+
+  await staffRequest(endpoint, {
+    method: "PUT",
+    body: JSON.stringify({ object_key: presigned.object_key }),
+  });
+}
 type ImageUploaderProps = {
   /** Admin endpoint base, e.g. `/admin/inventory/12/image` or `/admin/makerspace/3/logo`. */
   endpoint: string;
