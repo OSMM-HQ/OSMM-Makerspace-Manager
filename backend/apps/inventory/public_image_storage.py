@@ -1,4 +1,5 @@
 import logging
+import time
 import uuid
 
 import boto3
@@ -116,6 +117,15 @@ def object_size(object_key):
     return int(response["ContentLength"])
 
 
+def object_size_after_upload(object_key, attempts=4, delay_seconds=0.1):
+    for attempt in range(attempts):
+        size = object_size(object_key)
+        if size is not None or attempt == attempts - 1:
+            return size
+        time.sleep(delay_seconds)
+    return None
+
+
 def presigned_upload(object_key, content_type):
     try:
         if settings.STORAGE_PRESIGN_METHOD == "put":
@@ -150,7 +160,7 @@ def presigned_upload(object_key, content_type):
 def finalize_upload(object_key):
     max_bytes = settings.PUBLIC_IMAGE_MAX_BYTES
     if settings.STORAGE_PRESIGN_METHOD != "put":
-        return object_size(object_key)
+        return object_size_after_upload(object_key)
 
     final_size = object_size(object_key)
     if final_size is not None:

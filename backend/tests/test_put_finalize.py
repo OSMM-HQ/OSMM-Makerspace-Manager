@@ -174,6 +174,24 @@ def test_non_put_finalize_reads_final_object_only(
     assert copied == []
     assert deleted == []
 
+
+def test_public_image_post_finalize_retries_transient_missing_object(monkeypatch, settings):
+    settings.STORAGE_PRESIGN_METHOD = "post"
+    attempts = []
+
+    def fake_size(key):
+        attempts.append(key)
+        return None if len(attempts) == 1 else 123
+
+    monkeypatch.setattr(public_image_storage, "object_size", fake_size)
+    monkeypatch.setattr(public_image_storage.time, "sleep", lambda delay: None)
+
+    size = public_image_storage.finalize_upload("printers/1/photo.png")
+
+    assert size == 123
+    assert attempts == ["printers/1/photo.png", "printers/1/photo.png"]
+
+
 def test_public_image_finalize_uses_size_not_exists(monkeypatch, settings):
     settings.STORAGE_PRESIGN_METHOD = "put"
     settings.PUBLIC_IMAGE_MAX_BYTES = 500

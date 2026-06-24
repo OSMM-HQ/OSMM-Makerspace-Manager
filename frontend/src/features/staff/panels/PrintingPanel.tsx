@@ -67,7 +67,7 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
         try {
           await uploadPublicImage(`/admin/printing/printers/${created.id}/image`, printerPhoto);
         } catch (err) {
-          photoError = err instanceof Error ? err.message : "Printer was added, but photo upload failed.";
+          photoError = err instanceof Error ? `Printer was added, but photo upload failed. ${err.message}` : "Printer was added, but photo upload failed.";
         }
       }
       return { created, photoError };
@@ -78,7 +78,7 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
       setPrinterPhoto(null);
       setPrinterPhotoError(photoError);
       invalidatePrinting();
-      if (!printerPhoto) setEditingPrinter(created);
+      if (!printerPhoto || photoError) setEditingPrinter(created);
     },
   });
   const createSpool = useMutation({
