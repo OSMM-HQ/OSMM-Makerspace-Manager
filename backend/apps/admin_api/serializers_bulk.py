@@ -1,3 +1,4 @@
+import json
 from rest_framework import serializers
 
 from apps.admin_api import bulk_import
@@ -12,7 +13,7 @@ class BulkImportPreviewSerializer(serializers.Serializer):
         allow_empty=False,
         max_length=bulk_import.MAX_IMPORT_ROWS,
     )
-    mapping = serializers.DictField(child=serializers.CharField(), required=False)
+    mapping = serializers.JSONField(required=False)
 
     def validate(self, attrs):
         return _validate_import_payload(attrs)
@@ -27,7 +28,7 @@ class BulkImportJobCreateSerializer(serializers.Serializer):
         allow_empty=False,
         max_length=bulk_import.MAX_IMPORT_ROWS,
     )
-    mapping = serializers.DictField(child=serializers.CharField(), required=False)
+    mapping = serializers.JSONField(required=False)
 
     def validate(self, attrs):
         return _validate_import_payload(attrs)
@@ -56,6 +57,7 @@ class BulkImportJobSerializer(serializers.ModelSerializer):
 
 
 def _validate_import_payload(attrs):
+    attrs["mapping"] = _mapping_value(attrs.get("mapping"))
     has_file = bool(attrs.get("file"))
     has_rows = bool(attrs.get("rows"))
     if not has_file and not has_rows:
@@ -73,3 +75,18 @@ def _validate_import_payload(attrs):
             }
         )
     return attrs
+
+
+
+def _mapping_value(value):
+    if value is None or value == "":
+        return {}
+    if isinstance(value, str):
+        try:
+            value = json.loads(value)
+        except json.JSONDecodeError as exc:
+            raise serializers.ValidationError({"mapping": "Mapping must be valid JSON."}) from exc
+    if not isinstance(value, dict):
+        raise serializers.ValidationError({"mapping": "Mapping must be an object."})
+    return value
+

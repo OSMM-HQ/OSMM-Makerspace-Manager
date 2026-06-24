@@ -4,6 +4,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from apps.accounts.models import User
 from apps.admin_api import bulk_import
 from apps.admin_api.models import BulkImportJob
+from apps.admin_api.serializers_bulk import BulkImportJobCreateSerializer
 from apps.apiclients.models import ApiClient, ApiKeyRequest
 from apps.audit.models import AuditLog
 from apps.inventory.models import Category, InventoryProduct
@@ -335,6 +336,18 @@ def test_bulk_import_apply_maps_full_supported_inventory_fields():
     assert product.public_self_checkout_enabled is True
     assert product.show_public_count is True
     assert product.public_availability_mode == "exact_count"
+
+def test_bulk_import_job_serializer_accepts_json_mapping_string():
+    serializer = BulkImportJobCreateSerializer(
+        data={
+            "mode": "preview",
+            "rows": [{"Name": "Mapped", "Total": "1", "Available": "1"}],
+            "mapping": "{\"name\":\"Name\",\"total_quantity\":\"Total\",\"available_quantity\":\"Available\"}",
+        }
+    )
+
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["mapping"]["name"] == "Name"
 
 def test_bulk_import_async_job_applies_rows_and_exposes_status():
     makerspace = make_space("bulk-job")
@@ -988,6 +1001,7 @@ def test_space_manager_cannot_create_or_list_cross_tenant_inventory_managers():
     listed_usernames = [item["user"]["username"] for item in listed.data["results"]]
     assert own_inventory_manager.username in listed_usernames
     assert other_inventory_manager.username not in listed_usernames
+
 
 
 
