@@ -47,6 +47,7 @@ export function StaffWorkspace({
     allowedTabs,
     canChooseToBuyKind,
     canEditInventory,
+    canIssueDirectLoan,
     canManageMakerspace,
     canManageQr,
     canSeeHardware,
@@ -54,6 +55,7 @@ export function StaffWorkspace({
     canUseToBuy,
     canViewAudit,
     defaultTab,
+    handoutOnly,
     printingOnly,
   } = getStaffAccess(activeRole, isSuperadmin, singleTenantLocked);
   const visibleMakerspaces =
@@ -106,12 +108,13 @@ export function StaffWorkspace({
           <StaffTabContent
             activeMakerspace={activeMakerspace}
             activeTab={activeTab}
-            guestOnly={guestOnly}
+            guestOnly={guestOnly || handoutOnly}
             makerspaces={visibleMakerspaces}
             isSuperadmin={isSuperadmin}
             printingOnly={printingOnly}
             canChooseToBuyKind={canChooseToBuyKind}
             canEditInventory={canEditInventory}
+            canIssueDirectLoan={canIssueDirectLoan}
             canUseToBuy={canUseToBuy}
             canManageQr={canManageQr}
             canManageMakerspace={canManageMakerspace}

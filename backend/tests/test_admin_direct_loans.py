@@ -771,10 +771,8 @@ def make_guest(makerspace):
 
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
-def test_guest_admin_cannot_create_direct_loan():
-    # Guest admins can issue accepted requests, but a direct handout has no
-    # reviewed request — it must require ISSUE_DIRECT_LOAN, which they lack.
-    makerspace = make_space("direct-guest-deny")
+def test_guest_admin_can_create_direct_loan():
+    makerspace = make_space("direct-guest-allow")
     guest = make_guest(makerspace)
     product = make_product(makerspace)
 
@@ -784,8 +782,8 @@ def test_guest_admin_cannot_create_direct_loan():
         format="json",
     )
 
-    assert response.status_code == 403
-    assert PublicToolLoan.objects.count() == 0
+    assert response.status_code == 201
+    assert PublicToolLoan.objects.count() == 1
 
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
@@ -917,6 +915,3 @@ def _public_issue_evidence(makerspace, identifier):
         object_key=f"evidence/{makerspace.id}/issue/{identifier}-{EvidencePhoto.objects.count() + 1}",
         uploaded_by=get_or_create_requester(identifier),
     )
-
-
-

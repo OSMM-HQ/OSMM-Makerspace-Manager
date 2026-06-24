@@ -4,8 +4,9 @@ const ALL_TABS = [
   "email-logs",
 ] as const;
 
-const FULL_ACCESS_ROLES = ["space_manager", "inventory_manager", "guest_admin"];
+const FULL_ACCESS_ROLES = ["space_manager", "inventory_manager"];
 const PRINTING_TABS = ["requests", "printing", "tobuy", "reports", "api", "emailtemplates"];
+const GUEST_ADMIN_TABS = ["requests", "direct"];
 
 export const TAB_LABELS: Record<string, string> = {
   requests: "Requests",
@@ -42,26 +43,25 @@ export const TAB_GROUPS: { label: string; tabs: string[] }[] = [
 
 export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boolean, singleTenantLocked: boolean) {
   const fullAccess = isSuperadmin || (!!activeRole && FULL_ACCESS_ROLES.includes(activeRole));
-  const printingOnly = !fullAccess;
+  const handoutOnly = activeRole === "guest_admin" && !isSuperadmin;
+  const printingOnly = !fullAccess && !handoutOnly;
   const canSeeHardware = isSuperadmin || ["space_manager", "inventory_manager", "guest_admin"].includes(activeRole ?? "");
   const canSeePrinting = isSuperadmin || ["space_manager", "print_manager"].includes(activeRole ?? "");
   const canUseToBuy = isSuperadmin || ["space_manager", "inventory_manager", "print_manager"].includes(activeRole ?? "");
   const canEditInventory = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
+  const canIssueDirectLoan = isSuperadmin || ["space_manager", "inventory_manager", "guest_admin"].includes(activeRole ?? "");
   const canViewAudit = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
   const canManageQr = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
   const canManageMakerspace = isSuperadmin || activeRole === "space_manager";
   const canChooseToBuyKind = isSuperadmin || activeRole === "space_manager";
-  // Guest Admins are handout-only: they issue accepted requests + process returns (the Requests
-  // tab) and nothing else. Direct handout stays blocked by RBAC, so this hides Inventory/Ledger
-  // too, leaving just the handover queue.
-  const handoutOnly = activeRole === "guest_admin" && !isSuperadmin;
-  const allowedTabs: readonly string[] = (fullAccess ? ALL_TABS : PRINTING_TABS).filter((tabName) => {
+  const baseTabs = handoutOnly ? GUEST_ADMIN_TABS : fullAccess ? ALL_TABS : PRINTING_TABS;
+  const allowedTabs: readonly string[] = baseTabs.filter((tabName) => {
     if (tabName === "tobuy") return canUseToBuy;
     if (tabName === "needsfix") return canEditInventory;
     if (tabName === "categories") return canEditInventory;
     if (tabName === "bulk") return canEditInventory;
     if (tabName === "stocktake") return canEditInventory;
-    if (tabName === "direct") return canEditInventory;
+    if (tabName === "direct") return canIssueDirectLoan;
     if (tabName === "inventory") return !handoutOnly;
     if (tabName === "ledger") return !handoutOnly;
     if (tabName === "transfers") return canEditInventory || isSuperadmin;
@@ -80,11 +80,13 @@ export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boo
     return true;
   });
   return {
+    handoutOnly,
     printingOnly,
     canSeeHardware,
     canSeePrinting,
     canUseToBuy,
     canEditInventory,
+    canIssueDirectLoan,
     canViewAudit,
     canManageQr,
     canManageMakerspace,

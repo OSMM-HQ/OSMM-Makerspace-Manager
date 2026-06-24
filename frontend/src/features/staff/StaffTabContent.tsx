@@ -35,6 +35,7 @@ export function StaffTabContent({
   printingOnly,
   canChooseToBuyKind,
   canEditInventory,
+  canIssueDirectLoan,
   canUseToBuy,
   canManageQr,
   canManageMakerspace,
@@ -50,6 +51,7 @@ export function StaffTabContent({
   printingOnly: boolean;
   canChooseToBuyKind: boolean;
   canEditInventory: boolean;
+  canIssueDirectLoan: boolean;
   canUseToBuy: boolean;
   canManageQr: boolean;
   canManageMakerspace: boolean;
@@ -119,7 +121,7 @@ export function StaffTabContent({
           canSeePrinting={canSeePrinting}
         />
       ) : null}
-      {activeTab === "direct" && canEditInventory ? <DirectLoans key={makerspaceKey} makerspace={activeMakerspace} /> : null}
+      {activeTab === "direct" && canIssueDirectLoan ? <DirectLoans key={makerspaceKey} makerspace={activeMakerspace} /> : null}
       {activeTab === "bulk" && canEditInventory ? <BulkImport key={makerspaceKey} makerspace={activeMakerspace} /> : null}
       {activeTab === "qr" && canManageQr ? <QrTools key={makerspaceKey} makerspace={activeMakerspace} /> : null}
       {activeTab === "scanner" && canManageQr ? (
