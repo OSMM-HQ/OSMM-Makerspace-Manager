@@ -16,34 +16,26 @@ import { ChangePasswordGate } from "./ChangePasswordGate";
 import { LoginPanel } from "./LoginPanel";
 import { MakerspacePicker } from "./MakerspacePicker";
 import { StaffAccessDenied } from "./StaffAccessDenied";
-import { StaffHeader } from "./StaffHeader";
-import { StaffSidebar } from "./StaffSidebar";
-import { StaffTabContent } from "./StaffTabContent";
-import { getStaffAccess } from "./staffAccess";
-import { filterTabsByEnabledModules } from "./staffTabs";
-import { type Makerspace, useStaffGet } from "./StaffPanels";
+import { StaffWorkspace } from "./StaffWorkspace";
+import { persistSelectedMakerspace, persistStaffTab, readStoredMakerspace } from "./staffTabs";
+import { type Makerspace, useStaffGet } from "./panels/shared";
 import { useTenant } from "../../lib/tenant";
-import { readStorage, removeStorage, writeStorage } from "../../lib/safeStorage";
 
 export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   const tenant = useTenant();
   const queryClient = useQueryClient();
   const [user, setUser] = useState<StaffAuthUser | null>(null);
-  const [selected, setSelectedState] = useState<number | null>(() => readNumber(STAFF_SELECTED_MAKERSPACE_KEY));
-  const [tab, setTabState] = useState(() => readStorage(STAFF_ACTIVE_TAB_KEY));
+  const [selected, setSelectedState] = useState<number | null>(() => readStoredMakerspace());
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
     () => new Set(["Admin"]),
   );
   const [restoring, setRestoring] = useState(true);
   const setSelected = useCallback((value: number | null) => {
     setSelectedState(value);
-    if (value === null) removeStorage(STAFF_SELECTED_MAKERSPACE_KEY);
-    else writeStorage(STAFF_SELECTED_MAKERSPACE_KEY, String(value));
+    persistSelectedMakerspace(value);
   }, []);
   const setTab = useCallback((value: string) => {
-    setTabState(value);
-    if (value) writeStorage(STAFF_ACTIVE_TAB_KEY, value);
-    else removeStorage(STAFF_ACTIVE_TAB_KEY);
+    persistStaffTab(value);
   }, []);
   const hydrateUser = useCallback((nextUser: StaffAuthUser) => {
     setUser(nextUser);
@@ -52,17 +44,17 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
       return;
     }
     const superadmin = nextUser.is_superuser || nextUser.role === "superadmin";
-    const saved = readNumber(STAFF_SELECTED_MAKERSPACE_KEY);
+    const saved = readStoredMakerspace();
     const staffSaved = nextUser.makerspaces.some((item) => item.id === saved) ? saved : null;
     setSelected(superadmin ? saved : staffSaved ?? nextUser.makerspaces[0]?.id ?? null);
-  }, [tenant.makerspaceId, tenant.mode]);
+  }, [setSelected, tenant.makerspaceId, tenant.mode]);
 
   const expireSession = useCallback(() => {
     setUser(null);
     setSelected(null);
     setTab("");
     queryClient.clear();
-  }, [queryClient]);
+  }, [queryClient, setSelected, setTab]);
 
   useEffect(() => addAuthExpiredListener(expireSession), [expireSession]);
 
@@ -230,30 +222,6 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     );
   }
 
-  const activeRole = user.makerspaces.find((item) => item.id === selected)?.role;
-  const {
-    allowedTabs,
-    canChooseToBuyKind,
-    canEditInventory,
-    canManageMakerspace,
-    canManageQr,
-    canSeeHardware,
-    canSeePrinting,
-    canUseToBuy,
-    canViewAudit,
-    defaultTab,
-    printingOnly,
-  } = getStaffAccess(activeRole, isSuperadmin, singleTenantLocked);
-  const visibleMakerspaces =
-    singleTenantLocked && activeMakerspace
-      ? [activeMakerspace]
-      : makerspaces.data ?? [];
-  const moduleAllowedTabs = filterTabsByEnabledModules(allowedTabs, activeMakerspace);
-  const activeTab = moduleAllowedTabs.includes(tab)
-    ? tab
-    : moduleAllowedTabs.includes(defaultTab)
-      ? defaultTab
-      : moduleAllowedTabs[0];
   const toggleGroup = (label: string) =>
     setCollapsedGroups((current) => {
       const next = new Set(current);
@@ -264,63 +232,24 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
       }
       return next;
     });
+  const activeRole = user.makerspaces.find((item) => item.id === selected)?.role;
+  const makerspaceList = makerspaces.data ?? [];
 
   return (
-    <main className="desk-shell grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)]">
-      <StaffSidebar
-        activeMakerspace={activeMakerspace}
-        activeTab={activeTab}
-        allowedTabs={moduleAllowedTabs}
-        collapsedGroups={collapsedGroups}
-        guestOnly={guestOnly}
-        isSuperadmin={isSuperadmin}
-        makerspaces={makerspaces.data ?? []}
-        printingOnly={printingOnly}
-        selected={selected}
-        setSelected={setSelected}
-        setTab={setTab}
-        singleTenantLocked={singleTenantLocked}
-        toggleGroup={toggleGroup}
-      />
-
-      <section className="min-w-0">
-        <StaffHeader
-          activeMakerspace={activeMakerspace}
-          isSuperadmin={isSuperadmin}
-          onSignOut={signOut}
-          onSwitchMakerspace={() => setSelected(null)}
-          singleTenantLocked={singleTenantLocked}
-          user={user}
-        />
-
-        <div className="min-w-0 p-5">
-          <StaffTabContent
-            activeMakerspace={activeMakerspace}
-            activeTab={activeTab}
-            guestOnly={guestOnly}
-            makerspaces={visibleMakerspaces}
-            isSuperadmin={isSuperadmin}
-            printingOnly={printingOnly}
-            canChooseToBuyKind={canChooseToBuyKind}
-            canEditInventory={canEditInventory}
-            canUseToBuy={canUseToBuy}
-            canManageQr={canManageQr}
-            canManageMakerspace={canManageMakerspace}
-            canSeeHardware={canSeeHardware}
-            canSeePrinting={canSeePrinting}
-            canViewAudit={canViewAudit}
-          />
-        </div>
-      </section>
-    </main>
+    <StaffWorkspace
+      activeMakerspace={activeMakerspace}
+      activeRole={activeRole}
+      collapsedGroups={collapsedGroups}
+      guestOnly={guestOnly}
+      isSuperadmin={isSuperadmin}
+      makerspaces={makerspaceList}
+      selected={selected}
+      setSelected={setSelected}
+      setTab={setTab}
+      signOut={signOut}
+      singleTenantLocked={singleTenantLocked}
+      toggleGroup={toggleGroup}
+      user={user}
+    />
   );
 }
-
-const STAFF_SELECTED_MAKERSPACE_KEY = "osmm.staff.selectedMakerspace";
-const STAFF_ACTIVE_TAB_KEY = "osmm.staff.activeTab";
-
-function readNumber(key: string) {
-  const value = Number(readStorage(key));
-  return Number.isFinite(value) && value > 0 ? value : null;
-}
-

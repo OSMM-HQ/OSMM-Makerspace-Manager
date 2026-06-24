@@ -1,6 +1,8 @@
+import { Link } from "react-router-dom";
 import { OsmmBadge } from "../../components/OsmmLogo";
-import type { Makerspace } from "./StaffPanels";
+import type { Makerspace } from "./panels/shared";
 import { TAB_GROUPS, TAB_LABELS } from "./staffAccess";
+import { staffTabPath } from "./staffTabs";
 
 export function StaffSidebar({
   activeMakerspace,
@@ -77,13 +79,15 @@ export function StaffSidebar({
                 {open ? (
                   <div className="mt-1 grid gap-1">
                     {tabs.map((item) => (
-                      <button
+                      <Link
                         key={item}
+                        aria-current={activeTab === item ? "page" : undefined}
                         className={`desk-nav-item ${activeTab === item ? "desk-nav-item-active" : ""}`}
+                        to={staffTabPath(item, guestOnly)}
                         onClick={() => setTab(item)}
                       >
                         <span className="min-w-0 truncate">{TAB_LABELS[item] ?? item}</span>
-                      </button>
+                      </Link>
                     ))}
                   </div>
                 ) : null}
@@ -95,4 +99,3 @@ export function StaffSidebar({
     </aside>
   );
 }
-

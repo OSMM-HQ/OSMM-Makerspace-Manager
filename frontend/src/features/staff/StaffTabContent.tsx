@@ -1,15 +1,15 @@
 import { lazy, Suspense } from "react";
 
-import { DirectLoans } from "./DirectLoans";
 import { Skeleton } from "../../components/ui";
-import { Inventory } from "./panels/Inventory";
-import { Ledger } from "./panels/Ledger";
-import { PrintingPanel } from "./panels/PrintingPanel";
-import { QrTools } from "./panels/QrTools";
-import { RequestsPanel } from "./panels/RequestsPanel";
 import { Panel, type Makerspace } from "./panels/shared";
-import { Users } from "./panels/Users";
 
+const DirectLoans = lazy(() => import("./DirectLoans").then((m) => ({ default: m.DirectLoans })));
+const Inventory = lazy(() => import("./panels/Inventory").then((m) => ({ default: m.Inventory })));
+const Ledger = lazy(() => import("./panels/Ledger").then((m) => ({ default: m.Ledger })));
+const PrintingPanel = lazy(() => import("./panels/PrintingPanel").then((m) => ({ default: m.PrintingPanel })));
+const QrTools = lazy(() => import("./panels/QrTools").then((m) => ({ default: m.QrTools })));
+const RequestsPanel = lazy(() => import("./panels/RequestsPanel").then((m) => ({ default: m.RequestsPanel })));
+const Users = lazy(() => import("./panels/Users").then((m) => ({ default: m.Users })));
 const OperationsReports = lazy(() => import("./panels/OperationsReports").then((m) => ({ default: m.OperationsReports })));
 const AuditLog = lazy(() => import("./panels/AuditLog").then((m) => ({ default: m.AuditLog })));
 const BulkImport = lazy(() => import("./panels/BulkImport").then((m) => ({ default: m.BulkImport })));
@@ -159,4 +159,3 @@ export function StaffTabContent({
     </Suspense>
   );
 }
-
