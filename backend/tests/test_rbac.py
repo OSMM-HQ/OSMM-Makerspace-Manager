@@ -55,6 +55,7 @@ def test_can_matrix_admin_vs_guest_admin():
     assert rbac.can(admin, rbac.Action.ACCEPT_REQUEST, s.id) is True
     assert rbac.can(guest, rbac.Action.ACCEPT_REQUEST, s.id) is False
     assert rbac.can(guest, rbac.Action.ISSUE_REQUEST, s.id) is True
+    assert rbac.can(guest, rbac.Action.ISSUE_DIRECT_LOAN, s.id) is True
     assert rbac.can(admin, rbac.Action.EDIT_INVENTORY, s.id) is True
     assert rbac.can(guest, rbac.Action.EDIT_INVENTORY, s.id) is False
 

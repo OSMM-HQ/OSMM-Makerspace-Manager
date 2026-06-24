@@ -50,12 +50,11 @@ _SPACE_MANAGER_ACTIONS = {
     Action.MANAGE_QR, Action.MANAGE_PRINTING, Action.VIEW_AUDIT,
     Action.MANAGE_MAKERSPACE,
 }
-# Guest admins can issue ALREADY-ACCEPTED requests (ISSUE_REQUEST) but must NOT
-# create a handout with no reviewed request — that would bypass accept/reject. So
-# ISSUE_DIRECT_LOAN is deliberately excluded here.
+# Guest admins are handout-only: accepted request handovers, direct handout, returns,
+# and evidence upload. They still cannot review requests or edit inventory setup.
 _GUEST_ADMIN_ACTIONS = {
     Action.VIEW_INVENTORY, Action.ASSIGN_BOX, Action.ISSUE_REQUEST,
-    Action.RETURN_REQUEST, Action.UPLOAD_EVIDENCE,
+    Action.ISSUE_DIRECT_LOAN, Action.RETURN_REQUEST, Action.UPLOAD_EVIDENCE,
 }
 _PRINT_MANAGER_ACTIONS = {
     Action.MANAGE_PRINTING,
