@@ -3561,6 +3561,106 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/inventory/import/jobs": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_inventory_import_jobs_create",
+                "summary": "Create an async inventory bulk import job",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Bulk import"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BulkImportJobCreate"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BulkImportJobCreate"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BulkImportJobCreate"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BulkImportJob"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/inventory/import/jobs/{job_id}": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_inventory_import_jobs_retrieve",
+                "summary": "Get async inventory bulk import job status",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "job_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Bulk import"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BulkImportJob"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/inventory/import/preview": {
             "post": {
                 "operationId": "api_v1_admin_makerspace_inventory_import_preview_create",
@@ -11994,6 +12094,128 @@
                     "updated_at"
                 ]
             },
+            "BulkImportJob": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "mode": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ModeEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/BulkImportJobStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "total_rows": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "processed_rows": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "created_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "updated_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "error_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "warning_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "result": {
+                        "readOnly": true
+                    },
+                    "error": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "completed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "completed_at",
+                    "created_at",
+                    "created_count",
+                    "error",
+                    "error_count",
+                    "id",
+                    "mode",
+                    "processed_rows",
+                    "result",
+                    "status",
+                    "total_rows",
+                    "updated_at",
+                    "updated_count",
+                    "warning_count"
+                ]
+            },
+            "BulkImportJobCreate": {
+                "type": "object",
+                "properties": {
+                    "mode": {
+                        "$ref": "#/components/schemas/ModeEnum"
+                    },
+                    "file": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "additionalProperties": {}
+                        },
+                        "maxItems": 5000
+                    },
+                    "mapping": {}
+                },
+                "required": [
+                    "mode"
+                ]
+            },
+            "BulkImportJobStatusEnum": {
+                "enum": [
+                    "pending",
+                    "running",
+                    "completed",
+                    "failed"
+                ],
+                "type": "string",
+                "description": "* `pending` - Pending\n* `running` - Running\n* `completed` - Completed\n* `failed` - Failed"
+            },
             "BulkImportPreview": {
                 "type": "object",
                 "properties": {
@@ -12009,12 +12231,7 @@
                         },
                         "maxItems": 5000
                     },
-                    "mapping": {
-                        "type": "object",
-                        "additionalProperties": {
-                            "type": "string"
-                        }
-                    }
+                    "mapping": {}
                 }
             },
             "CategoryAdmin": {
@@ -14181,6 +14398,14 @@
                     "spool_label",
                     "title"
                 ]
+            },
+            "ModeEnum": {
+                "enum": [
+                    "preview",
+                    "apply"
+                ],
+                "type": "string",
+                "description": "* `preview` - Preview\n* `apply` - Apply"
             },
             "NeedsFixAction": {
                 "type": "object",
