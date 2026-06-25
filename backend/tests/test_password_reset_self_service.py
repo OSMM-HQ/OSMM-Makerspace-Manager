@@ -6,6 +6,7 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
 from apps.accounts.models import User
+from apps.audit.models import AuditLog
 from tests.return_helpers import authenticated_client, make_user
 
 pytestmark = pytest.mark.django_db
@@ -41,6 +42,15 @@ def test_forgot_password_is_enumeration_safe():
     assert existing.status_code == 200
     assert missing.status_code == 200
     assert existing.data == missing.data
+    events = list(AuditLog.objects.filter(action="auth.password_reset_requested"))
+    assert len(events) == 2
+    assert user.email not in str([event.meta for event in events])
+
+
+def test_reset_password_confirm_view_keeps_dedicated_throttle_scope():
+    from apps.accounts.views import ResetPasswordConfirmView
+
+    assert ResetPasswordConfirmView.throttle_scope == "password_reset_confirm"
 
 
 def test_reset_password_confirm_succeeds():

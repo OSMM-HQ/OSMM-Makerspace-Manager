@@ -296,6 +296,7 @@ REST_FRAMEWORK = {
             "THROTTLE_PASSWORD_RESET_CONFIRM",
             default="10/min",
         ),
+        "telegram_webhook": env("THROTTLE_TELEGRAM_WEBHOOK", default="60/min"),
         "public_request_submit": env(
             "THROTTLE_PUBLIC_REQUEST_SUBMIT",
             default="10/min",

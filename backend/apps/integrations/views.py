@@ -5,6 +5,7 @@ from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts import rbac
@@ -22,6 +23,8 @@ from apps.makerspaces.guards import require_module
 
 class TelegramWebhookView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "telegram_webhook"
 
     @extend_schema(
         tags=["Telegram"],
