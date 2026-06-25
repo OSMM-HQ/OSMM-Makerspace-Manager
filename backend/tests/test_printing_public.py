@@ -581,6 +581,10 @@ def test_submit_attaches_owned_file(monkeypatch):
     file_id = response.data["file_id"]
     assert PrintRequestFile.objects.get(pk=file_id).owner_checkin_user_id == "u@e.com"
     monkeypatch.setattr("apps.printing.public_workflow.print_object_size", lambda key: 123)
+    monkeypatch.setattr(
+        "apps.printing.public_workflow.validate_print_model_object",
+        lambda object_key, filename, size_bytes=None: None,
+    )
 
     response = client.post(
         submit_url(makerspace),

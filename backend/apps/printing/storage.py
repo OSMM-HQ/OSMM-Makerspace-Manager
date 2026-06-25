@@ -15,6 +15,8 @@ from apps.evidence.storage import (
 )
 
 
+PRINT_MODEL_SNIFF_BYTES = 8192
+
 SCREENSHOT_MIME_BY_EXT = {
     "png": "image/png",
     "jpg": "image/jpeg",
@@ -33,7 +35,7 @@ def _extension(filename):
 
 
 def validate_print_upload(kind, filename, content_type):
-    content_type = content_type or ""
+    content_type = content_type or "application/octet-stream"
     ext = _extension(filename)
 
     if kind not in {"stl", "screenshot"}:
@@ -44,7 +46,7 @@ def validate_print_upload(kind, filename, content_type):
             raise ValueError("Unsupported model file extension.")
         if content_type not in settings.PRINT_ALLOWED_MODEL_MIME:
             raise ValueError("Unsupported model file content type.")
-        return content_type or "application/octet-stream"
+        return content_type
 
     if ext not in settings.PRINT_ALLOWED_SCREENSHOT_EXT:
         raise ValueError("Unsupported screenshot file extension.")
@@ -53,11 +55,10 @@ def validate_print_upload(kind, filename, content_type):
     if SCREENSHOT_MIME_BY_EXT.get(ext) != content_type:
         raise ValueError("Screenshot extension and content type do not match.")
     return content_type
-
-
 def presigned_print_upload(object_key, content_type):
     try:
         if settings.STORAGE_PRESIGN_METHOD == "put":
+            # Presigned PUT cannot enforce content-length at upload time; finalize HEADs staging.
             url = _public_client().generate_presigned_url(
                 "put_object",
                 Params={
@@ -109,7 +110,7 @@ def _fallback_extension(content_type, kind):
     content_type = content_type or ""
     ext = _MODEL_EXT_BY_MIME.get(content_type) or _SCREENSHOT_EXT_BY_MIME.get(content_type)
     # Model kind without a precise mime (notably octet-stream, which mimetypes would
-    # otherwise guess as .bin) must still download as an openable model file → .stl.
+    # otherwise guess as .bin) must still download as an openable model file -> .stl.
     if not ext and kind == "stl":
         return ".stl"
     if not ext and content_type:
@@ -174,6 +175,54 @@ def print_object_size(object_key):
 
     return int(response["ContentLength"])
 
+
+def validate_print_model_object(object_key, filename, size_bytes=None):
+    ext = _extension(filename)
+    if ext not in settings.PRINT_ALLOWED_MODEL_EXT:
+        raise ValueError("Unsupported model file extension.")
+    data = _print_object_prefix(object_key)
+    if ext == "stl" and _looks_like_stl(data, size_bytes):
+        return
+    if ext == "3mf" and data.startswith((b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08")):
+        return
+    upper = data.upper()
+    if ext in {"step", "stp"} and b"ISO-10303" in upper:
+        return
+    if ext == "obj" and _looks_like_obj(data):
+        return
+    raise ValueError("Uploaded model file does not match its extension.")
+
+
+def _print_object_prefix(object_key):
+    try:
+        response = _client().get_object(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=object_key,
+            Range=f"bytes=0-{PRINT_MODEL_SNIFF_BYTES - 1}",
+        )
+        return response["Body"].read(PRINT_MODEL_SNIFF_BYTES)
+    except (BotoCoreError, ClientError, OSError) as exc:
+        raise StorageUnavailable from exc
+
+
+def _looks_like_stl(data, size_bytes):
+    if data.lstrip().lower().startswith(b"solid"):
+        return True
+    return size_bytes is not None and size_bytes >= 84 and (size_bytes - 84) % 50 == 0
+
+
+def _looks_like_obj(data):
+    if b"\x00" in data:
+        return False
+    text = data.decode("utf-8", errors="ignore")
+    tokens = {"v", "vn", "vt", "f", "o", "g", "mtllib", "usemtl"}
+    for line in text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if stripped.split(maxsplit=1)[0] in tokens:
+            return True
+    return False
 
 def print_finalize_upload(object_key, max_bytes):
     if settings.STORAGE_PRESIGN_METHOD != "put":

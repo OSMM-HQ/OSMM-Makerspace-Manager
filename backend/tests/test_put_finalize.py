@@ -186,9 +186,10 @@ def test_public_image_post_finalize_retries_transient_missing_object(monkeypatch
     monkeypatch.setattr(public_image_storage, "object_size", fake_size)
     monkeypatch.setattr(public_image_storage.time, "sleep", lambda delay: None)
 
-    size = public_image_storage.finalize_upload("printers/1/photo.png")
+    result = public_image_storage.finalize_upload("printers/1/photo.png")
 
-    assert size == 123
+    assert result.status == "ok"
+    assert result.size == 123
     assert attempts == ["printers/1/photo.png", "printers/1/photo.png"]
 
 
@@ -211,9 +212,10 @@ def test_public_image_finalize_uses_size_not_exists(monkeypatch, settings):
     monkeypatch.setattr(public_image_storage, "copy_object", lambda source, dest: copied.append((source, dest)))
     monkeypatch.setattr(public_image_storage, "delete_object", lambda key: None)
 
-    size = public_image_storage.finalize_upload(final_key)
+    result = public_image_storage.finalize_upload(final_key)
 
-    assert size == 123
+    assert result.status == "ok"
+    assert result.size == 123
     assert sized == [final_key, staging_key, final_key]
     assert copied == [(staging_key, final_key)]
 

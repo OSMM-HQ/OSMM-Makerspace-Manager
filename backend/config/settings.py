@@ -130,7 +130,7 @@ AXES_FAILURE_LIMIT = env.int("AXES_FAILURE_LIMIT", default=5)
 AXES_COOLOFF_TIME = 1
 AXES_RESET_ON_SUCCESS = True
 # Axes hooks Django's authenticate(), so it covers BOTH the admin session login and
-# the SimpleJWT staff login (apps/accounts LoginView) — intentional brute-force lockout
+# the SimpleJWT staff login (apps/accounts LoginView) - intentional brute-force lockout
 # on top of that view's DRF rate throttle. The nested list makes the lockout key the
 # COMBINATION of ip_address+username (AND), not either alone (OR): repeated failures
 # against a known username from other IPs can't lock that account out (no username DoS).
@@ -165,7 +165,7 @@ EVIDENCE_MAX_BYTES = env.int("EVIDENCE_MAX_BYTES", default=10485760)
 EVIDENCE_ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"]
 PUBLIC_IMAGE_BUCKET = env("PUBLIC_IMAGE_BUCKET", default="public-images")
 PUBLIC_IMAGE_BASE_URL = env("PUBLIC_IMAGE_BASE_URL", default="")
-PUBLIC_IMAGE_MAX_BYTES = env.int("PUBLIC_IMAGE_MAX_BYTES", default=5242880)
+PUBLIC_IMAGE_MAX_BYTES = env.int("PUBLIC_IMAGE_MAX_BYTES", default=10485760)
 PUBLIC_IMAGE_URL_TTL_SECONDS = env.int("PUBLIC_IMAGE_URL_TTL_SECONDS", default=300)
 PUBLIC_IMAGE_ALLOWED_MIME = {
     "image/jpeg": [".jpg", ".jpeg"],
@@ -176,7 +176,6 @@ PRINT_UPLOAD_MAX_BYTES = env.int("PRINT_UPLOAD_MAX_BYTES", default=104857600)  #
 PRINT_URL_TTL_SECONDS = env.int("PRINT_URL_TTL_SECONDS", default=300)
 PRINT_ALLOWED_MODEL_EXT = ["stl", "3mf", "step", "stp", "obj"]
 PRINT_ALLOWED_MODEL_MIME = [
-    "",
     "application/octet-stream",
     "model/stl",
     "application/sla",
@@ -220,8 +219,8 @@ EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="Makerspace <noreply@makerspace.local>")
 
 # Async email runs through a Celery worker ONLY when a broker is configured (the Compose
-# stack + prod set CELERY_BROKER_URL). With no broker — e.g. the documented local flow
-# (`docker compose up -d db` + `python manage.py runserver`), or any non-Compose process —
+# stack + prod set CELERY_BROKER_URL). With no broker - e.g. the documented local flow
+# (`docker compose up -d db` + `python manage.py runserver`), or any non-Compose process -
 # fall back to EAGER (synchronous) execution so dispatch_email still delivers inline instead
 # of enqueuing to an unreachable `redis` host and marking every email failed.
 _celery_broker = env("CELERY_BROKER_URL", default="")
@@ -380,8 +379,8 @@ SIMPLE_JWT = {
 # Cross-site refresh cookie (frontends live on separate origins).
 AUTH_REFRESH_COOKIE = "refresh_token"
 # CSRF defense for the cookie-bearing endpoints (refresh/logout): the view requires
-# this custom header to be PRESENT — a non-simple header forces a CORS preflight that
-# an attacker's origin cannot pass — AND validates the Origin header against the
+# this custom header to be PRESENT - a non-simple header forces a CORS preflight that
+# an attacker's origin cannot pass - AND validates the Origin header against the
 # allowlist (review fixes #1, #8). The header VALUE is not a secret; presence + Origin
 # is the defense. This works cross-origin where a readable double-submit cookie cannot.
 AUTH_REFRESH_CSRF_HEADER = "X-Refresh-CSRF"
@@ -422,6 +421,15 @@ SPECTACULAR_SETTINGS = {
             ("printed", "Printed"),
             ("archived", "Archived"),
         ],
+        "InventoryAssetStatusEnum": [
+            ("available", "Available"),
+            ("reserved", "Reserved"),
+            ("issued", "Issued"),
+            ("damaged", "Damaged"),
+            ("lost", "Lost"),
+            ("retired", "Retired"),
+            ("maintenance", "Maintenance"),
+        ],
     },
     "SERVE_INCLUDE_SCHEMA": False,
     "SERVERS": [
@@ -450,5 +458,3 @@ SPECTACULAR_SETTINGS = {
         {"name": "Health", "description": "Health and readiness probes."},
     ],
 }
-
-

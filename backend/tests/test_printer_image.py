@@ -34,6 +34,8 @@ def printer_detail_url(printer):
 
 
 def mock_public_storage(monkeypatch, *, size=123):
+    from apps.inventory import public_image_storage
+
     monkeypatch.setattr(
         "apps.inventory.public_image_storage.presigned_upload",
         lambda object_key, content_type: {
@@ -41,7 +43,11 @@ def mock_public_storage(monkeypatch, *, size=123):
             "fields": {"key": object_key, "Content-Type": content_type},
         },
     )
-    monkeypatch.setattr("apps.inventory.public_image_storage.finalize_upload", lambda object_key: size)
+    monkeypatch.setattr(
+        "apps.inventory.public_image_storage.finalize_upload",
+        lambda object_key: public_image_storage._finalize_result(object_key, size),
+    )
+    monkeypatch.setattr("apps.inventory.public_image_storage.sniff_is_valid_image", lambda object_key: True)
     delete = Mock()
     monkeypatch.setattr("apps.inventory.public_image_storage.delete_object", delete)
     return delete

@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import generics
@@ -208,13 +207,37 @@ class InventoryProductImageView(APIView):
         expected_prefix = f"items/{product.makerspace_id}/"
         if not object_key.startswith(expected_prefix):
             raise ValidationError({"object_key": "Image object key is outside this makerspace."})
+        if not public_image_storage.is_safe_object_key(object_key):
+            raise ValidationError({"object_key": "Invalid image object key."})
+        if public_image_storage.public_image_key_in_use(
+            product.makerspace_id,
+            object_key,
+            product_id=product.pk,
+        ):
+            raise ValidationError({"object_key": "This image is already in use."})
         try:
-            size = public_image_storage.finalize_upload(object_key)
+            result = public_image_storage.finalize_upload(object_key)
         except StorageUnavailable:
             return storage_unavailable_response()
-        if size is None or not (1 <= size <= settings.PUBLIC_IMAGE_MAX_BYTES):
-            raise ValidationError({"object_key": "Uploaded image is missing or invalid."})
-
+        if result.status != "ok":
+            if result.status in {"empty", "too_large"}:
+                public_image_storage.delete_object(object_key)
+                public_image_storage.delete_object(
+                    public_image_storage.staging_key(object_key)
+                )
+            raise ValidationError(
+                {"object_key": public_image_storage.finalize_error_message(result)}
+            )
+        try:
+            is_valid_image = public_image_storage.sniff_is_valid_image(object_key)
+        except StorageUnavailable:
+            return storage_unavailable_response()
+        if not is_valid_image:
+            public_image_storage.delete_object(object_key)
+            public_image_storage.delete_object(public_image_storage.staging_key(object_key))
+            raise ValidationError(
+                {"object_key": "Uploaded file is not a valid image."}
+            )
         old_key = product.image_key
         if old_key and old_key != object_key:
             public_image_storage.delete_object(old_key)

@@ -13,12 +13,16 @@ from apps.printing.models import (
     PrintRequest,
     PrintRequestFile,
 )
-from apps.printing.storage import print_finalize_upload, print_object_size
+from apps.printing.storage import (
+    print_finalize_upload,
+    print_object_size,
+    validate_print_model_object,
+)
 
 
 def _resolve_public_bucket(makerspace, bucket_id):
     # Distinguish an omitted/null bucket (use the default) from an explicit invalid id like 0
-    # (which can't be a real PK) — the latter must still raise the validation error, not fall
+    # (which can't be a real PK) - the latter must still raise the validation error, not fall
     # through to the default "Public Requests" queue.
     if bucket_id is not None:
         bucket = PrintBucket.objects.filter(
@@ -127,6 +131,17 @@ def submit_public_print_request(makerspace, data, result):
                     raise ValidationError(
                         {"file_ids": "An uploaded file exceeds the size limit."}
                     )
+                if upload.kind == PrintRequestFile.Kind.STL:
+                    try:
+                        validate_print_model_object(
+                            upload.object_key,
+                            upload.original_filename,
+                            size,
+                        )
+                    except ValueError as exc:
+                        raise ValidationError(
+                            {"file_ids": "An uploaded model file is invalid."}
+                        ) from exc
                 upload.print_request = request
                 upload.attached_at = now
                 upload.size_bytes = size

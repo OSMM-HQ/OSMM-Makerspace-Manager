@@ -94,5 +94,11 @@ def validate_evidence_upload(evidence, *, label):
             raise ReturnValidationError(
                 f"{label} evidence is invalid or exceeds the size limit."
             )
-    elif not storage.object_exists(evidence.object_key):
-        raise EvidenceNotUploaded(f"{label} evidence has not been uploaded.")
+    try:
+        storage.validate_evidence_object(evidence.object_key)
+    except storage.EvidenceObjectValidationError as exc:
+        if exc.code == "missing":
+            raise EvidenceNotUploaded(f"{label} evidence has not been uploaded.") from exc
+        raise ReturnValidationError(
+            f"{label} evidence is invalid or exceeds the size limit."
+        ) from exc

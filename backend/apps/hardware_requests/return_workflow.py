@@ -45,8 +45,8 @@ def return_items(actor, request, evidence_id, remark, box_code, resolutions):
             raise ReturnValidationError("Return evidence has already been used.")
         # Finalize evidence UNDER the request row lock so concurrent finalizers can't both
         # promote the staging upload over an already-finalized immutable key (Codex Stage-4
-        # P2). PUT mode promotes staging->final + validates size; POST mode (MinIO) checks
-        # existence only.
+        # P2). PUT mode promotes staging->final + validates size; both PUT and POST
+        # then HEAD size and sniff bytes to prove the immutable final object is an image.
         if settings.STORAGE_PRESIGN_METHOD == "put":
             size = storage.finalize_upload(evidence.object_key, settings.EVIDENCE_MAX_BYTES)
             if size is None:
@@ -55,8 +55,14 @@ def return_items(actor, request, evidence_id, remark, box_code, resolutions):
                 raise ReturnValidationError(
                     "Return evidence is invalid or exceeds the size limit."
                 )
-        elif not storage.object_exists(evidence.object_key):
-            raise EvidenceNotUploaded("Return evidence has not been uploaded.")
+        try:
+            storage.validate_evidence_object(evidence.object_key)
+        except storage.EvidenceObjectValidationError as exc:
+            if exc.code == "missing":
+                raise EvidenceNotUploaded("Return evidence has not been uploaded.") from exc
+            raise ReturnValidationError(
+                "Return evidence is invalid or exceeds the size limit."
+            ) from exc
         box = _matching_box(locked, box_code)
         scan = _record_scan(actor, locked, box)
         validated_resolutions = build_resolutions(locked, resolutions)

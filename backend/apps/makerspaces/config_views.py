@@ -1,3 +1,4 @@
+from django.conf import settings
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers
 from rest_framework.permissions import AllowAny
@@ -9,6 +10,7 @@ from apps.integrations.email import email_enabled
 
 class PublicConfigSerializer(serializers.Serializer):
     email_enabled = serializers.BooleanField()
+    public_image_max_bytes = serializers.IntegerField()
 
 
 class PublicConfigView(APIView):
@@ -22,4 +24,7 @@ class PublicConfigView(APIView):
         responses={200: PublicConfigSerializer},
     )
     def get(self, request, *args, **kwargs):
-        return Response({"email_enabled": email_enabled()})
+        return Response({
+            "email_enabled": email_enabled(),
+            "public_image_max_bytes": settings.PUBLIC_IMAGE_MAX_BYTES,
+        })

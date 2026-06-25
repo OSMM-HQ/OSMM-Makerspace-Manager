@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 import logging
 import uuid
 
@@ -6,6 +7,8 @@ from botocore.client import Config
 from botocore.exceptions import BotoCoreError, ClientError
 from django.conf import settings
 
+from apps.evidence.image_validation import image_mime_from_bytes
+
 
 logger = logging.getLogger(__name__)
 
@@ -13,6 +16,17 @@ logger = logging.getLogger(__name__)
 class StorageUnavailable(Exception):
     pass
 
+
+class EvidenceObjectValidationError(Exception):
+    def __init__(self, code, message):
+        super().__init__(message)
+        self.code = code
+
+
+@dataclass(frozen=True)
+class EvidenceValidationResult:
+    size: int
+    content_type: str
 
 def _s3_client(endpoint_url):
     return boto3.client(
@@ -100,6 +114,7 @@ def finalize_upload(object_key, max_bytes):
 def presigned_upload(object_key, content_type):
     try:
         if settings.STORAGE_PRESIGN_METHOD == "put":
+            # Presigned PUT cannot enforce content-length at upload time; finalize HEADs staging.
             url = _public_client().generate_presigned_url(
                 "put_object",
                 Params={
@@ -127,6 +142,33 @@ def presigned_upload(object_key, content_type):
     except (BotoCoreError, ClientError) as exc:
         raise StorageUnavailable from exc
 
+
+def validate_evidence_object(object_key):
+    size = object_size(object_key)
+    if size is None:
+        raise EvidenceObjectValidationError("missing", "Evidence object was not found.")
+    if size == 0:
+        raise EvidenceObjectValidationError("empty", "Evidence object is empty.")
+    if size > settings.EVIDENCE_MAX_BYTES:
+        raise EvidenceObjectValidationError(
+            "too_large", "Evidence object exceeds the size limit."
+        )
+
+    try:
+        response = _client().get_object(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=object_key,
+        )
+        data = response["Body"].read(settings.EVIDENCE_MAX_BYTES)
+    except (BotoCoreError, ClientError, OSError) as exc:
+        raise StorageUnavailable from exc
+
+    content_type = image_mime_from_bytes(data)
+    if content_type not in settings.EVIDENCE_ALLOWED_MIME:
+        raise EvidenceObjectValidationError(
+            "invalid_image", "Evidence object is not a valid image."
+        )
+    return EvidenceValidationResult(size=size, content_type=content_type)
 
 def presigned_get_url(object_key):
     try:

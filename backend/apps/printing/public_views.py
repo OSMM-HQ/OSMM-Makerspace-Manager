@@ -1,7 +1,7 @@
 import uuid
 from types import SimpleNamespace
 
-from drf_spectacular.utils import extend_schema, inline_serializer
+from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
 from rest_framework import generics, serializers, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import AllowAny
@@ -17,6 +17,7 @@ from apps.makerspaces.platform import module_enabled
 from apps.printing import public_workflow
 from apps.printing.models import FilamentSpool, PrintBucket, PrintRequest, PrintRequestFile
 from apps.printing.queue_position import queue_counts_for
+from apps.printing.serializers import ErrorSerializer
 from apps.printing.public_serializers import (
     PrintCheckinVerifyRequestSerializer,
     PrintCheckinVerifyResponseSerializer,
@@ -52,6 +53,14 @@ class PublicPrintStatusByEmailRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
 
+PUBLIC_PRINT_ERROR_RESPONSES = {
+    400: OpenApiResponse(ErrorSerializer, description="Invalid request."),
+    403: OpenApiResponse(ErrorSerializer, description="Check-In denied or permission denied."),
+    404: OpenApiResponse(ErrorSerializer, description="Makerspace or request not found."),
+    503: OpenApiResponse(ErrorSerializer, description="Check-In or storage is unavailable."),
+}
+
+
 class PublicPrintBucketsView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [ClientTierRateThrottle]
@@ -60,7 +69,7 @@ class PublicPrintBucketsView(APIView):
     @extend_schema(
         tags=["Public printing"],
         auth=[],
-        responses={200: PublicPrintBucketSerializer(many=True)},
+        responses={200: PublicPrintBucketSerializer(many=True), **PUBLIC_PRINT_ERROR_RESPONSES},
     )
     def get(self, request, makerspace_slug):
         makerspace = get_public_makerspace(makerspace_slug)
@@ -79,7 +88,7 @@ class PublicPrintSpoolsView(APIView):
     @extend_schema(
         tags=["Public printing"],
         auth=[],
-        responses={200: PublicFilamentSpoolSerializer(many=True)},
+        responses={200: PublicFilamentSpoolSerializer(many=True), **PUBLIC_PRINT_ERROR_RESPONSES},
     )
     def get(self, request, makerspace_slug):
         makerspace = get_public_makerspace(makerspace_slug)
@@ -99,7 +108,7 @@ class PrintCheckinVerifyView(APIView):
         tags=["Public printing"],
         auth=[],
         request=PrintCheckinVerifyRequestSerializer,
-        responses={200: PrintCheckinVerifyResponseSerializer},
+        responses={200: PrintCheckinVerifyResponseSerializer, **PUBLIC_PRINT_ERROR_RESPONSES},
     )
     def post(self, request, makerspace_slug):
         makerspace = get_public_makerspace(makerspace_slug)
@@ -119,7 +128,7 @@ class PrintUploadPresignView(APIView):
         tags=["Public printing"],
         auth=[],
         request=PrintPresignRequestSerializer,
-        responses={201: PrintPresignResponseSerializer},
+        responses={201: PrintPresignResponseSerializer, **PUBLIC_PRINT_ERROR_RESPONSES},
     )
     def post(self, request, makerspace_slug):
         makerspace = get_public_makerspace(makerspace_slug)
@@ -167,7 +176,7 @@ class PrintRequestSubmitView(APIView):
         tags=["Public printing"],
         auth=[],
         request=PrintRequestSubmitSerializer,
-        responses={201: PrintRequestSubmitResponseSerializer},
+        responses={201: PrintRequestSubmitResponseSerializer, **PUBLIC_PRINT_ERROR_RESPONSES},
     )
     def post(self, request, makerspace_slug):
         makerspace = get_public_makerspace(makerspace_slug)
@@ -211,7 +220,7 @@ class PublicPrintStatusView(generics.RetrieveAPIView):
     @extend_schema(
         tags=["Public printing"],
         auth=[],
-        responses={200: PublicPrintStatusSerializer},
+        responses={200: PublicPrintStatusSerializer, **PUBLIC_PRINT_ERROR_RESPONSES},
     )
     def get(self, request, *args, **kwargs):
         obj = self.get_object()

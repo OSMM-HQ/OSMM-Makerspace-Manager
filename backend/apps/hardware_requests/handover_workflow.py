@@ -14,6 +14,7 @@ from apps.hardware_requests.handover_issue_helpers import (
     validate_broken_rejects,
 )
 from apps.hardware_requests.models import HardwareRequest
+from apps.hardware_requests.self_checkout_models import PublicToolLoan
 from apps.hardware_requests.workflow_errors import (
     BoxUnavailable,
     BoxValidationError,
@@ -33,7 +34,7 @@ def assign_box(actor, request, box_code):
                 f"Cannot assign box for hardware request with status {locked.status}."
             )
 
-        box = Box.objects.filter(
+        box = Box.objects.select_for_update().filter(
             makerspace=locked.makerspace,
             code=box_code,
             is_active=True,
@@ -48,7 +49,7 @@ def assign_box(actor, request, box_code):
                 HardwareRequest.Status.PARTIALLY_RETURNED,
             ],
         ).exclude(pk=locked.pk)
-        if occupied.exists():
+        if occupied.exists() or _active_public_container_loan_exists(box):
             raise BoxUnavailable("Box is already out on another loan.")
 
         locked.assigned_box = box
@@ -79,7 +80,7 @@ def assign_box(actor, request, box_code):
 
 def issue_request(actor, request, evidence_id, remark="", asset_qr_payloads=None, rejects=None):
     asset_qr_payloads = list(asset_qr_payloads or [])
-    # rejects: [{"item_id", "broken", "disposition"}] — units rejected as broken at
+    # rejects: [{"item_id", "broken", "disposition"}] - units rejected as broken at
     # handover, either sent to the needs-fix shelf or scrapped out of inventory.
     rejects_by_item = {
         int(entry["item_id"]): (
@@ -105,10 +106,10 @@ def issue_request(actor, request, evidence_id, remark="", asset_qr_payloads=None
             )
         # Finalize evidence UNDER the request row lock + AFTER the status guard, so two
         # concurrent issues can't both promote the staging upload to the immutable final
-        # key (the loser fails the status check before reaching here) — closes the
+        # key (the loser fails the status check before reaching here) - closes the
         # concurrent-finalizer overwrite race (Codex Stage-4 P2). PUT mode (Supabase/R2)
-        # promotes staging->final + validates size; POST mode (MinIO) checks existence
-        # only (its presign policy already bounded size).
+        # promotes staging->final + validates size; both PUT and POST then HEAD
+        # size and sniff bytes to prove the immutable final object is an image.
         if settings.STORAGE_PRESIGN_METHOD == "put":
             size = storage.finalize_upload(evidence.object_key, settings.EVIDENCE_MAX_BYTES)
             if size is None:
@@ -117,14 +118,23 @@ def issue_request(actor, request, evidence_id, remark="", asset_qr_payloads=None
                 raise RequestValidationError(
                     "Issue evidence is invalid or exceeds the size limit."
                 )
-        elif not storage.object_exists(evidence.object_key):
-            raise EvidenceNotUploaded("Issue evidence has not been uploaded.")
+        try:
+            storage.validate_evidence_object(evidence.object_key)
+        except storage.EvidenceObjectValidationError as exc:
+            if exc.code == "missing":
+                raise EvidenceNotUploaded("Issue evidence has not been uploaded.") from exc
+            raise RequestValidationError(
+                "Issue evidence is invalid or exceeds the size limit."
+            ) from exc
         if not locked.assigned_box_id or not BoxScan.objects.filter(
             request=locked,
             box_id=locked.assigned_box_id,
             context=BoxScan.Context.ISSUE,
         ).exists():
             raise RequestValidationError("Box scan required before issue.")
+        assigned_box = Box.objects.select_for_update().get(pk=locked.assigned_box_id)
+        if _active_public_container_loan_exists(assigned_box):
+            raise BoxUnavailable("Box is already out on another loan.")
 
         if rejects_by_item:
             validate_broken_rejects(locked, rejects_by_item)
@@ -200,6 +210,14 @@ def set_return_due(actor, request, return_due_at):
             meta={"return_due_at": return_due_at.isoformat() if return_due_at else None},
         )
         return locked
+
+
+def _active_public_container_loan_exists(box):
+    return PublicToolLoan.objects.filter(
+        makerspace=box.makerspace,
+        container=box,
+        status=PublicToolLoan.Status.CHECKED_OUT,
+    ).exists()
 
 
 def _raise_issue_conflict(exc):
