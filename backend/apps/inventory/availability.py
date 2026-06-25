@@ -1,4 +1,5 @@
 from django.db import connection, transaction
+from django.db.models import Count
 
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 
@@ -15,6 +16,38 @@ ASSET_QUANTITY_BUCKETS = {
     InventoryAsset.Status.LOST: "lost_quantity",
     InventoryAsset.Status.MAINTENANCE: "needs_fix_quantity",
 }
+
+ASSET_QUANTITY_FIELDS = tuple(dict.fromkeys(ASSET_QUANTITY_BUCKETS.values()))
+
+
+def reconcile_individual_product_from_assets(product):
+    """Make individual-tracked product buckets match serialized asset rows."""
+    if product.tracking_mode != TrackingMode.INDIVIDUAL:
+        return product
+
+    counts = {field: 0 for field in ASSET_QUANTITY_FIELDS}
+    for row in (
+        InventoryAsset.objects.filter(product_id=product.pk)
+        .values("status")
+        .annotate(count=Count("id"))
+    ):
+        bucket = ASSET_QUANTITY_BUCKETS.get(row["status"])
+        if bucket:
+            counts[bucket] += row["count"]
+
+    total = sum(counts.values())
+    changed = []
+    for field, value in counts.items():
+        if getattr(product, field) != value:
+            setattr(product, field, value)
+            changed.append(field)
+    if product.total_quantity != total:
+        product.total_quantity = total
+        changed.append("total_quantity")
+
+    if changed:
+        product.save(update_fields=[*changed, "updated_at"])
+    return product
 
 
 def move_asset_status(asset, new_status):
@@ -36,6 +69,7 @@ def move_asset_status(asset, new_status):
         )
 
     product = InventoryProduct.objects.select_for_update().get(pk=asset.product_id)
+    reconcile_individual_product_from_assets(product)
     old_value = getattr(product, old_bucket)
     if old_value < 1:
         raise InsufficientStock(

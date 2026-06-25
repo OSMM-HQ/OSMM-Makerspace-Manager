@@ -231,6 +231,45 @@ def test_individual_asset_can_move_to_fix_and_back():
     assert AuditLog.objects.filter(action="inventory.asset_needs_fix_repair").exists()
 
 
+def test_individual_asset_repair_reconciles_stale_product_counts():
+    makerspace = make_space("asset-fix-stale-counts")
+    admin = make_member("asset-fix-stale-counts-admin", makerspace)
+    product = make_product(
+        makerspace,
+        tracking_mode=TrackingMode.INDIVIDUAL,
+        total_quantity=2,
+        available_quantity=2,
+        needs_fix_quantity=0,
+    )
+    available = InventoryAsset.objects.create(
+        makerspace=makerspace,
+        product=product,
+        asset_tag="ARDUINO-AVAILABLE",
+        status=InventoryAsset.Status.AVAILABLE,
+    )
+    maintenance = InventoryAsset.objects.create(
+        makerspace=makerspace,
+        product=product,
+        asset_tag="ARDUINO-FIXED",
+        status=InventoryAsset.Status.MAINTENANCE,
+    )
+
+    response = authenticated_client(admin).post(
+        f"/api/v1/admin/assets/{maintenance.id}/fix-status",
+        {"action": "repair"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    maintenance.refresh_from_db()
+    available.refresh_from_db()
+    product.refresh_from_db()
+    assert maintenance.status == InventoryAsset.Status.AVAILABLE
+    assert available.status == InventoryAsset.Status.AVAILABLE
+    assert product.available_quantity == 2
+    assert product.needs_fix_quantity == 0
+    assert product.total_quantity == 2
+
 def test_individual_asset_fix_rejects_issued_asset():
     makerspace = make_space("asset-fix-issued")
     admin = make_member("asset-fix-issued-admin", makerspace)
