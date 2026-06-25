@@ -68,7 +68,7 @@ export function NotificationMuteMatrix({ makerspaceId }: { makerspaceId: number 
   const mutes = rules.data?.mutes ?? [];
 
   return (
-    <div className="mt-4 grid gap-4">
+    <div className="mt-4 grid min-w-0 gap-4">
       <p className="text-sm text-muted">
         Checked = muted (that email is not sent). Return reminders are always sent and
         can&apos;t be muted.
@@ -76,13 +76,13 @@ export function NotificationMuteMatrix({ makerspaceId }: { makerspaceId: number 
       {rules.data?.catalog.map((entry) => (
         <section
           key={`${entry.stream}:${entry.audience}`}
-          className="rounded-md border border-line bg-surface p-3"
+          className="min-w-0 rounded-md border border-line bg-surface p-3"
         >
           <h4 className="text-sm font-semibold text-ink">
             {streamLabel(entry.stream)} &middot; {audienceLabel(entry.audience)}
           </h4>
-          <div className="mt-3 overflow-x-auto rounded-md border border-line bg-bg">
-            <table className="min-w-full border-collapse text-sm">
+          <div className="mt-3 max-w-full overflow-x-auto rounded-md border border-line bg-bg">
+            <table className="w-max min-w-full border-collapse text-sm">
               <caption className="sr-only">
                 Checked boxes mute emails for {streamLabel(entry.stream)}{" "}
                 {audienceLabel(entry.audience)}.
@@ -95,7 +95,7 @@ export function NotificationMuteMatrix({ makerspaceId }: { makerspaceId: number 
                   {entry.events.map((eventName) => (
                     <th
                       key={eventName}
-                      className="min-w-32 px-3 py-2 text-center font-semibold"
+                      className="min-w-32 max-w-40 whitespace-normal px-3 py-2 text-center font-semibold leading-snug"
                       scope="col"
                     >
                       {humanize(eventName)}

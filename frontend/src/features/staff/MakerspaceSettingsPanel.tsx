@@ -124,14 +124,14 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
 
   return (
     <Panel title="Makerspace settings">
-      <div className="grid gap-4">
-        <div className="rounded-md border border-line bg-bg p-4">
+      <div className="grid min-w-0 gap-4">
+        <div className="min-w-0 rounded-md border border-line bg-bg p-4">
           <h3 className="text-base font-semibold text-ink">Branding</h3>
           <p className="mt-1 text-sm text-muted">
             Logo and cover image shown on this makerspace&apos;s public pages. When no
             logo is set, the makerspace name is shown as the wordmark.
           </p>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <div className="mt-4 grid min-w-0 gap-4 lg:grid-cols-2">
             <ImageUploader
               endpoint={`/admin/makerspace/${makerspace.id}/logo`}
               currentUrl={settings.data?.logo_url}
@@ -153,9 +153,9 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
           settings={settings.data}
           loading={settings.isLoading}
         />
-        <div className="rounded-md border border-line bg-bg p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="grid max-w-2xl gap-2">
+        <div className="min-w-0 rounded-md border border-line bg-bg p-4">
+          <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+            <div className="grid min-w-0 max-w-2xl gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-base font-semibold text-ink">Superadmin access</h3>
                 <Badge tone={superadminAccessEnabled ? "success" : "warn"}>
@@ -173,7 +173,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
               {updateAccess.error ? <p className="text-sm text-danger">{updateAccess.error.message}</p> : null}
             </div>
             <button
-              className={superadminAccessEnabled ? "desk-button" : "desk-button-primary"}
+              className={`${superadminAccessEnabled ? "desk-button" : "desk-button-primary"} w-full max-w-full justify-self-start sm:w-auto md:justify-self-end`}
               type="button"
               disabled={disabled}
               onClick={() => updateAccess.mutate(nextValue)}
@@ -186,9 +186,9 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
             </button>
           </div>
         </div>
-        <div className="rounded-md border border-line bg-bg p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="grid max-w-2xl gap-2">
+        <div className="min-w-0 rounded-md border border-line bg-bg p-4">
+          <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+            <div className="grid min-w-0 max-w-2xl gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-base font-semibold text-ink">Staff email notifications</h3>
                 <Badge tone={staffNotificationsEnabled ? "success" : "neutral"}>
@@ -202,7 +202,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
                 <p className="text-sm text-danger">{updateStaffNotifications.error.message}</p>
               ) : null}
             </div>
-            <label className="flex items-start gap-3 text-sm text-ink">
+            <label className="flex min-w-0 items-start gap-3 text-sm text-ink sm:justify-self-start md:justify-self-end">
               <input
                 className="mt-1 h-4 w-4"
                 type="checkbox"
@@ -214,9 +214,9 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
             </label>
           </div>
         </div>
-        <div className="rounded-md border border-line bg-bg p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="grid max-w-2xl gap-2">
+        <div className="min-w-0 rounded-md border border-line bg-bg p-4">
+          <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+            <div className="grid min-w-0 max-w-2xl gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <h3 className="text-base font-semibold text-ink">Public stats page</h3>
                 <Badge tone={publicStatsEnabled ? "success" : "neutral"}>
@@ -232,7 +232,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
                 <p className="text-sm text-danger">{updatePublicStats.error.message}</p>
               ) : null}
             </div>
-            <label className="flex items-start gap-3 text-sm text-ink">
+            <label className="flex min-w-0 items-start gap-3 text-sm text-ink sm:justify-self-start md:justify-self-end">
               <input
                 className="mt-1 h-4 w-4"
                 type="checkbox"
@@ -245,9 +245,9 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
           </div>
         </div>
         <MakerspaceEmailSettings makerspace={makerspace} />
-        <div className="rounded-md border border-line bg-bg p-4">
+        <div className="min-w-0 rounded-md border border-line bg-bg p-4">
           <form
-            className="grid gap-4"
+            className="grid min-w-0 gap-4"
             onSubmit={(event) => {
               event.preventDefault();
               if (!domainSaveDisabled) {
@@ -255,8 +255,8 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
               }
             }}
           >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="grid max-w-2xl gap-2">
+            <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
+              <div className="grid min-w-0 max-w-2xl gap-2">
                 <div className="flex flex-wrap items-center gap-2">
                   <h3 className="text-base font-semibold text-ink">Custom domain</h3>
                   <Badge tone={hasDomain ? "success" : "neutral"}>
@@ -268,7 +268,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
                 </p>
               </div>
               <button
-                className="desk-button-primary"
+                className="desk-button-primary w-full max-w-full justify-self-start sm:w-auto md:justify-self-end"
                 type="submit"
                 disabled={domainSaveDisabled}
               >
@@ -276,7 +276,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
               </button>
             </div>
 
-            <div className="grid max-w-xl gap-2">
+            <div className="grid min-w-0 max-w-xl gap-2">
               <label className="text-sm font-semibold text-ink" htmlFor="custom-domain">
                 Domain
               </label>
@@ -295,7 +295,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
               />
             </div>
 
-            <label className="flex max-w-xl items-start gap-3 text-sm text-ink">
+            <label className="flex min-w-0 max-w-xl items-start gap-3 text-sm text-ink">
               <input
                 className="mt-1 h-4 w-4"
                 type="checkbox"
@@ -312,11 +312,11 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
             </label>
 
             {hasDomain ? (
-              <div className="rounded-md border border-line bg-surface p-3 text-sm text-muted">
+              <div className="min-w-0 overflow-x-auto rounded-md border border-line bg-surface p-3 text-sm text-muted">
                 <p className="font-semibold text-ink">Resulting URLs</p>
                 <ul className="mt-2 grid gap-1">
                   {customDomainUrls.map((url) => (
-                    <li key={url}>{url}</li>
+                    <li className="break-all" key={url}>{url}</li>
                   ))}
                 </ul>
               </div>
@@ -326,7 +326,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
             ) : null}
           </form>
         </div>
-        <div className="rounded-md border border-line bg-bg p-4">
+        <div className="min-w-0 rounded-md border border-line bg-bg p-4">
           <h3 className="text-base font-semibold text-ink">Email notifications: mute matrix</h3>
           <NotificationMuteMatrix makerspaceId={makerspace.id} />
         </div>

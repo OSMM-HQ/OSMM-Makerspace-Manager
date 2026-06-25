@@ -50,9 +50,9 @@ export function MakerspaceLocationSettings({ makerspace, settings, loading }: Pr
   const savedMapUrl = currentMapUrl.trim();
 
   return (
-    <div className="rounded-md border border-line bg-bg p-4">
+    <div className="min-w-0 rounded-md border border-line bg-bg p-4">
       <form
-        className="grid gap-4"
+        className="grid min-w-0 gap-4"
         onSubmit={(event) => {
           event.preventDefault();
           if (!saveDisabled) {
@@ -60,8 +60,8 @@ export function MakerspaceLocationSettings({ makerspace, settings, loading }: Pr
           }
         }}
       >
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="grid max-w-2xl gap-2">
+        <div className="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+          <div className="grid min-w-0 max-w-2xl gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-base font-semibold text-ink">Location</h3>
               <Badge tone={savedMapUrl ? "success" : "neutral"}>
@@ -72,13 +72,13 @@ export function MakerspaceLocationSettings({ makerspace, settings, loading }: Pr
               Public location label and optional Google Maps link shown on public pages.
             </p>
           </div>
-          <button className="desk-button-primary" type="submit" disabled={saveDisabled}>
+          <button className="desk-button-primary w-full max-w-full justify-self-start sm:w-auto sm:justify-self-end" type="submit" disabled={saveDisabled}>
             {updateLocation.isPending ? "Saving..." : "Save location"}
           </button>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-2 text-sm font-semibold text-ink">
+        <div className="grid min-w-0 gap-3 xl:grid-cols-2">
+          <label className="grid min-w-0 gap-2 text-sm font-semibold text-ink">
             <span>Location label</span>
             <input
               className="desk-input"
@@ -87,7 +87,7 @@ export function MakerspaceLocationSettings({ makerspace, settings, loading }: Pr
               placeholder="Main lab, downtown campus"
             />
           </label>
-          <label className="grid gap-2 text-sm font-semibold text-ink">
+          <label className="grid min-w-0 gap-2 text-sm font-semibold text-ink">
             <span>Google Maps link</span>
             <input
               className="desk-input"
@@ -95,9 +95,7 @@ export function MakerspaceLocationSettings({ makerspace, settings, loading }: Pr
               onChange={(event) => setMapUrlInput(event.target.value)}
               placeholder="https://maps.app.goo.gl/..."
             />
-            <span className="text-xs font-normal text-muted">
-              Open Google Maps → Share → Copy link → paste here
-            </span>
+            <span className="text-xs font-normal text-muted">Open Google Maps - Share - Copy link - paste here</span>
           </label>
         </div>
 
@@ -108,7 +106,7 @@ export function MakerspaceLocationSettings({ makerspace, settings, loading }: Pr
             target="_blank"
             rel="noopener noreferrer"
           >
-            Open in Maps ↗
+            Open in Maps -&gt;
           </a>
         ) : null}
         {updateLocation.error ? (

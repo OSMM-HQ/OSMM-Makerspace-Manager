@@ -134,6 +134,12 @@ export function PrintRows({
             <p className="mt-2 text-xs text-muted">
               {row.requester_display || row.requester_name || row.requester_username} - {row.material || "material n/a"} {row.color || ""} - {row.estimated_minutes || 0} min - {row.estimated_filament_grams || "0.00"}g
             </p>
+            {row.accepted_by ? (
+              <p className="mt-1 text-xs text-muted">
+                <span className="font-medium text-ink">Approved by: </span>
+                {row.accepted_by.username}{row.accepted_by.role ? ` (${humanize(row.accepted_by.role)})` : ""}
+              </p>
+            ) : null}
             {row.requested_filament_spool ? (
               <p className="mt-1 text-xs text-accent-ink">
                 <span className="font-medium">Requested spool: </span>

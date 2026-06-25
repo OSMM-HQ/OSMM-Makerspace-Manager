@@ -141,7 +141,7 @@ function printTimeLeftLabel(status: PrintStatus, now: number): string | null {
   const finish = new Date(status.started_at).getTime() + status.estimated_minutes * 60_000;
   const remainingMs = finish - now;
   if (remainingMs <= 0) {
-    return "Finishing up Ã¢â‚¬â€ past the estimate";
+    return "Finishing up - past the estimate";
   }
   const totalMinutes = Math.ceil(remainingMs / 60_000);
   const hours = Math.floor(totalMinutes / 60);
@@ -158,7 +158,7 @@ function queuePositionDetail(status: PrintStatus): string {
   return [
     `${approvedAhead} approved job${approvedAhead === 1 ? "" : "s"} ahead`,
     `${awaitingReviewAhead} awaiting review`,
-  ].join(" Ã‚Â· ");
+  ].join(" / ");
 }
 
 export function StatusStepper({ status }: { status: PrintStatus }) {

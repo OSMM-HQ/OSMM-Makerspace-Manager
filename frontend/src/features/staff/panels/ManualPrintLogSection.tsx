@@ -16,6 +16,9 @@ type ManualPrintLog = {
   spool_label: string | null;
   grams_used: string;
   duration_minutes: number;
+  requester_name: string;
+  contact_email: string;
+  contact_phone: string;
   logged_by_username: string | null;
   created_at: string;
 };
@@ -37,6 +40,9 @@ export function ManualPrintLogSection({
   const [spoolId, setSpoolId] = useState("");
   const [gramsUsed, setGramsUsed] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
+  const [requesterName, setRequesterName] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
   const [note, setNote] = useState("");
   const logs = useStaffGet<ManualLogsResponse>(
     ["manual-print-logs", makerspace.id],
@@ -69,6 +75,9 @@ export function ManualPrintLogSection({
           grams_used: gramsUsed,
           duration_minutes: Number(durationMinutes) || 0,
           title: title.trim(),
+          requester_name: requesterName.trim(),
+          contact_email: contactEmail.trim(),
+          contact_phone: contactPhone.trim(),
           note: note.trim(),
         }),
       }),
@@ -78,6 +87,9 @@ export function ManualPrintLogSection({
       setSpoolId("");
       setGramsUsed("");
       setDurationMinutes("");
+      setRequesterName("");
+      setContactEmail("");
+      setContactPhone("");
       setNote("");
       queryClient.invalidateQueries({ queryKey: ["print-spools", makerspace.id] });
       // The deduction also feeds printer cards (active spool remaining), so refresh them too.
@@ -148,6 +160,27 @@ export function ManualPrintLogSection({
             onChange={(event) => setDurationMinutes(event.target.value)}
           />
         </div>
+        <div className="grid gap-2 md:grid-cols-3">
+          <input
+            className="desk-input min-w-0"
+            placeholder="Name"
+            value={requesterName}
+            onChange={(event) => setRequesterName(event.target.value)}
+          />
+          <input
+            className="desk-input min-w-0"
+            placeholder="Email"
+            type="email"
+            value={contactEmail}
+            onChange={(event) => setContactEmail(event.target.value)}
+          />
+          <input
+            className="desk-input min-w-0"
+            placeholder="Phone"
+            value={contactPhone}
+            onChange={(event) => setContactPhone(event.target.value)}
+          />
+        </div>
         <textarea
           className="desk-input min-h-20"
           placeholder="Note"
@@ -176,6 +209,12 @@ export function ManualPrintLogSection({
             <p className="mt-1 text-xs text-muted">
               {[log.printer_name, log.spool_label].filter(Boolean).join(" - ") || "No printer"}
             </p>
+            {log.requester_name || log.contact_email || log.contact_phone ? (
+              <p className="mt-1 text-xs text-muted">
+                <span className="font-medium text-ink">For: </span>
+                {[log.requester_name, log.contact_email, log.contact_phone].filter(Boolean).join(" - ")}
+              </p>
+            ) : null}
             <p className="mt-1 text-xs text-muted">
               {log.logged_by_username ?? "Unknown"} - {new Date(log.created_at).toLocaleString()}
             </p>

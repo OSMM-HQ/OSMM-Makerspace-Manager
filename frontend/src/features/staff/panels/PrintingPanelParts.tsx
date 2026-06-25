@@ -33,6 +33,11 @@ export type PrintPrinter = {
   estimated_spool_remaining_after_queue_grams: string | null;
 };
 
+export type PrintActor = {
+  username: string;
+  role: string;
+};
+
 export type PrintRequest = {
   id: number;
   title: string;
@@ -43,6 +48,7 @@ export type PrintRequest = {
   payment_status?: "none" | "pending" | "paid";
   paid_at?: string | null;
   collected_at?: string | null;
+  accepted_by?: PrintActor | null;
   collected_by?: number | null;
   material: string;
   color: string;

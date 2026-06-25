@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 
-import { staffRequest } from "../../lib/api";
+import { publicV1Request, staffRequest } from "../../lib/api";
 
 type PresignResponse = {
   object_key: string;
@@ -10,7 +10,36 @@ type PresignResponse = {
   headers?: Record<string, string>;
 };
 
+type PublicConfigResponse = {
+  public_image_max_bytes: number;
+};
+
+let publicImageMaxBytesPromise: Promise<number> | null = null;
+
+async function getPublicImageMaxBytes() {
+  if (!publicImageMaxBytesPromise) {
+    publicImageMaxBytesPromise = publicV1Request<PublicConfigResponse>("/config").then(
+      (config) => {
+        const cap = Number(config.public_image_max_bytes);
+        if (!Number.isFinite(cap) || cap <= 0) {
+          throw new Error("Image upload limit is unavailable.");
+        }
+        return cap;
+      },
+    );
+  }
+  return publicImageMaxBytesPromise;
+}
+
+async function rejectOversizePublicImage(file: File) {
+  const cap = await getPublicImageMaxBytes();
+  if (file.size > cap) {
+    throw new Error(`Image too large (max ${Math.round(cap / 1048576)} MB).`);
+  }
+}
+
 export async function uploadPublicImage(endpoint: string, file: File) {
+  await rejectOversizePublicImage(file);
   const presigned = await staffRequest<PresignResponse>(endpoint, {
     method: "POST",
     body: JSON.stringify({
@@ -71,9 +100,10 @@ export function ImageUploader({
 }: ImageUploaderProps) {
   const inputId = useId();
   const objectUrlRef = useRef<string | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   // Cover images are wide banners - give them a rectangular preview that matches
   // how they render publicly, instead of cropping into an 80x80 square.
-  const previewBox = shape === "wide" ? "h-20 w-44" : "h-20 w-20";
+  const previewBox = shape === "wide" ? "h-24 w-full sm:h-20 sm:w-44" : "h-20 w-20";
   const [status, setStatus] = useState<"idle" | "uploading" | "error">("idle");
   const [error, setError] = useState("");
   // Drive the preview from local state so an upload/remove reflects immediately,
@@ -102,41 +132,15 @@ export function ImageUploader({
     setStatus("uploading");
     setError("");
     try {
-      const presigned = await staffRequest<PresignResponse>(endpoint, {
-        method: "POST",
-        body: JSON.stringify({
-          content_type: file.type || "application/octet-stream",
-          filename: file.name,
-        }),
-      });
-
-      if (presigned.method === "PUT") {
-        const res = await fetch(presigned.url, {
-          method: "PUT",
-          body: file,
-          headers: presigned.headers,
-        });
-        if (!res.ok) throw new Error(`Storage upload failed (${res.status})`);
-      } else {
-        const formData = new FormData();
-        Object.entries(presigned.fields ?? {}).forEach(([k, v]) => formData.append(k, v));
-        formData.append("file", file);
-        // Direct presigned POST - no auth header, and do NOT set Content-Type so the
-        // browser supplies the multipart boundary.
-        const res = await fetch(presigned.url, { method: "POST", body: formData });
-        if (!res.ok) throw new Error(`Storage upload failed (${res.status})`);
-      }
-
-      await staffRequest(endpoint, {
-        method: "PUT",
-        body: JSON.stringify({ object_key: presigned.object_key }),
-      });
+      await uploadPublicImage(endpoint, file);
       setStatus("idle");
       setLocalPreview(file);
       onChanged();
     } catch (err) {
       setStatus("error");
       setError(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      if (inputRef.current) inputRef.current.value = "";
     }
   }
 
@@ -159,9 +163,9 @@ export function ImageUploader({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="min-w-0 space-y-2">
       <label htmlFor={inputId} className="block font-mono text-xs uppercase tracking-tight text-muted">{label}</label>
-      <div className="flex items-center gap-3">
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
         <div className={`${previewBox} shrink-0 overflow-hidden rounded-lg border border-line bg-surface`}>
           {preview ? (
             <img
@@ -175,9 +179,10 @@ export function ImageUploader({
             </div>
           )}
         </div>
-        <div className="space-y-1">
+        <div className="min-w-0 max-w-full space-y-1">
           <input
             id={inputId}
+            ref={inputRef}
             type="file"
             accept="image/jpeg,image/png,image/webp"
             disabled={disabled || status === "uploading"}
@@ -185,7 +190,7 @@ export function ImageUploader({
               const file = event.target.files?.[0];
               if (file) handleFile(file);
             }}
-            className="block w-full text-sm text-muted file:mr-3 file:rounded-lg file:border file:border-line file:bg-accent file:px-3 file:py-1.5 file:font-mono file:text-xs file:font-semibold file:text-on-accent"
+            className="block w-full max-w-full min-w-0 text-sm text-muted file:mr-3 file:rounded-lg file:border file:border-line file:bg-accent file:px-3 file:py-1.5 file:font-mono file:text-xs file:font-semibold file:text-on-accent"
           />
           {preview ? (
             <button
