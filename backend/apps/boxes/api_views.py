@@ -98,6 +98,8 @@ class CreateToolQrView(QrPermissionMixin, APIView):
             target_type = QrCode.TargetType.ASSET
         else:
             target = get_object_or_404(InventoryProduct, pk=data["product_id"], makerspace=makerspace)
+            if target.tracking_mode == TrackingMode.INDIVIDUAL:
+                raise ValidationError("Individual-tracked inventory requires unit QR codes.")
             target_type = QrCode.TargetType.PRODUCT
         qr, created = QrCode.objects.get_or_create(
             makerspace=makerspace,
