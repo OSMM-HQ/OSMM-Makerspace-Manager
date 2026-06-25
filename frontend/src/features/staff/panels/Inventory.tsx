@@ -200,7 +200,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
       <div className="desk-actions flex flex-wrap gap-2">
         <button className="desk-button" type="button" onClick={() => openEdit(product)}>Edit</button>
         {!product.is_archived ? <button className="desk-button" type="button" disabled={product.tracking_mode === "individual" ? product.available_quantity + product.damaged_quantity <= 0 : product.available_quantity <= 0} onClick={() => openFix(product)}>To Fix</button> : null}
-        {product.is_archived ? <button className="desk-button" type="button" disabled={unarchive.isPending} onClick={() => unarchive.mutate(product)}>Unarchive</button> : <button className="desk-button" type="button" onClick={() => setArchiveTarget(product)}>Archive</button>}
+        {product.is_archived ? <button className="desk-button" type="button" disabled={unarchive.isPending} onClick={() => unarchive.mutate(product)}>Back to inventory</button> : <button className="desk-button" type="button" onClick={() => setArchiveTarget(product)}>Archive</button>}
         {canUseToBuy ? <button className="desk-button" type="button" onClick={() => openToBuy(product)}>To Buy</button> : null}
       </div>
     ) },
