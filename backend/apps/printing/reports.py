@@ -31,25 +31,28 @@ STATUS_KEYS = {
 COMPLETED_STATUSES = [PrintRequest.Status.COMPLETED, PrintRequest.Status.COLLECTED]
 
 
-def build_printing_report(makerspace_id=None, *, include_makerspace=False):
+def build_printing_report(makerspace_id=None, *, include_makerspace=False, date_range=None):
     requests, spools, manual_logs = _scoped_querysets(makerspace_id)
-    printer_hour_rows = printer_hours(requests, include_makerspace, manual_logs)
-    printer_outcome_rows = printer_outcomes(requests, include_makerspace, manual_logs)
+    request_period = _apply_date_range(requests, "created_at", date_range)
+    completed_period = _apply_date_range(requests, "completed_at", date_range)
+    manual_period = _apply_date_range(manual_logs, "created_at", date_range)
+    printer_hour_rows = printer_hours(completed_period, include_makerspace, manual_period)
+    printer_outcome_rows = printer_outcomes(completed_period, include_makerspace, manual_period)
     attach_printer_image_urls(printer_hour_rows, printer_outcome_rows)
 
     return {
-        "totals": _totals(requests),
+        "totals": _totals(request_period),
         "printer_hours": printer_hour_rows,
         "printer_outcomes": printer_outcome_rows,
         "filament_used": filament_used(spools, include_makerspace),
         "filament_by_brand": filament_by_brand(spools),
-        "top_requesters": _top_requesters(requests, include_makerspace),
+        "top_requesters": _top_requesters(completed_period, include_makerspace),
         "total_grams_used": total_spool_grams_used(spools),
-        "payments": _payments(requests),
+        "payments": _payments(completed_period),
         "filament_estimated_by_period": {
-            "by_month": estimated_filament_by_period(requests, TruncMonth, "%Y-%m"),
-            "by_day": estimated_filament_by_period(requests, TruncDay, "%Y-%m-%d"),
-            "by_hour": estimated_filament_by_period(requests, TruncHour, "%Y-%m-%d %H:00"),
+            "by_month": estimated_filament_by_period(completed_period, TruncMonth, "%Y-%m"),
+            "by_day": estimated_filament_by_period(completed_period, TruncDay, "%Y-%m-%d"),
+            "by_hour": estimated_filament_by_period(completed_period, TruncHour, "%Y-%m-%d %H:00"),
         },
     }
 
@@ -73,6 +76,17 @@ def _scoped_querysets(makerspace_id):
         spools.exclude(makerspace_id__in=excluded),
         manual_logs.exclude(makerspace_id__in=excluded),
     )
+
+
+def _apply_date_range(qs, field, date_range):
+    if not date_range:
+        return qs
+    start, end = date_range
+    if start is not None:
+        qs = qs.filter(**{f"{field}__gte": start})
+    if end is not None:
+        qs = qs.filter(**{f"{field}__lt": end})
+    return qs
 
 
 def _totals(requests):

@@ -1,8 +1,12 @@
 import csv
 from io import BytesIO, StringIO
 
+from datetime import datetime, time, timedelta
+
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from django.utils.dateparse import parse_date
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from openpyxl import Workbook
@@ -16,6 +20,11 @@ from apps.makerspaces.guards import require_module
 from apps.makerspaces.models import Makerspace
 from apps.operations import ledger, reports
 from apps.operations.serializers import EmptySerializer, GenericObjectSerializer, LedgerResponseSerializer
+
+DATE_RANGE_PARAMETERS = [
+    OpenApiParameter("start", OpenApiTypes.DATE, OpenApiParameter.QUERY),
+    OpenApiParameter("end", OpenApiTypes.DATE, OpenApiParameter.QUERY),
+]
 
 
 class LedgerView(APIView):
@@ -66,14 +75,14 @@ class AnalyticsView(APIView):
         tags=["Analytics"],
         summary="Get analytics report",
         request=None,
-        parameters=[OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY)],
+        parameters=[OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY), *DATE_RANGE_PARAMETERS],
         responses={200: OpenApiTypes.OBJECT},
     )
     def get(self, request, makerspace_id, report_key="summary", *args, **kwargs):
         makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
         require_action(request.user, rbac.Action.VIEW_AUDIT, makerspace.id)
         require_module(makerspace, "reports")
-        return Response(reports.report_data(report_key, makerspace.id, limit=_limit_param(request)))
+        return Response(reports.report_data(report_key, makerspace.id, limit=_limit_param(request), date_range=_date_range(request)))
 
 
 class AggregateAnalyticsView(APIView):
@@ -87,12 +96,13 @@ class AggregateAnalyticsView(APIView):
         parameters=[
             OpenApiParameter("report_key", OpenApiTypes.STR, OpenApiParameter.PATH, enum=reports.REPORT_KEYS),
             OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY),
+            *DATE_RANGE_PARAMETERS,
         ],
         responses={200: OpenApiTypes.OBJECT},
     )
     def get(self, request, report_key="summary", *args, **kwargs):
         _require_superadmin(request.user)
-        return Response(reports.report_data(report_key, limit=_limit_param(request)))
+        return Response(reports.report_data(report_key, limit=_limit_param(request), date_range=_date_range(request)))
 
 
 class ReportExportView(APIView):
@@ -106,6 +116,7 @@ class ReportExportView(APIView):
         parameters=[
             OpenApiParameter("report_key", OpenApiTypes.STR, OpenApiParameter.PATH, enum=reports.REPORT_KEYS),
             OpenApiParameter("format", OpenApiTypes.STR, OpenApiParameter.QUERY, enum=["csv", "xlsx"]),
+            *DATE_RANGE_PARAMETERS,
         ],
         responses={
             (200, "text/csv"): OpenApiTypes.STR,
@@ -117,7 +128,7 @@ class ReportExportView(APIView):
         require_action(request.user, rbac.Action.VIEW_AUDIT, makerspace.id)
         require_module(makerspace, "reports")
         fmt = request.query_params.get("format", "csv")
-        rows = reports.report_rows(report_key, makerspace.id)
+        rows = reports.report_rows(report_key, makerspace.id, date_range=_date_range(request))
         if fmt == "xlsx":
             return _xlsx_response(rows, f"{report_key}.xlsx")
         if fmt != "csv":
@@ -136,6 +147,7 @@ class AggregateReportExportView(APIView):
         parameters=[
             OpenApiParameter("report_key", OpenApiTypes.STR, OpenApiParameter.PATH, enum=reports.REPORT_KEYS),
             OpenApiParameter("format", OpenApiTypes.STR, OpenApiParameter.QUERY, enum=["csv", "xlsx"]),
+            *DATE_RANGE_PARAMETERS,
         ],
         responses={
             (200, "text/csv"): OpenApiTypes.STR,
@@ -145,7 +157,7 @@ class AggregateReportExportView(APIView):
     def get(self, request, report_key, *args, **kwargs):
         _require_superadmin(request.user)
         fmt = request.query_params.get("format", "csv")
-        rows = reports.report_rows(report_key)
+        rows = reports.report_rows(report_key, date_range=_date_range(request))
         if fmt == "xlsx":
             return _xlsx_response(rows, f"{report_key}.xlsx")
         if fmt != "csv":
@@ -159,6 +171,26 @@ def report_data(makerspace_id, report_key):
 
 def report_rows(makerspace_id, report_key):
     return reports.report_rows(report_key, makerspace_id)
+
+
+def _date_range(request):
+    start = _date_param(request, "start")
+    end = _date_param(request, "end")
+    if start and end and start > end:
+        raise ValidationError({"end": "End date must be on or after start date."})
+    start_dt = timezone.make_aware(datetime.combine(start, time.min)) if start else None
+    end_dt = timezone.make_aware(datetime.combine(end + timedelta(days=1), time.min)) if end else None
+    return (start_dt, end_dt) if start_dt or end_dt else None
+
+
+def _date_param(request, name):
+    raw = (request.query_params.get(name) or "").strip()
+    if not raw:
+        return None
+    parsed = parse_date(raw)
+    if parsed is None:
+        raise ValidationError({name: "Use YYYY-MM-DD."})
+    return parsed
 
 
 def _makerspace_for_inventory_view(user, makerspace_id):

@@ -759,6 +759,26 @@ def test_active_loans_xlsx_export_handles_timezone_aware_datetimes():
     assert "spreadsheetml" in response["Content-Type"]
 
 
+def test_operations_reports_accept_date_range_filters():
+    makerspace = make_space("reports-date-range")
+    manager = make_member("reports-date-range-manager", makerspace)
+    product = make_product(makerspace, name="Range Meter")
+    recent = _request_loan(makerspace, product, "reports-date-recent", quantity=1)
+    old = _request_loan(makerspace, product, "reports-date-old", quantity=1)
+    old.issued_at = timezone.now() - timedelta(days=30)
+    old.save(update_fields=["issued_at"])
+    start = (timezone.now() - timedelta(days=3)).date().isoformat()
+    end = timezone.now().date().isoformat()
+
+    response = authenticated_client(manager).get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/analytics/taken-items?start={start}&end={end}"
+    )
+
+    assert response.status_code == 200
+    assert response.data["rows"] == [["product", "issued_quantity"], ["Range Meter", 1]]
+    assert recent.issued_at.date().isoformat() >= start
+
+
 def test_new_makerspace_reports_return_sane_rows():
     makerspace = make_space("reports-new")
     manager = make_member("reports-new-manager", makerspace)

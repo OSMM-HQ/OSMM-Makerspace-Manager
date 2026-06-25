@@ -187,6 +187,39 @@ def test_makerspace_printing_report_aggregates_totals_hours_filament_and_periods
     assert counts == sorted(counts, reverse=True)
 
 
+def test_printing_report_accepts_date_range_filters():
+    makerspace = make_space("reports-print-date-range")
+    bucket = make_bucket(makerspace)
+    requester = make_user("reports-print-date-requester", access_status=User.AccessStatus.ACTIVE)
+    manager = make_print_manager("reports-print-date-manager", makerspace)
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Date Printer")
+    spool = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        printer=printer,
+        material="PLA",
+        color="black",
+        initial_weight_grams=1000,
+        remaining_weight_grams=800,
+    )
+    make_completed_request(
+        bucket, requester, printer, spool, "In range", 30, "50.00", completed_at(2026, 5, 10, 9)
+    )
+    make_completed_request(
+        bucket, requester, printer, spool, "Out of range", 60, "90.00", completed_at(2026, 6, 10, 9)
+    )
+
+    response = authenticated_client(manager).get(
+        f"{makerspace_report_url(makerspace)}?start=2026-05-01&end=2026-05-31"
+    )
+
+    assert response.status_code == 200
+    assert response.data["printer_hours"][0]["completed_requests"] == 1
+    assert response.data["printer_hours"][0]["hours"] == 0.5
+    assert response.data["filament_estimated_by_period"]["by_month"] == [
+        {"period": "2026-05", "grams": 50.0}
+    ]
+
+
 def test_printing_report_keeps_estimate_based_request_grams_separate_from_spool_delta():
     makerspace = make_space("reports-estimate-axis")
     bucket = make_bucket(makerspace)

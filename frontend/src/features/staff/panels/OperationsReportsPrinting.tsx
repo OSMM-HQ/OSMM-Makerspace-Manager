@@ -77,19 +77,25 @@ export function PrintingReportSection({
   makerspace,
   aggregate,
   makerspaceName,
+  startDate = "",
+  endDate = "",
 }: {
   makerspace: Makerspace;
   aggregate: boolean;
   makerspaceName?: (id: number) => string;
+  startDate?: string;
+  endDate?: string;
 }) {
   const nameOf = (id: number) => (makerspaceName ? makerspaceName(id) : `#${id}`);
   const [period, setPeriod] = useState<PeriodKey>("month");
   const scopeKey = aggregate ? "all" : makerspace.id;
   // printing routes are mounted under /api/v1/printing/ (not /api/v1/admin/).
-  const printingPath = aggregate
+  const dateQuery = [startDate ? `start=${encodeURIComponent(startDate)}` : "", endDate ? `end=${encodeURIComponent(endDate)}` : ""].filter(Boolean).join("&");
+  const printingPathBase = aggregate
     ? "/printing/admin/printing/reports"
     : `/printing/admin/makerspace/${makerspace.id}/printing/reports`;
-  const printing = useStaffGet<PrintingReport>(["operations-report", "printing", scopeKey], printingPath);
+  const printingPath = dateQuery ? `${printingPathBase}?${dateQuery}` : printingPathBase;
+  const printing = useStaffGet<PrintingReport>(["operations-report", "printing", scopeKey, startDate, endDate], printingPath);
 
   const activePeriod = periods.find((item) => item.key === period) ?? periods[0];
   const filamentRows = printing.data?.filament_estimated_by_period[activePeriod.dataKey] ?? [];
