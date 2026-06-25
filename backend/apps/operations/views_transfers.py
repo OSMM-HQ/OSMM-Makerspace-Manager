@@ -1,5 +1,6 @@
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import generics, status
 from rest_framework.response import Response
 
@@ -9,12 +10,20 @@ from apps.makerspaces.guards import require_module
 from apps.makerspaces.models import Makerspace
 from apps.operations import services
 from apps.operations.models import StockTransfer
-from apps.operations.serializers import StockTransferCreateSerializer, StockTransferSerializer
+from apps.operations.serializers import GenericObjectSerializer, StockTransferCreateSerializer, StockTransferSerializer
+
+
+OPERATION_ERROR_RESPONSES = {
+    400: OpenApiResponse(GenericObjectSerializer, description="Invalid request."),
+    401: OpenApiResponse(description="Authentication credentials were not provided."),
+    403: OpenApiResponse(description="Permission denied."),
+    404: OpenApiResponse(description="Not found."),
+}
 
 
 @extend_schema_view(
-    get=extend_schema(tags=["Stock transfers"], summary="List stock transfers", request=None, responses={200: StockTransferSerializer(many=True)}),
-    post=extend_schema(tags=["Stock transfers"], summary="Create stock transfer", request=StockTransferCreateSerializer, responses={201: StockTransferSerializer}),
+    get=extend_schema(tags=["Stock transfers"], summary="List stock transfers", request=None, responses={200: StockTransferSerializer(many=True), **OPERATION_ERROR_RESPONSES}),
+    post=extend_schema(tags=["Stock transfers"], summary="Create stock transfer", request=StockTransferCreateSerializer, responses={201: StockTransferSerializer, **OPERATION_ERROR_RESPONSES}),
 )
 class StockTransferListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsActiveStaff]
@@ -26,7 +35,7 @@ class StockTransferListCreateView(generics.ListCreateAPIView):
         makerspace_id = self.kwargs["makerspace_id"]
         require_module(makerspace_id, "stock_transfers")
         require_action(self.request.user, rbac.Action.VIEW_INVENTORY, makerspace_id)
-        return StockTransfer.objects.filter(makerspace_id=makerspace_id).prefetch_related("lines").order_by("-created_at")
+        return StockTransfer.objects.filter(Q(source_makerspace_id=makerspace_id) | Q(destination_makerspace_id=makerspace_id)).prefetch_related("lines").order_by("-created_at")
 
     def create(self, request, *args, **kwargs):
         makerspace = get_object_or_404(Makerspace, pk=self.kwargs["makerspace_id"])
@@ -55,11 +64,17 @@ class StockTransferListCreateView(generics.ListCreateAPIView):
 
 
 @extend_schema_view(
-    get=extend_schema(tags=["Stock transfers"], summary="Retrieve stock transfer", request=None, responses={200: StockTransferSerializer}),
+    get=extend_schema(tags=["Stock transfers"], summary="Retrieve stock transfer", request=None, responses={200: StockTransferSerializer, **OPERATION_ERROR_RESPONSES}),
 )
 class StockTransferDetailView(generics.RetrieveAPIView):
     serializer_class = StockTransferSerializer
     permission_classes = [IsActiveStaff]
 
     def get_queryset(self):
-        return rbac.scope_by_action(self.request.user, rbac.Action.VIEW_INVENTORY, StockTransfer.objects.prefetch_related("lines"))
+        queryset = StockTransfer.objects.prefetch_related("lines")
+        scope = rbac.makerspaces_for_action(self.request.user, rbac.Action.VIEW_INVENTORY)
+        if scope is rbac.ALL:
+            return queryset
+        if not scope:
+            return queryset.none()
+        return queryset.filter(Q(source_makerspace_id__in=scope) | Q(destination_makerspace_id__in=scope))

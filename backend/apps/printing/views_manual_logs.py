@@ -58,6 +58,9 @@ class ManualPrintLogListCreateView(ManagedPrinterMixin, generics.ListCreateAPIVi
                 data["title"],
                 data.get("note", ""),
                 duration_minutes=data.get("duration_minutes", 0),
+                requester_name=data.get("requester_name", ""),
+                contact_email=data.get("contact_email", ""),
+                contact_phone=data.get("contact_phone", ""),
             )
         except InvalidTransition as exc:
             raise ValidationError({"detail": str(exc)}) from exc

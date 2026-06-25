@@ -67,8 +67,9 @@ def _transition(
         locked.handled_by = actor
         if status == PrintRequest.Status.ACCEPTED:
             locked.accepted_at = now
+            locked.accepted_by = actor
             locked.price = _coerce_price(price)
-            extra_update_fields.append("price")
+            extra_update_fields.extend(["accepted_by", "price"])
         if status == PrintRequest.Status.COMPLETED:
             locked.completed_at = now
             locked.payment_status = (
@@ -276,6 +277,7 @@ def reprint(failed_request, actor):
             preview_screenshot=locked.preview_screenshot,
             status=PrintRequest.Status.ACCEPTED,
             handled_by=actor,
+            accepted_by=actor,
             accepted_at=timezone.now(),
             reprint_of=root,
         )

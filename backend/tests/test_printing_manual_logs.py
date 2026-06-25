@@ -413,3 +413,42 @@ def test_printing_report_merges_manual_logs_and_includes_manual_only_printers():
             "manual_logs": 1,
         },
     ]
+
+
+def test_manual_print_log_stores_contact_identity_fields():
+    makerspace = make_space("manual-log-contact")
+    manager = make_print_manager("manual-log-contact-manager", makerspace)
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Prusa Contact")
+    spool = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        printer=printer,
+        material="PLA",
+        initial_weight_grams=1000,
+        remaining_weight_grams=1000,
+    )
+
+    response = authenticated_client(manager).post(
+        manual_log_url(),
+        {
+            "makerspace_id": makerspace.id,
+            "printer_id": printer.id,
+            "filament_spool_id": spool.id,
+            "grams_used": "12.50",
+            "title": "Walk-up badge print",
+            "requester_name": "Asha Kumar",
+            "contact_email": "asha@example.com",
+            "contact_phone": "+15550123456",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.data["requester_name"] == "Asha Kumar"
+    assert response.data["contact_email"] == "asha@example.com"
+    assert response.data["contact_phone"] == "+15550123456"
+    log = ManualPrintLog.objects.get(pk=response.data["id"])
+    assert (log.requester_name, log.contact_email, log.contact_phone) == (
+        "Asha Kumar",
+        "asha@example.com",
+        "+15550123456",
+    )

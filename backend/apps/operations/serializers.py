@@ -126,8 +126,8 @@ class StockTransferLineInputSerializer(serializers.Serializer):
     product_id = serializers.IntegerField(required=False)
     asset_id = serializers.IntegerField(required=False)
     quantity = serializers.IntegerField(min_value=1, default=1)
-    from_status = serializers.CharField(required=False, allow_blank=True)
-    to_status = serializers.CharField(required=False, allow_blank=True)
+    from_status = serializers.ChoiceField(choices=InventoryAsset.Status.choices, required=False, allow_blank=True)
+    to_status = serializers.ChoiceField(choices=InventoryAsset.Status.choices, required=False, allow_blank=True)
     notes = serializers.CharField(required=False, allow_blank=True)
 
     def validate(self, attrs):

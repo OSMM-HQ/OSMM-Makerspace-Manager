@@ -95,6 +95,11 @@ def test_return_reminder_cron_sends_due_reminder_and_marks_request(monkeypatch):
     archived_space.save(update_fields=["archived_at"])
     archived_product = make_product(archived_space)
     archived_request = make_overdue_request(archived_space, archived_product)
+    hidden_space = make_space("hidden-cron-reminder")
+    hidden_space.superadmin_access_enabled = False
+    hidden_space.save(update_fields=["superadmin_access_enabled"])
+    hidden_product = make_product(hidden_space)
+    hidden_request = make_overdue_request(hidden_space, hidden_product)
     monkeypatch.setattr(
         "apps.hardware_requests.notifications.notify_return_due",
         lambda request: True,
@@ -110,5 +115,7 @@ def test_return_reminder_cron_sends_due_reminder_and_marks_request(monkeypatch):
     assert response.data["sent"] == 1
     hardware_request.refresh_from_db()
     archived_request.refresh_from_db()
+    hidden_request.refresh_from_db()
     assert hardware_request.return_reminder_sent_at is not None
     assert archived_request.return_reminder_sent_at is None
+    assert hidden_request.return_reminder_sent_at is None

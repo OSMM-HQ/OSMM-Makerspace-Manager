@@ -239,3 +239,51 @@ def test_container_scoped_stocktake_rejects_legacy_child_box_line_at_apply_time(
     stocktake.refresh_from_db()
     assert stocktake.status == StocktakeSession.Status.APPROVED
     assert StocktakeLedgerEntry.objects.count() == 0
+
+
+def test_stocktake_apply_rejects_asset_that_became_unstocktakeable_after_count():
+    makerspace = make_space("stocktake-stale-issued-asset")
+    actor = make_user(
+        "stocktake-stale-issued-asset-super",
+        role=User.Role.SUPERADMIN,
+        access_status=User.AccessStatus.ACTIVE,
+    )
+    product = make_product(
+        makerspace,
+        tracking_mode=TrackingMode.INDIVIDUAL,
+        total_quantity=1,
+        available_quantity=1,
+    )
+    asset = InventoryAsset.objects.create(
+        makerspace=makerspace,
+        product=product,
+        asset_tag="STALE-ASSET-1",
+        status=InventoryAsset.Status.AVAILABLE,
+    )
+    stocktake = StocktakeSession.objects.create(
+        makerspace=makerspace,
+        started_by=actor,
+        status=StocktakeSession.Status.APPROVED,
+    )
+    StocktakeLine.objects.create(
+        stocktake=stocktake,
+        asset=asset,
+        expected_quantity=1,
+        counted_quantity=1,
+        variance_quantity=0,
+        condition=StocktakeLine.Condition.AVAILABLE,
+    )
+    asset.status = InventoryAsset.Status.ISSUED
+    asset.save(update_fields=["status", "updated_at"])
+    product.available_quantity = 0
+    product.issued_quantity = 1
+    product.save(update_fields=["available_quantity", "issued_quantity", "updated_at"])
+
+    with pytest.raises(ValidationError, match="available, damaged, or lost"):
+        services.apply_stocktake_adjustments(actor, stocktake)
+
+    product.refresh_from_db()
+    stocktake.refresh_from_db()
+    assert (product.available_quantity, product.issued_quantity, product.total_quantity) == (0, 1, 1)
+    assert stocktake.status == StocktakeSession.Status.APPROVED
+    assert StocktakeLedgerEntry.objects.count() == 0

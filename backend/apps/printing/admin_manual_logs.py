@@ -28,6 +28,9 @@ class ManualPrintLogAdminForm(forms.Form):
     grams_used = forms.DecimalField(max_digits=8, decimal_places=2, min_value=0)
     duration_minutes = forms.IntegerField(min_value=0, required=False, initial=0)
     title = forms.CharField(max_length=200)
+    requester_name = forms.CharField(max_length=120, required=False)
+    contact_email = forms.EmailField(required=False)
+    contact_phone = forms.CharField(max_length=40, required=False)
     note = forms.CharField(required=False, widget=forms.Textarea)
 
     def __init__(self, *args, **kwargs):
@@ -57,9 +60,9 @@ class ManualPrintLogAdminForm(forms.Form):
 
 @admin.register(ManualPrintLog)
 class ManualPrintLogAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
-    list_display = ("title", "makerspace", "printer", "filament_spool", "grams_used", "created_at")
+    list_display = ("title", "requester_name", "contact_email", "contact_phone", "makerspace", "printer", "filament_spool", "grams_used", "created_at")
     list_filter = ("makerspace", "printer")
-    search_fields = ("title", "note", "printer__name", "filament_spool__material")
+    search_fields = ("title", "requester_name", "contact_email", "contact_phone", "note", "printer__name", "filament_spool__material")
     readonly_fields = (
         "makerspace",
         "printer",
@@ -67,6 +70,9 @@ class ManualPrintLogAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         "grams_used",
         "duration_minutes",
         "title",
+        "requester_name",
+        "contact_email",
+        "contact_phone",
         "note",
         "logged_by",
         "created_at",
@@ -99,6 +105,9 @@ class ManualPrintLogAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
                     data["title"],
                     data.get("note", ""),
                     duration_minutes=data.get("duration_minutes") or 0,
+                    requester_name=data.get("requester_name", ""),
+                    contact_email=data.get("contact_email", ""),
+                    contact_phone=data.get("contact_phone", ""),
                 )
             except (InvalidTransition, DRFValidationError) as exc:
                 form.add_error(None, str(exc))

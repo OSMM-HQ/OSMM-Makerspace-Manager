@@ -431,3 +431,50 @@ def test_managed_edit_deactivate_is_rbac_scoped_to_makerspace():
         format="json",
     )
     assert response.status_code == 403
+
+
+def test_managed_print_request_exposes_original_approver_after_later_action():
+    makerspace = make_space("manage-print-approver")
+    bucket = make_bucket(makerspace)
+    requester = make_user("manage-print-approver-requester", access_status=User.AccessStatus.ACTIVE)
+    approver = make_print_manager("manage-print-approver-one", makerspace)
+    starter = make_print_manager("manage-print-approver-two", makerspace)
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Approver Printer")
+    spool = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        printer=printer,
+        material="PLA",
+        initial_weight_grams=1000,
+        remaining_weight_grams=1000,
+    )
+    print_request = make_request(bucket, requester)
+
+    accepted = authenticated_client(approver).post(
+        action_url(print_request, "accept"),
+        {"price": "0"},
+        format="json",
+    )
+    started = authenticated_client(starter).post(
+        action_url(print_request, "start"),
+        {
+            "printer_id": printer.id,
+            "filament_spool_id": spool.id,
+            "estimated_minutes": 30,
+            "estimated_filament_grams": "20.00",
+        },
+        format="json",
+    )
+    detail = authenticated_client(starter).get(
+        reverse("printing:managed-request-detail", kwargs={"pk": print_request.id})
+    )
+
+    assert accepted.status_code == 200
+    assert accepted.data["accepted_by"]["username"] == approver.username
+    assert started.status_code == 200
+    assert started.data["handled_by"] == starter.id
+    assert started.data["accepted_by"]["username"] == approver.username
+    assert detail.status_code == 200
+    assert detail.data["accepted_by"] == {
+        "username": approver.username,
+        "role": approver.role,
+    }

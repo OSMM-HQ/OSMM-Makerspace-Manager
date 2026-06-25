@@ -96,6 +96,14 @@ class HardwareRequest(models.Model):
                 fields=["makerspace", "status", "-closed_at"],
                 name="hwreq_ms_status_closed_idx",
             ),
+            models.Index(
+                fields=["return_due_at", "id"],
+                name="hwreq_return_reminder_due_idx",
+                condition=models.Q(
+                    return_reminder_sent_at__isnull=True,
+                    status__in=["issued", "partially_returned"],
+                ),
+            ),
         ]
         constraints = [
             models.UniqueConstraint(

@@ -131,7 +131,14 @@ class PrintRequestSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+
+class PrintRequestActorSerializer(serializers.Serializer):
+    username = serializers.CharField(read_only=True)
+    role = serializers.CharField(read_only=True)
+
+
 class ManagedPrintRequestSerializer(PrintRequestSerializer):
+    accepted_by = PrintRequestActorSerializer(read_only=True, allow_null=True)
     collected_by = serializers.IntegerField(source="collected_by_id", read_only=True)
     # Staff-only readable label, never the internal checkin_<hash> username.
     requester_display = serializers.SerializerMethodField()
@@ -151,6 +158,7 @@ class ManagedPrintRequestSerializer(PrintRequestSerializer):
             "price",
             "payment_status",
             "paid_at",
+            "accepted_by",
             "collected_at",
             "collected_by",
         )

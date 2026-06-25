@@ -19,13 +19,13 @@ class PrintRequestAdmin(PrintRequestWorkflowActions, SuperuserOnlyModelAdmin, Mo
         "collect_selected",
         "reprint_selected",
     ]
-    list_display = ("status", "bucket", "printer", "requester", "created_at")
+    list_display = ("status", "bucket", "printer", "requester", "accepted_by", "created_at")
     list_filter = ("status", "bucket__makerspace", "bucket", "printer")
     search_fields = (
-        "title", "description", "requester__username", "requester__email", "bucket__name"
+        "title", "description", "requester__username", "requester__email", "accepted_by__username", "bucket__name"
     )
     readonly_fields = (
-        "status", "reason", "handled_by", "printer", "filament_spool",
+        "status", "reason", "handled_by", "accepted_by", "printer", "filament_spool",
         "requested_filament_spool", "requester_name",
         "estimated_minutes", "estimated_filament_grams", "created_at", "accepted_at",
         "filament_grams_reserved", "filament_grams_used", "started_at",
@@ -35,7 +35,7 @@ class PrintRequestAdmin(PrintRequestWorkflowActions, SuperuserOnlyModelAdmin, Mo
         "bucket", "requester", "requester_name", "title", "description", "material",
         "color", "quantity", "source_link", "model_file", "preferred_settings",
         "estimate_screenshot", "preview_screenshot", "status", "reason", "handled_by",
-        "printer", "filament_spool", "requested_filament_spool", "estimated_minutes",
+        "accepted_by", "printer", "filament_spool", "requested_filament_spool", "estimated_minutes",
         "estimated_filament_grams", "filament_grams_reserved",
         "filament_grams_used", "created_at", "accepted_at", "started_at",
         "completed_at", "updated_at", "files_preview",

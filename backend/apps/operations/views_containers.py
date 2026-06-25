@@ -28,6 +28,16 @@ from apps.operations.serializers import (
 )
 
 
+def _with_active_box_qr(queryset):
+    active_qr = QrCode.objects.filter(
+        makerspace_id=OuterRef("makerspace_id"),
+        target_type=QrCode.TargetType.BOX,
+        target_id=OuterRef("pk"),
+        status=QrCode.Status.ACTIVE,
+    ).order_by("id").values("id")[:1]
+    return queryset.annotate(_active_qr_code_id=Subquery(active_qr))
+
+
 @extend_schema_view(
     get=extend_schema(tags=["Containers"], summary="List containers", request=None, responses={200: BoxSerializer(many=True)}),
     post=extend_schema(tags=["Containers"], summary="Create container", request=BoxSerializer, responses={201: BoxSerializer}),
@@ -41,13 +51,7 @@ class ContainerListCreateView(generics.ListCreateAPIView):
         makerspace_id = self.kwargs["makerspace_id"]
         require_module(makerspace_id, "containers")
         require_action(self.request.user, rbac.Action.VIEW_INVENTORY, makerspace_id)
-        active_qr = QrCode.objects.filter(
-            makerspace_id=OuterRef("makerspace_id"),
-            target_type=QrCode.TargetType.BOX,
-            target_id=OuterRef("pk"),
-            status=QrCode.Status.ACTIVE,
-        ).order_by("id").values("id")[:1]
-        return Box.objects.filter(makerspace_id=makerspace_id).annotate(_active_qr_code_id=Subquery(active_qr)).order_by("label")
+        return _with_active_box_qr(Box.objects.filter(makerspace_id=makerspace_id)).order_by("label")
 
     def perform_create(self, serializer):
         makerspace_id = self.kwargs["makerspace_id"]
@@ -108,8 +112,12 @@ class ContainerContentsView(APIView):
 
     @extend_schema(tags=["Containers"], summary="Get container contents", request=None, responses={200: ContainerContentsSerializer})
     def get(self, request, pk, *args, **kwargs):
-        box = get_object_or_404(rbac.scope_by_action(request.user, rbac.Action.VIEW_INVENTORY, Box.objects.all()), pk=pk)
+        queryset = _with_active_box_qr(
+            rbac.scope_by_action(request.user, rbac.Action.VIEW_INVENTORY, Box.objects.all())
+        )
+        box = get_object_or_404(queryset, pk=pk)
         require_module(box.makerspace, "containers")
+        children = _with_active_box_qr(box.children.all()).order_by("label")
         return Response(
             {
                 "container": BoxSerializer(box).data,
@@ -121,7 +129,7 @@ class ContainerContentsView(APIView):
                     {"id": a.id, "asset_tag": a.asset_tag, "product": a.product.name, "status": a.status}
                     for a in box.assets.select_related("product").order_by("asset_tag")
                 ],
-                "children": BoxSerializer(box.children.order_by("label"), many=True).data,
+                "children": BoxSerializer(children, many=True).data,
             }
         )
 

@@ -3,7 +3,9 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.audit import services as audit
+from apps.inventory import availability
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
+from apps.makerspaces.models import Makerspace
 from apps.operations.models import InventoryAdjustment, StockTransfer, StockTransferLine
 from apps.operations.services_shared import _container
 from apps.operations.services_transfer_splits import move_quantity_stock
@@ -40,6 +42,15 @@ def apply_stock_transfer(actor, makerspace, data):
                     actor, transfer, makerspace, source, destination, line_data
                 )
         audit.record(actor, "stock_transfer.applied", makerspace=makerspace, target=transfer)
+        if is_cross:
+            destination_makerspace = Makerspace.objects.get(pk=destination_makerspace_id)
+            audit.record(
+                actor,
+                "stock_transfer.received",
+                makerspace=destination_makerspace,
+                target=transfer,
+                meta={"source_makerspace_id": makerspace.id},
+            )
         return transfer
 
 
@@ -56,10 +67,17 @@ def _apply_intra_makerspace_line(actor, transfer, makerspace, source, destinatio
         )
         if source and asset.box_id != source.id:
             raise ValidationError({"asset_id": "Asset is not in the source container."})
+        from_status = line_data.get("from_status") or ""
+        if from_status and asset.status != from_status:
+            raise ValidationError({"from_status": "Asset is not currently in this status."})
+        to_status = line_data.get("to_status") or ""
+        if to_status and to_status != asset.status:
+            try:
+                availability.move_asset_status(asset, to_status)
+            except availability.InsufficientStock as exc:
+                raise ValidationError({"to_status": str(exc)}) from exc
         asset.box = destination
-        if line_data.get("to_status"):
-            asset.status = line_data["to_status"]
-        asset.save(update_fields=["box", "status", "updated_at"])
+        asset.save(update_fields=["box", "updated_at"])
         product = asset.product
     else:
         product = InventoryProduct.objects.select_for_update().get(
@@ -125,15 +143,14 @@ def _apply_cross_makerspace_line(
     src.total_quantity -= quantity
     src.save(update_fields=["available_quantity", "total_quantity", "updated_at"])
 
-    dest = (
-        InventoryProduct.objects.select_for_update()
-        .filter(
-            makerspace_id=dest_makerspace_id,
-            name__iexact=src.name,
-            is_archived=False,
-        )
-        .first()
+    dest_queryset = InventoryProduct.objects.select_for_update().filter(
+        makerspace_id=dest_makerspace_id,
+        name__iexact=src.name,
+        category_id=src.category_id,
+        box=dest_container,
+        is_archived=False,
     )
+    dest = dest_queryset.first()
     if dest is not None and dest.tracking_mode == TrackingMode.INDIVIDUAL:
         # Crediting quantity onto an individual-tracked product would create phantom
         # units with no backing InventoryAsset/QR rows. Refuse instead of corrupting.
@@ -155,9 +172,7 @@ def _apply_cross_makerspace_line(
         )
     dest.available_quantity += quantity
     dest.total_quantity += quantity
-    if dest_container is not None:
-        dest.box = dest_container
-    dest.save(update_fields=["available_quantity", "total_quantity", "box", "updated_at"])
+    dest.save(update_fields=["available_quantity", "total_quantity", "updated_at"])
 
     StockTransferLine.objects.create(
         transfer=transfer,

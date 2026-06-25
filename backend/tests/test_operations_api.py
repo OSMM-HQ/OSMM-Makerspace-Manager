@@ -692,3 +692,76 @@ def test_qr_batch_items_enforce_manage_qr_rbac_and_makerspace_scope():
 
     assert denied_role.status_code == 403
     assert denied_scope.status_code == 404
+
+
+def test_intra_makerspace_asset_status_transfer_updates_product_buckets():
+    makerspace = make_space("ops-transfer-asset-status")
+    manager = make_member("ops-transfer-asset-status-manager", makerspace)
+    source = make_box(makerspace, "Asset Source")
+    destination = make_box(makerspace, "Asset Destination")
+    product = make_product(
+        makerspace,
+        name="Serialized Scope",
+        box=source,
+        tracking_mode=TrackingMode.INDIVIDUAL,
+        total_quantity=1,
+        available_quantity=1,
+    )
+    asset = InventoryAsset.objects.create(
+        makerspace=makerspace,
+        product=product,
+        box=source,
+        asset_tag="SCOPE-001",
+        status=InventoryAsset.Status.AVAILABLE,
+    )
+
+    response = authenticated_client(manager).post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/stock-transfers",
+        {
+            "source_container_id": source.id,
+            "destination_container_id": destination.id,
+            "reason": "Move damaged unit to repair shelf",
+            "lines": [
+                {
+                    "asset_id": asset.id,
+                    "from_status": InventoryAsset.Status.AVAILABLE,
+                    "to_status": InventoryAsset.Status.DAMAGED,
+                }
+            ],
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    asset.refresh_from_db()
+    product.refresh_from_db()
+    assert (asset.box_id, asset.status) == (destination.id, InventoryAsset.Status.DAMAGED)
+    assert (product.available_quantity, product.damaged_quantity, product.total_quantity) == (0, 1, 1)
+
+
+def test_destination_manager_can_retrieve_incoming_stock_transfer():
+    source = make_space("ops-transfer-detail-src")
+    dest = make_space("ops-transfer-detail-dst")
+    superadmin = make_user(
+        "ops-transfer-detail-super",
+        role=User.Role.SUPERADMIN,
+        access_status=User.AccessStatus.ACTIVE,
+    )
+    dest_manager = make_member("ops-transfer-detail-dest-manager", dest)
+    product = make_product(source, name="Bench Supply", total_quantity=5, available_quantity=5)
+    created = _cross_transfer(superadmin, source, dest, product, 2)
+    transfer_id = created.data["id"]
+
+    list_response = authenticated_client(dest_manager).get(
+        f"/api/v1/admin/makerspace/{dest.id}/stock-transfers",
+    )
+    detail_response = authenticated_client(dest_manager).get(
+        f"/api/v1/admin/stock-transfers/{transfer_id}",
+    )
+
+    rows = list_response.data.get("results", list_response.data)
+    assert created.status_code == 201
+    assert list_response.status_code == 200
+    assert [row["id"] for row in rows] == [transfer_id]
+    assert detail_response.status_code == 200
+    assert detail_response.data["id"] == transfer_id

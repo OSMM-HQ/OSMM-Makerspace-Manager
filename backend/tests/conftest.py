@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 from django.core.cache import cache
 from django.db import connection
 
@@ -38,4 +38,16 @@ def _reset_axes_state(request):
 
 @pytest.fixture(autouse=True)
 def evidence_objects_exist_by_default(monkeypatch):
+    from apps.evidence import storage
+
     monkeypatch.setattr("apps.evidence.storage.object_exists", lambda key: True)
+
+    def validate(object_key):
+        if not storage.object_exists(object_key):
+            raise storage.EvidenceObjectValidationError(
+                "missing", "Evidence object was not found."
+            )
+        return storage.EvidenceValidationResult(size=123, content_type="image/jpeg")
+
+    monkeypatch.setattr("apps.evidence.storage.validate_evidence_object", validate)
+

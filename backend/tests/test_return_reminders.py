@@ -117,10 +117,7 @@ def test_send_return_reminders_emails_only_overdue_active_unreminded_requests(ma
     assert len(mailoutbox) == 1
 
 
-def test_send_return_reminders_still_emails_superadmin_hidden_active_space(mailoutbox):
-    # A superadmin-hidden space (superadmin_access_enabled=False) is still fully
-    # operational for its own staff/borrowers; only the global superadmin's view is
-    # blocked. Overdue loans there must still trigger borrower-facing reminders.
+def test_send_return_reminders_skips_superadmin_hidden_space(mailoutbox, monkeypatch):
     now = timezone.now()
     hidden_space = make_space("hidden-return-reminders")
     hidden_space.superadmin_access_enabled = False
@@ -133,14 +130,19 @@ def test_send_return_reminders_still_emails_superadmin_hidden_active_space(mailo
         contact_email="hidden-overdue@example.com",
         due_at=now - timedelta(minutes=5),
     )
+    calls = []
+    monkeypatch.setattr(
+        "apps.hardware_requests.services_return_reminders.notifications.notify_return_due",
+        lambda request: calls.append(request.pk) or True,
+    )
 
     result = run_return_reminders(now=now)
 
-    assert result["sent"] == 1
-    assert [message.to for message in mailoutbox] == [["hidden-overdue@example.com"]]
+    assert result == {"sent": 0, "skipped": 0}
+    assert calls == []
+    assert mailoutbox == []
     overdue.refresh_from_db()
-    assert overdue.return_reminder_sent_at is not None
-
+    assert overdue.return_reminder_sent_at is None
 
 def test_run_return_reminders_does_not_send_when_request_already_claimed(monkeypatch):
     now = timezone.now()
@@ -166,3 +168,29 @@ def test_run_return_reminders_does_not_send_when_request_already_claimed(monkeyp
 
     assert result == {"sent": 0, "skipped": 0}
     assert calls == []
+
+def test_run_return_reminders_resets_claim_when_send_raises(monkeypatch):
+    now = timezone.now()
+    makerspace = make_space("return-reminder-send-raises")
+    product = make_product(makerspace)
+    hardware_request = make_request(
+        makerspace,
+        product,
+        status=HardwareRequest.Status.ISSUED,
+        contact_email="raises@example.com",
+        due_at=now - timedelta(minutes=5),
+    )
+
+    def fail_send(_request):
+        raise RuntimeError("smtp down")
+
+    monkeypatch.setattr(
+        "apps.hardware_requests.services_return_reminders.notifications.notify_return_due",
+        fail_send,
+    )
+
+    with pytest.raises(RuntimeError):
+        run_return_reminders(now=now)
+
+    hardware_request.refresh_from_db()
+    assert hardware_request.return_reminder_sent_at is None

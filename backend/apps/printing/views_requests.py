@@ -1,3 +1,4 @@
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics, serializers, status
@@ -8,7 +9,7 @@ from apps.accounts import rbac
 from apps.evidence.storage import StorageUnavailable
 from apps.makerspaces.guards import require_module
 from apps.printing.emails import queue_staff_print_email
-from apps.printing.models import PrintRequest, PrintRequestFile
+from apps.printing.models import FilamentSpool, PrintRequest, PrintRequestFile
 from apps.printing.permissions import CanManagePrinting, IsActiveRequester
 from apps.printing.serializers import (
     ErrorSerializer,
@@ -85,9 +86,27 @@ class PrintRequestDetailView(generics.RetrieveAPIView):
 
 class ManagedPrintRequestQuerysetMixin:
     def get_queryset(self):
+        active_spools = FilamentSpool.objects.filter(is_active=True).order_by(
+            "-opened_at", "-created_at"
+        )
+        queue = PrintRequest.objects.filter(
+            status__in=[PrintRequest.Status.ACCEPTED, PrintRequest.Status.PRINTING]
+        )
         qs = PrintRequest.objects.select_related(
-            "bucket__makerspace", "requester", "handled_by", "reprint_of"
-        ).prefetch_related("files", "reprint_of__files").order_by("-created_at")
+            "bucket__makerspace",
+            "requester",
+            "handled_by",
+            "accepted_by",
+            "reprint_of",
+            "printer",
+            "filament_spool",
+            "requested_filament_spool",
+        ).prefetch_related(
+            "files",
+            "reprint_of__files",
+            Prefetch("printer__filament_spools", queryset=active_spools, to_attr="_active_spools"),
+            Prefetch("printer__print_requests", queryset=queue, to_attr="_queue_requests"),
+        ).order_by("-created_at")
         qs = rbac.scope_by_action(
             self.request.user,
             rbac.Action.MANAGE_PRINTING,
