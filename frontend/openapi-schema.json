@@ -549,6 +549,62 @@
                 }
             }
         },
+        "/api/v1/admin/assets/{id}/fix-status": {
+            "post": {
+                "operationId": "api_v1_admin_assets_fix_status_create",
+                "summary": "Move a specific individual asset to or from the fix shelf",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/InventoryAssetStatusAction"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/InventoryAssetStatusAction"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/InventoryAssetStatusAction"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InventoryAssetAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/assets/{id}/qr": {
             "post": {
                 "operationId": "api_v1_admin_assets_qr_create",
@@ -1499,6 +1555,60 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/InventoryProductAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/inventory/{product_pk}/assets": {
+            "get": {
+                "operationId": "api_v1_admin_inventory_assets_list",
+                "summary": "List individual assets for an inventory product",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "page_size",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return per page.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "product_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedInventoryAssetAdminList"
                                 }
                             }
                         },
@@ -11816,15 +11926,6 @@
                 "type": "string",
                 "description": "* `active` - Active\n* `restricted` - Restricted\n* `suspended` - Suspended"
             },
-            "ActionEnum": {
-                "enum": [
-                    "repair",
-                    "scrap",
-                    "shelve"
-                ],
-                "type": "string",
-                "description": "* `repair` - repair\n* `scrap` - scrap\n* `shelve` - shelve"
-            },
             "AdminRequest": {
                 "type": "object",
                 "properties": {
@@ -13768,6 +13869,94 @@
                     "status"
                 ]
             },
+            "InventoryAssetAdmin": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "makerspace": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "product": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "product_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "box": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "box_label": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "asset_tag": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "serial_number": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/InventoryAssetStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "notes": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "asset_tag",
+                    "box",
+                    "box_label",
+                    "id",
+                    "makerspace",
+                    "notes",
+                    "product",
+                    "product_name",
+                    "serial_number",
+                    "status",
+                    "updated_at"
+                ]
+            },
+            "InventoryAssetStatusAction": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "$ref": "#/components/schemas/InventoryAssetStatusActionActionEnum"
+                    }
+                },
+                "required": [
+                    "action"
+                ]
+            },
+            "InventoryAssetStatusActionActionEnum": {
+                "enum": [
+                    "shelve",
+                    "repair"
+                ],
+                "type": "string",
+                "description": "* `shelve` - shelve\n* `repair` - repair"
+            },
             "InventoryAssetStatusEnum": {
                 "enum": [
                     "available",
@@ -14950,7 +15139,7 @@
                 "type": "object",
                 "properties": {
                     "action": {
-                        "$ref": "#/components/schemas/ActionEnum"
+                        "$ref": "#/components/schemas/NeedsFixActionActionEnum"
                     },
                     "quantity": {
                         "type": "integer",
@@ -14961,6 +15150,15 @@
                     "action",
                     "quantity"
                 ]
+            },
+            "NeedsFixActionActionEnum": {
+                "enum": [
+                    "repair",
+                    "scrap",
+                    "shelve"
+                ],
+                "type": "string",
+                "description": "* `repair` - repair\n* `scrap` - scrap\n* `shelve` - shelve"
             },
             "NotificationRecipient": {
                 "type": "object",
@@ -15393,6 +15591,37 @@
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/FilamentSpool"
+                        }
+                    }
+                }
+            },
+            "PaginatedInventoryAssetAdminList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/InventoryAssetAdmin"
                         }
                     }
                 }

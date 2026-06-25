@@ -5,6 +5,7 @@ from rest_framework import serializers
 from apps.inventory import public_image_storage
 from apps.inventory.models import (
     Category,
+    InventoryAsset,
     InventoryProduct,
     PublicAvailabilityMode,
     TrackingMode,
@@ -224,3 +225,29 @@ class PublicImageUploadResponseSerializer(serializers.Serializer):
     fields = serializers.DictField(required=False)
     method = serializers.CharField(required=False)
     headers = serializers.DictField(required=False)
+
+
+class InventoryAssetAdminSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    box_label = serializers.CharField(source="box.label", read_only=True, allow_null=True)
+
+    class Meta:
+        model = InventoryAsset
+        fields = [
+            "id",
+            "makerspace",
+            "product",
+            "product_name",
+            "box",
+            "box_label",
+            "asset_tag",
+            "serial_number",
+            "status",
+            "notes",
+            "updated_at",
+        ]
+        read_only_fields = fields
+
+
+class InventoryAssetStatusActionSerializer(serializers.Serializer):
+    action = serializers.ChoiceField(choices=["shelve", "repair"])

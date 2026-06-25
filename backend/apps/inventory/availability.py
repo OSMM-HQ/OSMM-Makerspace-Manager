@@ -13,6 +13,7 @@ ASSET_QUANTITY_BUCKETS = {
     InventoryAsset.Status.ISSUED: "issued_quantity",
     InventoryAsset.Status.DAMAGED: "damaged_quantity",
     InventoryAsset.Status.LOST: "lost_quantity",
+    InventoryAsset.Status.MAINTENANCE: "needs_fix_quantity",
 }
 
 

@@ -43,6 +43,8 @@ urlpatterns = [
         name="admin-inventory",
     ),
     path("inventory/<int:pk>", views.InventoryDetailView.as_view(), name="admin-inventory-detail"),
+    path("inventory/<int:product_pk>/assets", views.InventoryAssetListView.as_view(), name="admin-inventory-assets"),
+    path("assets/<int:pk>/fix-status", views.InventoryAssetStatusActionView.as_view(), name="admin-inventory-asset-fix-status"),
     path(
         "inventory/<int:pk>/image",
         views.InventoryProductImageView.as_view(),

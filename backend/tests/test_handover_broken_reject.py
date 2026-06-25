@@ -6,7 +6,7 @@ import pytest
 from apps.accounts.models import User
 from apps.audit.models import AuditLog
 from apps.hardware_requests.models import HardwareRequest
-from apps.inventory.models import TrackingMode
+from apps.inventory.models import InventoryAsset, TrackingMode
 from tests.test_issue import (
     active_loans_url,  # noqa: F401  (kept for parity / future use)
     assign_scanned_box,
@@ -175,6 +175,90 @@ def test_needs_fix_shelve_over_available_returns_400():
     assert response.status_code == 400
     product.refresh_from_db()
     assert product.available_quantity == 1
+    assert product.needs_fix_quantity == 0
+
+def test_individual_asset_can_move_to_fix_and_back():
+    makerspace = make_space("asset-fix-specific")
+    admin = make_member("asset-fix-specific-admin", makerspace)
+    product = make_product(
+        makerspace,
+        tracking_mode=TrackingMode.INDIVIDUAL,
+        total_quantity=2,
+        available_quantity=2,
+    )
+    asset = InventoryAsset.objects.create(
+        makerspace=makerspace,
+        product=product,
+        asset_tag="ARDUINO-5",
+        status=InventoryAsset.Status.AVAILABLE,
+    )
+    InventoryAsset.objects.create(
+        makerspace=makerspace,
+        product=product,
+        asset_tag="ARDUINO-6",
+        status=InventoryAsset.Status.AVAILABLE,
+    )
+    client = authenticated_client(admin)
+
+    listing = client.get(f"/api/v1/admin/inventory/{product.id}/assets")
+    assert listing.status_code == 200
+    assert [row["asset_tag"] for row in listing.data["results"]] == ["ARDUINO-5", "ARDUINO-6"]
+
+    shelved = client.post(
+        f"/api/v1/admin/assets/{asset.id}/fix-status",
+        {"action": "shelve"},
+        format="json",
+    )
+    assert shelved.status_code == 200
+    asset.refresh_from_db()
+    product.refresh_from_db()
+    assert asset.status == InventoryAsset.Status.MAINTENANCE
+    assert product.available_quantity == 1
+    assert product.needs_fix_quantity == 1
+    assert AuditLog.objects.filter(action="inventory.asset_needs_fix_shelve").exists()
+
+    repaired = client.post(
+        f"/api/v1/admin/assets/{asset.id}/fix-status",
+        {"action": "repair"},
+        format="json",
+    )
+    assert repaired.status_code == 200
+    asset.refresh_from_db()
+    product.refresh_from_db()
+    assert asset.status == InventoryAsset.Status.AVAILABLE
+    assert product.available_quantity == 2
+    assert product.needs_fix_quantity == 0
+    assert AuditLog.objects.filter(action="inventory.asset_needs_fix_repair").exists()
+
+
+def test_individual_asset_fix_rejects_issued_asset():
+    makerspace = make_space("asset-fix-issued")
+    admin = make_member("asset-fix-issued-admin", makerspace)
+    product = make_product(
+        makerspace,
+        tracking_mode=TrackingMode.INDIVIDUAL,
+        total_quantity=1,
+        available_quantity=0,
+        issued_quantity=1,
+    )
+    asset = InventoryAsset.objects.create(
+        makerspace=makerspace,
+        product=product,
+        asset_tag="ARDUINO-OUT",
+        status=InventoryAsset.Status.ISSUED,
+    )
+
+    response = authenticated_client(admin).post(
+        f"/api/v1/admin/assets/{asset.id}/fix-status",
+        {"action": "shelve"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    asset.refresh_from_db()
+    product.refresh_from_db()
+    assert asset.status == InventoryAsset.Status.ISSUED
+    assert product.issued_quantity == 1
     assert product.needs_fix_quantity == 0
 
 def test_superadmin_needs_fix_shelf_hides_disabled_space_unless_explicit():
