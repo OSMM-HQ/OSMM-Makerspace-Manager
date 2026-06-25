@@ -4,6 +4,7 @@ from unittest.mock import Mock
 import pytest
 
 from apps.accounts.models import User
+from apps.audit.models import AuditLog
 from apps.hardware_requests.models import HardwareRequest
 from apps.inventory.models import TrackingMode
 from tests.test_issue import (
@@ -140,6 +141,41 @@ def test_needs_fix_shelf_lists_and_repairs():
     assert product.available_quantity == 5
     assert product.total_quantity == 5
 
+
+def test_needs_fix_shelf_shelves_available_units():
+    makerspace = make_space("shelf-move-to-fix")
+    admin = make_member("shelf-move-to-fix-admin", makerspace)
+    product = make_product(
+        makerspace, total_quantity=5, available_quantity=4, needs_fix_quantity=0
+    )
+
+    response = authenticated_client(admin).post(
+        _shelf_action_url(product), {"action": "shelve", "quantity": 2}, format="json"
+    )
+
+    assert response.status_code == 200
+    product.refresh_from_db()
+    assert product.available_quantity == 2
+    assert product.needs_fix_quantity == 2
+    assert product.total_quantity == 5
+    assert AuditLog.objects.filter(action="inventory.needs_fix_shelve").exists()
+
+
+def test_needs_fix_shelve_over_available_returns_400():
+    makerspace = make_space("shelf-move-to-fix-overdraw")
+    admin = make_member("shelf-move-to-fix-overdraw-admin", makerspace)
+    product = make_product(
+        makerspace, total_quantity=5, available_quantity=1, needs_fix_quantity=0
+    )
+
+    response = authenticated_client(admin).post(
+        _shelf_action_url(product), {"action": "shelve", "quantity": 2}, format="json"
+    )
+
+    assert response.status_code == 400
+    product.refresh_from_db()
+    assert product.available_quantity == 1
+    assert product.needs_fix_quantity == 0
 
 def test_superadmin_needs_fix_shelf_hides_disabled_space_unless_explicit():
     visible_space = make_space("shelf-visible-superadmin")

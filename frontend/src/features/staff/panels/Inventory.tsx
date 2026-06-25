@@ -13,6 +13,7 @@ import { categoryResults, Panel, type Category, type CategoryListResponse, type 
 
 type AdminProduct = Product & {
   reserved_quantity: number;
+  needs_fix_quantity: number;
   storage_location: string;
   show_public_count: boolean;
   public_availability_mode: string;
@@ -46,6 +47,8 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
   const [toBuyMessage, setToBuyMessage] = useState("");
   const [addOpen, setAddOpen] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<AdminProduct | null>(null);
+  const [fixTarget, setFixTarget] = useState<AdminProduct | null>(null);
+  const [fixQty, setFixQty] = useState("1");
   const [qrConfirm, setQrConfirm] = useState<boolean | null>(null);
   const [bulkQrMessage, setBulkQrMessage] = useState("");
   const debouncedSearch = useDebouncedValue(search);
@@ -60,6 +63,8 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
     setToBuyMessage("");
     setAddOpen(false);
     setArchiveTarget(null);
+    setFixTarget(null);
+    setFixQty("1");
     setQrConfirm(null);
     setBulkQrMessage("");
   }, [makerspace.id]);
@@ -88,6 +93,21 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
     mutationFn: (product: AdminProduct) => staffRequest(`/admin/inventory/${product.id}`, { method: "PATCH", body: JSON.stringify({ is_archived: true }) }),
     onSuccess: () => { setArchiveTarget(null); invalidate(); },
   });
+  const moveToFix = useMutation({
+    mutationFn: () => {
+      if (!fixTarget) return Promise.reject(new Error("Select an item first."));
+      return staffRequest(`/admin/inventory/${fixTarget.id}/needs-fix`, {
+        method: "POST",
+        body: JSON.stringify({ action: "shelve", quantity: Number(fixQty) || 1 }),
+      });
+    },
+    onSuccess: () => {
+      setFixTarget(null);
+      setFixQty("1");
+      queryClient.invalidateQueries({ queryKey: ["needs-fix-shelf", makerspace.id] });
+      invalidate();
+    },
+  });
   const bulkQr = useMutation({
     mutationFn: async (enabled: boolean) => {
       const ids = [...selectedIds];
@@ -111,6 +131,10 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
       invalidate();
     },
   });
+  const openFix = (product: AdminProduct) => {
+    setFixTarget(product);
+    setFixQty(product.available_quantity > 0 ? "1" : "0");
+  };
   const openToBuy = (product: AdminProduct) => {
     setToBuyTarget(product);
     setToBuyQty("1");
@@ -161,6 +185,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
     { key: "actions", header: "", render: (product) => (
       <div className="desk-actions flex flex-wrap gap-2">
         <button className="desk-button" type="button" onClick={() => openEdit(product)}>Edit</button>
+        <button className="desk-button" type="button" disabled={product.available_quantity <= 0} onClick={() => openFix(product)}>To Fix</button>
         <button className="desk-button" type="button" onClick={() => setArchiveTarget(product)}>Archive</button>
         {canUseToBuy ? <button className="desk-button" type="button" onClick={() => openToBuy(product)}>To Buy</button> : null}
       </div>
@@ -201,6 +226,14 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
           </div>
         </Modal>
       ) : null}
+      <Modal open={Boolean(fixTarget)} onClose={() => setFixTarget(null)} title="Move to Fix Shelf" footer={<div className="desk-actions flex flex-wrap justify-end gap-2"><button className="desk-button" type="button" disabled={moveToFix.isPending} onClick={() => setFixTarget(null)}>Cancel</button><button className="desk-button" type="button" disabled={moveToFix.isPending || !fixTarget || Number(fixQty) < 1 || Number(fixQty) > (fixTarget?.available_quantity ?? 0)} onClick={() => moveToFix.mutate()}>Move to Fix Shelf</button></div>}>
+        <div className="grid gap-3 text-sm">
+          <p className="font-semibold text-ink">{fixTarget?.name}</p>
+          <p className="text-muted">Move available units out of circulation for repair.</p>
+          <Field label={`Quantity (${fixTarget?.available_quantity ?? 0} available)`}><input className="desk-input" type="number" min="1" max={fixTarget?.available_quantity ?? 1} value={fixQty} onChange={(e) => setFixQty(e.target.value)} /></Field>
+          {moveToFix.error ? <p className="text-sm text-danger">{moveToFix.error.message}</p> : null}
+        </div>
+      </Modal>
       <ConfirmDialog open={Boolean(archiveTarget)} title="Archive item" message={archiveTarget ? `Archive ${archiveTarget.name}? It will be hidden from active inventory views.` : ""} confirmLabel="Archive" tone="danger" pending={archive.isPending} onCancel={() => setArchiveTarget(null)} onConfirm={() => { if (archiveTarget) archive.mutate(archiveTarget); }} />
       <ConfirmDialog open={qrConfirm !== null} title={qrConfirm ? "Enable public QR" : "Disable public QR"} message={`${qrConfirm ? "Enable" : "Disable"} public self-checkout QR for ${selectedIds.length} selected items?`} confirmLabel={qrConfirm ? "Enable" : "Disable"} pending={bulkQr.isPending} onCancel={() => setQrConfirm(null)} onConfirm={() => { if (qrConfirm !== null) bulkQr.mutate(qrConfirm); }} />
     </Panel>

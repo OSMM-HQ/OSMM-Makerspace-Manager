@@ -52,7 +52,7 @@ export function NeedsFixShelf({ makerspace }: { makerspace: Makerspace }) {
       </p>
       {shelf.isLoading ? <p className="text-sm text-muted">Loading shelf...</p> : null}
       {!shelf.isLoading && !rows.length ? (
-        <p className="text-sm text-muted">Nothing on the shelf — no items awaiting repair.</p>
+        <p className="text-sm text-muted">Nothing on the shelf - no items awaiting repair.</p>
       ) : null}
       <div className="grid gap-2">
         {rows.map((item) => (
@@ -78,7 +78,7 @@ export function NeedsFixShelf({ makerspace }: { makerspace: Makerspace }) {
                 />
               </label>
               <button type="button" disabled={act.isPending} onClick={() => run(item, "repair")}>
-                Repair → stock
+                Move back to inventory
               </button>
               <button type="button" className="text-danger" disabled={act.isPending} onClick={() => run(item, "scrap")}>
                 Scrap

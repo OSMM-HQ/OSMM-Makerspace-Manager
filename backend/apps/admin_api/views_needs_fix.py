@@ -38,18 +38,18 @@ class NeedsFixShelfListView(generics.ListAPIView):
 
 
 class NeedsFixActionSerializer(serializers.Serializer):
-    action = serializers.ChoiceField(choices=["repair", "scrap"])
+    action = serializers.ChoiceField(choices=["repair", "scrap", "shelve"])
     quantity = serializers.IntegerField(min_value=1)
 
 
 class NeedsFixActionView(APIView):
-    """Repair (back to available) or scrap (out of inventory) units on the shelf."""
+    """Move units onto the shelf, back to available, or out of inventory."""
 
     permission_classes = [IsActiveStaff]
 
     @extend_schema(
         tags=["Admin inventory"],
-        summary="Repair or scrap units on the to-be-fixed shelf",
+        summary="Move inventory units to, from, or out of the to-be-fixed shelf",
         request=NeedsFixActionSerializer,
         responses={200: InventoryProductAdminSerializer},
     )
@@ -71,6 +71,8 @@ class NeedsFixActionView(APIView):
             with transaction.atomic():
                 if data["action"] == "repair":
                     locked = availability.repair_from_needs_fix(product, data["quantity"])
+                elif data["action"] == "shelve":
+                    locked = availability.move_available_to_needs_fix(product, data["quantity"])
                 else:
                     locked = availability.scrap_from_needs_fix(product, data["quantity"])
                 audit.record(

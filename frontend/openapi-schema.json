@@ -1453,8 +1453,8 @@
         "/api/v1/admin/inventory/{id}/needs-fix": {
             "post": {
                 "operationId": "api_v1_admin_inventory_needs_fix_create",
-                "description": "Repair (back to available) or scrap (out of inventory) units on the shelf.",
-                "summary": "Repair or scrap units on the to-be-fixed shelf",
+                "description": "Move units onto the shelf, back to available, or out of inventory.",
+                "summary": "Move inventory units to, from, or out of the to-be-fixed shelf",
                 "parameters": [
                     {
                         "in": "path",
@@ -11819,10 +11819,11 @@
             "ActionEnum": {
                 "enum": [
                     "repair",
-                    "scrap"
+                    "scrap",
+                    "shelve"
                 ],
                 "type": "string",
-                "description": "* `repair` - repair\n* `scrap` - scrap"
+                "description": "* `repair` - repair\n* `scrap` - scrap\n* `shelve` - shelve"
             },
             "AdminRequest": {
                 "type": "object",
