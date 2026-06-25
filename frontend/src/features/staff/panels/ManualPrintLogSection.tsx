@@ -19,6 +19,7 @@ type ManualPrintLog = {
   requester_name: string;
   contact_email: string;
   contact_phone: string;
+  note: string;
   logged_by_username: string | null;
   created_at: string;
 };
@@ -44,9 +45,11 @@ export function ManualPrintLogSection({
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [note, setNote] = useState("");
+  const [filterPrinterId, setFilterPrinterId] = useState("");
+  const logPrinterParam = filterPrinterId ? `&printer=${filterPrinterId}` : "";
   const logs = useStaffGet<ManualLogsResponse>(
-    ["manual-print-logs", makerspace.id],
-    `/printing/manage/manual-logs/?makerspace=${makerspace.id}`,
+    ["manual-print-logs", makerspace.id, filterPrinterId],
+    `/printing/manage/manual-logs/?makerspace=${makerspace.id}${logPrinterParam}`,
   );
   const compatibleSpools = spools.filter((spool) => {
     if (!spool.is_active) return false;
@@ -196,6 +199,13 @@ export function ManualPrintLogSection({
       </form>
 
       <div className="mt-4 grid gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-sm font-semibold text-ink">Recent manual logs</h3>
+          <select className="desk-input max-w-full sm:w-64" value={filterPrinterId} onChange={(event) => setFilterPrinterId(event.target.value)}>
+            <option value="">All printers</option>
+            {printers.map((printer) => <option key={printer.id} value={printer.id}>{printer.name}</option>)}
+          </select>
+        </div>
         {logs.isLoading ? <p className="text-sm text-muted">Loading manual logs...</p> : null}
         {logRows.map((log) => (
           <article key={log.id} className="rounded-md border border-line bg-surface px-3 py-2 text-sm">
@@ -209,6 +219,11 @@ export function ManualPrintLogSection({
             <p className="mt-1 text-xs text-muted">
               {[log.printer_name, log.spool_label].filter(Boolean).join(" - ") || "No printer"}
             </p>
+            {log.note ? (
+              <p className="mt-1 text-xs text-muted">
+                <span className="font-medium text-ink">Note: </span>{log.note}
+              </p>
+            ) : null}
             {log.requester_name || log.contact_email || log.contact_phone ? (
               <p className="mt-1 text-xs text-muted">
                 <span className="font-medium text-ink">For: </span>

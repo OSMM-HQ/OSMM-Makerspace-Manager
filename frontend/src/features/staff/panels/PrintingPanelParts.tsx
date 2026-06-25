@@ -67,6 +67,7 @@ export type PrintRequest = {
   files?: {
     id: number;
     kind: string;
+    original_filename: string;
     content_type: string;
     size_bytes: number;
   }[];
