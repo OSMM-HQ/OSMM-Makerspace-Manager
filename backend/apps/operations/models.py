@@ -189,3 +189,6 @@ class QrPrintBatchItem(models.Model):
 
     class Meta:
         ordering = ["sort_order", "id"]
+        constraints = [
+            models.UniqueConstraint(fields=["batch", "qr_code"], name="uniq_qr_print_batch_item_qr"),
+        ]

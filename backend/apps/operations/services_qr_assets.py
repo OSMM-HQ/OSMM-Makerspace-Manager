@@ -21,15 +21,54 @@ def _target_label(qr):
 def add_qr_to_batch(batch, qr, label_text="", sort_order=None):
     if qr.makerspace_id != batch.makerspace_id:
         raise ValidationError("QR code belongs to a different makerspace.")
+    resolved_label = label_text or _target_label(qr)
+    explicit_sort_order = sort_order is not None
     if sort_order is None:
         sort_order = batch.items.count()
-    return QrPrintBatchItem.objects.create(
+    item, created = QrPrintBatchItem.objects.get_or_create(
         batch=batch,
         qr_code=qr,
-        label_text=label_text or _target_label(qr),
-        target_type=qr.target_type,
-        target_id=qr.target_id,
-        sort_order=sort_order,
+        defaults={
+            "label_text": resolved_label,
+            "target_type": qr.target_type,
+            "target_id": qr.target_id,
+            "sort_order": sort_order,
+        },
+    )
+    if not created:
+        update_fields = ["label_text", "target_type", "target_id"]
+        item.label_text = resolved_label
+        item.target_type = qr.target_type
+        item.target_id = qr.target_id
+        if explicit_sort_order:
+            item.sort_order = sort_order
+            update_fields.append("sort_order")
+        item.save(update_fields=update_fields)
+    return item
+
+
+def _create_asset_qr(actor, asset):
+    qr, _ = QrCode.objects.get_or_create(
+        makerspace=asset.makerspace,
+        target_type=QrCode.TargetType.ASSET,
+        target_id=asset.id,
+        status=QrCode.Status.ACTIVE,
+        defaults={"created_by": actor},
+    )
+    return qr
+
+
+def _assets_missing_active_qr(product, limit):
+    asset_ids_with_qr = QrCode.objects.filter(
+        makerspace=product.makerspace,
+        target_type=QrCode.TargetType.ASSET,
+        target_id__in=product.assets.values("id"),
+        status=QrCode.Status.ACTIVE,
+    ).values("target_id")
+    return list(
+        product.assets.select_for_update()
+        .exclude(id__in=asset_ids_with_qr)
+        .order_by("created_at", "id")[:limit]
     )
 
 
@@ -53,8 +92,16 @@ def generate_assets_with_qr(actor, product, data):
         serials = data.get("serial_numbers") or []
         name_prefix = data.get("name_prefix") or product.name
         existing_count = product.assets.count()
+        missing_qr_assets = _assets_missing_active_qr(product, data["count"])
 
-        for idx in range(data["count"]):
+        for asset in missing_qr_assets:
+            qr = _create_asset_qr(actor, asset)
+            if batch:
+                add_qr_to_batch(batch, qr, label_text=f"{name_prefix} {asset.asset_tag}")
+            created.append({"asset": asset, "qr": qr})
+
+        remaining_count = data["count"] - len(missing_qr_assets)
+        for idx in range(remaining_count):
             next_number = existing_count + idx + 1
             asset_tag = f"{product.slug if hasattr(product, 'slug') else product.id}-{next_number:04d}"
             asset = InventoryAsset.objects.create(
@@ -65,13 +112,7 @@ def generate_assets_with_qr(actor, product, data):
                 serial_number=serials[idx] if idx < len(serials) else "",
                 notes=f"{name_prefix} #{next_number}",
             )
-            qr, _ = QrCode.objects.get_or_create(
-                makerspace=product.makerspace,
-                target_type=QrCode.TargetType.ASSET,
-                target_id=asset.id,
-                status=QrCode.Status.ACTIVE,
-                defaults={"created_by": actor},
-            )
+            qr = _create_asset_qr(actor, asset)
             if batch:
                 add_qr_to_batch(batch, qr, label_text=f"{name_prefix} {next_number}")
             created.append({"asset": asset, "qr": qr})
@@ -95,3 +136,4 @@ def mark_batch_printed(actor, batch):
         locked.save(update_fields=["status", "printed_at"])
         audit.record(actor, "qr_print_batch.printed", makerspace=locked.makerspace, target=locked)
         return locked
+

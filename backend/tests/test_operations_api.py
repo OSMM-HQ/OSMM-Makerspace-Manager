@@ -11,6 +11,7 @@ from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 from apps.operations.models import (
     InventoryAdjustment,
     QrPrintBatch,
+    QrPrintBatchItem,
     StockTransfer,
     StocktakeLedgerEntry,
     StocktakeSession,
@@ -627,6 +628,40 @@ def test_asset_generation_adds_50_unique_sequential_unit_qrs_to_existing_batch()
     ]
 
 
+def test_asset_generation_fills_existing_units_without_qr_before_creating_new_units():
+    makerspace = make_space("ops-assets-missing-qr")
+    manager = make_member("ops-assets-missing-qr-manager", makerspace)
+    product = make_product(
+        makerspace,
+        name="Arduino",
+        tracking_mode=TrackingMode.INDIVIDUAL,
+        total_quantity=3,
+        available_quantity=3,
+    )
+    assets = [
+        InventoryAsset.objects.create(makerspace=makerspace, product=product, asset_tag=f"ARD-{number}")
+        for number in range(1, 4)
+    ]
+    QrCode.objects.create(
+        makerspace=makerspace,
+        target_type=QrCode.TargetType.ASSET,
+        target_id=assets[0].id,
+        created_by=manager,
+    )
+    batch = QrPrintBatch.objects.create(makerspace=makerspace, title="Missing unit labels", created_by=manager)
+
+    response = authenticated_client(manager).post(
+        f"/api/v1/admin/products/{product.id}/assets/generate",
+        {"count": 2, "name_prefix": "Arduino", "print_batch_id": batch.id},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert [row["id"] for row in response.data["assets"]] == [assets[1].id, assets[2].id]
+    assert InventoryAsset.objects.filter(product=product).count() == 3
+    assert QrCode.objects.filter(target_type=QrCode.TargetType.ASSET, target_id__in=[asset.id for asset in assets]).count() == 3
+    assert list(batch.items.order_by("sort_order").values_list("label_text", flat=True)) == ["Arduino ARD-2", "Arduino ARD-3"]
+
 def test_qr_batch_accepts_inventory_items_and_rejects_container_qrs():
     makerspace = make_space("ops-qr-batch")
     manager = make_member("ops-qr-batch-manager", makerspace)
@@ -701,6 +736,37 @@ def test_qr_batch_accepts_inventory_items_and_rejects_container_qrs():
     assert "Multimeter" in svg_contents
     assert "ARDUINO-1" in svg_contents
 
+
+def test_qr_batch_replaces_duplicate_inventory_qr_item():
+    makerspace = make_space("ops-qr-batch-replace")
+    manager = make_member("ops-qr-batch-replace-manager", makerspace)
+    product = make_product(makerspace, name="Multimeter")
+    qr = QrCode.objects.create(
+        makerspace=makerspace,
+        target_type=QrCode.TargetType.PRODUCT,
+        target_id=product.id,
+        created_by=manager,
+    )
+    batch = QrPrintBatch.objects.create(makerspace=makerspace, title="Bench labels", created_by=manager)
+    client = authenticated_client(manager)
+
+    first = client.post(
+        f"/api/v1/admin/qr-print-batches/{batch.id}/items",
+        {"qr_code_id": qr.id, "label_text": "Old label"},
+        format="json",
+    )
+    second = client.post(
+        f"/api/v1/admin/qr-print-batches/{batch.id}/items",
+        {"qr_code_id": qr.id, "label_text": "New label"},
+        format="json",
+    )
+
+    assert first.status_code == 201
+    assert second.status_code == 201
+    assert first.data["id"] == second.data["id"]
+    assert QrPrintBatchItem.objects.filter(batch=batch, qr_code=qr).count() == 1
+    item = QrPrintBatchItem.objects.get(batch=batch, qr_code=qr)
+    assert item.label_text == "New label"
 
 def test_product_qr_creation_rejects_individual_tracked_inventory():
     makerspace = make_space("ops-product-qr-individual")
@@ -817,3 +883,6 @@ def test_destination_manager_can_retrieve_incoming_stock_transfer():
     assert [row["id"] for row in rows] == [transfer_id]
     assert detail_response.status_code == 200
     assert detail_response.data["id"] == transfer_id
+
+
+
