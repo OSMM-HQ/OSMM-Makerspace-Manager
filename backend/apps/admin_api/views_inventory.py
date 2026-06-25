@@ -1,3 +1,4 @@
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import generics
@@ -49,7 +50,20 @@ class InventoryListCreateView(generics.ListCreateAPIView):
         makerspace_id = self.kwargs["makerspace_id"]
         require_module(makerspace_id, "staff_admin")
         require_action(self.request.user, rbac.Action.VIEW_INVENTORY, makerspace_id)
-        return InventoryProduct.objects.filter(makerspace_id=makerspace_id).order_by("name")
+        qs = InventoryProduct.objects.filter(makerspace_id=makerspace_id).order_by("name")
+        archived = self.request.query_params.get("archived")
+        if archived in {"true", "false"}:
+            qs = qs.filter(is_archived=(archived == "true"))
+        q = (self.request.query_params.get("q") or "").strip()
+        if q:
+            qs = qs.filter(
+                Q(name__icontains=q)
+                | Q(description__icontains=q)
+                | Q(tracking_mode__icontains=q)
+                | Q(storage_location__icontains=q)
+                | Q(category__name__icontains=q)
+            )
+        return qs
 
     def perform_create(self, serializer):
         makerspace_id = self.kwargs["makerspace_id"]

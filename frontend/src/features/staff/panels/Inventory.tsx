@@ -74,7 +74,8 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
     setBulkQrMessage("");
     setShowArchived(false);
   }, [makerspace.id]);
-  const products = useStaffGet<{ results: AdminProduct[] }>(["inventory", makerspace.id], `/admin/makerspace/${makerspace.id}/inventory`);
+  const inventoryQuery = `/admin/makerspace/${makerspace.id}/inventory?page_size=1000&archived=${showArchived ? "true" : "false"}&q=${encodeURIComponent(debouncedSearch)}`;
+  const products = useStaffGet<{ results: AdminProduct[] }>(["inventory", makerspace.id, showArchived ? "archived" : "active", debouncedSearch], inventoryQuery);
   const categories = useStaffGet<CategoryListResponse>(["categories", makerspace.id], `/admin/makerspace/${makerspace.id}/categories`);
   const invalidate = () => {
     invalidateInventoryViews(queryClient, makerspace.id, makerspace.slug);
@@ -171,13 +172,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
       queryClient.invalidateQueries({ queryKey: ["procurement", makerspace.id] });
     },
   });
-  const rows = useMemo(() => {
-    const normalizedSearch = debouncedSearch.toLowerCase();
-    return (products.data?.results ?? []).filter((product) =>
-      product.is_archived === showArchived &&
-      [product.name, product.description, product.tracking_mode, product.storage_location, product.is_archived ? "archived" : "active"].join(" ").toLowerCase().includes(normalizedSearch),
-    );
-  }, [debouncedSearch, products.data?.results, showArchived]);
+  const rows = useMemo(() => products.data?.results ?? [], [products.data?.results]);
   const categoryRows = categoryResults(categories.data);
   const openEdit = (product: AdminProduct) => {
     setEditing(product);

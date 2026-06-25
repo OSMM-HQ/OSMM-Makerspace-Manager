@@ -525,6 +525,45 @@ def test_bulk_import_accepts_xlsx_upload():
     ).exists()
 
 
+def test_inventory_list_filters_before_pagination():
+    makerspace = make_space("inventory-search-page")
+    admin = make_member("inventory-search-page-admin", makerspace)
+    for index in range(30):
+        make_product(makerspace, name=f"Common Tool {index:02d}")
+    target = make_product(
+        makerspace,
+        name="Laser Distance Meter",
+        storage_location="Top Shelf",
+    )
+
+    response = authenticated_client(admin).get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/inventory?page_size=1&q=laser"
+    )
+
+    assert response.status_code == 200
+    assert response.data["count"] == 1
+    assert response.data["results"][0]["id"] == target.id
+
+
+def test_inventory_list_filters_archived_state():
+    makerspace = make_space("inventory-archived-filter")
+    admin = make_member("inventory-archived-filter-admin", makerspace)
+    active = make_product(makerspace, name="Active Drill")
+    archived = make_product(makerspace, name="Archived Drill", is_archived=True)
+    client = authenticated_client(admin)
+
+    active_response = client.get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/inventory?archived=false"
+    )
+    archived_response = client.get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/inventory?archived=true"
+    )
+
+    assert active_response.status_code == 200
+    assert archived_response.status_code == 200
+    assert [item["id"] for item in active_response.data["results"]] == [active.id]
+    assert [item["id"] for item in archived_response.data["results"]] == [archived.id]
+
 def test_inventory_create_api_writes_product_and_audit():
     makerspace = make_space("inventory-create")
     admin = make_member("inventory-create-admin", makerspace)
