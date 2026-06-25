@@ -6,6 +6,7 @@ from apps.makerspaces.guards import require_module
 from apps.printing import workflow
 from apps.printing.permissions import CanManagePrinting
 from apps.printing.serializers import (
+    CompletePrintSerializer,
     FailPrintSerializer,
     ManagedPrintRequestSerializer,
     PrintAcceptSerializer,
@@ -54,7 +55,12 @@ class PrintRequestActionView(ManagedPrintRequestQuerysetMixin, generics.GenericA
                     estimated_filament_grams=input_data.get("estimated_filament_grams"),
                 )
             elif self.action == "complete":
-                updated = workflow.complete(print_request, request.user)
+                input_data = input_serializer.validated_data if input_serializer else {}
+                updated = workflow.complete(
+                    print_request,
+                    request.user,
+                    actual_filament_grams=input_data.get("actual_filament_grams"),
+                )
             elif self.action == "fail":
                 updated = workflow.fail(
                     print_request,
@@ -122,9 +128,10 @@ class PrintRequestStartView(PrintRequestActionView):
 @extend_schema(tags=["Printing"], summary="Complete print request")
 class PrintRequestCompleteView(PrintRequestActionView):
     action = "complete"
+    request_serializer_class = CompletePrintSerializer
 
     @extend_schema(
-        request=None,
+        request=CompletePrintSerializer,
         responses={200: ManagedPrintRequestSerializer, **ACTION_RESPONSES},
     )
     def post(self, request, *args, **kwargs):

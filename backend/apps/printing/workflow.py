@@ -36,7 +36,8 @@ def _locked_request(pk, *related):
 def _transition(
     print_request, actor, status, event, reason="", printer_id=None,
     filament_spool_id=None, estimated_minutes=None,
-    estimated_filament_grams=None, percent_complete=0, price=0,
+    estimated_filament_grams=None, actual_filament_grams=None,
+    percent_complete=0, price=0,
 ):
     with transaction.atomic():
         locked = _locked_request(print_request.pk, "bucket__makerspace", "requester")
@@ -89,13 +90,18 @@ def _transition(
             + extra_update_fields
         )
         audit.record(actor, f"print.{event}", makerspace=locked.bucket.makerspace, target=locked)
-        if (
-            status == PrintRequest.Status.COMPLETED
-            and locked.filament_spool_id
-            and locked.estimated_filament_grams
-            and locked.estimated_filament_grams > 0
-        ):
-            _reconcile_spool(actor, locked, locked.estimated_filament_grams, "completed")
+        if status == PrintRequest.Status.COMPLETED:
+            completion_grams = (
+                locked.estimated_filament_grams
+                if actual_filament_grams is None
+                else actual_filament_grams
+            )
+            if completion_grams is not None and (
+                actual_filament_grams is not None
+                or locked.filament_grams_reserved > 0
+                or (locked.filament_spool_id and completion_grams > 0)
+            ):
+                _reconcile_spool(actor, locked, completion_grams, "completed")
         elif (
             status == PrintRequest.Status.FAILED
             and locked.filament_spool_id
@@ -123,6 +129,18 @@ def _reconcile_spool(actor, locked, grams, reason):
         reconcile_filament(actor, locked, grams, reason=reason)
     except SpoolReservationError as exc:
         raise InvalidTransition(str(exc)) from exc
+
+
+def _coerce_filament_grams(grams):
+    try:
+        value = Decimal(str(grams))
+    except (InvalidOperation, ValueError) as exc:
+        raise InvalidTransition("Actual filament grams must be a valid decimal value.") from exc
+    if not value.is_finite() or value < 0:
+        raise InvalidTransition(
+            "Actual filament grams must be a finite decimal value greater than or equal to 0."
+        )
+    return value.quantize(Decimal("0.01"))
 
 
 def _coerce_price(price):
@@ -207,8 +225,16 @@ def start(
         estimated_filament_grams=estimated_filament_grams,
     )
 
-def complete(print_request, actor):
-    return _transition(print_request, actor, PrintRequest.Status.COMPLETED, "completed")
+def complete(print_request, actor, *, actual_filament_grams=None):
+    if actual_filament_grams is not None:
+        actual_filament_grams = _coerce_filament_grams(actual_filament_grams)
+    return _transition(
+        print_request,
+        actor,
+        PrintRequest.Status.COMPLETED,
+        "completed",
+        actual_filament_grams=actual_filament_grams,
+    )
 
 def fail(print_request, actor, reason, percent_complete=0):
     return _transition(

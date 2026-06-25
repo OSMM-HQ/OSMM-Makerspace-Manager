@@ -426,6 +426,79 @@ def test_complete_decrements_spool_remaining_and_report_filament_used():
     ]
 
 
+def test_complete_with_actual_filament_refunds_unused_reserved_grams():
+    makerspace = make_space("spool-actual-refund")
+    bucket = make_bucket(makerspace)
+    requester = make_user("spool-actual-refund-requester", access_status=User.AccessStatus.ACTIVE)
+    manager = make_print_manager("spool-actual-refund-manager", makerspace)
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Prusa MK4")
+    spool = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        printer=printer,
+        material="PLA",
+        color="black",
+        initial_weight_grams=1000,
+        remaining_weight_grams=1000,
+    )
+    print_request = make_request(bucket, requester)
+
+    workflow.accept(print_request, manager)
+    workflow.start(
+        print_request,
+        manager,
+        printer_id=printer.id,
+        filament_spool_id=spool.id,
+        estimated_minutes=60,
+        estimated_filament_grams=Decimal("100.00"),
+    )
+    workflow.complete(print_request, manager, actual_filament_grams=Decimal("72.50"))
+
+    spool.refresh_from_db()
+    assert spool.remaining_weight_grams == Decimal("927.50")
+    print_request.refresh_from_db()
+    assert print_request.filament_grams_used == Decimal("72.50")
+    assert print_request.filament_grams_reserved == Decimal("0.00")
+    audit = AuditLog.objects.get(action="print.spool_reconciled")
+    assert audit.meta["reserved_grams"] == "100.00"
+    assert audit.meta["used_grams"] == "72.50"
+
+
+def test_complete_api_accepts_actual_filament_above_estimate():
+    makerspace = make_space("spool-actual-api")
+    bucket = make_bucket(makerspace)
+    requester = make_user("spool-actual-api-requester", access_status=User.AccessStatus.ACTIVE)
+    manager = make_print_manager("spool-actual-api-manager", makerspace)
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Prusa MK4")
+    spool = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        printer=printer,
+        material="PLA",
+        color="black",
+        initial_weight_grams=1000,
+        remaining_weight_grams=1000,
+    )
+    print_request = make_request(bucket, requester)
+    workflow.accept(print_request, manager)
+    workflow.start(
+        print_request,
+        manager,
+        printer_id=printer.id,
+        filament_spool_id=spool.id,
+        estimated_minutes=60,
+        estimated_filament_grams=Decimal("100.00"),
+    )
+
+    response = authenticated_client(manager).post(
+        action_url(print_request, "complete"),
+        {"actual_filament_grams": "125.25"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["filament_grams_used"] == "125.25"
+    spool.refresh_from_db()
+    assert spool.remaining_weight_grams == Decimal("874.75")
+
 def test_fail_with_percent_charges_partial_filament():
     makerspace = make_space("spool-fail-partial")
     bucket = make_bucket(makerspace)

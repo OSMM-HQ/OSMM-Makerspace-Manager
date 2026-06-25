@@ -15,6 +15,7 @@ from apps.printing.models import (
 )
 from apps.printing.permissions import CanManagePrinting, IsActiveRequester
 from apps.printing.serializers import (
+    CompletePrintSerializer,
     ErrorSerializer,
     FilamentSpoolSerializer,
     ManualPrintLogSerializer,
@@ -60,6 +61,7 @@ from apps.printing.views_spools import (
 __all__ = [
     "ACTION_RESPONSES",
     "CanManagePrinting",
+    "CompletePrintSerializer",
     "ERROR_RESPONSES",
     "ErrorSerializer",
     "FilamentSpool",

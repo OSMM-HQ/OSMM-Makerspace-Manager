@@ -11,7 +11,7 @@ import {
   printingRequest,
 } from "./PrintingPanelParts";
 import { PrintRows } from "./PrintingPanelCards";
-import { AcceptPrintDialog, FailPrintDialog } from "./PrintingPanelDialogs";
+import { AcceptPrintDialog, CompletePrintDialog, FailPrintDialog } from "./PrintingPanelDialogs";
 import { invalidatePrintingViews } from "../queryInvalidation";
 
 // The print queue lives here so it can be shown inside the unified "Requests" tab
@@ -48,11 +48,12 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
   const [estimatedMinutes, setEstimatedMinutes] = useState("60");
   const [estimatedGrams, setEstimatedGrams] = useState("100");
   const [acceptingRequest, setAcceptingRequest] = useState<PrintRequest | null>(null);
+  const [completingRequest, setCompletingRequest] = useState<PrintRequest | null>(null);
   const [failingRequest, setFailingRequest] = useState<PrintRequest | null>(null);
   const [rejectingRequest, setRejectingRequest] = useState<PrintRequest | null>(null);
 
   const action = useMutation({
-    mutationFn: ({ request, name, reason, percentComplete, price }: { request: PrintRequest; name: "start" | "complete" | "fail" | "accept" | "reject" | "reprint" | "collect"; reason?: string; percentComplete?: number; price?: string }) => {
+    mutationFn: ({ request, name, reason, percentComplete, price, actualGrams }: { request: PrintRequest; name: "start" | "complete" | "fail" | "accept" | "reject" | "reprint" | "collect"; reason?: string; percentComplete?: number; price?: string; actualGrams?: string }) => {
       const body =
         name === "start"
           ? {
@@ -61,13 +62,15 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
               estimated_minutes: Number(estimatedMinutes),
               estimated_filament_grams: estimatedGrams,
             }
-          : name === "fail"
-            ? { reason, percent_complete: percentComplete ?? 0 }
-            : name === "reject"
-              ? { reason }
-              : name === "accept"
-                ? { price: price ?? "0" }
-                : {};
+          : name === "complete"
+            ? actualGrams !== undefined ? { actual_filament_grams: actualGrams } : {}
+            : name === "fail"
+              ? { reason, percent_complete: percentComplete ?? 0 }
+              : name === "reject"
+                ? { reason }
+                : name === "accept"
+                  ? { price: price ?? "0" }
+                  : {};
       return printingRequest(`/printing/manage/requests/${request.id}/${name}`, {
         method: "POST",
         body: JSON.stringify(body),
@@ -75,6 +78,7 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
     },
     onSuccess: () => {
       setAcceptingRequest(null);
+      setCompletingRequest(null);
       setFailingRequest(null);
       setRejectingRequest(null);
       invalidatePrintingViews(queryClient, makerspace.id);
@@ -154,7 +158,7 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
         ) : (
           <PrintRows title="Printing" rows={printing.data?.results ?? []} action={(row) => (
             <>
-              <button disabled={action.isPending} onClick={() => action.mutate({ request: row, name: "complete" })}>Complete</button>
+              <button disabled={action.isPending} onClick={() => setCompletingRequest(row)}>Complete</button>
               <button disabled={action.isPending} onClick={() => setFailingRequest(row)}>Fail</button>
             </>
           )} />
@@ -204,7 +208,7 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
       <ErrorText message={collected.error instanceof Error ? collected.error.message : undefined} />
       <ErrorText message={rejected.error instanceof Error ? rejected.error.message : undefined} />
       <ErrorText message={failed.error instanceof Error ? failed.error.message : undefined} />
-      <ErrorText message={!acceptingRequest && !failingRequest && !rejectingRequest ? actionError : undefined} />
+      <ErrorText message={!acceptingRequest && !completingRequest && !failingRequest && !rejectingRequest ? actionError : undefined} />
 
       <AcceptPrintDialog
         open={Boolean(acceptingRequest)}
@@ -212,6 +216,13 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
         error={acceptingRequest ? actionError : undefined}
         onClose={() => setAcceptingRequest(null)}
         onSubmit={(price) => acceptingRequest && action.mutate({ request: acceptingRequest, name: "accept", price })}
+      />
+      <CompletePrintDialog
+        request={completingRequest}
+        pending={action.isPending}
+        error={completingRequest ? actionError : undefined}
+        onClose={() => setCompletingRequest(null)}
+        onSubmit={(actualGrams) => completingRequest && action.mutate({ request: completingRequest, name: "complete", actualGrams })}
       />
       <FailPrintDialog
         open={Boolean(failingRequest)}

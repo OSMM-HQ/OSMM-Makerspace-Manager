@@ -179,6 +179,16 @@ class RejectFailSerializer(serializers.Serializer):
     reason = serializers.CharField(allow_blank=False, trim_whitespace=True)
 
 
+class CompletePrintSerializer(serializers.Serializer):
+    actual_filament_grams = serializers.DecimalField(
+        required=False,
+        allow_null=True,
+        max_digits=8,
+        decimal_places=2,
+        min_value=0,
+    )
+
+
 class FailPrintSerializer(serializers.Serializer):
     reason = serializers.CharField(allow_blank=False, trim_whitespace=True)
     percent_complete = serializers.IntegerField(

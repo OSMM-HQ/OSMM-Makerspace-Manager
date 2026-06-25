@@ -12,6 +12,7 @@ from apps.printing.serializers_buckets import ErrorSerializer, PrintBucketSerial
 from apps.printing.serializers_manual_logs import ManualPrintLogSerializer
 from apps.printing.serializers_printers import PrintPrinterSerializer
 from apps.printing.serializers_requests import (
+    CompletePrintSerializer,
     FailPrintSerializer,
     ManagedPrintRequestSerializer,
     PrintAcceptSerializer,
@@ -26,6 +27,7 @@ from apps.printing.serializers_spools import (
 )
 
 __all__ = [
+    "CompletePrintSerializer",
     "ErrorSerializer",
     "FilamentSpool",
     "FailPrintSerializer",

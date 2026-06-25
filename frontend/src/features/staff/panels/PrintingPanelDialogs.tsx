@@ -7,6 +7,7 @@ import {
   type FilamentSpool,
   type PrintPrinter,
   type PrinterPayload,
+  type PrintRequest,
   SpoolColorInput,
   type SpoolPayload,
 } from "./PrintingPanelParts";
@@ -99,6 +100,31 @@ export function FailPrintDialog({ open, pending, error, onClose, onSubmit, title
           <span className="mt-1 block text-xs text-muted">Charges the spool for filament used so far. Reprint, when completed, charges the full amount.</span>
         </label>
       ) : null}
+      <ErrorText message={error} />
+    </Modal>
+  );
+}
+
+export function CompletePrintDialog({ request, pending, error, onClose, onSubmit }: {
+  request: PrintRequest | null;
+  pending: boolean;
+  error?: string;
+  onClose: () => void;
+  onSubmit: (actualGrams?: string) => void;
+}) {
+  const [actualGrams, setActualGrams] = useState("");
+  useEffect(() => {
+    if (request) setActualGrams(request.estimated_filament_grams || "");
+  }, [request]);
+  const trimmed = actualGrams.trim();
+  const numericValue = Number(trimmed);
+  const disabled = Boolean(trimmed) && (!Number.isFinite(numericValue) || numericValue < 0);
+  return (
+    <Modal open={Boolean(request)} onClose={onClose} title="Complete print" footer={<DialogActions pending={pending} disabled={disabled} submitLabel="Complete print" onCancel={onClose} onSubmit={() => onSubmit(trimmed || undefined)} />}>
+      <label className="block">
+        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Actual filament used (g)</span>
+        <input className="desk-input w-full" type="number" min="0" step="0.01" value={actualGrams} onChange={(event) => setActualGrams(event.target.value)} />
+      </label>
       <ErrorText message={error} />
     </Modal>
   );
