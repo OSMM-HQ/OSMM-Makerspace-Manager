@@ -129,6 +129,7 @@ export function PrintRows({
               <strong className="min-w-0 break-words text-ink">#{row.id} {row.title}</strong>
               <span className={`status-box ${printStatusClassName(row.status)}`}>{printStatusLabel(row.status)}</span>
               <PaymentBadge request={row} />
+              <ReservedFilamentBadge request={row} />
               <div className="desk-actions ml-0 flex w-full flex-wrap gap-2 text-sm sm:ml-auto sm:w-auto">{action(row)}</div>
             </div>
             <p className="mt-2 text-xs text-muted">
@@ -227,6 +228,12 @@ function printStatusLabel(status: string) {
     default:
       return status.replace(/_/g, " ");
   }
+}
+
+function ReservedFilamentBadge({ request }: { request: PrintRequest }) {
+  const reserved = Number(request.filament_grams_reserved || 0);
+  if (!Number.isFinite(reserved) || reserved <= 0) return null;
+  return <span className="rounded-md bg-info/15 px-2 py-0.5 text-xs font-semibold text-info-ink">Reserved {reserved.toFixed(2)}g</span>;
 }
 
 function PaymentBadge({ request }: { request: PrintRequest }) {

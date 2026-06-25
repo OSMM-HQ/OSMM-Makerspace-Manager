@@ -677,6 +677,42 @@
                 }
             }
         },
+        "/api/v1/admin/assets/{id}/qr-history": {
+            "get": {
+                "operationId": "api_v1_admin_assets_qr_history_retrieve",
+                "summary": "List QR scan history for an inventory asset",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AssetQrHistory"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/audit-logs": {
             "get": {
                 "operationId": "api_v1_admin_audit_logs_list",
@@ -1591,6 +1627,42 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/InventoryProductAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/inventory/{id}/qr-history": {
+            "get": {
+                "operationId": "api_v1_admin_inventory_qr_history_retrieve",
+                "summary": "List QR scan history for an inventory product",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProductQrHistory"
                                 }
                             }
                         },
@@ -12616,6 +12688,24 @@
                     "print_batch_id"
                 ]
             },
+            "AssetQrHistory": {
+                "type": "object",
+                "properties": {
+                    "asset": {
+                        "type": "integer"
+                    },
+                    "scans": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/QrHistoryItem"
+                        }
+                    }
+                },
+                "required": [
+                    "asset",
+                    "scans"
+                ]
+            },
             "AssignBox": {
                 "type": "object",
                 "properties": {
@@ -17932,6 +18022,24 @@
                     "total_requests"
                 ]
             },
+            "ProductQrHistory": {
+                "type": "object",
+                "properties": {
+                    "product": {
+                        "type": "integer"
+                    },
+                    "scans": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/QrHistoryItem"
+                        }
+                    }
+                },
+                "required": [
+                    "product",
+                    "scans"
+                ]
+            },
             "PublicAvailabilityModeEnum": {
                 "enum": [
                     "exact_count",
@@ -19069,6 +19177,35 @@
                 ],
                 "type": "string",
                 "description": "* `box` - Box\n* `product` - Product\n* `asset` - Asset"
+            },
+            "QrHistoryItem": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "source": {
+                        "type": "string"
+                    },
+                    "context": {
+                        "type": "string"
+                    },
+                    "actor": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "actor",
+                    "context",
+                    "created_at",
+                    "id",
+                    "source"
+                ]
             },
             "QrPrintBatch": {
                 "type": "object",

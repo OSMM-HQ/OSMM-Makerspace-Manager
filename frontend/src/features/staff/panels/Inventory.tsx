@@ -29,6 +29,8 @@ type InventoryAssetRow = { id: number; asset_tag: string; serial_number: string;
 type Actor = { username: string; role: string };
 type LendingHistoryEntry = { id: number; username: string; issued_at: string; quantity: number; accepted_by: Actor | null; issued_by: Actor | null };
 type LendingHistoryResponse = { product_id: number; last_borrower: LendingHistoryEntry | null; recent: LendingHistoryEntry[] };
+type QrHistoryEntry = { id: string; source: string; context: string; actor: number | null; created_at: string };
+type QrHistoryResponse = { product?: number; asset?: number; scans: QrHistoryEntry[] };
 
 const emptyForm: ItemForm = {
   name: "", tracking_mode: "quantity", category: "", description: "", total_quantity: "1", available_quantity: "1",
@@ -226,6 +228,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
       <ItemModal title={editing?.name ?? "Edit item"} open={Boolean(editing)} onClose={() => setEditing(null)} form={form} setForm={setForm} categories={categoryRows} pending={update.isPending} error={update.error?.message} onSubmit={() => update.mutate()}>
         {editing ? <div className="border-t border-line pt-3"><ImageUploader endpoint={`/admin/inventory/${editing.id}/image`} currentUrl={editing.image_url} label="Item photo" onChanged={invalidate} /></div> : null}
         {editing ? <QuantityAdjust product={editing} form={adjustForm} setForm={setAdjustForm} pending={adjust.isPending} error={adjust.error?.message} onSubmit={() => adjust.mutate()} /> : null}
+        {editing ? <QrHistory title="Product QR history" queryKey={["product-qr-history", editing.id]} path={`/admin/inventory/${editing.id}/qr-history`} /> : null}
         {editing?.tracking_mode === "individual" ? <IndividualAssets productId={editing.id} makerspaceId={makerspace.id} refreshInventory={invalidate} /> : null}
         {editing && canViewAudit ? <LendingHistory productId={editing.id} /> : null}
       </ItemModal>
@@ -293,6 +296,32 @@ function QuantityAdjust({ product, form, setForm, pending, error, onSubmit }: { 
   );
 }
 
+function QrHistory({ title, queryKey, path }: { title: string; queryKey: unknown[]; path: string }) {
+  const [open, setOpen] = useState(false);
+  const history = useStaffGet<QrHistoryResponse>(queryKey, path, open);
+  const rows = history.data?.scans ?? [];
+  return (
+    <div className="grid w-full gap-2 border-t border-line pt-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-ink">{title}</h3>
+        <button className="desk-button" type="button" onClick={() => setOpen((value) => !value)}>{open ? "Hide" : "History"}</button>
+      </div>
+      {open && history.isLoading ? <p className="text-sm text-muted">Loading QR history...</p> : null}
+      {open && history.error ? <p className="text-sm text-danger">{history.error.message}</p> : null}
+      {open && !history.isLoading && !rows.length ? <p className="text-sm text-muted">No QR scans recorded.</p> : null}
+      {open && rows.length ? (
+        <ul className="grid gap-1 text-xs text-muted">
+          {rows.map((scan) => (
+            <li key={scan.id} className="rounded-md border border-line bg-surface px-2 py-1">
+              <span className="font-medium text-ink">{humanize(scan.context)}</span> on {formatDate(scan.created_at)}{scan.actor ? ` by user #${scan.actor}` : ""}
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
+
 function IndividualAssets({ productId, makerspaceId, refreshInventory }: { productId: number; makerspaceId: number; refreshInventory: () => void }) {
   const queryClient = useQueryClient();
   const assets = useStaffGet<{ results: InventoryAssetRow[] }>(["inventory-assets", productId], `/admin/inventory/${productId}/assets`);
@@ -327,6 +356,7 @@ function IndividualAssets({ productId, makerspaceId, refreshInventory }: { produ
               </div>
             </div>
             <div className="desk-actions flex flex-wrap gap-2">
+              <QrHistory title="Asset QR history" queryKey={["asset-qr-history", asset.id]} path={`/admin/assets/${asset.id}/qr-history`} />
               {asset.status === "maintenance" ? (
                 <button className="desk-button" type="button" disabled={action.isPending} onClick={() => action.mutate({ assetId: asset.id, action: "repair" })}>Move back to inventory</button>
               ) : (
@@ -410,6 +440,10 @@ function AttributionLine({ acceptedBy, issuedBy }: { acceptedBy: Actor | null; i
 
 function formatActor(actor: Actor) {
   return actor.role ? `${actor.username} (${actor.role})` : actor.username;
+}
+
+function humanize(value: string) {
+  return value.replace(/_/g, " ").replace(/^\w/, (match) => match.toUpperCase());
 }
 
 function formatDate(value: string) {
