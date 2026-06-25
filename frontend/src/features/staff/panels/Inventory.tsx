@@ -49,6 +49,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
   const [addOpen, setAddOpen] = useState(false);
   const [archiveTarget, setArchiveTarget] = useState<AdminProduct | null>(null);
   const [fixTarget, setFixTarget] = useState<AdminProduct | null>(null);
+  const [assetFixTarget, setAssetFixTarget] = useState<AdminProduct | null>(null);
   const [fixQty, setFixQty] = useState("1");
   const [qrConfirm, setQrConfirm] = useState<boolean | null>(null);
   const [bulkQrMessage, setBulkQrMessage] = useState("");
@@ -65,6 +66,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
     setAddOpen(false);
     setArchiveTarget(null);
     setFixTarget(null);
+    setAssetFixTarget(null);
     setFixQty("1");
     setQrConfirm(null);
     setBulkQrMessage("");
@@ -133,6 +135,10 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
     },
   });
   const openFix = (product: AdminProduct) => {
+    if (product.tracking_mode === "individual") {
+      setAssetFixTarget(product);
+      return;
+    }
     setFixTarget(product);
     setFixQty(product.available_quantity > 0 ? "1" : "0");
   };
@@ -186,7 +192,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
     { key: "actions", header: "", render: (product) => (
       <div className="desk-actions flex flex-wrap gap-2">
         <button className="desk-button" type="button" onClick={() => openEdit(product)}>Edit</button>
-        <button className="desk-button" type="button" disabled={product.available_quantity <= 0} onClick={() => openFix(product)}>To Fix</button>
+        <button className="desk-button" type="button" disabled={product.tracking_mode === "individual" ? product.available_quantity + product.damaged_quantity <= 0 : product.available_quantity <= 0} onClick={() => openFix(product)}>To Fix</button>
         <button className="desk-button" type="button" onClick={() => setArchiveTarget(product)}>Archive</button>
         {canUseToBuy ? <button className="desk-button" type="button" onClick={() => openToBuy(product)}>To Buy</button> : null}
       </div>
@@ -236,7 +242,9 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
           {moveToFix.error ? <p className="text-sm text-danger">{moveToFix.error.message}</p> : null}
         </div>
       </Modal>
-      <ConfirmDialog open={Boolean(archiveTarget)} title="Archive item" message={archiveTarget ? `Archive ${archiveTarget.name}? It will be hidden from active inventory views.` : ""} confirmLabel="Archive" tone="danger" pending={archive.isPending} onCancel={() => setArchiveTarget(null)} onConfirm={() => { if (archiveTarget) archive.mutate(archiveTarget); }} />
+      <Modal open={Boolean(assetFixTarget)} onClose={() => setAssetFixTarget(null)} title={assetFixTarget ? `Choose Asset to Fix - ${assetFixTarget.name}` : "Choose Asset to Fix"} footer={<div className="desk-actions flex flex-wrap justify-end gap-2"><button className="desk-button" type="button" onClick={() => setAssetFixTarget(null)}>Close</button></div>}>
+        {assetFixTarget ? <IndividualAssets productId={assetFixTarget.id} makerspaceId={makerspace.id} refreshInventory={invalidate} /> : null}
+      </Modal>      <ConfirmDialog open={Boolean(archiveTarget)} title="Archive item" message={archiveTarget ? `Archive ${archiveTarget.name}? It will be hidden from active inventory views.` : ""} confirmLabel="Archive" tone="danger" pending={archive.isPending} onCancel={() => setArchiveTarget(null)} onConfirm={() => { if (archiveTarget) archive.mutate(archiveTarget); }} />
       <ConfirmDialog open={qrConfirm !== null} title={qrConfirm ? "Enable public QR" : "Disable public QR"} message={`${qrConfirm ? "Enable" : "Disable"} public self-checkout QR for ${selectedIds.length} selected items?`} confirmLabel={qrConfirm ? "Enable" : "Disable"} pending={bulkQr.isPending} onCancel={() => setQrConfirm(null)} onConfirm={() => { if (qrConfirm !== null) bulkQr.mutate(qrConfirm); }} />
     </Panel>
   );
