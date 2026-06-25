@@ -6,7 +6,7 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.audit.models import AuditLog
-from apps.boxes.models import Box, QrCode
+from apps.boxes.models import Box, QrCode, QrScanEvent
 from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests.models import HardwareRequest, PublicToolLoan
 from apps.hardware_requests.workflow_utils import get_or_create_requester
@@ -19,8 +19,11 @@ pytestmark = pytest.mark.django_db
 _current_direct_makerspace = None
 
 
-def return_body(evidence, notes="Returned in good condition."):
-    return {"evidence_id": evidence.id, "notes": notes}
+def return_body(evidence, notes="Returned in good condition.", qr_payload=None):
+    body = {"evidence_id": evidence.id, "notes": notes}
+    if qr_payload is not None:
+        body["qr_payload"] = qr_payload
+    return body
 
 
 def valid_looking_return_body():
@@ -155,6 +158,7 @@ def test_admin_direct_manual_handout_and_return_logs_product(monkeypatch):
     assert product.available_quantity == 1
     assert product.issued_quantity == 2
     request = HardwareRequest.objects.get()
+    assert issued.data["issue_evidence_id"] == request.issue_evidence_id
     assert request.status == HardwareRequest.Status.ISSUED
     assert request.issued_by == admin
     assert request.requester_name == "Direct Borrower"
@@ -566,7 +570,7 @@ def test_every_qr_in_multi_qr_direct_loan_is_tracked(monkeypatch):
     allow_uploaded(monkeypatch)
     returned = client.post(
         f"/api/v1/admin/direct-loans/{loan.id}/return",
-        return_body(evidence),
+        return_body(evidence, qr_payload=qr_a.payload),
         format="json",
     )
 
@@ -579,6 +583,104 @@ def test_every_qr_in_multi_qr_direct_loan_is_tracked(monkeypatch):
     assert product_a.issued_quantity == 0
     assert product_b.available_quantity == 3
     assert product_b.issued_quantity == 0
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_direct_return_requires_matching_qr_for_qr_loan(monkeypatch):
+    makerspace = make_space("direct-return-qr-required")
+    admin = make_admin(makerspace)
+    product = make_product(makerspace, name="Loaned QR Tool")
+    other_product = make_product(makerspace, name="Other QR Tool")
+    qr = make_qr(makerspace, product)
+    other_qr = make_qr(makerspace, other_product)
+    client = authed(admin)
+    issued = client.post(
+        direct_url(makerspace),
+        direct_payload(qr_payloads=[qr.payload]),
+        format="json",
+    )
+    assert issued.status_code == 201
+    loan = PublicToolLoan.objects.get()
+    allow_uploaded(monkeypatch)
+
+    missing_scan = client.post(
+        f"/api/v1/admin/direct-loans/{loan.id}/return",
+        return_body(make_return_evidence(makerspace, admin)),
+        format="json",
+    )
+    assert missing_scan.status_code == 400
+    assert missing_scan.data["detail"] == "Return QR scan is required."
+
+    wrong_scan = client.post(
+        f"/api/v1/admin/direct-loans/{loan.id}/return",
+        return_body(make_return_evidence(makerspace, admin), qr_payload=other_qr.payload),
+        format="json",
+    )
+    assert wrong_scan.status_code == 400
+    assert wrong_scan.data["detail"] == "Scanned QR does not match this direct loan."
+
+    returned = client.post(
+        f"/api/v1/admin/direct-loans/{loan.id}/return",
+        return_body(make_return_evidence(makerspace, admin), qr_payload=qr.payload),
+        format="json",
+    )
+
+    assert returned.status_code == 200
+    loan.refresh_from_db()
+    assert loan.status == PublicToolLoan.Status.RETURNED
+    assert QrScanEvent.objects.filter(
+        qr_code=qr,
+        request=loan.request,
+        context=QrScanEvent.Context.RETURN,
+        actor=admin,
+    ).exists()
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_direct_return_requires_container_qr_when_container_has_active_qr(monkeypatch):
+    makerspace = make_space("direct-return-container-qr")
+    admin = make_admin(makerspace)
+    product = make_product(makerspace)
+    container = Box.objects.create(makerspace=makerspace, label="Return tote")
+    container_qr = QrCode.objects.create(
+        makerspace=makerspace,
+        target_type=QrCode.TargetType.BOX,
+        target_id=container.id,
+    )
+    client = authed(admin)
+    issued = client.post(
+        direct_url(makerspace),
+        direct_payload(
+            container_id=container.id,
+            items=[{"product_id": product.id, "quantity": 1}],
+        ),
+        format="json",
+    )
+    assert issued.status_code == 201
+    loan = PublicToolLoan.objects.get()
+    allow_uploaded(monkeypatch)
+
+    missing_scan = client.post(
+        f"/api/v1/admin/direct-loans/{loan.id}/return",
+        return_body(make_return_evidence(makerspace, admin)),
+        format="json",
+    )
+    assert missing_scan.status_code == 400
+    assert missing_scan.data["detail"] == "Return QR scan is required."
+
+    returned = client.post(
+        f"/api/v1/admin/direct-loans/{loan.id}/return",
+        return_body(make_return_evidence(makerspace, admin), qr_payload=container_qr.payload),
+        format="json",
+    )
+
+    assert returned.status_code == 200
+    assert QrScanEvent.objects.filter(
+        qr_code=container_qr,
+        request=loan.request,
+        context=QrScanEvent.Context.RETURN,
+        actor=admin,
+    ).exists()
 
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)

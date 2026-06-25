@@ -9,8 +9,10 @@ export type DirectLoan = {
   container_label?: string | null;
   due_at: string | null;
   issued_by: { username: string; role: string } | null;
+  issue_evidence_id?: number | null;
   return_evidence_id?: number | null;
   return_notes?: string;
+  return_scan_required?: boolean;
   items: { product_name: string; quantity: number }[];
 };
 
@@ -47,12 +49,19 @@ export function DirectLoanList({
             <p className="mt-2 text-xs text-muted">
               {loan.items.map((item) => `${item.product_name} x${item.quantity}`).join(", ")}
             </p>
-            {loan.status !== "checked_out" && loan.return_evidence_id ? (
+            {loan.issue_evidence_id || (loan.status !== "checked_out" && loan.return_evidence_id) ? (
               <div className="mt-2 flex flex-wrap items-center gap-2">
-                <button className="desk-button text-xs" type="button" onClick={() => openEvidence(loan.return_evidence_id as number)}>
-                  View return photo
-                </button>
-                {loan.return_notes ? <p className="text-xs text-muted">{loan.return_notes}</p> : null}
+                {loan.issue_evidence_id ? (
+                  <button className="desk-button text-xs" type="button" onClick={() => openEvidence(loan.issue_evidence_id as number)}>
+                    View issue photo
+                  </button>
+                ) : null}
+                {loan.status !== "checked_out" && loan.return_evidence_id ? (
+                  <button className="desk-button text-xs" type="button" onClick={() => openEvidence(loan.return_evidence_id as number)}>
+                    View return photo
+                  </button>
+                ) : null}
+                {loan.status !== "checked_out" && loan.return_notes ? <p className="text-xs text-muted">{loan.return_notes}</p> : null}
               </div>
             ) : null}
           </article>

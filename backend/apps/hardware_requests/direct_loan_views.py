@@ -121,6 +121,7 @@ class DirectLoanReturnView(APIView):
             request.user,
             serializer.validated_data["evidence_id"],
             serializer.validated_data["notes"],
+            qr_payload=serializer.validated_data.get("qr_payload", ""),
         )
         return Response(DirectLoanSerializer(returned).data)
 
