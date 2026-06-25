@@ -53,6 +53,21 @@ def _list_limit(request):
     return min(value, MAX_LIST_LIMIT)
 
 
+
+STATUS_PARAM = OpenApiParameter(
+    "status", OpenApiTypes.STR, OpenApiParameter.QUERY,
+    enum=[ToBuyItem.Status.PENDING, ToBuyItem.Status.BOUGHT],
+    description="Filter by procurement item status.",
+)
+
+
+def _apply_status_filter(queryset, request):
+    status = request.query_params.get("status")
+    if status in ToBuyItem.Status.values:
+        return queryset.filter(status=status)
+    return queryset
+
+
 KIND_PARAM = OpenApiParameter(
     "kind", OpenApiTypes.STR, OpenApiParameter.QUERY,
     enum=[ToBuyItem.Kind.HARDWARE, ToBuyItem.Kind.PRINTING],
@@ -74,15 +89,13 @@ class ToBuyListCreateView(generics.ListCreateAPIView):
         if not kinds:
             return ToBuyItem.objects.none()
         limit = _list_limit(self.request)
-        return (
-            ToBuyItem.objects.filter(makerspace_id=makerspace_id, kind__in=kinds)
-            .select_related("created_by")
-            .order_by("-created_at", "-id")[:limit]
-        )
+        queryset = ToBuyItem.objects.filter(makerspace_id=makerspace_id, kind__in=kinds)
+        queryset = _apply_status_filter(queryset, self.request)
+        return queryset.select_related("created_by").order_by("-created_at", "-id")[:limit]
 
     @extend_schema(
         summary="List to-buy items for a makerspace",
-        parameters=[OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY)],
+        parameters=[OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY), STATUS_PARAM],
         responses={200: ToBuyItemSerializer(many=True), **PROCUREMENT_ERROR_RESPONSES},
     )
     def get(self, request, *args, **kwargs):
@@ -188,6 +201,7 @@ class ToBuyExportView(APIView):
 
     @extend_schema(
         summary="Export to-buy items as CSV",
+        parameters=[STATUS_PARAM],
         responses={(200, "text/csv"): OpenApiTypes.STR, **PROCUREMENT_ERROR_RESPONSES},
     )
     def get(self, request, makerspace_id, *args, **kwargs):
@@ -195,8 +209,9 @@ class ToBuyExportView(APIView):
         kinds = access.viewable_kinds(request.user, makerspace_id)
         if not kinds:
             raise PermissionDenied()
+        items = ToBuyItem.objects.filter(makerspace_id=makerspace_id, kind__in=kinds)
         items = (
-            ToBuyItem.objects.filter(makerspace_id=makerspace_id, kind__in=kinds)
+            _apply_status_filter(items, request)
             .select_related("created_by")
             .order_by("-created_at", "-id")
         )

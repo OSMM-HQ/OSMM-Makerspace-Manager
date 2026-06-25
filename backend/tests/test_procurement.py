@@ -149,6 +149,28 @@ def test_cross_tenant_items_are_not_visible():
     assert client.get(detail_url(item_b)).status_code == 404
 
 
+
+
+def test_list_and_export_filter_by_status():
+    space = make_space("proc-status-filter")
+    admin = make_space_manager("proc-status-filter-mgr", space)
+    ToBuyItem.objects.create(makerspace=space, kind=ToBuyItem.Kind.HARDWARE, name="Pending item")
+    ToBuyItem.objects.create(
+        makerspace=space,
+        kind=ToBuyItem.Kind.HARDWARE,
+        name="Bought item",
+        status=ToBuyItem.Status.BOUGHT,
+    )
+
+    client = authenticated_client(admin)
+    listed = client.get(f"{list_url(space)}?status=pending")
+    exported = client.get(f"{export_url(space)}?status=pending")
+
+    assert listed.status_code == 200
+    assert [row["name"] for row in listed.data] == ["Pending item"]
+    body = exported.content.decode()
+    assert "Pending item" in body
+    assert "Bought item" not in body
 def test_export_csv_scoped_to_viewable_kinds():
     space = make_space("proc-csv")
     manager = make_print_manager("proc-csv-mgr", space)

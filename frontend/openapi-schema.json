@@ -10594,6 +10594,18 @@
                             "type": "integer"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "bought",
+                                "pending"
+                            ]
+                        },
+                        "description": "Filter by procurement item status."
                     }
                 ],
                 "tags": [
@@ -10737,6 +10749,18 @@
                             "type": "integer"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "bought",
+                                "pending"
+                            ]
+                        },
+                        "description": "Filter by procurement item status."
                     }
                 ],
                 "tags": [
