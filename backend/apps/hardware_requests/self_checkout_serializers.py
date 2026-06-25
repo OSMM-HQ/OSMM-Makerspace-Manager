@@ -24,6 +24,7 @@ class PublicToolEvidenceUrlRequestSerializer(serializers.Serializer):
     identifier = serializers.CharField(max_length=254)
     evidence_type = serializers.ChoiceField(choices=["issue", "return"])
     content_type = serializers.CharField()
+    size_bytes = serializers.IntegerField(required=False, allow_null=True, min_value=0)
 
 
 class PublicToolLoanItemSerializer(serializers.Serializer):

@@ -7,6 +7,7 @@ from apps.evidence.models import EvidencePhoto
 class EvidenceUrlRequestSerializer(serializers.Serializer):
     evidence_type = serializers.ChoiceField(choices=EvidencePhoto.EvidenceType.choices)
     content_type = serializers.CharField()
+    size_bytes = serializers.IntegerField(required=False, allow_null=True, min_value=0)
 
     def validate_content_type(self, value):
         if value not in settings.EVIDENCE_ALLOWED_MIME:

@@ -21,6 +21,7 @@ export function requestPublicEvidenceUpload(
     identifier: string;
     evidence_type: "issue" | "return";
     content_type: string;
+    size_bytes?: number;
   },
 ) {
   return tenantPublicRequest<PublicEvidenceUploadResponse>(
