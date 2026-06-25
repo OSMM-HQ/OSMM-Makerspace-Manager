@@ -1,3 +1,5 @@
+import { Link } from "react-router-dom";
+
 import { ThemeToggle } from "../../components/ThemeToggle";
 import type { StaffAuthUser } from "../../lib/api";
 import type { Makerspace } from "./StaffPanels";
@@ -17,6 +19,10 @@ export function StaffHeader({
   singleTenantLocked: boolean;
   user: StaffAuthUser;
 }) {
+  const publicInventoryPath = activeMakerspace
+    ? singleTenantLocked ? "/" : "/m/" + activeMakerspace.slug
+    : null;
+
   return (
     <header className="border-b border-line bg-surface px-5 py-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -32,6 +38,11 @@ export function StaffHeader({
           <span className="max-w-full truncate rounded-lg border border-line bg-panel px-3 py-2 font-mono text-xs uppercase text-muted sm:max-w-56">
             {user.username}
           </span>
+          {publicInventoryPath ? (
+            <Link className="desk-button" to={publicInventoryPath}>
+              Public inventory
+            </Link>
+          ) : null}
           {isSuperadmin && !singleTenantLocked ? (
             <button className="desk-button" type="button" onClick={onSwitchMakerspace}>
               Switch makerspace
