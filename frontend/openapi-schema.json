@@ -13139,7 +13139,10 @@
                 "type": "object",
                 "properties": {
                     "id": {
-                        "type": "integer"
+                        "type": "string"
+                    },
+                    "source": {
+                        "type": "string"
                     },
                     "context": {
                         "type": "string"
@@ -13157,7 +13160,8 @@
                     "actor",
                     "context",
                     "created_at",
-                    "id"
+                    "id",
+                    "source"
                 ]
             },
             "ContextEnum": {

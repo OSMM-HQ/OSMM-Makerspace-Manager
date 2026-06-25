@@ -53,7 +53,8 @@ class ContainerContentsSerializer(serializers.Serializer):
 
 
 class ContainerScanHistoryItemSerializer(serializers.Serializer):
-    id = serializers.IntegerField()
+    id = serializers.CharField()
+    source = serializers.CharField()
     context = serializers.CharField()
     actor = serializers.IntegerField(allow_null=True)
     created_at = serializers.DateTimeField()

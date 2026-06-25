@@ -12,7 +12,7 @@ type Contents = {
   assets: { id: number; asset_tag: string; product: string; status: string }[];
   children: Container[];
 };
-type History = { scans: { id: number; context: string; actor: number | null; created_at: string }[] };
+type History = { scans: { id: string; source: string; context: string; actor: number | null; created_at: string }[] };
 
 // Containers had list + create (in QR tools) but no edit/move/contents/history surface in
 // React - they were only manageable in the Django admin. This panel wires the operations
@@ -106,7 +106,7 @@ function ContainerRow({ container, makerspaceId }: { container: Container; maker
           {history.isLoading ? <p className="text-xs text-muted">Loading...</p> : null}
           {history.error instanceof Error ? <p className="text-xs text-danger">{history.error.message}</p> : null}
           {!history.isLoading && !history.error && history.data?.scans.length ? history.data.scans.map((scan) => (
-            <p key={scan.id} className="text-xs text-muted">{new Date(scan.created_at).toLocaleString()} - {scan.context || "scan"}</p>
+            <p key={scan.id} className="text-xs text-muted">{new Date(scan.created_at).toLocaleString()} - {scan.context || "scan"} - {scan.source === "box_scan" ? "reviewed handover" : "QR scan"}</p>
           )) : !history.isLoading && !history.error ? <p className="text-xs text-muted">No scan history.</p> : null}
         </div>
       ) : null}
@@ -131,4 +131,3 @@ function AssetQrRow({ asset }: { asset: { id: number; asset_tag: string; product
     </div>
   );
 }
-

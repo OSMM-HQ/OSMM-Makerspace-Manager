@@ -6,7 +6,7 @@ from openpyxl import load_workbook
 import pytest
 
 from apps.accounts.models import User
-from apps.boxes.models import Box, QrCode
+from apps.boxes.models import Box, BoxScan, QrCode, QrScanEvent
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 from apps.operations.models import (
     InventoryAdjustment,
@@ -577,6 +577,42 @@ def test_reports_export_prefixes_formula_cells():
     workbook = load_workbook(io.BytesIO(xlsx_response.content))
     assert workbook.active["A2"].value.startswith("'=")
 
+
+def test_container_history_merges_reviewed_handover_and_qr_scan_events():
+    makerspace = make_space("ops-container-history")
+    manager = make_member("ops-container-history-manager", makerspace)
+    box = make_box(makerspace, "History Bin")
+    qr = QrCode.objects.create(
+        makerspace=makerspace,
+        payload=box.code,
+        target_type=QrCode.TargetType.BOX,
+        target_id=box.id,
+        created_by=manager,
+    )
+    BoxScan.objects.create(
+        makerspace=makerspace,
+        box=box,
+        request=None,
+        actor=manager,
+        context=BoxScan.Context.ISSUE,
+    )
+    QrScanEvent.objects.create(
+        makerspace=makerspace,
+        qr_code=qr,
+        request=None,
+        actor=manager,
+        context=QrScanEvent.Context.RETURN,
+    )
+
+    response = authenticated_client(manager).get(f"/api/v1/admin/containers/{box.id}/history")
+
+    assert response.status_code == 200
+    sources = {scan["source"] for scan in response.data["scans"]}
+    assert sources == {"box_scan", "qr_scan_event"}
+    assert {scan["id"].split(":", 1)[0] for scan in response.data["scans"]} == {"box", "qr"}
+    assert {scan["context"] for scan in response.data["scans"]} == {"issue", "return"}
+
+
 def test_asset_generation_creates_qr_labels_in_print_batch():
     makerspace = make_space("ops-assets")
     manager = make_member("ops-assets-manager", makerspace)
@@ -906,7 +942,3 @@ def test_destination_manager_can_retrieve_incoming_stock_transfer():
     assert [row["id"] for row in rows] == [transfer_id]
     assert detail_response.status_code == 200
     assert detail_response.data["id"] == transfer_id
-
-
-
-

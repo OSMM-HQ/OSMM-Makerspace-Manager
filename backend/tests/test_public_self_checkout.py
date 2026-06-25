@@ -2,6 +2,8 @@ import pytest
 from django.test import override_settings
 from rest_framework.test import APIClient
 
+from apps.audit.models import AuditLog
+
 from apps.boxes.models import Box, QrCode, QrScanEvent
 from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests.models import HardwareRequest, PublicToolLoan
@@ -61,6 +63,10 @@ def return_url(makerspace):
 
 def api_client():
     return APIClient(REMOTE_ADDR="10.20.30.40")
+
+
+def evidence_url(makerspace):
+    return f"/api/v1/public/{makerspace.slug}/tools/evidence-url"
 
 
 def checkout_payload(payload, **overrides):
@@ -384,3 +390,30 @@ def test_public_return_requires_same_verified_user():
 
 
 
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_public_self_checkout_evidence_upload_url_is_audited(monkeypatch):
+    makerspace = make_space("checkout-evidence-audit")
+    monkeypatch.setattr(
+        "apps.hardware_requests.self_checkout_views.presigned_upload",
+        lambda object_key, content_type: {"url": "https://storage.test/upload", "fields": {"key": object_key}},
+    )
+
+    response = api_client().post(
+        evidence_url(makerspace),
+        {
+            "identifier": "member-1@example.com",
+            "evidence_type": EvidencePhoto.EvidenceType.ISSUE,
+            "content_type": "image/png",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 201
+    photo = EvidencePhoto.objects.get(pk=response.data["evidence_id"])
+    event = AuditLog.objects.get(action="evidence.upload_url_issued")
+    assert event.makerspace == makerspace
+    assert event.actor == photo.uploaded_by
+    assert event.target_type == "evidence.evidencephoto"
+    assert event.target_id == str(photo.id)
+    assert event.meta == {"surface": "public_self_checkout", "type": EvidencePhoto.EvidenceType.ISSUE}

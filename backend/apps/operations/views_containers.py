@@ -17,7 +17,7 @@ class ContainerPagination(PageNumberPagination):
 from apps.accounts import rbac
 from apps.admin_api.permissions import IsActiveStaff, require_action
 from apps.audit import services as audit
-from apps.boxes.models import Box, QrCode, QrScanEvent
+from apps.boxes.models import Box, BoxScan, QrCode, QrScanEvent
 from apps.boxes.serializers import BoxSerializer
 from apps.makerspaces.guards import require_module
 from apps.operations.serializers import (
@@ -142,5 +142,36 @@ class ContainerHistoryView(APIView):
     def get(self, request, pk, *args, **kwargs):
         box = get_object_or_404(rbac.scope_by_action(request.user, rbac.Action.VIEW_INVENTORY, Box.objects.all()), pk=pk)
         require_module(box.makerspace, "containers")
-        scans = QrScanEvent.objects.filter(makerspace=box.makerspace, qr_code__target_type=QrCode.TargetType.BOX, qr_code__target_id=box.id).order_by("-created_at")[:100]
-        return Response({"container": box.id, "scans": [{"id": s.id, "context": s.context, "actor": s.actor_id, "created_at": s.created_at} for s in scans]})
+        qr_scans = [
+            {
+                "id": f"qr:{scan.id}",
+                "source": "qr_scan_event",
+                "context": scan.context,
+                "actor": scan.actor_id,
+                "created_at": scan.created_at,
+            }
+            for scan in QrScanEvent.objects.filter(
+                makerspace=box.makerspace,
+                qr_code__target_type=QrCode.TargetType.BOX,
+                qr_code__target_id=box.id,
+            ).order_by("-created_at")[:100]
+        ]
+        box_scans = [
+            {
+                "id": f"box:{scan.id}",
+                "source": "box_scan",
+                "context": scan.context,
+                "actor": scan.actor_id,
+                "created_at": scan.created_at,
+            }
+            for scan in BoxScan.objects.filter(
+                makerspace=box.makerspace,
+                box=box,
+            ).order_by("-created_at")[:100]
+        ]
+        scans = sorted(
+            [*qr_scans, *box_scans],
+            key=lambda scan: scan["created_at"],
+            reverse=True,
+        )[:100]
+        return Response({"container": box.id, "scans": scans})

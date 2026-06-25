@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import User
 from apps.apiclients.throttling import ClientTierRateThrottle
+from apps.audit import services as audit
 from apps.hardware_requests import self_checkout_workflow
 from apps.hardware_requests.self_checkout_serializers import (
     PublicToolCheckoutSerializer,
@@ -66,6 +67,13 @@ class PublicToolEvidenceUploadUrlView(APIView):
             evidence_type=data["evidence_type"],
             object_key=object_key,
             uploaded_by=requester,
+        )
+        audit.record(
+            requester,
+            "evidence.upload_url_issued",
+            makerspace=makerspace,
+            target=photo,
+            meta={"surface": "public_self_checkout", "type": data["evidence_type"]},
         )
         response = {
             "evidence_id": photo.pk,
@@ -142,6 +150,3 @@ class PublicToolReturnView(APIView):
 def _require_module(makerspace, module_key):
     if not module_enabled(makerspace, module_key):
         raise ValidationError({"module": f"{module_key} is disabled for this makerspace."})
-
-
-
