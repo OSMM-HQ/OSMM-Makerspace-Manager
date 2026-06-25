@@ -57,6 +57,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
   const [qrConfirm, setQrConfirm] = useState<boolean | null>(null);
   const [bulkQrMessage, setBulkQrMessage] = useState("");
   const [showArchived, setShowArchived] = useState(false);
+  const [showLowStock, setShowLowStock] = useState(false);
   const debouncedSearch = useDebouncedValue(search);
   useEffect(() => {
     setSearch(readStorage(`inventory.view.${makerspace.id}`));
@@ -75,9 +76,11 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
     setQrConfirm(null);
     setBulkQrMessage("");
     setShowArchived(false);
+    setShowLowStock(false);
   }, [makerspace.id]);
-  const inventoryQuery = `/admin/makerspace/${makerspace.id}/inventory?page_size=1000&archived=${showArchived ? "true" : "false"}&q=${encodeURIComponent(debouncedSearch)}`;
-  const products = useStaffGet<{ results: AdminProduct[] }>(["inventory", makerspace.id, showArchived ? "archived" : "active", debouncedSearch], inventoryQuery);
+  const lowStockParam = showLowStock ? "&low_stock=true" : "";
+  const inventoryQuery = `/admin/makerspace/${makerspace.id}/inventory?page_size=1000&archived=${showArchived ? "true" : "false"}&q=${encodeURIComponent(debouncedSearch)}${lowStockParam}`;
+  const products = useStaffGet<{ results: AdminProduct[] }>(["inventory", makerspace.id, showArchived ? "archived" : "active", showLowStock ? "low" : "all", debouncedSearch], inventoryQuery);
   const categories = useStaffGet<CategoryListResponse>(["categories", makerspace.id], `/admin/makerspace/${makerspace.id}/categories`);
   const invalidate = () => {
     invalidateInventoryViews(queryClient, makerspace.id, makerspace.slug);
@@ -154,7 +157,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
   };
   const openToBuy = (product: AdminProduct) => {
     setToBuyTarget(product);
-    setToBuyQty("1");
+    setToBuyQty(defaultToBuyQuantity(product));
     setToBuyMessage("");
   };
   const toBuy = useMutation({
@@ -214,6 +217,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
             <>
               <button className="desk-button" type="button" onClick={() => { setForm(emptyForm); setAddOpen(true); }}>Add item</button>
               <button className="desk-button" type="button" onClick={() => setShowArchived((value) => !value)}>{showArchived ? "Show active" : "Show archived"}</button>
+              <button className="desk-button" type="button" onClick={() => setShowLowStock((value) => !value)}>{showLowStock ? "All stock" : "Low stock"}</button>
               <button className="desk-button" type="button" onClick={() => writeStorage(storageKey, search)}>Save view</button>
               <button className="desk-button" type="button" disabled={!selectedIds.length || bulkQr.isPending} onClick={() => { setBulkQrMessage(""); setQrConfirm(true); }}>Enable QR</button>
               <button className="desk-button" type="button" disabled={!selectedIds.length || bulkQr.isPending} onClick={() => { setBulkQrMessage(""); setQrConfirm(false); }}>Disable QR</button>
@@ -418,8 +422,14 @@ function formFromProduct(product: AdminProduct): ItemForm {
 }
 
 function InventoryAvailability({ product, canUseToBuy = false, onAddToBuy }: { product: AdminProduct; canUseToBuy?: boolean; onAddToBuy: (product: AdminProduct) => void }) {
-  const badge = product.available_quantity <= 0 ? <StatusBadge status="lost" label="Unavailable" /> : product.available_quantity <= Math.ceil(product.total_quantity * 0.2) ? <StatusBadge status="limited" label="Limited" /> : <StatusBadge status="available" label="Available" />;
-  return <span className="inline-flex items-center gap-2"><span className="font-medium text-ink">{product.available_quantity}</span>{badge}{canUseToBuy && product.available_quantity <= 0 ? <button className="text-xs font-semibold text-accent-ink hover:text-ink" type="button" onClick={() => onAddToBuy(product)}>Add to To Buy</button> : null}</span>;
+  const isLowStock = product.available_quantity <= Math.ceil(product.total_quantity * 0.2);
+  const badge = product.available_quantity <= 0 ? <StatusBadge status="lost" label="Unavailable" /> : isLowStock ? <StatusBadge status="limited" label="Limited" /> : <StatusBadge status="available" label="Available" />;
+  return <span className="inline-flex items-center gap-2"><span className="font-medium text-ink">{product.available_quantity}</span>{badge}{canUseToBuy && isLowStock ? <button className="text-xs font-semibold text-accent-ink hover:text-ink" type="button" onClick={() => onAddToBuy(product)}>Add to To Buy</button> : null}</span>;
+}
+
+function defaultToBuyQuantity(product: AdminProduct) {
+  const target = Math.ceil(product.total_quantity * 0.2) + 1;
+  return String(Math.max(1, target - product.available_quantity));
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {

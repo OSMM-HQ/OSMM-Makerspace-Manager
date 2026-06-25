@@ -1,4 +1,4 @@
-from django.db.models import Q
+from django.db.models import F, Q
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import generics
@@ -62,6 +62,10 @@ class InventoryListCreateView(generics.ListCreateAPIView):
                 | Q(tracking_mode__icontains=q)
                 | Q(storage_location__icontains=q)
                 | Q(category__name__icontains=q)
+            )
+        if self.request.query_params.get("low_stock") == "true":
+            qs = qs.annotate(available_x5=F("available_quantity") * 5).filter(
+                available_x5__lte=F("total_quantity")
             )
         return qs
 

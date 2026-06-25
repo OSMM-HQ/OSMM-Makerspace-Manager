@@ -545,6 +545,37 @@ def test_inventory_list_filters_before_pagination():
     assert response.data["results"][0]["id"] == target.id
 
 
+def test_inventory_list_filters_low_stock_before_pagination():
+    makerspace = make_space("inventory-low-stock")
+    admin = make_member("inventory-low-stock-admin", makerspace)
+    low = make_product(
+        makerspace,
+        name="Low Resin",
+        total_quantity=10,
+        available_quantity=2,
+    )
+    make_product(
+        makerspace,
+        name="Healthy Resin",
+        total_quantity=10,
+        available_quantity=8,
+    )
+    make_product(
+        makerspace,
+        name="Z Empty Resin",
+        total_quantity=0,
+        available_quantity=0,
+    )
+
+    response = authenticated_client(admin).get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/inventory?page_size=1&low_stock=true"
+    )
+
+    assert response.status_code == 200
+    assert response.data["count"] == 2
+    assert response.data["results"][0]["id"] == low.id
+
+
 def test_inventory_list_filters_archived_state():
     makerspace = make_space("inventory-archived-filter")
     admin = make_member("inventory-archived-filter-admin", makerspace)
@@ -563,6 +594,7 @@ def test_inventory_list_filters_archived_state():
     assert archived_response.status_code == 200
     assert [item["id"] for item in active_response.data["results"]] == [active.id]
     assert [item["id"] for item in archived_response.data["results"]] == [archived.id]
+
 
 def test_inventory_create_api_writes_product_and_audit():
     makerspace = make_space("inventory-create")
