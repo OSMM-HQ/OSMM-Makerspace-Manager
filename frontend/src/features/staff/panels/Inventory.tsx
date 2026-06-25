@@ -53,6 +53,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
   const [fixQty, setFixQty] = useState("1");
   const [qrConfirm, setQrConfirm] = useState<boolean | null>(null);
   const [bulkQrMessage, setBulkQrMessage] = useState("");
+  const [showArchived, setShowArchived] = useState(false);
   const debouncedSearch = useDebouncedValue(search);
   useEffect(() => {
     setSearch(readStorage(`inventory.view.${makerspace.id}`));
@@ -70,6 +71,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
     setFixQty("1");
     setQrConfirm(null);
     setBulkQrMessage("");
+    setShowArchived(false);
   }, [makerspace.id]);
   const products = useStaffGet<{ results: AdminProduct[] }>(["inventory", makerspace.id], `/admin/makerspace/${makerspace.id}/inventory`);
   const categories = useStaffGet<CategoryListResponse>(["categories", makerspace.id], `/admin/makerspace/${makerspace.id}/categories`);
@@ -95,6 +97,10 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
   const archive = useMutation({
     mutationFn: (product: AdminProduct) => staffRequest(`/admin/inventory/${product.id}`, { method: "PATCH", body: JSON.stringify({ is_archived: true }) }),
     onSuccess: () => { setArchiveTarget(null); invalidate(); },
+  });
+  const unarchive = useMutation({
+    mutationFn: (product: AdminProduct) => staffRequest(`/admin/inventory/${product.id}`, { method: "PATCH", body: JSON.stringify({ is_archived: false }) }),
+    onSuccess: () => invalidate(),
   });
   const moveToFix = useMutation({
     mutationFn: () => {
@@ -167,9 +173,10 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
   const rows = useMemo(() => {
     const normalizedSearch = debouncedSearch.toLowerCase();
     return (products.data?.results ?? []).filter((product) =>
-      [product.name, product.description, product.tracking_mode, product.storage_location].join(" ").toLowerCase().includes(normalizedSearch),
+      product.is_archived === showArchived &&
+      [product.name, product.description, product.tracking_mode, product.storage_location, product.is_archived ? "archived" : "active"].join(" ").toLowerCase().includes(normalizedSearch),
     );
-  }, [debouncedSearch, products.data?.results]);
+  }, [debouncedSearch, products.data?.results, showArchived]);
   const categoryRows = categoryResults(categories.data);
   const openEdit = (product: AdminProduct) => {
     setEditing(product);
@@ -183,7 +190,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
       </div>
     ) },
     { key: "name", header: "Name", sortable: true, render: (product) => <button type="button" className="text-left font-semibold text-ink hover:text-accent-ink" onClick={() => openEdit(product)}>{product.name}</button> },
-    { key: "tracking_mode", header: "Mode", sortable: true },
+    { key: "tracking_mode", header: "Mode", sortable: true, render: (product) => <span className="inline-flex items-center gap-2"><span>{product.tracking_mode}</span>{product.is_archived ? <StatusBadge status="archived" label="Archived" /> : null}</span> },
     { key: "total_quantity", header: "Total", sortable: true },
     { key: "available_quantity", header: "Available", sortable: true, render: (product) => <InventoryAvailability product={product} canUseToBuy={canUseToBuy} onAddToBuy={openToBuy} /> },
     { key: "issued_quantity", header: "Issued", sortable: true },
@@ -192,8 +199,8 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
     { key: "actions", header: "", render: (product) => (
       <div className="desk-actions flex flex-wrap gap-2">
         <button className="desk-button" type="button" onClick={() => openEdit(product)}>Edit</button>
-        <button className="desk-button" type="button" disabled={product.tracking_mode === "individual" ? product.available_quantity + product.damaged_quantity <= 0 : product.available_quantity <= 0} onClick={() => openFix(product)}>To Fix</button>
-        <button className="desk-button" type="button" onClick={() => setArchiveTarget(product)}>Archive</button>
+        {!product.is_archived ? <button className="desk-button" type="button" disabled={product.tracking_mode === "individual" ? product.available_quantity + product.damaged_quantity <= 0 : product.available_quantity <= 0} onClick={() => openFix(product)}>To Fix</button> : null}
+        {product.is_archived ? <button className="desk-button" type="button" disabled={unarchive.isPending} onClick={() => unarchive.mutate(product)}>Unarchive</button> : <button className="desk-button" type="button" onClick={() => setArchiveTarget(product)}>Archive</button>}
         {canUseToBuy ? <button className="desk-button" type="button" onClick={() => openToBuy(product)}>To Buy</button> : null}
       </div>
     ) },
@@ -208,13 +215,14 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
           actions={(
             <>
               <button className="desk-button" type="button" onClick={() => { setForm(emptyForm); setAddOpen(true); }}>Add item</button>
+              <button className="desk-button" type="button" onClick={() => setShowArchived((value) => !value)}>{showArchived ? "Show active" : "Show archived"}</button>
               <button className="desk-button" type="button" onClick={() => writeStorage(storageKey, search)}>Save view</button>
               <button className="desk-button" type="button" disabled={!selectedIds.length || bulkQr.isPending} onClick={() => { setBulkQrMessage(""); setQrConfirm(true); }}>Enable QR</button>
               <button className="desk-button" type="button" disabled={!selectedIds.length || bulkQr.isPending} onClick={() => { setBulkQrMessage(""); setQrConfirm(false); }}>Disable QR</button>
             </>
           )}
         />
-        <DataTable<AdminProduct> columns={columns} data={rows} getRowId={(row) => row.id} selectedIds={selectedIds} onSelectionChange={setSelectedIds} loading={products.isLoading} emptyTitle="No inventory" skeletonCols={columns.length + 1} />
+        <DataTable<AdminProduct> columns={columns} data={rows} getRowId={(row) => row.id} selectedIds={selectedIds} onSelectionChange={setSelectedIds} loading={products.isLoading} emptyTitle={showArchived ? "No archived inventory" : "No active inventory"} skeletonCols={columns.length + 1} />
         {toBuyMessage ? <p className="text-sm text-muted">{toBuyMessage}</p> : null}
         {bulkQrMessage ? <p className="text-sm text-muted">{bulkQrMessage}</p> : null}
       </div>
@@ -244,7 +252,8 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
       </Modal>
       <Modal open={Boolean(assetFixTarget)} onClose={() => setAssetFixTarget(null)} title={assetFixTarget ? `Choose Asset to Fix - ${assetFixTarget.name}` : "Choose Asset to Fix"} footer={<div className="desk-actions flex flex-wrap justify-end gap-2"><button className="desk-button" type="button" onClick={() => setAssetFixTarget(null)}>Close</button></div>}>
         {assetFixTarget ? <IndividualAssets productId={assetFixTarget.id} makerspaceId={makerspace.id} refreshInventory={invalidate} /> : null}
-      </Modal>      <ConfirmDialog open={Boolean(archiveTarget)} title="Archive item" message={archiveTarget ? `Archive ${archiveTarget.name}? It will be hidden from active inventory views.` : ""} confirmLabel="Archive" tone="danger" pending={archive.isPending} onCancel={() => setArchiveTarget(null)} onConfirm={() => { if (archiveTarget) archive.mutate(archiveTarget); }} />
+      </Modal>
+      <ConfirmDialog open={Boolean(archiveTarget)} title="Archive item" message={archiveTarget ? `Archive ${archiveTarget.name}? It will be hidden from active inventory views.` : ""} confirmLabel="Archive" tone="danger" pending={archive.isPending} onCancel={() => setArchiveTarget(null)} onConfirm={() => { if (archiveTarget) archive.mutate(archiveTarget); }} />
       <ConfirmDialog open={qrConfirm !== null} title={qrConfirm ? "Enable public QR" : "Disable public QR"} message={`${qrConfirm ? "Enable" : "Disable"} public self-checkout QR for ${selectedIds.length} selected items?`} confirmLabel={qrConfirm ? "Enable" : "Disable"} pending={bulkQr.isPending} onCancel={() => setQrConfirm(null)} onConfirm={() => { if (qrConfirm !== null) bulkQr.mutate(qrConfirm); }} />
     </Panel>
   );
