@@ -35,6 +35,7 @@ export type Product = {
   tracking_mode: string;
   is_public: boolean;
   public_self_checkout_enabled: boolean;
+  is_archived?: boolean;
   image_url?: string | null;
 };
 

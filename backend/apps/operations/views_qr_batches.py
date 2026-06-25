@@ -3,6 +3,7 @@ from django.shortcuts import get_object_or_404
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import generics, status
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -77,6 +78,8 @@ class QrPrintBatchItemView(APIView):
         serializer = QrPrintBatchItemCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         qr = get_object_or_404(QrCode, pk=serializer.validated_data["qr_code_id"], makerspace=batch.makerspace)
+        if qr.target_type not in {QrCode.TargetType.PRODUCT, QrCode.TargetType.ASSET}:
+            raise ValidationError("QR print batches only accept inventory item or unit QR codes.")
         item = services.add_qr_to_batch(
             batch,
             qr,

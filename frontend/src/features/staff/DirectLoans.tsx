@@ -90,11 +90,8 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   const containerOptions = Array.isArray(containers.data)
     ? containers.data
     : containers.data?.results ?? [];
-  // Manual (non-QR) direct handout accepts non-archived quantity products. Asset/individual items must be
-  // QR-scanned instead, so don't offer rejectable options in the manual dropdown.
-  const eligibleProducts = (products.data?.results ?? []).filter(
-    (product) => !product.is_archived && product.tracking_mode !== "individual",
-  );
+  const activeProducts = (products.data?.results ?? []).filter((product) => !product.is_archived);
+  const productById = new Map(activeProducts.map((product) => [product.id, product]));
   const loans = useStaffGet<{ results: DirectLoan[] }>(
     ["direct-loans", makerspace.id],
     `/admin/makerspace/${makerspace.id}/direct-loans`,
@@ -152,9 +149,10 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
     },
   });
   const pastedQrPayloads = qrPayloads.split("\n").map((value) => value.trim()).filter(Boolean);
-  const validManualLines = lineRows.filter(
-    (line) => line.productId && Number(line.quantity) > 0,
-  );
+  const validManualLines = lineRows.filter((line) => {
+    const product = productById.get(Number(line.productId));
+    return Boolean(product) && product?.tracking_mode !== "individual" && Number(line.quantity) > 0;
+  });
   const hasIssueContent =
     validManualLines.length > 0 || scanned.length > 0 || pastedQrPayloads.length > 0 || Boolean(containerId);
   const canIssue =
@@ -328,21 +326,26 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
             <button className="desk-button" type="button" onClick={addLine}>Add item</button>
           </div>
           <div className="grid gap-2">
-            {lineRows.map((line) => (
-              <div key={line.key} className="grid gap-2 md:grid-cols-[1fr_120px_auto]">
-                <select aria-label="Product" className="desk-input" value={line.productId} disabled={products.isLoading} onChange={(e) => updateLine(line.key, { productId: e.target.value })}>
-                  <option value="">Product</option>
-                  {eligibleProducts.map((product) => (
-                    <option key={product.id} value={product.id}>
-                      {product.name} ({product.available_quantity} available)
-                      {product.storage_location ? ` - Shelf: ${product.storage_location}` : ""}
-                    </option>
-                  ))}
-                </select>
-                <input aria-label="Quantity" className="desk-input" min={1} inputMode="numeric" type="number" value={line.quantity} onChange={(e) => updateLine(line.key, { quantity: e.target.value })} />
-                <button className="desk-button" type="button" onClick={() => removeLine(line.key)}>Remove</button>
-              </div>
-            ))}
+            {lineRows.map((line) => {
+              const selectedLineProduct = productById.get(Number(line.productId));
+              const selectedIndividual = selectedLineProduct?.tracking_mode === "individual";
+              return (
+                <div key={line.key} className="grid gap-2 md:grid-cols-[1fr_120px_auto]">
+                  <select aria-label="Product" className="desk-input" value={line.productId} disabled={products.isLoading} onChange={(e) => updateLine(line.key, { productId: e.target.value })}>
+                    <option value="">Inventory item</option>
+                    {activeProducts.map((product) => (
+                      <option key={product.id} value={product.id}>
+                        {product.name} | {product.tracking_mode} | {product.available_quantity} available
+                        {product.storage_location ? ` - Shelf: ${product.storage_location}` : ""}
+                      </option>
+                    ))}
+                  </select>
+                  <input aria-label="Quantity" className="desk-input" min={1} inputMode="numeric" type="number" value={line.quantity} disabled={selectedIndividual} onChange={(e) => updateLine(line.key, { quantity: e.target.value })} />
+                  <button className="desk-button" type="button" onClick={() => removeLine(line.key)}>Remove</button>
+                  {selectedLineProduct ? <p className="font-mono text-xs uppercase text-muted md:col-span-3">{selectedLineProduct.tracking_mode}{selectedIndividual ? " | scan unit QR" : ""}</p> : null}
+                </div>
+              );
+            })}
           </div>
         </div>
         <div className="mt-4">
@@ -416,9 +419,9 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
 }
 
 function labelForTarget(target: QrResolveResponse["target"], fallback: string) {
-  if (target.type === "product") return target.name || fallback;
-  if (target.type === "asset") return target.product || target.asset_tag || fallback;
-  return target.label || target.code || fallback;
+  if (target.type === "product") return `Item: ${target.name || fallback}`;
+  if (target.type === "asset") return `Unit: ${target.product} | ${target.asset_tag} | ${target.status}`;
+  return `Container: ${target.label || target.code || fallback}`;
 }
 
 

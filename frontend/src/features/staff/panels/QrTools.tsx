@@ -6,42 +6,40 @@ import { Modal } from "../../../components/ui/Modal";
 import { downloadStaffFile, staffRequest } from "../../../lib/api";
 import { Panel, type Makerspace, type Product, useStaffGet } from "./shared";
 import { QrImage } from "./QrImage";
-import { invalidateContainerViews, invalidateInventoryViews, invalidateQrViews } from "../queryInvalidation";
+import { invalidateInventoryViews, invalidateQrViews } from "../queryInvalidation";
 
 type ListResponse<T> = { results: T[] };
-type Container = { id: number; code: string; label: string; location: string; qr_code_id: number | null };
 type QrCode = { id: number; payload: string; target_type: string; target_id: number };
 type Batch = { id: number; title: string; status: string; created_at: string };
 type BatchItem = { id: number; qr_code: QrCode; label_text: string; target_type: string; target_id: number };
 type BatchDetail = Batch & { items: BatchItem[] };
+
 export function QrTools({ makerspace }: { makerspace: Makerspace }) {
   const queryClient = useQueryClient();
   const [batchId, setBatchId] = useState("");
   const [batchTitle, setBatchTitle] = useState("QR labels");
-  const [boxId, setBoxId] = useState("");
-  const [boxLabel, setBoxLabel] = useState("");
-  const [boxLocation, setBoxLocation] = useState("");
   const [productId, setProductId] = useState("");
-  const [assetProductId, setAssetProductId] = useState("");
   const [assetCount, setAssetCount] = useState("50");
   const [assetPrefix, setAssetPrefix] = useState("");
   const [batchModalOpen, setBatchModalOpen] = useState(false);
-  const [boxModalOpen, setBoxModalOpen] = useState(false);
   const batches = useStaffGet<ListResponse<Batch>>(["qr-batches", makerspace.id], `/admin/makerspace/${makerspace.id}/qr-print-batches`);
   const products = useStaffGet<ListResponse<Product>>(["inventory", makerspace.id], `/admin/makerspace/${makerspace.id}/inventory?page_size=1000`);
-  const containers = useStaffGet<ListResponse<Container>>(["containers", makerspace.id], `/admin/makerspace/${makerspace.id}/containers?page_size=1000`);
   const activeBatchId = Number(batchId) || 0;
   const batch = useStaffGet<BatchDetail>(["qr-batch", activeBatchId], `/admin/qr-print-batches/${activeBatchId}`, Boolean(activeBatchId));
+
   useEffect(() => {
     if (!batchId && batches.data?.results?.length) {
       setBatchId(String(batches.data.results[0].id));
     }
   }, [batchId, batches.data?.results]);
 
-  const selectedAssetProduct = useMemo(
-    () => products.data?.results?.find((product) => product.id === Number(assetProductId)),
-    [assetProductId, products.data?.results],
+  const productOptions = products.data?.results?.filter((product) => !product.is_archived) ?? [];
+  const selectedProduct = useMemo(
+    () => productOptions.find((product) => product.id === Number(productId)),
+    [productId, productOptions],
   );
+  const selectedIsIndividual = selectedProduct?.tracking_mode === "individual";
+
   const refreshBatch = () => {
     queryClient.invalidateQueries({ queryKey: ["qr-batches", makerspace.id] });
     if (activeBatchId) queryClient.invalidateQueries({ queryKey: ["qr-batch", activeBatchId] });
@@ -64,56 +62,30 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
       body: JSON.stringify({ qr_code_id: qrCodeId, label_text: labelText }),
     });
   };
-  const addExistingBox = useMutation({
-    mutationFn: async () => {
-      const box = containers.data?.results?.find((item) => item.id === Number(boxId));
-      if (!box) throw new Error("Choose a box to add.");
-      if (!box.qr_code_id) throw new Error("This box has no QR code.");
-      await addItem(box.qr_code_id, box.label);
-      return box;
-    },
-    onSuccess: refreshBatch,
-  });
-  const createBox = useMutation({
-    mutationFn: async () => {
-      const box = await staffRequest<Container>("/admin/qr/containers", {
-        method: "POST",
-        body: JSON.stringify({ makerspace_id: makerspace.id, label: boxLabel.trim(), location: boxLocation.trim() }),
-      });
-      if (!box.qr_code_id) throw new Error("Box created without a QR code.");
-      await addItem(box.qr_code_id, box.label);
-      return box;
-    },
-    onSuccess: (box) => {
-      setBoxLabel("");
-      setBoxLocation("");
-      setBoxModalOpen(false);
-      invalidateContainerViews(queryClient, makerspace.id, box.id);
-      refreshBatch();
-    },
-  });
   const addProduct = useMutation({
     mutationFn: async () => {
-      const product = products.data?.results?.find((item) => item.id === Number(productId));
-      if (!product) throw new Error("Choose a product to add.");
+      if (!selectedProduct) throw new Error("Choose an inventory item.");
+      if (selectedProduct.tracking_mode === "individual") throw new Error("Generate unit QRs for individual inventory.");
       const qr = await staffRequest<QrCode>("/admin/qr/tools", {
         method: "POST",
-        body: JSON.stringify({ makerspace_id: makerspace.id, product_id: product.id }),
+        body: JSON.stringify({ makerspace_id: makerspace.id, product_id: selectedProduct.id }),
       });
-      await addItem(qr.id, product.name);
+      await addItem(qr.id, selectedProduct.name);
     },
     onSuccess: refreshBatch,
   });
   const generateAssets = useMutation({
-    mutationFn: () =>
-      staffRequest(`/admin/products/${Number(assetProductId)}/assets/generate`, {
+    mutationFn: () => {
+      if (!selectedProduct) return Promise.reject(new Error("Choose an inventory item."));
+      return staffRequest(`/admin/products/${selectedProduct.id}/assets/generate`, {
         method: "POST",
         body: JSON.stringify({
           count: Number(assetCount),
-          name_prefix: assetPrefix.trim() || selectedAssetProduct?.name,
+          name_prefix: assetPrefix.trim() || selectedProduct.name,
           print_batch_id: activeBatchId,
         }),
-      }),
+      });
+    },
     onSuccess: () => {
       invalidateInventoryViews(queryClient, makerspace.id);
       invalidateQrViews(queryClient, makerspace.id);
@@ -130,12 +102,12 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
   const hasBatch = Boolean(activeBatchId);
   const batchItems = batch.data?.items ?? [];
   const count = Number(assetCount);
-  const productOptions = products.data?.results ?? [];
-  const quantityProducts = productOptions.filter((product) => product.tracking_mode !== "individual");
-  const canGenerateAssets = hasBatch && Boolean(assetProductId) && Number.isInteger(count) && count > 0 && count <= 200;
-  const selectAssetProduct = (nextId: string) => {
-    setAssetProductId(nextId);
-    setAssetPrefix(productOptions.find((product) => product.id === Number(nextId))?.name ?? "");
+  const canGenerateAssets = hasBatch && Boolean(selectedProduct) && selectedIsIndividual && Number.isInteger(count) && count > 0 && count <= 200;
+  const canAddItemQr = hasBatch && Boolean(selectedProduct) && !selectedIsIndividual;
+  const selectProduct = (nextId: string) => {
+    setProductId(nextId);
+    const product = productOptions.find((item) => item.id === Number(nextId));
+    setAssetPrefix(product?.name ?? "");
   };
 
   return (
@@ -158,49 +130,32 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
           {batches.isError ? <ErrorText text={batches.error.message} /> : null}
         </div>
 
-        <div className="grid gap-3 lg:grid-cols-3">
-          <ActionBox title="Inventory item QR">
-            <select className="desk-input w-full" value={productId} disabled={!hasBatch || products.isLoading} onChange={(event) => setProductId(event.target.value)}>
-              <option value="">Quantity item</option>
-              {quantityProducts.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
-            </select>
-            <button className="desk-button mt-2" type="button" disabled={!hasBatch || !productId || addProduct.isPending} onClick={() => addProduct.mutate()}>
-              {addProduct.isPending ? "Adding..." : "Add item QR"}
-            </button>
-            {addProduct.isError ? <ErrorText text={addProduct.error.message} /> : null}
-          </ActionBox>
-
-          <ActionBox title="Individual unit QRs">
-            <select className="desk-input w-full" value={assetProductId} disabled={!hasBatch || products.isLoading} onChange={(event) => selectAssetProduct(event.target.value)}>
-              <option value="">Inventory item</option>
-              {productOptions.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
-            </select>
-            <div className="mt-2 grid grid-cols-[90px_1fr] gap-2">
+        <ActionBox title="Inventory QR">
+          <select className="desk-input w-full" value={productId} disabled={!hasBatch || products.isLoading} onChange={(event) => selectProduct(event.target.value)}>
+            <option value="">Inventory item</option>
+            {productOptions.map((product) => (
+              <option key={product.id} value={product.id}>
+                {product.name} | {product.tracking_mode} | {product.available_quantity} available
+              </option>
+            ))}
+          </select>
+          {selectedProduct ? <p className="mt-2 font-mono text-xs uppercase text-muted">{selectedProduct.tracking_mode}</p> : null}
+          {selectedIsIndividual ? (
+            <div className="mt-2 grid gap-2 sm:grid-cols-[110px_1fr_auto]">
               <input className="desk-input" inputMode="numeric" value={assetCount} onChange={(event) => setAssetCount(event.target.value)} />
               <input className="desk-input" value={assetPrefix} placeholder="Label prefix" onChange={(event) => setAssetPrefix(event.target.value)} />
+              <button className="desk-button" type="button" disabled={!canGenerateAssets || generateAssets.isPending} onClick={() => generateAssets.mutate()}>
+                {generateAssets.isPending ? "Generating..." : "Generate unit QRs"}
+              </button>
             </div>
-            <button className="desk-button mt-2" type="button" disabled={!canGenerateAssets || generateAssets.isPending} onClick={() => generateAssets.mutate()}>
-              {generateAssets.isPending ? "Generating..." : "Generate unit QRs"}
+          ) : (
+            <button className="desk-button mt-2" type="button" disabled={!canAddItemQr || addProduct.isPending} onClick={() => addProduct.mutate()}>
+              {addProduct.isPending ? "Adding..." : "Add item QR"}
             </button>
-            {generateAssets.isError ? <ErrorText text={generateAssets.error.message} /> : null}
-          </ActionBox>
-
-          <ActionBox title="Container QR">
-            <select className="desk-input w-full" value={boxId} disabled={!hasBatch || containers.isLoading} onChange={(event) => setBoxId(event.target.value)}>
-              <option value="">Existing container</option>
-              {containers.data?.results?.map((box) => <option key={box.id} value={box.id}>{box.label}</option>)}
-            </select>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button className="desk-button" type="button" disabled={!hasBatch || !boxId || addExistingBox.isPending} onClick={() => addExistingBox.mutate()}>
-                {addExistingBox.isPending ? "Adding..." : "Add container"}
-              </button>
-              <button className="desk-button" type="button" disabled={!hasBatch} onClick={() => setBoxModalOpen(true)}>
-                Create container
-              </button>
-            </div>
-            {addExistingBox.isError ? <ErrorText text={addExistingBox.error.message} /> : null}
-          </ActionBox>
-        </div>
+          )}
+          {addProduct.isError ? <ErrorText text={addProduct.error.message} /> : null}
+          {generateAssets.isError ? <ErrorText text={generateAssets.error.message} /> : null}
+        </ActionBox>
 
         <div className="rounded-md border border-line bg-surface p-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -214,7 +169,7 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
           </div>
           {batch.isLoading ? <p className="mt-3 text-sm text-muted">Loading batch...</p> : null}
           {batch.isError ? <ErrorText text={batch.error.message} /> : null}
-          {!batch.isLoading && !batchItems.length ? <p className="mt-3 text-sm text-muted">Add box, product, or individual asset unit QR codes to this batch.</p> : null}
+          {!batch.isLoading && !batchItems.length ? <p className="mt-3 text-sm text-muted">No QR labels in this batch.</p> : null}
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {batchItems.map((item) => (
               <article key={item.id} className="rounded-md border border-line bg-bg p-3 text-center">
@@ -232,15 +187,6 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
         <input className="desk-input w-full" value={batchTitle} onChange={(event) => setBatchTitle(event.target.value)} />
         {createBatch.isError ? <ErrorText text={createBatch.error.message} /> : null}
       </Modal>
-
-      <Modal open={boxModalOpen} onClose={() => setBoxModalOpen(false)} title="Create box QR" footer={<ModalActions pending={createBox.isPending} onCancel={() => setBoxModalOpen(false)} onSubmit={() => createBox.mutate()} submitLabel="Create and add" disabled={!boxLabel.trim()} />}>
-        <div className="grid gap-2">
-          <input className="desk-input" value={boxLabel} placeholder="Box label" onChange={(event) => setBoxLabel(event.target.value)} />
-          <input className="desk-input" value={boxLocation} placeholder="Location" onChange={(event) => setBoxLocation(event.target.value)} />
-        </div>
-        {createBox.isError ? <ErrorText text={createBox.error.message} /> : null}
-      </Modal>
-
     </Panel>
   );
 }
@@ -263,5 +209,3 @@ function ModalActions(props: { pending: boolean; disabled: boolean; submitLabel:
     </div>
   );
 }
-
-

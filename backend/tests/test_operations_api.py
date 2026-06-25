@@ -627,11 +627,23 @@ def test_asset_generation_adds_50_unique_sequential_unit_qrs_to_existing_batch()
     ]
 
 
-def test_qr_batch_accepts_box_and_product_items_and_downloads_name_captions():
+def test_qr_batch_accepts_inventory_items_and_rejects_container_qrs():
     makerspace = make_space("ops-qr-batch")
     manager = make_member("ops-qr-batch-manager", makerspace)
     box = make_box(makerspace, "Soldering Bin")
     product = make_product(makerspace, name="Multimeter")
+    asset_product = make_product(
+        makerspace,
+        name="Arduino",
+        tracking_mode=TrackingMode.INDIVIDUAL,
+        total_quantity=1,
+        available_quantity=1,
+    )
+    asset = InventoryAsset.objects.create(
+        makerspace=makerspace,
+        product=asset_product,
+        asset_tag="ARDUINO-1",
+    )
     box_qr = QrCode.objects.create(
         makerspace=makerspace,
         payload=box.code,
@@ -643,6 +655,12 @@ def test_qr_batch_accepts_box_and_product_items_and_downloads_name_captions():
         makerspace=makerspace,
         target_type=QrCode.TargetType.PRODUCT,
         target_id=product.id,
+        created_by=manager,
+    )
+    asset_qr = QrCode.objects.create(
+        makerspace=makerspace,
+        target_type=QrCode.TargetType.ASSET,
+        target_id=asset.id,
         created_by=manager,
     )
     client = authenticated_client(manager)
@@ -663,19 +681,41 @@ def test_qr_batch_accepts_box_and_product_items_and_downloads_name_captions():
         {"qr_code_id": product_qr.id, "label_text": product.name},
         format="json",
     )
+    asset_item = client.post(
+        f"/api/v1/admin/qr-print-batches/{batch_id}/items",
+        {"qr_code_id": asset_qr.id, "label_text": asset.asset_tag},
+        format="json",
+    )
     downloaded = client.get(f"/api/v1/admin/qr-print-batches/{batch_id}/download")
 
     assert batch_response.status_code == 201
-    assert box_item.status_code == 201
+    assert box_item.status_code == 400
     assert product_item.status_code == 201
+    assert asset_item.status_code == 201
     assert downloaded.status_code == 200
     assert downloaded["Content-Type"] == "application/zip"
     with zipfile.ZipFile(io.BytesIO(downloaded.content)) as archive:
         assert len(archive.namelist()) == 2
         svg_contents = "".join(archive.read(name).decode("utf-8") for name in archive.namelist())
-    assert "Soldering Bin" in svg_contents
+    assert "Soldering Bin" not in svg_contents
     assert "Multimeter" in svg_contents
+    assert "ARDUINO-1" in svg_contents
 
+
+def test_product_qr_creation_rejects_individual_tracked_inventory():
+    makerspace = make_space("ops-product-qr-individual")
+    manager = make_member("ops-product-qr-individual-manager", makerspace)
+    product = make_product(makerspace, tracking_mode=TrackingMode.INDIVIDUAL)
+
+    response = authenticated_client(manager).post(
+        "/api/v1/admin/qr/tools",
+        {"makerspace_id": makerspace.id, "product_id": product.id},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "unit QR" in str(response.data)
+    assert not QrCode.objects.filter(target_type=QrCode.TargetType.PRODUCT, target_id=product.id).exists()
 
 def test_qr_batch_items_enforce_manage_qr_rbac_and_makerspace_scope():
     space_a = make_space("ops-qr-scope-a")
