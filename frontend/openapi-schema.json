@@ -13731,6 +13731,11 @@
                     },
                     "content_type": {
                         "type": "string"
+                    },
+                    "size_bytes": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -18897,6 +18902,11 @@
                     },
                     "content_type": {
                         "type": "string"
+                    },
+                    "size_bytes": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "nullable": true
                     }
                 },
                 "required": [

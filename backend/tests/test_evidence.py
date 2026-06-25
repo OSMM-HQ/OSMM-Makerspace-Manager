@@ -117,7 +117,7 @@ def test_admin_member_can_request_upload_url(monkeypatch):
 
     response = authenticated_client(user).post(
         upload_url(makerspace),
-        {"evidence_type": "issue", "content_type": "image/png"},
+        {"evidence_type": "issue", "content_type": "image/png", "size_bytes": 12345},
         format="json",
     )
 
@@ -128,6 +128,8 @@ def test_admin_member_can_request_upload_url(monkeypatch):
     photo = EvidencePhoto.objects.get()
     assert photo.makerspace == makerspace
     assert photo.object_key == response.data["object_key"]
+    assert photo.content_type == "image/png"
+    assert photo.size_bytes == 12345
     assert response.data["evidence_id"] == photo.id
     audit = AuditLog.objects.get()
     assert audit.action == "evidence.upload_url_issued"
@@ -154,7 +156,7 @@ def test_admin_member_can_request_put_upload_url(monkeypatch, settings):
 
     response = authenticated_client(user).post(
         upload_url(makerspace),
-        {"evidence_type": "issue", "content_type": "image/png"},
+        {"evidence_type": "issue", "content_type": "image/png", "size_bytes": 12345},
         format="json",
     )
 
@@ -176,7 +178,7 @@ def test_guest_admin_member_can_request_upload_url(monkeypatch):
 
     response = authenticated_client(user).post(
         upload_url(makerspace),
-        {"evidence_type": "issue", "content_type": "image/png"},
+        {"evidence_type": "issue", "content_type": "image/png", "size_bytes": 12345},
         format="json",
     )
 
@@ -201,7 +203,7 @@ def test_existing_requester_promoted_to_inventory_manager_can_request_upload_url
 
     response = authenticated_client(user).post(
         upload_url(makerspace),
-        {"evidence_type": "issue", "content_type": "image/png"},
+        {"evidence_type": "issue", "content_type": "image/png", "size_bytes": 12345},
         format="json",
     )
 
@@ -225,7 +227,7 @@ def test_suspended_inventory_manager_cannot_request_upload_url(monkeypatch):
 
     response = authenticated_client(user).post(
         upload_url(makerspace),
-        {"evidence_type": "issue", "content_type": "image/png"},
+        {"evidence_type": "issue", "content_type": "image/png", "size_bytes": 12345},
         format="json",
     )
 
@@ -240,7 +242,7 @@ def test_requester_cannot_request_upload_url(monkeypatch):
 
     response = authenticated_client(make_user("upload-requester")).post(
         upload_url(makerspace),
-        {"evidence_type": "issue", "content_type": "image/png"},
+        {"evidence_type": "issue", "content_type": "image/png", "size_bytes": 12345},
         format="json",
     )
 
@@ -255,7 +257,7 @@ def test_unauthenticated_client_cannot_request_upload_url(monkeypatch):
 
     response = APIClient().post(
         upload_url(makerspace),
-        {"evidence_type": "issue", "content_type": "image/png"},
+        {"evidence_type": "issue", "content_type": "image/png", "size_bytes": 12345},
         format="json",
     )
 
@@ -275,7 +277,7 @@ def test_staff_user_without_membership_cannot_request_upload_url(monkeypatch):
 
     response = authenticated_client(user).post(
         upload_url(makerspace),
-        {"evidence_type": "issue", "content_type": "image/png"},
+        {"evidence_type": "issue", "content_type": "image/png", "size_bytes": 12345},
         format="json",
     )
 
@@ -295,7 +297,7 @@ def test_upload_url_with_missing_makerspace_returns_404(monkeypatch):
 
     response = authenticated_client(user).post(
         upload_url_for_id(missing_id),
-        {"evidence_type": "issue", "content_type": "image/png"},
+        {"evidence_type": "issue", "content_type": "image/png", "size_bytes": 12345},
         format="json",
     )
 
@@ -336,7 +338,7 @@ def test_upload_storage_unavailable_returns_503_without_creating_rows(monkeypatc
 
     response = authenticated_client(user).post(
         upload_url(makerspace),
-        {"evidence_type": "issue", "content_type": "image/png"},
+        {"evidence_type": "issue", "content_type": "image/png", "size_bytes": 12345},
         format="json",
     )
 

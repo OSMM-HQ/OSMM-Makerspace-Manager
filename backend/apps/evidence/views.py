@@ -65,6 +65,7 @@ class EvidenceUploadUrlView(StaffAPIView):
         serializer.is_valid(raise_exception=True)
         evidence_type = serializer.validated_data["evidence_type"]
         content_type = serializer.validated_data["content_type"]
+        size_bytes = serializer.validated_data.get("size_bytes")
         object_key = evidence_object_key(makerspace_id, evidence_type)
 
         try:
@@ -83,6 +84,8 @@ class EvidenceUploadUrlView(StaffAPIView):
                 makerspace=makerspace,
                 evidence_type=evidence_type,
                 object_key=object_key,
+                content_type=content_type,
+                size_bytes=size_bytes,
                 uploaded_by=request.user,
             )
             audit.record(

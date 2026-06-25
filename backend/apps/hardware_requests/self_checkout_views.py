@@ -66,6 +66,8 @@ class PublicToolEvidenceUploadUrlView(APIView):
             makerspace=makerspace,
             evidence_type=data["evidence_type"],
             object_key=object_key,
+            content_type=data["content_type"],
+            size_bytes=data.get("size_bytes"),
             uploaded_by=requester,
         )
         audit.record(

@@ -43,7 +43,7 @@ export function EvidenceUpload({
         `/admin/makerspaces/${makerspaceId}/uploads/evidence-url`,
         {
           method: "POST",
-          body: JSON.stringify({ evidence_type: evidenceType, content_type: file.type }),
+          body: JSON.stringify({ evidence_type: evidenceType, content_type: file.type, size_bytes: file.size }),
         },
       );
       if (presigned.method === "PUT") {

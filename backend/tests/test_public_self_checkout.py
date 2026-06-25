@@ -405,12 +405,15 @@ def test_public_self_checkout_evidence_upload_url_is_audited(monkeypatch):
             "identifier": "member-1@example.com",
             "evidence_type": EvidencePhoto.EvidenceType.ISSUE,
             "content_type": "image/png",
+            "size_bytes": 4321,
         },
         format="json",
     )
 
     assert response.status_code == 201
     photo = EvidencePhoto.objects.get(pk=response.data["evidence_id"])
+    assert photo.content_type == "image/png"
+    assert photo.size_bytes == 4321
     event = AuditLog.objects.get(action="evidence.upload_url_issued")
     assert event.makerspace == makerspace
     assert event.actor == photo.uploaded_by

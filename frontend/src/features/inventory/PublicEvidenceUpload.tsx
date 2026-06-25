@@ -40,6 +40,7 @@ export function PublicEvidenceUpload({
         identifier: identifier.trim(),
         evidence_type: evidenceType,
         content_type: file.type,
+        size_bytes: file.size,
       });
       await uploadPublicEvidenceFile(presigned, file);
       setStatus("done");

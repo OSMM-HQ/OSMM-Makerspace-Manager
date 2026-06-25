@@ -16,6 +16,8 @@ class EvidencePhoto(models.Model):
     )
     evidence_type = models.CharField(max_length=20, choices=EvidenceType.choices)
     object_key = models.CharField(max_length=512, unique=True)
+    content_type = models.CharField(max_length=128, blank=True)
+    size_bytes = models.PositiveBigIntegerField(null=True, blank=True)
     uploaded_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
