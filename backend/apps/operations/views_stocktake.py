@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import generics, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -12,6 +12,7 @@ from apps.operations import services
 from apps.operations.models import StocktakeSession
 from apps.operations.serializers import (
     EmptySerializer,
+    GenericObjectSerializer,
     StocktakeCreateSerializer,
     StocktakeLineInputSerializer,
     StocktakeLineSerializer,
@@ -19,9 +20,17 @@ from apps.operations.serializers import (
 )
 
 
+STOCKTAKE_ERROR_RESPONSES = {
+    400: OpenApiResponse(GenericObjectSerializer, description="Invalid request or stocktake state."),
+    401: OpenApiResponse(description="Authentication credentials were not provided."),
+    403: OpenApiResponse(description="Permission denied."),
+    404: OpenApiResponse(description="Not found."),
+}
+
+
 @extend_schema_view(
-    get=extend_schema(tags=["Stocktake"], summary="List stocktakes", request=None, responses={200: StocktakeSerializer(many=True)}),
-    post=extend_schema(tags=["Stocktake"], summary="Create stocktake", request=StocktakeCreateSerializer, responses={201: StocktakeSerializer}),
+    get=extend_schema(tags=["Stocktake"], summary="List stocktakes", request=None, responses={200: StocktakeSerializer(many=True), **STOCKTAKE_ERROR_RESPONSES}),
+    post=extend_schema(tags=["Stocktake"], summary="Create stocktake", request=StocktakeCreateSerializer, responses={201: StocktakeSerializer, **STOCKTAKE_ERROR_RESPONSES}),
 )
 class StocktakeListCreateView(generics.ListCreateAPIView):
     permission_classes = [IsActiveStaff]
@@ -46,7 +55,7 @@ class StocktakeListCreateView(generics.ListCreateAPIView):
 
 
 @extend_schema_view(
-    get=extend_schema(tags=["Stocktake"], summary="Retrieve stocktake", request=None, responses={200: StocktakeSerializer}),
+    get=extend_schema(tags=["Stocktake"], summary="Retrieve stocktake", request=None, responses={200: StocktakeSerializer, **STOCKTAKE_ERROR_RESPONSES}),
 )
 class StocktakeDetailView(generics.RetrieveAPIView):
     serializer_class = StocktakeSerializer
@@ -60,7 +69,7 @@ class StocktakeCountLineView(APIView):
     permission_classes = [IsActiveStaff]
     serializer_class = StocktakeLineInputSerializer
 
-    @extend_schema(tags=["Stocktake"], summary="Count stocktake line", request=StocktakeLineInputSerializer, responses={201: StocktakeLineSerializer})
+    @extend_schema(tags=["Stocktake"], summary="Count stocktake line", request=StocktakeLineInputSerializer, responses={201: StocktakeLineSerializer, **STOCKTAKE_ERROR_RESPONSES})
     def post(self, request, pk, *args, **kwargs):
         stocktake = _stocktake_for_action(request.user, pk, rbac.Action.EDIT_INVENTORY)
         serializer = StocktakeLineInputSerializer(data=request.data)
@@ -73,7 +82,7 @@ class StocktakeCompleteView(APIView):
     permission_classes = [IsActiveStaff]
     serializer_class = EmptySerializer
 
-    @extend_schema(tags=["Stocktake"], summary="Complete stocktake", request=EmptySerializer, responses={200: StocktakeSerializer})
+    @extend_schema(tags=["Stocktake"], summary="Complete stocktake", request=EmptySerializer, responses={200: StocktakeSerializer, **STOCKTAKE_ERROR_RESPONSES})
     def post(self, request, pk, *args, **kwargs):
         stocktake = _stocktake_for_action(request.user, pk, rbac.Action.EDIT_INVENTORY)
         return Response(StocktakeSerializer(services.complete_stocktake(request.user, stocktake)).data)
@@ -83,7 +92,7 @@ class StocktakeApproveView(APIView):
     permission_classes = [IsActiveSuperAdmin]
     serializer_class = EmptySerializer
 
-    @extend_schema(tags=["Stocktake"], summary="Approve stocktake", request=EmptySerializer, responses={200: StocktakeSerializer})
+    @extend_schema(tags=["Stocktake"], summary="Approve stocktake", request=EmptySerializer, responses={200: StocktakeSerializer, **STOCKTAKE_ERROR_RESPONSES})
     def post(self, request, pk, *args, **kwargs):
         stocktake = _stocktake_for_action(request.user, pk, rbac.Action.EDIT_INVENTORY)
         return Response(StocktakeSerializer(services.approve_stocktake(request.user, stocktake)).data)
@@ -93,7 +102,7 @@ class StocktakeApplyAdjustmentsView(APIView):
     permission_classes = [IsActiveSuperAdmin]
     serializer_class = EmptySerializer
 
-    @extend_schema(tags=["Stocktake"], summary="Apply stocktake adjustments", request=EmptySerializer, responses={200: StocktakeSerializer})
+    @extend_schema(tags=["Stocktake"], summary="Apply stocktake adjustments", request=EmptySerializer, responses={200: StocktakeSerializer, **STOCKTAKE_ERROR_RESPONSES})
     def post(self, request, pk, *args, **kwargs):
         stocktake = _stocktake_for_action(request.user, pk, rbac.Action.EDIT_INVENTORY)
         return Response(StocktakeSerializer(services.apply_stocktake_adjustments(request.user, stocktake)).data)

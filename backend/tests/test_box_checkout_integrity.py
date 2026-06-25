@@ -223,3 +223,44 @@ def test_box_loan_container_backfill_migration_sets_matching_box():
 
 
 
+
+
+def test_assign_box_rejects_box_with_active_public_container_loan():
+    from apps.hardware_requests.handover_workflow import assign_box
+    from apps.hardware_requests.workflow_errors import BoxUnavailable
+
+    makerspace = make_space("box-public-blocks-request-assign")
+    admin = make_admin(makerspace)
+    requester = User.objects.create_user(
+        username="box-public-blocks-requester",
+        role=User.Role.REQUESTER,
+        access_status=User.AccessStatus.ACTIVE,
+    )
+    box = Box.objects.create(makerspace=makerspace, label="Already Out")
+    public_request = HardwareRequest.objects.create(
+        makerspace=makerspace,
+        requester=requester,
+        requester_username=requester.username,
+        status=HardwareRequest.Status.ISSUED,
+    )
+    PublicToolLoan.objects.create(
+        makerspace=makerspace,
+        request=public_request,
+        requester=requester,
+        container=box,
+        target_type="box",
+        target_id=box.id,
+        target_label=box.label,
+    )
+    target_request = HardwareRequest.objects.create(
+        makerspace=makerspace,
+        requester=requester,
+        requester_username=requester.username,
+        status=HardwareRequest.Status.ACCEPTED,
+    )
+
+    with pytest.raises(BoxUnavailable, match="already out"):
+        assign_box(admin, target_request, box.code)
+
+    target_request.refresh_from_db()
+    assert target_request.assigned_box_id is None

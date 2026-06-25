@@ -77,4 +77,7 @@ def test_public_config_returns_email_enabled_without_api_client_hmac(
     response = APIClient().get("/api/v1/config")
 
     assert response.status_code == 200
-    assert response.data == {"email_enabled": True}
+    assert response.data == {
+        "email_enabled": True,
+        "public_image_max_bytes": settings.PUBLIC_IMAGE_MAX_BYTES,
+    }

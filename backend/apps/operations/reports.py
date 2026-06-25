@@ -28,37 +28,40 @@ REPORT_KEYS = [
 def report_data(report_key="summary", makerspace_id=None, *, limit=None):
     if report_key == "summary":
         return _summary(makerspace_id)
-    return {"rows": _limited_rows(report_rows(report_key, makerspace_id), limit)}
+    return {"rows": report_rows(report_key, makerspace_id, limit=_normalized_limit(limit))}
 
 
 
-def _limited_rows(rows, limit):
+def _normalized_limit(limit):
     if limit is None:
         limit = DEFAULT_REPORT_LIMIT
-    limit = max(0, min(int(limit), MAX_REPORT_LIMIT))
-    return rows[:1] + rows[1 : limit + 1]
+    return max(0, min(int(limit), MAX_REPORT_LIMIT))
 
 
-def report_rows(report_key, makerspace_id=None):
+def _limit_queryset(qs, limit):
+    return qs if limit is None else qs[:limit]
+
+
+def report_rows(report_key, makerspace_id=None, *, limit=None):
     aggregate = makerspace_id is None
     if report_key == "taken-items":
-        return _taken_items(makerspace_id, aggregate)
+        return _taken_items(makerspace_id, aggregate, limit)
     if report_key == "active-loans":
-        return _active_loans(makerspace_id, aggregate)
+        return _active_loans(makerspace_id, aggregate, limit)
     if report_key == "returns":
-        return _returns(makerspace_id, aggregate)
+        return _returns(makerspace_id, aggregate, limit)
     if report_key == "damaged-missing":
-        return _damaged_missing(makerspace_id, aggregate)
+        return _damaged_missing(makerspace_id, aggregate, limit)
     if report_key == "damaged-lost":
-        return _damaged_lost(makerspace_id, aggregate)
+        return _damaged_lost(makerspace_id, aggregate, limit)
     if report_key == "qr-scans":
-        return _qr_scans(makerspace_id, aggregate)
+        return _qr_scans(makerspace_id, aggregate, limit)
     if report_key == "most-lent":
-        return _most_lent(makerspace_id, aggregate)
+        return _most_lent(makerspace_id, aggregate, limit)
     if report_key == "top-borrowers":
-        return _top_borrowers(makerspace_id, aggregate)
+        return _top_borrowers(makerspace_id, aggregate, limit)
     if report_key == "recently-added":
-        return _recently_added(makerspace_id, aggregate)
+        return _recently_added(makerspace_id, aggregate, limit)
     data = report_data("summary", makerspace_id)
     return [["metric", "value"], *[[key, value] for key, value in data.items()]]
 
@@ -83,7 +86,7 @@ def _summary(makerspace_id):
     }
 
 
-def _taken_items(makerspace_id, aggregate):
+def _taken_items(makerspace_id, aggregate, limit=None):
     # Group by product_id (not name) so two distinct products sharing a name are not
     # merged — there is no unique (makerspace, name) constraint. Name stays the display column.
     group = ["product_id", "product__name"]
@@ -94,26 +97,29 @@ def _taken_items(makerspace_id, aggregate):
         display = ["request__makerspace_id", *display]
         header = ["makerspace_id", *header]
     qs = _items(makerspace_id).values(*group).annotate(quantity=Sum("issued_quantity")).order_by("-quantity")
+    qs = _limit_queryset(qs, limit)
     return [header, *[[_value(row, key) for key in display] + [row["quantity"] or 0] for row in qs]]
 
 
-def _active_loans(makerspace_id, aggregate):
+def _active_loans(makerspace_id, aggregate, limit=None):
     header = ["id", "requester", "status", "issued_at"]
     if aggregate:
         header = ["makerspace_id", *header]
     qs = _requests(makerspace_id).select_related("requester").filter(
         status__in=[HardwareRequest.Status.ISSUED, HardwareRequest.Status.PARTIALLY_RETURNED]
     ).order_by("-issued_at")
+    qs = _limit_queryset(qs, limit)
     return [header, *[_request_row(request, aggregate, request.issued_at) for request in qs]]
 
 
-def _returns(makerspace_id, aggregate):
+def _returns(makerspace_id, aggregate, limit=None):
     header = ["id", "requester", "status", "closed_at"]
     if aggregate:
         header = ["makerspace_id", *header]
     qs = _requests(makerspace_id).select_related("requester").filter(
         status__in=[HardwareRequest.Status.RETURNED, HardwareRequest.Status.CLOSED_WITH_ISSUE]
     ).order_by("-closed_at")
+    qs = _limit_queryset(qs, limit)
     return [header, *[_request_row(request, aggregate, request.closed_at) for request in qs]]
 
 
@@ -123,29 +129,30 @@ def _request_row(request, aggregate, timestamp):
     return [*prefix, request.id, requester_label(request), request.status, timestamp]
 
 
-def _damaged_missing(makerspace_id, aggregate):
+def _damaged_missing(makerspace_id, aggregate, limit=None):
     values = ["name", "damaged_quantity", "lost_quantity"]
     header = ["product", "damaged_quantity", "missing_quantity"]
-    return _product_quantity_rows(makerspace_id, aggregate, values, header)
+    return _product_quantity_rows(makerspace_id, aggregate, values, header, limit)
 
 
-def _damaged_lost(makerspace_id, aggregate):
+def _damaged_lost(makerspace_id, aggregate, limit=None):
     values = ["name", "damaged_quantity", "lost_quantity"]
     header = ["product_name", "damaged_quantity", "lost_quantity"]
-    return _product_quantity_rows(makerspace_id, aggregate, values, header)
+    return _product_quantity_rows(makerspace_id, aggregate, values, header, limit)
 
 
-def _qr_scans(makerspace_id, aggregate):
+def _qr_scans(makerspace_id, aggregate, limit=None):
     values = ["context"]
     header = ["context", "count"]
     if aggregate:
         values = ["makerspace_id", *values]
         header = ["makerspace_id", *header]
     qs = _qr_events(makerspace_id).values(*values).annotate(count=Count("id")).order_by(*values)
+    qs = _limit_queryset(qs, limit)
     return [header, *[[_value(row, key) for key in values] + [row["count"]] for row in qs]]
 
 
-def _most_lent(makerspace_id, aggregate):
+def _most_lent(makerspace_id, aggregate, limit=None):
     # Group by product_id (not name) so distinct products sharing a name keep separate
     # lend counts; name remains the display column.
     group = ["product_id", "product__name"]
@@ -165,6 +172,7 @@ def _most_lent(makerspace_id, aggregate):
         )
         .order_by("-times_lent", "-total_quantity_lent", "product__name")
     )
+    qs = _limit_queryset(qs, limit)
     return [
         header,
         *[
@@ -175,7 +183,7 @@ def _most_lent(makerspace_id, aggregate):
     ]
 
 
-def _top_borrowers(makerspace_id, aggregate):
+def _top_borrowers(makerspace_id, aggregate, limit=None):
     # Group by stable requester id only; request-level display fields can vary over
     # time and must not fragment a single borrower's totals.
     values = ["request__requester_id"]
@@ -213,21 +221,23 @@ def _top_borrowers(makerspace_id, aggregate):
     return [header, *rows]
 
 
-def _recently_added(makerspace_id, aggregate):
+def _recently_added(makerspace_id, aggregate, limit=None):
     values = ["name", "created_at", "total_quantity"]
     header = ["product_name", "created_at", "total_quantity"]
     if aggregate:
         values = ["makerspace_id", *values]
         header = ["makerspace_id", *header]
     qs = _products(makerspace_id).order_by("-created_at", "-id")
+    qs = _limit_queryset(qs, limit)
     return [header, *[[_value(product, key) for key in values] for product in qs]]
 
 
-def _product_quantity_rows(makerspace_id, aggregate, values, header):
+def _product_quantity_rows(makerspace_id, aggregate, values, header, limit=None):
     if aggregate:
         values = ["makerspace_id", *values]
         header = ["makerspace_id", *header]
     qs = _products(makerspace_id).order_by("name")
+    qs = _limit_queryset(qs, limit)
     return [header, *[[_value(product, key) for key in values] for product in qs]]
 
 

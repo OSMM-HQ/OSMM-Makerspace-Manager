@@ -36,7 +36,7 @@ class LedgerView(APIView):
         makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
         require_action(request.user, rbac.Action.VIEW_INVENTORY, makerspace.id)
         require_module(makerspace, "staff_admin")
-        return Response(_ledger_payload(ledger.ledger_rows(makerspace.id), request))
+        return Response(_ledger_payload(makerspace.id, request))
 
 
 class AggregateLedgerView(APIView):
@@ -55,7 +55,7 @@ class AggregateLedgerView(APIView):
     )
     def get(self, request, *args, **kwargs):
         _require_superadmin(request.user)
-        return Response(_ledger_payload(ledger.ledger_rows(), request))
+        return Response(_ledger_payload(None, request))
 
 
 class AnalyticsView(APIView):
@@ -175,11 +175,10 @@ def _require_superadmin(user):
         raise PermissionDenied()
 
 
-def _ledger_payload(rows, request):
+def _ledger_payload(makerspace_id, request):
     page, page_size = _page_params(request)
-    start = (page - 1) * page_size
-    page_rows = rows[start : start + page_size]
-    serializer = LedgerResponseSerializer({"count": len(rows), "results": page_rows})
+    payload = ledger.ledger_page(makerspace_id, page=page, page_size=page_size)
+    serializer = LedgerResponseSerializer(payload)
     return serializer.data
 
 

@@ -17,6 +17,9 @@ def log_manual_print(
     title,
     note,
     duration_minutes=0,
+    requester_name="",
+    contact_email="",
+    contact_phone="",
 ):
     with transaction.atomic():
         try:
@@ -55,6 +58,9 @@ def log_manual_print(
             grams_used=grams_used,
             duration_minutes=duration_minutes or 0,
             title=title,
+            requester_name=requester_name,
+            contact_email=contact_email,
+            contact_phone=contact_phone,
             note=note,
             logged_by=actor,
         )

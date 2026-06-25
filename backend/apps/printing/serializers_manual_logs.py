@@ -27,6 +27,9 @@ class ManualPrintLogSerializer(serializers.ModelSerializer):
         allow_null=True,
     )
     spool_label = serializers.SerializerMethodField()
+    requester_name = serializers.CharField(required=False, allow_blank=True, max_length=120)
+    contact_email = serializers.EmailField(required=False, allow_blank=True)
+    contact_phone = serializers.CharField(required=False, allow_blank=True, max_length=40)
     logged_by_username = serializers.CharField(
         source="logged_by.username",
         read_only=True,
@@ -43,6 +46,9 @@ class ManualPrintLogSerializer(serializers.ModelSerializer):
             "grams_used",
             "duration_minutes",
             "title",
+            "requester_name",
+            "contact_email",
+            "contact_phone",
             "note",
             "created_at",
             "printer_name",

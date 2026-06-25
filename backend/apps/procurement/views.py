@@ -4,7 +4,7 @@ from io import StringIO
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
@@ -14,6 +14,7 @@ from apps.admin_api.permissions import IsActiveStaff
 from apps.audit import services as audit
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.models import Makerspace
+from apps.printing.serializers import ErrorSerializer
 from apps.procurement import access
 from apps.procurement.models import ToBuyItem
 from apps.procurement.serializers import ToBuyItemSerializer
@@ -21,6 +22,14 @@ from apps.procurement.serializers import ToBuyItemSerializer
 MODULE_KEY = "procurement"
 DEFAULT_LIST_LIMIT = 200
 MAX_LIST_LIMIT = 500
+
+
+PROCUREMENT_ERROR_RESPONSES = {
+    400: OpenApiResponse(ErrorSerializer, description="Invalid request."),
+    401: OpenApiResponse(description="Authentication credentials were not provided."),
+    403: OpenApiResponse(description="Permission denied."),
+    404: OpenApiResponse(description="Not found."),
+}
 
 
 def _csv_safe(value):
@@ -74,11 +83,12 @@ class ToBuyListCreateView(generics.ListCreateAPIView):
     @extend_schema(
         summary="List to-buy items for a makerspace",
         parameters=[OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY)],
+        responses={200: ToBuyItemSerializer(many=True), **PROCUREMENT_ERROR_RESPONSES},
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 
-    @extend_schema(summary="Add a to-buy item", parameters=[KIND_PARAM])
+    @extend_schema(summary="Add a to-buy item", parameters=[KIND_PARAM], responses={201: ToBuyItemSerializer, **PROCUREMENT_ERROR_RESPONSES})
     def post(self, request, *args, **kwargs):
         return super().post(request, *args, **kwargs)
 
@@ -138,15 +148,15 @@ class ToBuyDetailView(generics.RetrieveUpdateDestroyAPIView):
         if not access.can_manage_kind(self.request.user, item.makerspace_id, item.kind):
             raise PermissionDenied()
 
-    @extend_schema(summary="Retrieve a to-buy item")
+    @extend_schema(summary="Retrieve a to-buy item", responses={200: ToBuyItemSerializer, **PROCUREMENT_ERROR_RESPONSES})
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
 
-    @extend_schema(summary="Update a to-buy item")
+    @extend_schema(summary="Update a to-buy item", request=ToBuyItemSerializer, responses={200: ToBuyItemSerializer, **PROCUREMENT_ERROR_RESPONSES})
     def patch(self, request, *args, **kwargs):
         return super().patch(request, *args, **kwargs)
 
-    @extend_schema(summary="Delete a to-buy item")
+    @extend_schema(summary="Delete a to-buy item", responses={204: None, **PROCUREMENT_ERROR_RESPONSES})
     def delete(self, request, *args, **kwargs):
         return super().delete(request, *args, **kwargs)
 
@@ -178,7 +188,7 @@ class ToBuyExportView(APIView):
 
     @extend_schema(
         summary="Export to-buy items as CSV",
-        responses={(200, "text/csv"): OpenApiTypes.STR},
+        responses={(200, "text/csv"): OpenApiTypes.STR, **PROCUREMENT_ERROR_RESPONSES},
     )
     def get(self, request, makerspace_id, *args, **kwargs):
         require_module(get_object_or_404(Makerspace, pk=makerspace_id), MODULE_KEY)

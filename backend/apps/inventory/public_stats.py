@@ -1,6 +1,7 @@
 import re
 
 from django.db.models import Count, F, Sum
+from django.db.models.functions import TruncMonth
 from django.utils import timezone
 
 from apps.hardware_requests.display import is_internal_checkin_username
@@ -9,7 +10,18 @@ from apps.hardware_requests.self_checkout_models import PublicToolLoan
 from apps.inventory.models import InventoryProduct, PublicAvailabilityMode
 from apps.makerspaces.platform import module_enabled
 from apps.printing.models import ManualPrintLog, PrintRequest
-from apps.printing.reports import build_printing_report
+from apps.printing.reports import STATUS_KEYS
+from apps.printing.reports_filament import (
+    estimated_filament_by_period,
+    filament_by_brand,
+    total_spool_grams_used,
+)
+from apps.printing.reports_printer_activity import (
+    attach_printer_image_urls,
+    printer_hours,
+    printer_outcomes,
+)
+from apps.printing.models import FilamentSpool
 
 
 PRINT_STATUS_KEYS = (
@@ -67,6 +79,30 @@ def _printing_stats(makerspace):
     stats = _project_printing(report)
     stats["hours_this_month"] = _printing_hours_this_month(makerspace.id)
     return stats
+
+
+def build_printing_report(makerspace_id):
+    requests = PrintRequest.objects.filter(bucket__makerspace_id=makerspace_id)
+    spools = FilamentSpool.objects.filter(makerspace_id=makerspace_id)
+    manual_logs = ManualPrintLog.objects.filter(makerspace_id=makerspace_id)
+    printer_hour_rows = printer_hours(requests, False, manual_logs)
+    printer_outcome_rows = printer_outcomes(requests, False, manual_logs)
+    attach_printer_image_urls(printer_hour_rows, printer_outcome_rows)
+    status_rows = requests.values("status").annotate(count=Count("id"))
+    counts = {row["status"]: row["count"] for row in status_rows}
+    return {
+        "totals": {
+            key: counts.get(status, 0)
+            for status, key in STATUS_KEYS.items()
+        },
+        "printer_hours": printer_hour_rows,
+        "printer_outcomes": printer_outcome_rows,
+        "filament_by_brand": filament_by_brand(spools),
+        "total_grams_used": total_spool_grams_used(spools),
+        "filament_estimated_by_period": {
+            "by_month": estimated_filament_by_period(requests, TruncMonth, "%Y-%m"),
+        },
+    }
 
 
 def _project_printing(report):

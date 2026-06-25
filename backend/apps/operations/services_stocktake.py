@@ -186,7 +186,10 @@ def _validate_line_fresh(line):
         return
     if line.asset_id:
         asset = InventoryAsset.objects.select_for_update().get(pk=line.asset_id)
-        current = 1 if _asset_bucket(asset.status) == line.condition else 0
+        current_bucket = _asset_bucket(asset.status)
+        if current_bucket is None:
+            raise ValidationError("Stocktake line asset is no longer stocktakeable; recount before applying.")
+        current = 1 if current_bucket == line.condition else 0
     else:
         product = InventoryProduct.objects.select_for_update().get(pk=line.product_id)
         current = _product_expected(product, line.condition)
@@ -228,6 +231,8 @@ def _asset_ledger_entries(actor, stocktake, line):
     entries = []
     old_bucket = _asset_bucket(old_status)
     new_bucket = _asset_bucket(new_status)
+    if old_bucket is None or new_bucket is None:
+        raise ValidationError("Stocktake line asset is no longer stocktakeable; recount before applying.")
     if old_bucket == new_bucket:
         asset.status = new_status
         asset.save(update_fields=["status", "updated_at"])

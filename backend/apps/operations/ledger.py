@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from django.db.models import F, Prefetch
+from django.db.models import Exists, F, OuterRef, Prefetch
 
 from apps.accounts import rbac
 from apps.hardware_requests.asset_link_models import HardwareRequestItemAsset
@@ -17,12 +17,25 @@ def ledger_rows(makerspace_id=None):
     return sorted(rows, key=lambda row: row["since"] or floor, reverse=True)
 
 
-def _request_item_rows(makerspace_id):
-    # Everything currently OUT is captured by the outstanding items of ISSUED /
-    # PARTIALLY_RETURNED requests. This single source covers reviewed-request loans,
-    # public self-checkout, AND admin direct handouts — the latter two also create a
-    # backing HardwareRequest (with real item rows + quantities) plus a PublicToolLoan.
-    # Reporting per item avoids the bundled-loan undercount of a one-line-per-loan view.
+def ledger_page(makerspace_id=None, *, page=1, page_size=100):
+    floor = datetime.min.replace(tzinfo=timezone.utc)
+    offset = max(page - 1, 0) * page_size
+    window = offset + page_size
+    item_qs = _request_item_queryset(makerspace_id)
+    container_qs = _container_only_loan_queryset(makerspace_id)
+    count = item_qs.count() + container_qs.count()
+
+    item_rows, _ = _request_item_rows(makerspace_id, limit=window)
+    container_rows = _container_only_loan_rows(makerspace_id, limit=window)
+    rows = sorted(
+        item_rows + container_rows,
+        key=lambda row: row["since"] or floor,
+        reverse=True,
+    )
+    return {"count": count, "results": rows[offset : offset + page_size]}
+
+
+def _request_item_queryset(makerspace_id):
     queryset = (
         HardwareRequestItem.objects.select_related(
             "product",
@@ -58,19 +71,19 @@ def _request_item_rows(makerspace_id):
         )
     )
     if makerspace_id is not None:
-        queryset = queryset.filter(request__makerspace_id=makerspace_id)
-    else:
-        excluded = (
-            rbac.superadmin_hidden_makerspace_ids()
-            | rbac.archived_makerspace_ids()
-        )
-        if excluded:
-            queryset = queryset.exclude(request__makerspace_id__in=excluded)
+        return queryset.filter(request__makerspace_id=makerspace_id)
+    excluded = rbac.superadmin_hidden_makerspace_ids() | rbac.archived_makerspace_ids()
+    return queryset.exclude(request__makerspace_id__in=excluded) if excluded else queryset
 
-    item_loans = [
-        (item, _safe_loan(item.request))
-        for item in queryset.order_by("-request__issued_at", "request_id", "id")
-    ]
+
+def _request_item_rows(makerspace_id, limit=None):
+    queryset = _request_item_queryset(makerspace_id).order_by(
+        "-request__issued_at", "request_id", "id"
+    )
+    if limit is not None:
+        queryset = queryset[:limit]
+
+    item_loans = [(item, _safe_loan(item.request)) for item in queryset]
     asset_map = _loan_asset_map(item_loans)
 
     rows = []
@@ -96,7 +109,19 @@ def _request_item_rows(makerspace_id):
     return rows, emitted_request_ids
 
 
-def _container_only_loan_rows(makerspace_id, emitted_request_ids):
+def _container_only_loan_queryset(makerspace_id, emitted_request_ids=None):
+    outstanding_items = (
+        HardwareRequestItem.objects.filter(request_id=OuterRef("request_id"))
+        .annotate(
+            outstanding=(
+                F("issued_quantity")
+                - F("returned_quantity")
+                - F("damaged_quantity")
+                - F("missing_quantity")
+            )
+        )
+        .filter(outstanding__gt=0)
+    )
     queryset = (
         PublicToolLoan.objects.filter(
             source=PublicToolLoan.Source.ADMIN_DIRECT,
@@ -104,17 +129,23 @@ def _container_only_loan_rows(makerspace_id, emitted_request_ids):
             container__isnull=False,
         )
         .select_related("container", "request", "request__requester")
-        .exclude(request_id__in=emitted_request_ids)
+        .annotate(has_outstanding_items=Exists(outstanding_items))
+        .filter(has_outstanding_items=False)
     )
+    if emitted_request_ids:
+        queryset = queryset.exclude(request_id__in=emitted_request_ids)
     if makerspace_id is not None:
-        queryset = queryset.filter(makerspace_id=makerspace_id)
-    else:
-        excluded = (
-            rbac.superadmin_hidden_makerspace_ids()
-            | rbac.archived_makerspace_ids()
-        )
-        if excluded:
-            queryset = queryset.exclude(makerspace_id__in=excluded)
+        return queryset.filter(makerspace_id=makerspace_id)
+    excluded = rbac.superadmin_hidden_makerspace_ids() | rbac.archived_makerspace_ids()
+    return queryset.exclude(makerspace_id__in=excluded) if excluded else queryset
+
+
+def _container_only_loan_rows(makerspace_id, emitted_request_ids=None, limit=None):
+    queryset = _container_only_loan_queryset(makerspace_id, emitted_request_ids).order_by(
+        "-checked_out_at", "id"
+    )
+    if limit is not None:
+        queryset = queryset[:limit]
 
     return [
         {
@@ -131,7 +162,7 @@ def _container_only_loan_rows(makerspace_id, emitted_request_ids):
             "reference_id": loan.id,
             "status": loan.request.status,
         }
-        for loan in queryset.order_by("-checked_out_at", "id")
+        for loan in queryset
     ]
 
 
@@ -190,8 +221,6 @@ def _units_for_item(item, loan, asset_map):
     units = []
     for link in item.asset_links.all():
         asset = link.asset
-        # asset_links are request-scoped, so this should always hold; skip (never
-        # assert) a stray cross-makerspace asset rather than 500 the ledger.
         if asset.makerspace_id != item.request.makerspace_id:
             continue
         units.append(

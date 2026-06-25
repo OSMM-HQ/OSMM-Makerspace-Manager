@@ -80,6 +80,7 @@ class ManagedPrinterListCreateView(ManagedPrinterMixin, generics.ListCreateAPIVi
 @extend_schema(tags=["Printing"], summary="Retrieve, update, or delete managed 3D printer")
 class ManagedPrinterDetailView(ManagedPrinterMixin, generics.RetrieveUpdateDestroyAPIView):
     serializer_class = PrintPrinterSerializer
+    http_method_names = ["get", "patch", "delete", "head", "options"]
 
     def get_queryset(self):
         return self.scope_queryset(_printer_queryset())
