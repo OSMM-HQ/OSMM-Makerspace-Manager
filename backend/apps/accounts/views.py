@@ -8,6 +8,7 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from drf_spectacular.utils import OpenApiResponse, extend_schema, inline_serializer
 from rest_framework import serializers
+from rest_framework.exceptions import APIException
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
@@ -16,6 +17,7 @@ from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
+from apps.accounts import audit_events
 from apps.accounts.auth_cookies import assert_csrf, clear_refresh_cookies, set_refresh_cookies
 from apps.accounts.models import User
 from apps.accounts.serializers import LoginSerializer, user_payload
@@ -96,10 +98,25 @@ class LoginView(TokenObtainPairView):
         examples=[LOGIN_EXAMPLE],
     )
     def post(self, request, *args, **kwargs):
+        username = request.data.get("username", "")
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
+            serializer.is_valid(raise_exception=True)
+        except APIException:
+            audit_events.record_auth_event(
+                None,
+                "auth.login_failed",
+                meta={"username_hash": audit_events.fingerprint(username)},
+            )
+            raise
         data = serializer.validated_data
         refresh = data.pop("refresh")
+        audit_events.record_auth_event(
+            serializer.user,
+            "auth.login_succeeded",
+            target=serializer.user,
+            meta={"username_hash": audit_events.fingerprint(username)},
+        )
         response = Response({"access": data["access"], "user": data["user"]})
         set_refresh_cookies(response, refresh, request)
         return response
@@ -130,18 +147,50 @@ class RefreshView(TokenRefreshView):
         },
     )
     def post(self, request, *args, **kwargs):
-        assert_csrf(request)  # header presence + Origin allowlist (CSRF defense)
+        try:
+            assert_csrf(request)  # header presence + Origin allowlist (CSRF defense)
+        except APIException:
+            audit_events.record_auth_event(
+                None, "auth.refresh_rejected", meta={"reason": "csrf"}
+            )
+            raise
         cookie = request.COOKIES.get(settings.AUTH_REFRESH_COOKIE)
         if not cookie:
+            audit_events.record_auth_event(
+                None, "auth.refresh_rejected", meta={"reason": "missing_cookie"}
+            )
             raise InvalidToken("No refresh cookie.")
         if not _refresh_user_is_active(cookie):  # review fix #5
+            actor = audit_events.user_from_refresh_token(cookie)
+            audit_events.record_auth_event(
+                actor,
+                "auth.refresh_rejected",
+                target=actor,
+                meta={"reason": "restricted_account"},
+            )
             response = Response({"detail": "Account access is restricted."}, status=403)
             clear_refresh_cookies(response)
             return response
         serializer = self.get_serializer(data={"refresh": cookie})
         try:
             serializer.is_valid(raise_exception=True)
+        except InvalidToken:
+            actor = audit_events.user_from_refresh_token(cookie)
+            audit_events.record_auth_event(
+                actor,
+                "auth.refresh_rejected",
+                target=actor,
+                meta={"reason": "invalid_token"},
+            )
+            raise
         except TokenError as exc:
+            actor = audit_events.user_from_refresh_token(cookie)
+            audit_events.record_auth_event(
+                actor,
+                "auth.refresh_rejected",
+                target=actor,
+                meta={"reason": "invalid_token"},
+            )
             raise InvalidToken(str(exc)) from exc
         data = serializer.validated_data
         response = Response({"access": data["access"]})
@@ -168,11 +217,18 @@ class LogoutView(APIView):
     def post(self, request, *args, **kwargs):
         assert_csrf(request)  # review fix #8: logout must not be CSRF-able
         cookie = request.COOKIES.get(settings.AUTH_REFRESH_COOKIE)
+        actor = audit_events.user_from_refresh_token(cookie)
         if cookie:
             try:
                 RefreshToken(cookie).blacklist()
             except TokenError:
                 pass
+        audit_events.record_auth_event(
+            actor,
+            "auth.logout",
+            target=actor,
+            meta={"had_refresh_cookie": bool(cookie)},
+        )
         response = Response({"detail": "Logged out."})
         clear_refresh_cookies(response)
         return response
@@ -251,6 +307,8 @@ class ForgotPasswordView(APIView):
         serializer = ForgotPasswordRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data["email"].strip().lower()
+        user = None
+        email_sent = False
         try:
             user = (
                 User.objects.filter(
@@ -267,8 +325,18 @@ class ForgotPasswordView(APIView):
                 base = settings.PUBLIC_APP_BASE_URL or ""
                 reset_url = f"{base}/reset-password?uid={uid}&token={token}"
                 send_password_reset_email(user.email, reset_url)
+                email_sent = True
         except Exception:
             logger.exception("Password reset request failed for an email")
+        audit_events.record_auth_event(
+            user,
+            "auth.password_reset_requested",
+            target=user,
+            meta={
+                "email_hash": audit_events.fingerprint(email),
+                "email_sent": email_sent,
+            },
+        )
         return Response(
             {"detail": "If an account exists for that email, a reset link has been sent."}
         )

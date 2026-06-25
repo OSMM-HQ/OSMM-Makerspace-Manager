@@ -3,18 +3,66 @@ from contextlib import nullcontext
 import json
 
 import pytest
+from django.conf import settings as django_settings
+from django.core.cache import cache
 from django.test import override_settings
+from rest_framework.throttling import ScopedRateThrottle
 
 from apps.accounts.models import User
 from apps.hardware_requests import notifications
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
 from apps.integrations.telegram import TelegramDeliveryError, send_message
+from apps.integrations.views import TelegramWebhookView
 from tests.return_helpers import authenticated_client, make_accepted_request, make_member, make_product, make_space
 
 pytestmark = pytest.mark.django_db
 
 WEBHOOK_SECRET = "test-webhook-secret"
 WEBHOOK_URL = "/api/v1/integrations/telegram/webhook"
+
+
+def test_telegram_webhook_uses_dedicated_throttle_scope():
+    assert TelegramWebhookView.throttle_scope == "telegram_webhook"
+
+
+@override_settings(TELEGRAM_WEBHOOK_SECRET=WEBHOOK_SECRET)
+def test_telegram_webhook_throttles_rapid_requests(settings, monkeypatch):
+    cache.clear()
+    rest_framework_settings = dict(django_settings.REST_FRAMEWORK)
+    rest_framework_settings["DEFAULT_THROTTLE_RATES"] = {
+        **django_settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"],
+        "telegram_webhook": "1/min",
+    }
+    settings.REST_FRAMEWORK = rest_framework_settings
+    monkeypatch.setattr(
+        ScopedRateThrottle,
+        "THROTTLE_RATES",
+        rest_framework_settings["DEFAULT_THROTTLE_RATES"],
+    )
+    client = authenticated_client(
+        User.objects.create_user(
+            username="telegram-throttle-placeholder",
+            role=User.Role.SUPERADMIN,
+            access_status=User.AccessStatus.ACTIVE,
+        )
+    )
+    payload = {"callback_query": {"from": {"id": 999}, "data": "accept:1"}}
+
+    first = client.post(
+        WEBHOOK_URL,
+        payload,
+        format="json",
+        HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN=WEBHOOK_SECRET,
+    )
+    second = client.post(
+        WEBHOOK_URL,
+        payload,
+        format="json",
+        HTTP_X_TELEGRAM_BOT_API_SECRET_TOKEN=WEBHOOK_SECRET,
+    )
+
+    assert first.status_code == 403
+    assert second.status_code == 429
 
 
 @override_settings(TELEGRAM_WEBHOOK_SECRET=WEBHOOK_SECRET)

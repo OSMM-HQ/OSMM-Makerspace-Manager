@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
+from apps.audit.models import AuditLog
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 
 pytestmark = pytest.mark.django_db
@@ -38,12 +39,20 @@ def test_login_returns_access_and_sets_refresh_cookie():
     assert resp.data["user"]["makerspaces"][0]["slug"] == "lab"
     assert "refresh_token" in resp.cookies
     assert resp.cookies["refresh_token"]["httponly"] is True
+    audit = AuditLog.objects.get(action="auth.login_succeeded")
+    assert audit.actor == user
+    assert audit.target_id == str(user.id)
+    assert "boss" not in str(audit.meta)
 
 
 def test_login_rejects_bad_password():
     make_staff()
     resp = APIClient().post(LOGIN, {"username": "boss", "password": "wrong"}, format="json")
     assert resp.status_code == 401
+    audit = AuditLog.objects.get(action="auth.login_failed")
+    assert audit.actor is None
+    assert "boss" not in str(audit.meta)
+    assert "wrong" not in str(audit.meta)
 
 
 def test_login_rejects_suspended_account():
@@ -71,6 +80,9 @@ def test_refresh_rejected_without_csrf_header():
     _login(client)
     resp = client.post(REFRESH, HTTP_ORIGIN=ALLOWED_ORIGIN)  # header missing
     assert resp.status_code == 403
+    assert AuditLog.objects.filter(
+        action="auth.refresh_rejected", meta__reason="csrf"
+    ).exists()
 
 
 def test_refresh_rejected_from_unknown_origin():
@@ -194,6 +206,7 @@ def test_logout_clears_cookie_and_blocks_reuse():
     out = client.post(LOGOUT, **_csrf_headers())
     assert out.status_code == 200
     assert client.cookies["refresh_token"].value == ""  # cookie cleared
+    assert AuditLog.objects.filter(action="auth.logout").exists()
 
     # The blacklisted refresh token must no longer work (review fix #6).
     replay = APIClient()
