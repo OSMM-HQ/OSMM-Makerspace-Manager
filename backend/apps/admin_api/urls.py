@@ -161,6 +161,10 @@ urlpatterns = [
         name="admin-api-client",
     ),
     path(
+        "api-clients/<int:pk>/rotate-secret",
+        api_client_views.ApiClientRotateSecretView.as_view(),
+        name="admin-api-client-rotate-secret",
+    ),    path(
         "api-key-requests",
         api_client_views.ApiKeyRequestListCreateView.as_view(),
         name="admin-api-key-requests",
@@ -202,4 +206,3 @@ urlpatterns = [
     ),
     path("audit-logs", views.AuditLogListView.as_view(), name="admin-audit-logs"),
 ]
-

@@ -63,7 +63,7 @@ class ApiClientSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         # Privilege gate: this endpoint is now reachable by makerspace admins (MANAGE_MAKERSPACE),
         # not just superadmins. Non-superadmins may NOT set the privileged knobs (rate-limit tier,
-        # scopes, client_type) — otherwise a Space Manager could self-issue a `trusted`-tier client
+        # scopes, client_type) â€” otherwise a Space Manager could self-issue a `trusted`-tier client
         # with `admin:write` scopes. Drop them: on create the view's safe defaults
         # (server / [] / standard) apply; on update the existing superadmin-set values are preserved.
         request = self.context.get("request")
@@ -242,14 +242,14 @@ class ApiIntegrationSettingsSerializer(serializers.ModelSerializer):
         return attrs
 
     def update(self, instance, validated_data):
-        telegram_bot_token = validated_data.pop("telegram_bot_token", None)
-        smtp_password = validated_data.pop("smtp_password", None)
+        missing = object()
+        telegram_bot_token = validated_data.pop("telegram_bot_token", missing)
+        smtp_password = validated_data.pop("smtp_password", missing)
         for field, value in validated_data.items():
             setattr(instance, field, value)
-        if telegram_bot_token:
+        if telegram_bot_token is not missing:
             instance.set_telegram_bot_token(telegram_bot_token)
-        if smtp_password:
+        if smtp_password is not missing:
             instance.set_smtp_password(smtp_password)
         instance.save()
         return instance
-

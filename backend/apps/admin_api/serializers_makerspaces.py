@@ -168,8 +168,9 @@ class MakerspaceSerializer(serializers.ModelSerializer):
         return attrs
 
     def update(self, instance, validated_data):
-        telegram_bot_token = validated_data.pop("telegram_bot_token", None)
-        smtp_password = validated_data.pop("smtp_password", None)
+        missing = object()
+        telegram_bot_token = validated_data.pop("telegram_bot_token", missing)
+        smtp_password = validated_data.pop("smtp_password", missing)
         new_flag = validated_data.pop("superadmin_access_enabled", None)
         with transaction.atomic():
             locked = Makerspace.objects.select_for_update().get(pk=instance.pk)
@@ -196,9 +197,9 @@ class MakerspaceSerializer(serializers.ModelSerializer):
                 locked.superadmin_access_enabled = new_flag
             for field, value in validated_data.items():
                 setattr(locked, field, value)
-            if telegram_bot_token:
+            if telegram_bot_token is not missing:
                 locked.set_telegram_bot_token(telegram_bot_token)
-            if smtp_password:
+            if smtp_password is not missing:
                 locked.set_smtp_password(smtp_password)
             locked.save()
             return locked
@@ -249,4 +250,3 @@ class ReturnPolicySerializer(serializers.ModelSerializer):
         if value < 1:
             raise serializers.ValidationError("Default loan days must be at least 1.")
         return value
-

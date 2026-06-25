@@ -452,6 +452,42 @@
                 }
             }
         },
+        "/api/v1/admin/api-clients/{id}/rotate-secret": {
+            "post": {
+                "operationId": "api_v1_admin_api_clients_rotate_secret_create",
+                "summary": "Rotate API client secret",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "API clients"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ApiClientCreateResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/api-key-requests": {
             "get": {
                 "operationId": "api_v1_admin_api_key_requests_list",

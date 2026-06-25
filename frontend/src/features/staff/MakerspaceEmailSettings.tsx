@@ -90,6 +90,17 @@ export function MakerspaceEmailSettings({ makerspace }: { makerspace: Makerspace
     },
   });
 
+  const clearSmtpPassword = useMutation({
+    mutationFn: () =>
+      staffRequest<ApiSettings>(`/admin/makerspace/${makerspace.id}/api-settings`, {
+        method: "PATCH",
+        body: JSON.stringify({ smtp_password: "" }),
+      }),
+    onSuccess: () => {
+      setSmtpForm((current) => ({ ...current, smtp_password: "" }));
+      queryClient.invalidateQueries({ queryKey: ["api-settings", makerspace.id] });
+    },
+  });
   const saveRecipients = useMutation({
     mutationFn: () =>
       staffRequest<NotificationRecipient[]>(
@@ -126,14 +137,24 @@ export function MakerspaceEmailSettings({ makerspace }: { makerspace: Makerspace
               Configure the sender used for staff lifecycle notifications.
             </p>
           </div>
-          <button
-            className="desk-button-primary"
-            type="button"
-            disabled={!settings.isSuccess || saveSmtpSettings.isPending}
-            onClick={() => saveSmtpSettings.mutate()}
-          >
-            {saveSmtpSettings.isPending ? "Saving..." : "Save email settings"}
-          </button>
+          <div className="desk-actions flex flex-wrap gap-2">
+            <button
+              className="desk-button-primary"
+              type="button"
+              disabled={!settings.isSuccess || saveSmtpSettings.isPending}
+              onClick={() => saveSmtpSettings.mutate()}
+            >
+              {saveSmtpSettings.isPending ? "Saving..." : "Save email settings"}
+            </button>
+            <button
+              className="desk-button"
+              type="button"
+              disabled={!settings.data?.smtp_password_set || clearSmtpPassword.isPending}
+              onClick={() => clearSmtpPassword.mutate()}
+            >
+              {clearSmtpPassword.isPending ? "Clearing..." : "Clear SMTP password"}
+            </button>
+          </div>
         </div>
         <div className="mt-4 grid gap-2 sm:grid-cols-2">
           <input
@@ -197,6 +218,9 @@ export function MakerspaceEmailSettings({ makerspace }: { makerspace: Makerspace
         {settings.error ? <p className="mt-2 text-sm text-danger">{settings.error.message}</p> : null}
         {saveSmtpSettings.error ? (
           <p className="mt-2 text-sm text-danger">{saveSmtpSettings.error.message}</p>
+        ) : null}
+        {clearSmtpPassword.error ? (
+          <p className="mt-2 text-sm text-danger">{clearSmtpPassword.error.message}</p>
         ) : null}
       </div>
 

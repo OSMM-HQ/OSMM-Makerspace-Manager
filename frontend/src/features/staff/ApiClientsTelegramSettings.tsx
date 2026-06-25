@@ -49,6 +49,17 @@ export function ApiClientsTelegramSettings({ makerspace }: { makerspace: Makersp
     },
   });
 
+  const clearTelegramToken = useMutation({
+    mutationFn: () =>
+      staffRequest<ApiSettings>(`/admin/makerspace/${makerspace.id}/api-settings`, {
+        method: "PATCH",
+        body: JSON.stringify({ telegram_bot_token: "" }),
+      }),
+    onSuccess: () => {
+      setSettingsForm((current) => ({ ...current, telegram_bot_token: "" }));
+      queryClient.invalidateQueries({ queryKey: ["api-settings", makerspace.id] });
+    },
+  });
   const testTelegram = useMutation({
     mutationFn: () =>
       staffRequest<{ delivered: boolean; detail?: string }>("/integrations/telegram/test-alert", {
@@ -86,13 +97,23 @@ export function ApiClientsTelegramSettings({ makerspace }: { makerspace: Makersp
           }
         />
       </div>
-      <button
-        className="desk-button-primary mt-3 w-full"
-        disabled={!settings.isSuccess || saveSettings.isPending}
-        onClick={() => saveSettings.mutate()}
-      >
-        {saveSettings.isPending ? "Saving..." : "Save integration settings"}
-      </button>
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
+        <button
+          className="desk-button-primary w-full"
+          disabled={!settings.isSuccess || saveSettings.isPending}
+          onClick={() => saveSettings.mutate()}
+        >
+          {saveSettings.isPending ? "Saving..." : "Save integration settings"}
+        </button>
+        <button
+          className="desk-button w-full"
+          type="button"
+          disabled={!settings.data?.telegram_bot_token_set || clearTelegramToken.isPending}
+          onClick={() => clearTelegramToken.mutate()}
+        >
+          {clearTelegramToken.isPending ? "Clearing..." : "Clear Telegram token"}
+        </button>
+      </div>
       <button
         className="desk-button mt-2 w-full"
         disabled={!settings.isSuccess || testTelegram.isPending}
@@ -103,6 +124,7 @@ export function ApiClientsTelegramSettings({ makerspace }: { makerspace: Makersp
       {settings.isLoading ? <p className="mt-2 text-sm text-muted">Loading integration settings...</p> : null}
       {settings.error ? <p className="mt-2 text-sm text-danger">{settings.error.message}</p> : null}
       {saveSettings.error ? <p className="mt-2 text-sm text-danger">{saveSettings.error.message}</p> : null}
+      {clearTelegramToken.error ? <p className="mt-2 text-sm text-danger">{clearTelegramToken.error.message}</p> : null}
       {testTelegram.data ? (
         <p className={`mt-2 text-sm ${testTelegram.data.delivered ? "text-muted" : "text-danger"}`}>
           Telegram delivered: {testTelegram.data.delivered ? "yes" : "no"}

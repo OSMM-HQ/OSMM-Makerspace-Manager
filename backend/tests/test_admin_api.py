@@ -734,7 +734,7 @@ def test_api_client_rest_allows_makerspace_admin_and_scopes_others():
 def test_api_client_makerspace_admin_cannot_escalate_privileged_fields():
     # Review fix (P2): widening API-client management to MANAGE_MAKERSPACE must NOT let a
     # makerspace admin set the privileged knobs. Tier/scopes/client_type are forced to safe
-    # defaults on create and preserved (not escalated) on update — superadmin-only.
+    # defaults on create and preserved (not escalated) on update â€” superadmin-only.
     makerspace = make_space("client-escalate")
     admin = make_member("client-escalate-admin", makerspace)  # SPACE_MANAGER
     admin_client = authenticated_client(admin)
@@ -962,6 +962,88 @@ def test_admin_can_manage_api_integration_settings_from_api_clients_area(monkeyp
     assert makerspace.smtp_from_email == "makerspace@example.com"
 
 
+def test_admin_can_clear_makerspace_integration_secrets(monkeypatch):
+    makerspace = make_space("client-settings-clear")
+    admin = make_member("client-settings-clear-admin", makerspace)
+    makerspace.set_telegram_bot_token("bot-token")
+    makerspace.set_smtp_password("smtp-secret")
+    makerspace.save(update_fields=["telegram_bot_token", "smtp_password", "updated_at"])
+    monkeypatch.setattr(
+        "apps.integrations.smtp_validation.socket.getaddrinfo",
+        lambda host, port, type=None: [(None, None, None, None, ("8.8.8.8", port))],
+    )
+
+    response = authenticated_client(admin).patch(
+        f"/api/v1/admin/makerspace/{makerspace.id}/api-settings",
+        {"telegram_bot_token": "", "smtp_password": ""},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["telegram_bot_token_set"] is False
+    assert response.data["smtp_password_set"] is False
+    makerspace.refresh_from_db()
+    assert makerspace.get_telegram_bot_token() == ""
+    assert makerspace.get_smtp_password() == ""
+
+
+def test_makerspace_update_can_clear_integration_secrets(monkeypatch):
+    makerspace = make_space("makerspace-settings-clear")
+    admin = make_member("makerspace-settings-clear-admin", makerspace)
+    makerspace.set_telegram_bot_token("bot-token")
+    makerspace.set_smtp_password("smtp-secret")
+    makerspace.save(update_fields=["telegram_bot_token", "smtp_password", "updated_at"])
+    monkeypatch.setattr(
+        "apps.integrations.smtp_validation.socket.getaddrinfo",
+        lambda host, port, type=None: [(None, None, None, None, ("8.8.8.8", port))],
+    )
+
+    response = authenticated_client(admin).patch(
+        f"/api/v1/admin/makerspaces/{makerspace.id}",
+        {"telegram_bot_token": "", "smtp_password": ""},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["telegram_bot_token_set"] is False
+    assert response.data["smtp_password_set"] is False
+    makerspace.refresh_from_db()
+    assert makerspace.get_telegram_bot_token() == ""
+    assert makerspace.get_smtp_password() == ""
+
+
+def test_api_client_secret_rotation_returns_new_secret_once():
+    makerspace = make_space("client-rotate")
+    admin = make_member("client-rotate-admin", makerspace)
+    api_client, old_secret = ApiClient.issue(
+        label="Webhook",
+        makerspace=makerspace,
+        allowed_origins=["https://lab.example.com"],
+        created_by=admin,
+    )
+    client = authenticated_client(admin)
+
+    response = client.post(
+        f"/api/v1/admin/api-clients/{api_client.id}/rotate-secret",
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["id"] == api_client.id
+    assert response.data["client_secret"]
+    assert response.data["client_secret"] != old_secret
+    api_client.refresh_from_db()
+    assert api_client.get_secret() == response.data["client_secret"]
+    assert AuditLog.objects.filter(
+        action="api_client.secret_rotated",
+        target_id=str(api_client.id),
+    ).exists()
+
+    listed = client.get(f"/api/v1/admin/makerspace/{makerspace.id}/api-clients")
+    detail = client.get(f"/api/v1/admin/api-clients/{api_client.id}")
+    assert "client_secret" not in listed.data["results"][0]
+    assert "client_secret" not in detail.data
+
 def test_admin_cannot_manage_other_makerspace_api_clients():
     own_space = make_space("own-api")
     other_space = make_space("other-api")
@@ -1110,4 +1192,3 @@ def test_space_manager_cannot_create_or_list_cross_tenant_inventory_managers():
     listed_usernames = [item["user"]["username"] for item in listed.data["results"]]
     assert own_inventory_manager.username in listed_usernames
     assert other_inventory_manager.username not in listed_usernames
-

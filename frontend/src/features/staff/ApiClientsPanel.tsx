@@ -104,6 +104,16 @@ export function ApiClientsPanel({
       queryClient.invalidateQueries({ queryKey: ["api-clients", makerspace.id] });
     },
   });
+  const rotateClient = useMutation({
+    mutationFn: (clientId: number) =>
+      staffRequest<ApiClientCreateResponse>(`/admin/api-clients/${clientId}/rotate-secret`, {
+        method: "POST",
+      }),
+    onSuccess: (rotated) => {
+      setOneTimeSecret(rotated);
+      queryClient.invalidateQueries({ queryKey: ["api-clients", makerspace.id] });
+    },
+  });
 
   return (
     <Panel title="API access">
@@ -232,14 +242,24 @@ export function ApiClientsPanel({
                     )}
                     <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
                       <p className="text-xs text-muted">{formatDate(client.created_at)}</p>
-                      <button
-                        className="desk-button"
-                        type="button"
-                        disabled={deleteClient.isPending}
-                        onClick={() => deleteClient.mutate(client.id)}
-                      >
-                        Delete
-                      </button>
+                      <div className="desk-actions flex flex-wrap gap-2">
+                        <button
+                          className="desk-button"
+                          type="button"
+                          disabled={rotateClient.isPending}
+                          onClick={() => rotateClient.mutate(client.id)}
+                        >
+                          Rotate secret
+                        </button>
+                        <button
+                          className="desk-button"
+                          type="button"
+                          disabled={deleteClient.isPending}
+                          onClick={() => deleteClient.mutate(client.id)}
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -249,6 +269,7 @@ export function ApiClientsPanel({
               ) : null}
               {apiClients.error ? <p className="mt-3 text-sm text-danger">{apiClients.error.message}</p> : null}
               {deleteClient.error ? <p className="mt-3 text-sm text-danger">{deleteClient.error.message}</p> : null}
+              {rotateClient.error ? <p className="mt-3 text-sm text-danger">{rotateClient.error.message}</p> : null}
             </article>
           ) : (
             <>

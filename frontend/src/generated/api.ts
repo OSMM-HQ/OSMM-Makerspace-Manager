@@ -49,6 +49,7 @@ export const openApiPaths = [
   "/api/public/{makerspace_slug}/stats/",
   "/api/v1/admin/analytics/{report_key}",
   "/api/v1/admin/api-clients/{id}",
+  "/api/v1/admin/api-clients/{id}/rotate-secret",
   "/api/v1/admin/api-key-requests",
   "/api/v1/admin/assets/{id}/fix-status",
   "/api/v1/admin/assets/{id}/qr",
