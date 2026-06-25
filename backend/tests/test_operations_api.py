@@ -768,6 +768,29 @@ def test_qr_batch_replaces_duplicate_inventory_qr_item():
     item = QrPrintBatchItem.objects.get(batch=batch, qr_code=qr)
     assert item.label_text == "New label"
 
+def test_asset_qr_reprint_returns_existing_active_qr():
+    makerspace = make_space("ops-asset-qr-reprint")
+    manager = make_member("ops-asset-qr-reprint-manager", makerspace)
+    product = make_product(makerspace, tracking_mode=TrackingMode.INDIVIDUAL)
+    asset = InventoryAsset.objects.create(makerspace=makerspace, product=product, asset_tag="ARD-LOST-LABEL")
+    existing = QrCode.objects.create(
+        makerspace=makerspace,
+        target_type=QrCode.TargetType.ASSET,
+        target_id=asset.id,
+        created_by=manager,
+    )
+
+    response = authenticated_client(manager).post(
+        f"/api/v1/admin/assets/{asset.id}/qr",
+        {},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.data["id"] == existing.id
+    assert response.data["payload"] == existing.payload
+    assert QrCode.objects.filter(target_type=QrCode.TargetType.ASSET, target_id=asset.id).count() == 1
+
 def test_product_qr_creation_rejects_individual_tracked_inventory():
     makerspace = make_space("ops-product-qr-individual")
     manager = make_member("ops-product-qr-individual-manager", makerspace)
@@ -883,6 +906,7 @@ def test_destination_manager_can_retrieve_incoming_stock_transfer():
     assert [row["id"] for row in rows] == [transfer_id]
     assert detail_response.status_code == 200
     assert detail_response.data["id"] == transfer_id
+
 
 
 
