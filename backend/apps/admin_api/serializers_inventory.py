@@ -267,11 +267,11 @@ class InventoryAssetAdminSerializer(serializers.ModelSerializer):
             )
         return obj._active_qr
 
-    def get_qr_code_id(self, obj):
+    def get_qr_code_id(self, obj) -> int | None:
         qr = self._active_qr(obj)
         return qr.id if qr else None
 
-    def get_qr_payload(self, obj):
+    def get_qr_payload(self, obj) -> str | None:
         qr = self._active_qr(obj)
         return qr.payload if qr else None
 

@@ -13914,6 +13914,16 @@
                         ],
                         "readOnly": true
                     },
+                    "qr_code_id": {
+                        "type": "integer",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "qr_payload": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
                     "notes": {
                         "type": "string",
                         "readOnly": true
@@ -13933,6 +13943,8 @@
                     "notes",
                     "product",
                     "product_name",
+                    "qr_code_id",
+                    "qr_payload",
                     "serial_number",
                     "status",
                     "updated_at"
