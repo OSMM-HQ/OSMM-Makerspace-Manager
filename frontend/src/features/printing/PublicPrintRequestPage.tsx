@@ -68,6 +68,7 @@ export function PublicPrintRequestPage() {
   const [screenshotFiles, setScreenshotFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [copiedStatusUrl, setCopiedStatusUrl] = useState(false);
   const [activeStatusToken, setActiveStatusToken] = useState("");
   const [statusEmail, setStatusEmail] = useState("");
   const statusLinkHandledRef = useRef(false);
@@ -99,8 +100,12 @@ export function PublicPrintRequestPage() {
     queryKey: ["public-print-status", activeStatusToken],
     queryFn: () => fetchPrintStatus(activeStatusToken),
     enabled: Boolean(activeStatusToken),
-    refetchInterval: (query) =>
-      query.state.data?.status === "printing" ? 30_000 : false,
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (status === "printing") return 30_000;
+      if (status === "pending" || status === "accepted") return 90_000;
+      return false;
+    },
   });
   const statusByEmailMutation = useMutation({
     mutationFn: (email: string) =>
@@ -115,12 +120,24 @@ export function PublicPrintRequestPage() {
     },
   });
 
+  const statusStorageKey = makerspaceSlug ? `tinkerspace.printStatus.${makerspaceSlug}` : "";
+  const statusUrl = activeStatusToken && typeof window !== "undefined"
+    ? `${window.location.origin}${tenantPath("print")}?token=${activeStatusToken}`
+    : "";
+
   useEffect(() => {
     if (statusLinkHandledRef.current) return;
     statusLinkHandledRef.current = true;
     const token = new URLSearchParams(window.location.search).get("token")?.trim();
-    if (token) setActiveStatusToken(token);
-  }, []);
+    const stored = statusStorageKey ? window.localStorage.getItem(statusStorageKey)?.trim() : "";
+    if (token || stored) setActiveStatusToken(token || stored || "");
+  }, [statusStorageKey]);
+
+  useEffect(() => {
+    if (!statusStorageKey || !activeStatusToken) return;
+    window.localStorage.setItem(statusStorageKey, activeStatusToken);
+    setCopiedStatusUrl(false);
+  }, [activeStatusToken, statusStorageKey]);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -199,6 +216,14 @@ export function PublicPrintRequestPage() {
   function checkStatusByEmail(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (statusEmail.trim()) statusByEmailMutation.mutate(statusEmail.trim());
+  }
+
+  async function copyStatusUrl() {
+    if (!statusUrl) return;
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(statusUrl);
+    }
+    setCopiedStatusUrl(true);
   }
 
   return (
@@ -283,6 +308,9 @@ export function PublicPrintRequestPage() {
               tokenStatus={statusQuery.data}
               tokenStatusPending={Boolean(activeStatusToken) && statusQuery.isPending}
               tokenStatusError={statusQuery.error}
+              statusUrl={statusUrl}
+              statusUrlCopied={copiedStatusUrl}
+              onCopyStatusUrl={copyStatusUrl}
               onStatusEmailChange={setStatusEmail}
               onSubmitStatusEmail={checkStatusByEmail}
             />

@@ -108,6 +108,9 @@ type PrintStatusPanelProps = {
   tokenStatus?: PrintStatus;
   tokenStatusPending: boolean;
   tokenStatusError: Error | null;
+  statusUrl: string;
+  statusUrlCopied: boolean;
+  onCopyStatusUrl: () => void;
   onStatusEmailChange: (value: string) => void;
   onSubmitStatusEmail: (event: FormEvent<HTMLFormElement>) => void;
 };
@@ -121,6 +124,9 @@ export function PrintStatusPanel({
   tokenStatus,
   tokenStatusPending,
   tokenStatusError,
+  statusUrl,
+  statusUrlCopied,
+  onCopyStatusUrl,
   onStatusEmailChange,
   onSubmitStatusEmail,
 }: PrintStatusPanelProps) {
@@ -129,8 +135,17 @@ export function PrintStatusPanel({
       <p className="text-xs font-semibold tracking-wide">Status Tracker</p>
       {submitted ? (
         <p className="mt-3 rounded-lg border border-tone-mint bg-tone-mint px-3 py-2 text-sm font-medium text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]">
-          Request submitted. Use your email below to check status anytime.
+          Request submitted. Keep this status link for direct recovery.
         </p>
+      ) : null}
+      {statusUrl ? (
+        <div className="mt-3 rounded-lg border border-line bg-panel/80 p-3 text-sm">
+          <p className="font-semibold text-ink">Status URL</p>
+          <p className="mt-1 break-all text-muted">{statusUrl}</p>
+          <button className="desk-button mt-2" type="button" onClick={onCopyStatusUrl}>
+            {statusUrlCopied ? "Copied" : "Copy link"}
+          </button>
+        </div>
       ) : null}
       <form className="mt-3 space-y-3" onSubmit={onSubmitStatusEmail}>
         <label className="block">

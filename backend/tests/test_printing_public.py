@@ -5,6 +5,7 @@ from django.core import mail
 from django.urls import reverse
 from rest_framework.test import APIClient
 
+from apps.makerspaces.models import Makerspace
 from apps.printing.models import FilamentSpool, PrintBucket, PrintRequest, PrintRequestFile
 from tests.test_printing import make_bucket, make_space, make_user
 
@@ -476,6 +477,51 @@ def test_status_lookup_by_email_returns_empty_results():
     assert response.status_code == 200
     assert response.data == {"results": []}
 
+
+def test_status_lookup_by_email_token_only_policy_rejects_email_recovery():
+    makerspace = make_space("public-print-status-token-only")
+    enable_printing(makerspace)
+    makerspace.public_print_status_lookup_policy = Makerspace.PublicPrintStatusLookupPolicy.TOKEN_ONLY
+    makerspace.save(update_fields=["public_print_status_lookup_policy"])
+
+    response = public_client().post(
+        status_by_email_url(makerspace),
+        {"email": "buyer@example.com"},
+        format="json",
+    )
+
+    assert response.status_code == 403
+
+
+def test_status_lookup_by_email_checkin_verified_policy_uses_external_id():
+    makerspace = make_space("public-print-status-checkin")
+    enable_printing(makerspace)
+    makerspace.public_print_status_lookup_policy = Makerspace.PublicPrintStatusLookupPolicy.CHECKIN_VERIFIED
+    makerspace.save(update_fields=["public_print_status_lookup_policy"])
+    bucket = make_bucket(makerspace)
+    owner = make_user("public-status-checkin-owner", external_checkin_user_id="buyer@example.com")
+    other = make_user("public-status-checkin-other", external_checkin_user_id="other@example.com")
+    owned = PrintRequest.objects.create(
+        bucket=bucket,
+        requester=owner,
+        title="Verified owner",
+        contact_email="buyer@example.com",
+    )
+    PrintRequest.objects.create(
+        bucket=bucket,
+        requester=other,
+        title="Same email different checkin",
+        contact_email="buyer@example.com",
+    )
+
+    response = public_client().post(
+        status_by_email_url(makerspace),
+        {"email": "buyer@example.com"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert [item["public_token"] for item in response.data["results"]] == [str(owned.public_token)]
 
 def test_status_lookup_by_email_rejects_invalid_email():
     makerspace = make_space("public-print-status-email-invalid")

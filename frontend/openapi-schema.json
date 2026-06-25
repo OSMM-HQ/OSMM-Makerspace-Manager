@@ -14740,6 +14740,9 @@
                     "public_stats_enabled": {
                         "type": "boolean"
                     },
+                    "public_print_status_lookup_policy": {
+                        "$ref": "#/components/schemas/PublicPrintStatusLookupPolicyEnum"
+                    },
                     "superadmin_access_enabled": {
                         "type": "boolean"
                     },
@@ -16477,6 +16480,9 @@
                     "public_stats_enabled": {
                         "type": "boolean"
                     },
+                    "public_print_status_lookup_policy": {
+                        "$ref": "#/components/schemas/PublicPrintStatusLookupPolicyEnum"
+                    },
                     "superadmin_access_enabled": {
                         "type": "boolean"
                     },
@@ -18185,6 +18191,15 @@
                 "required": [
                     "results"
                 ]
+            },
+            "PublicPrintStatusLookupPolicyEnum": {
+                "enum": [
+                    "token_only",
+                    "email_unverified",
+                    "checkin_verified"
+                ],
+                "type": "string",
+                "description": "* `token_only` - Token only\n* `email_unverified` - Email unverified\n* `checkin_verified` - Check-In verified"
             },
             "PublicProduct": {
                 "type": "object",

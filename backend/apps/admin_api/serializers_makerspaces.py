@@ -51,6 +51,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "map_url",
             "public_inventory_enabled",
             "public_stats_enabled",
+            "public_print_status_lookup_policy",
             "superadmin_access_enabled",
             "staff_notifications_enabled",
             "logo_key",

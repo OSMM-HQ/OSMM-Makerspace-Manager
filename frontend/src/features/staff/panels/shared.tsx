@@ -16,6 +16,7 @@ export type Makerspace = {
   superadmin_access_enabled?: boolean;
   staff_notifications_enabled?: boolean;
   public_stats_enabled?: boolean;
+  public_print_status_lookup_policy?: "token_only" | "email_unverified" | "checkin_verified";
   logo_url?: string | null;
   cover_image_url?: string | null;
   enabled_modules?: string[];

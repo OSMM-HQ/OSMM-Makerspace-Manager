@@ -13,6 +13,7 @@ from apps.apiclients.throttling import ClientTierRateThrottle
 from apps.checkin import client as checkin
 from apps.hardware_requests.workflow_utils import get_or_create_requester
 from apps.makerspaces.lookup import get_public_makerspace
+from apps.makerspaces.models import Makerspace
 from apps.makerspaces.platform import module_enabled
 from apps.printing import public_workflow
 from apps.printing.models import FilamentSpool, PrintBucket, PrintRequest, PrintRequestFile
@@ -249,22 +250,27 @@ class PublicPrintStatusByEmailView(APIView):
         },
     )
     def post(self, request, makerspace_slug):
-        # ACCEPTED RISK (deliberate product decision): this AllowAny lookup matches on
-        # contact_email WITHOUT verifying email ownership, so it is enumerable. Many
-        # makerspaces have no SMTP, so email *notifications* can't be relied on and a
-        # token is too opaque for requesters — knowing one's own print status is judged
-        # low-sensitivity enough to waive enumeration protection here. Throttled by the
-        # request_status scope. Do NOT copy this pattern to sensitive data.
         makerspace = get_public_makerspace(makerspace_slug)
         _require_module(makerspace)
+        policy = makerspace.public_print_status_lookup_policy
+        if policy == Makerspace.PublicPrintStatusLookupPolicy.TOKEN_ONLY:
+            raise PermissionDenied("Use the request status link to check print status.")
+
         serializer = PublicPrintStatusByEmailRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data["email"]
+        queryset = PrintRequest.objects.filter(bucket__makerspace=makerspace)
+        if policy == Makerspace.PublicPrintStatusLookupPolicy.CHECKIN_VERIFIED:
+            result = checkin.verify(makerspace, email)
+            queryset = queryset.filter(requester__external_checkin_user_id=result.external_id)
+        else:
+            # ACCEPTED RISK (deliberate product decision): this policy matches on
+            # contact_email WITHOUT verifying email ownership, so it is enumerable.
+            # Keep it as an explicit makerspace setting; do NOT copy this pattern to
+            # sensitive data.
+            queryset = queryset.filter(contact_email__iexact=email)
         requests = list(
-            PrintRequest.objects.filter(
-                bucket__makerspace=makerspace,
-                contact_email__iexact=serializer.validated_data["email"],
-            )
-            .select_related("bucket__makerspace")
+            queryset.select_related("bucket__makerspace")
             .order_by("-created_at", "-id")[:20]
         )
         counts = queue_counts_for(makerspace, requests)

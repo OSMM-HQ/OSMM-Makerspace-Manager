@@ -78,6 +78,11 @@ def default_branding_config():
 
 
 class Makerspace(models.Model):
+    class PublicPrintStatusLookupPolicy(models.TextChoices):
+        TOKEN_ONLY = "token_only", "Token only"
+        EMAIL_UNVERIFIED = "email_unverified", "Email unverified"
+        CHECKIN_VERIFIED = "checkin_verified", "Check-In verified"
+
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True, db_index=True)
     public_code = models.CharField(
@@ -96,6 +101,11 @@ class Makerspace(models.Model):
     map_url = models.URLField(blank=True, default="", validators=[validate_google_maps_url])
     public_inventory_enabled = models.BooleanField(default=True)
     public_stats_enabled = models.BooleanField(default=False)
+    public_print_status_lookup_policy = models.CharField(
+        max_length=32,
+        choices=PublicPrintStatusLookupPolicy.choices,
+        default=PublicPrintStatusLookupPolicy.EMAIL_UNVERIFIED,
+    )
     superadmin_access_enabled = models.BooleanField(default=True)
     staff_notifications_enabled = models.BooleanField(default=True)
     logo_key = models.CharField(max_length=300, blank=True, default="")
