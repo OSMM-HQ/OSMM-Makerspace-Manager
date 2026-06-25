@@ -17454,6 +17454,9 @@
                     "id": {
                         "type": "integer"
                     },
+                    "original_filename": {
+                        "type": "string"
+                    },
                     "kind": {
                         "type": "string"
                     },
@@ -17468,6 +17471,7 @@
                     "content_type",
                     "id",
                     "kind",
+                    "original_filename",
                     "size_bytes"
                 ]
             },

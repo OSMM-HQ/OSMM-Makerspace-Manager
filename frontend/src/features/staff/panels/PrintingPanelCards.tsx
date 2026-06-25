@@ -172,7 +172,7 @@ export function PrintRows({
                     className="desk-button text-xs"
                     onClick={() => openFile(file.id)}
                   >
-                    {file.kind ? `${humanize(file.kind)} ${index + 1}` : `File ${index + 1}`}
+                    {file.original_filename || (file.kind ? `${humanize(file.kind)} ${index + 1}` : `File ${index + 1}`)}
                   </button>
                 ))}
               </div>
@@ -247,5 +247,3 @@ function PaymentBadge({ request }: { request: PrintRequest }) {
 function humanize(value: string) {
   return value.replace(/_/g, " ").replace(/^\w/, (match) => match.toUpperCase());
 }
-
-

@@ -50,6 +50,7 @@ class PrintRequestCreateSerializer(serializers.ModelSerializer):
 
 class PrintRequestFileSummarySerializer(serializers.Serializer):
     id = serializers.IntegerField()
+    original_filename = serializers.CharField()
     kind = serializers.CharField()
     content_type = serializers.CharField()
     size_bytes = serializers.IntegerField()
@@ -81,6 +82,7 @@ class PrintRequestSerializer(serializers.ModelSerializer):
             {
                 "id": f.id,
                 "kind": f.kind,
+                "original_filename": f.original_filename,
                 "content_type": f.content_type,
                 "size_bytes": f.size_bytes,
             }

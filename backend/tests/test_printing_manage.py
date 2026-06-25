@@ -43,6 +43,32 @@ def managed_file_url(print_file):
     return reverse("printing:managed-file-url", kwargs={"pk": print_file.id})
 
 
+def test_managed_request_detail_includes_original_file_names():
+    makerspace = make_space("manage-request-file-name")
+    bucket = make_bucket(makerspace)
+    requester = make_user(
+        "manage-request-file-name-requester", access_status=User.AccessStatus.ACTIVE
+    )
+    manager = make_print_manager("manage-request-file-name-manager", makerspace)
+    print_request = make_request(bucket, requester)
+    PrintRequestFile.objects.create(
+        print_request=print_request,
+        makerspace=makerspace,
+        kind=PrintRequestFile.Kind.STL,
+        object_key="printing/manage-request-file-name/model.stl",
+        content_type="model/stl",
+        original_filename="gearbox bracket.stl",
+        size_bytes=1234,
+        owner_checkin_user_id="x",
+    )
+
+    response = authenticated_client(manager).get(
+        reverse("printing:managed-request-detail", kwargs={"pk": print_request.id})
+    )
+
+    assert response.status_code == 200
+    assert response.data["files"][0]["original_filename"] == "gearbox bracket.stl"
+
 def test_managed_file_url_returns_signed_url_for_owner_makerspace(monkeypatch):
     makerspace = make_space("manage-file-url-own")
     bucket = make_bucket(makerspace)
