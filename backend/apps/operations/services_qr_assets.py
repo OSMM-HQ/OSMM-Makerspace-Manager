@@ -4,6 +4,7 @@ from rest_framework.exceptions import ValidationError
 
 from apps.audit import services as audit
 from apps.boxes.models import Box, QrCode
+from apps.inventory import availability
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 from apps.operations.models import QrPrintBatch, QrPrintBatchItem
 
@@ -33,24 +34,28 @@ def add_qr_to_batch(batch, qr, label_text="", sort_order=None):
 
 
 def generate_assets_with_qr(actor, product, data):
-    if product.tracking_mode != TrackingMode.INDIVIDUAL:
-        product.tracking_mode = TrackingMode.INDIVIDUAL
-        product.save(update_fields=["tracking_mode", "updated_at"])
-    batch = None
-    if data.get("print_batch_id"):
-        batch = QrPrintBatch.objects.get(pk=data["print_batch_id"], makerspace=product.makerspace)
-    elif data.get("create_print_batch"):
-        batch = QrPrintBatch.objects.create(
-            makerspace=product.makerspace,
-            title=f"{product.name} unit QR labels",
-            created_by=actor,
-        )
-    serials = data.get("serial_numbers") or []
-    name_prefix = data.get("name_prefix") or product.name
     created = []
     with transaction.atomic():
+        product = InventoryProduct.objects.select_for_update().get(pk=product.pk)
+        if product.tracking_mode != TrackingMode.INDIVIDUAL:
+            product.tracking_mode = TrackingMode.INDIVIDUAL
+            product.save(update_fields=["tracking_mode", "updated_at"])
+
+        batch = None
+        if data.get("print_batch_id"):
+            batch = QrPrintBatch.objects.get(pk=data["print_batch_id"], makerspace=product.makerspace)
+        elif data.get("create_print_batch"):
+            batch = QrPrintBatch.objects.create(
+                makerspace=product.makerspace,
+                title=f"{product.name} unit QR labels",
+                created_by=actor,
+            )
+        serials = data.get("serial_numbers") or []
+        name_prefix = data.get("name_prefix") or product.name
+        existing_count = product.assets.count()
+
         for idx in range(data["count"]):
-            next_number = product.assets.count() + 1
+            next_number = existing_count + idx + 1
             asset_tag = f"{product.slug if hasattr(product, 'slug') else product.id}-{next_number:04d}"
             asset = InventoryAsset.objects.create(
                 makerspace=product.makerspace,
@@ -70,6 +75,8 @@ def generate_assets_with_qr(actor, product, data):
             if batch:
                 add_qr_to_batch(batch, qr, label_text=f"{name_prefix} {next_number}")
             created.append({"asset": asset, "qr": qr})
+
+        availability.reconcile_individual_product_from_assets(product)
         audit.record(actor, "asset_units.generated", makerspace=product.makerspace, target=product, meta={"count": data["count"]})
     return created, batch
 

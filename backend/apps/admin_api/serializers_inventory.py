@@ -2,6 +2,7 @@ from django.utils.text import slugify
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from apps.boxes.models import QrCode
 from apps.inventory import public_image_storage
 from apps.inventory.models import (
     Category,
@@ -230,6 +231,8 @@ class PublicImageUploadResponseSerializer(serializers.Serializer):
 class InventoryAssetAdminSerializer(serializers.ModelSerializer):
     product_name = serializers.CharField(source="product.name", read_only=True)
     box_label = serializers.CharField(source="box.label", read_only=True, allow_null=True)
+    qr_code_id = serializers.SerializerMethodField()
+    qr_payload = serializers.SerializerMethodField()
 
     class Meta:
         model = InventoryAsset
@@ -243,10 +246,34 @@ class InventoryAssetAdminSerializer(serializers.ModelSerializer):
             "asset_tag",
             "serial_number",
             "status",
+            "qr_code_id",
+            "qr_payload",
             "notes",
             "updated_at",
         ]
         read_only_fields = fields
+
+    def _active_qr(self, obj):
+        if not hasattr(obj, "_active_qr"):
+            obj._active_qr = (
+                QrCode.objects.filter(
+                    makerspace_id=obj.makerspace_id,
+                    target_type=QrCode.TargetType.ASSET,
+                    target_id=obj.id,
+                    status=QrCode.Status.ACTIVE,
+                )
+                .order_by("id")
+                .first()
+            )
+        return obj._active_qr
+
+    def get_qr_code_id(self, obj):
+        qr = self._active_qr(obj)
+        return qr.id if qr else None
+
+    def get_qr_payload(self, obj):
+        qr = self._active_qr(obj)
+        return qr.payload if qr else None
 
 
 class InventoryAssetStatusActionSerializer(serializers.Serializer):

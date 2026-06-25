@@ -581,7 +581,8 @@ def test_asset_generation_creates_qr_labels_in_print_batch():
     manager = make_member("ops-assets-manager", makerspace)
     product = make_product(makerspace, name="Drill", tracking_mode=TrackingMode.INDIVIDUAL)
 
-    response = authenticated_client(manager).post(
+    client = authenticated_client(manager)
+    response = client.post(
         f"/api/v1/admin/products/{product.id}/assets/generate",
         {"count": 2, "create_print_batch": True},
         format="json",
@@ -591,6 +592,13 @@ def test_asset_generation_creates_qr_labels_in_print_batch():
     assert len(response.data["assets"]) == 2
     assert QrCode.objects.filter(target_type=QrCode.TargetType.ASSET).count() == 2
     assert QrPrintBatch.objects.get(pk=response.data["print_batch_id"]).items.count() == 2
+    product.refresh_from_db()
+    assert product.total_quantity == 2
+    assert product.available_quantity == 2
+    listing = client.get(f"/api/v1/admin/inventory/{product.id}/assets")
+    assert listing.status_code == 200
+    assert all(row["qr_code_id"] for row in listing.data["results"])
+    assert all(row["qr_payload"] for row in listing.data["results"])
 
 
 def test_asset_generation_adds_50_unique_sequential_unit_qrs_to_existing_batch():
@@ -599,7 +607,8 @@ def test_asset_generation_adds_50_unique_sequential_unit_qrs_to_existing_batch()
     product = make_product(makerspace, name="Arduino", tracking_mode=TrackingMode.INDIVIDUAL)
     batch = QrPrintBatch.objects.create(makerspace=makerspace, title="Arduino labels", created_by=manager)
 
-    response = authenticated_client(manager).post(
+    client = authenticated_client(manager)
+    response = client.post(
         f"/api/v1/admin/products/{product.id}/assets/generate",
         {"count": 50, "name_prefix": "Arduino", "print_batch_id": batch.id},
         format="json",
@@ -608,6 +617,9 @@ def test_asset_generation_adds_50_unique_sequential_unit_qrs_to_existing_batch()
     assert response.status_code == 201
     assert len(response.data["assets"]) == 50
     assert InventoryAsset.objects.filter(product=product).count() == 50
+    product.refresh_from_db()
+    assert product.total_quantity == 50
+    assert product.available_quantity == 50
     assert QrCode.objects.filter(target_type=QrCode.TargetType.ASSET).count() == 50
     assert QrCode.objects.filter(target_type=QrCode.TargetType.ASSET).values("payload").distinct().count() == 50
     assert list(batch.items.order_by("sort_order").values_list("label_text", flat=True)) == [
