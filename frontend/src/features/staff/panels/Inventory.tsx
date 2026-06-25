@@ -8,6 +8,7 @@ import { staffRequest } from "../../../lib/api";
 import { useDebouncedValue } from "../../../lib/useDebouncedValue";
 import { readStorage, writeStorage } from "../../../lib/safeStorage";
 import { ImageUploader } from "../ImageUploader";
+import { QrImage } from "./QrImage";
 import { invalidateInventoryViews } from "../queryInvalidation";
 import { categoryResults, Panel, type Category, type CategoryListResponse, type Makerspace, type Product, useStaffGet } from "./shared";
 
@@ -24,7 +25,7 @@ type ItemForm = {
   storage_location: string; is_public: boolean; public_self_checkout_enabled: boolean; show_public_count: boolean; public_availability_mode: string;
 };
 type AdjustmentForm = { delta_available: string; delta_damaged: string; delta_lost: string; reason: string };
-type InventoryAssetRow = { id: number; asset_tag: string; serial_number: string; status: string; box_label: string | null };
+type InventoryAssetRow = { id: number; asset_tag: string; serial_number: string; status: string; box_label: string | null; qr_code_id: number | null; qr_payload: string | null };
 type Actor = { username: string; role: string };
 type LendingHistoryEntry = { id: number; username: string; issued_at: string; quantity: number; accepted_by: Actor | null; issued_by: Actor | null };
 type LendingHistoryResponse = { product_id: number; last_borrower: LendingHistoryEntry | null; recent: LendingHistoryEntry[] };
@@ -321,10 +322,14 @@ function IndividualAssets({ productId, makerspaceId, refreshInventory }: { produ
       {!assets.isLoading && !rows.length ? <p className="text-sm text-muted">No asset records yet.</p> : null}
       <div className="grid gap-2">
         {rows.map((asset) => (
-          <div key={asset.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-line bg-surface p-2 text-sm">
-            <div className="min-w-0">
-              <p className="font-medium text-ink">{asset.asset_tag}</p>
-              <p className="text-xs text-muted">{[asset.serial_number, asset.box_label, asset.status].filter(Boolean).join(" | ")}</p>
+          <div key={asset.id} className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-surface p-2 text-sm">
+            <div className="flex min-w-0 flex-1 items-center gap-3">
+              {asset.qr_code_id ? <div className="w-16 shrink-0"><QrImage qrId={asset.qr_code_id} label={asset.asset_tag} /></div> : null}
+              <div className="min-w-0">
+                <p className="font-medium text-ink">{asset.asset_tag}</p>
+                <p className="text-xs text-muted">{[asset.serial_number, asset.box_label, asset.status].filter(Boolean).join(" | ")}</p>
+                <p className="truncate font-mono text-xs text-muted">{asset.qr_code_id ? `QR #${asset.qr_code_id} | ${asset.qr_payload ?? ""}` : "No QR linked"}</p>
+              </div>
             </div>
             <div className="desk-actions flex flex-wrap gap-2">
               {asset.status === "maintenance" ? (

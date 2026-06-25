@@ -130,10 +130,12 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
   const hasBatch = Boolean(activeBatchId);
   const batchItems = batch.data?.items ?? [];
   const count = Number(assetCount);
+  const productOptions = products.data?.results ?? [];
+  const quantityProducts = productOptions.filter((product) => product.tracking_mode !== "individual");
   const canGenerateAssets = hasBatch && Boolean(assetProductId) && Number.isInteger(count) && count > 0 && count <= 200;
   const selectAssetProduct = (nextId: string) => {
     setAssetProductId(nextId);
-    setAssetPrefix(products.data?.results?.find((product) => product.id === Number(nextId))?.name ?? "");
+    setAssetPrefix(productOptions.find((product) => product.id === Number(nextId))?.name ?? "");
   };
 
   return (
@@ -157,37 +159,21 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
         </div>
 
         <div className="grid gap-3 lg:grid-cols-3">
-          <ActionBox title="Box QR">
-            <select className="desk-input w-full" value={boxId} disabled={!hasBatch || containers.isLoading} onChange={(event) => setBoxId(event.target.value)}>
-              <option value="">Existing box</option>
-              {containers.data?.results?.map((box) => <option key={box.id} value={box.id}>{box.label}</option>)}
-            </select>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <button className="desk-button" type="button" disabled={!hasBatch || !boxId || addExistingBox.isPending} onClick={() => addExistingBox.mutate()}>
-                {addExistingBox.isPending ? "Adding..." : "Add box"}
-              </button>
-              <button className="desk-button" type="button" disabled={!hasBatch} onClick={() => setBoxModalOpen(true)}>
-                Create box
-              </button>
-            </div>
-            {addExistingBox.isError ? <ErrorText text={addExistingBox.error.message} /> : null}
-          </ActionBox>
-
-          <ActionBox title="Product QR">
+          <ActionBox title="Inventory item QR">
             <select className="desk-input w-full" value={productId} disabled={!hasBatch || products.isLoading} onChange={(event) => setProductId(event.target.value)}>
-              <option value="">Product</option>
-              {products.data?.results?.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
+              <option value="">Quantity item</option>
+              {quantityProducts.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
             </select>
             <button className="desk-button mt-2" type="button" disabled={!hasBatch || !productId || addProduct.isPending} onClick={() => addProduct.mutate()}>
-              {addProduct.isPending ? "Adding..." : "Add product"}
+              {addProduct.isPending ? "Adding..." : "Add item QR"}
             </button>
             {addProduct.isError ? <ErrorText text={addProduct.error.message} /> : null}
           </ActionBox>
 
-          <ActionBox title="Individual asset units">
+          <ActionBox title="Individual unit QRs">
             <select className="desk-input w-full" value={assetProductId} disabled={!hasBatch || products.isLoading} onChange={(event) => selectAssetProduct(event.target.value)}>
-              <option value="">Product</option>
-              {products.data?.results?.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
+              <option value="">Inventory item</option>
+              {productOptions.map((product) => <option key={product.id} value={product.id}>{product.name}</option>)}
             </select>
             <div className="mt-2 grid grid-cols-[90px_1fr] gap-2">
               <input className="desk-input" inputMode="numeric" value={assetCount} onChange={(event) => setAssetCount(event.target.value)} />
@@ -197,6 +183,22 @@ export function QrTools({ makerspace }: { makerspace: Makerspace }) {
               {generateAssets.isPending ? "Generating..." : "Generate unit QRs"}
             </button>
             {generateAssets.isError ? <ErrorText text={generateAssets.error.message} /> : null}
+          </ActionBox>
+
+          <ActionBox title="Container QR">
+            <select className="desk-input w-full" value={boxId} disabled={!hasBatch || containers.isLoading} onChange={(event) => setBoxId(event.target.value)}>
+              <option value="">Existing container</option>
+              {containers.data?.results?.map((box) => <option key={box.id} value={box.id}>{box.label}</option>)}
+            </select>
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button className="desk-button" type="button" disabled={!hasBatch || !boxId || addExistingBox.isPending} onClick={() => addExistingBox.mutate()}>
+                {addExistingBox.isPending ? "Adding..." : "Add container"}
+              </button>
+              <button className="desk-button" type="button" disabled={!hasBatch} onClick={() => setBoxModalOpen(true)}>
+                Create container
+              </button>
+            </div>
+            {addExistingBox.isError ? <ErrorText text={addExistingBox.error.message} /> : null}
           </ActionBox>
         </div>
 
