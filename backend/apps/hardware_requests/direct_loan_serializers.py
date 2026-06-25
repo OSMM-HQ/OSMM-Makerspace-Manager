@@ -39,6 +39,7 @@ class DirectLoanIssueSerializer(serializers.Serializer):
 class DirectLoanReturnSerializer(serializers.Serializer):
     evidence_id = serializers.IntegerField()
     notes = serializers.CharField()
+    qr_payload = serializers.CharField(max_length=64, required=False, allow_blank=True)
     returned_by_identifier = serializers.CharField(required=False, allow_blank=True)
 
 
@@ -54,10 +55,20 @@ class DirectLoanSerializer(PublicToolLoanSerializer):
     container_id = serializers.IntegerField(read_only=True)
     container_label = serializers.SerializerMethodField()
     due_at = serializers.DateTimeField(read_only=True, allow_null=True)
+    issue_evidence_id = serializers.IntegerField(
+        source="request.issue_evidence_id",
+        read_only=True,
+        allow_null=True,
+    )
     return_evidence_id = serializers.IntegerField(read_only=True, allow_null=True)
     return_notes = serializers.CharField(read_only=True, allow_blank=True)
+    return_scan_required = serializers.SerializerMethodField()
     source = serializers.CharField(read_only=True)
     issued_by = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_return_scan_required(self, obj) -> bool:
+        return bool(obj.qr_ids) or obj.container_id is not None
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_container_label(self, obj):

@@ -24,7 +24,7 @@ type ContainerResponse = ContainerOption[] | { results: ContainerOption[] };
 type VerifyResponse = { username: string };
 type LineDraft = { key: number; productId: string; quantity: string };
 type ScannedPayload = { payload: string; label: string };
-type ReturnLoanPayload = { loanId: number; evidenceId: number; notes: string };
+type ReturnLoanPayload = { loanId: number; evidenceId: number; notes: string; qrPayload: string };
 type QrResolveResponse = {
   target:
     | { type: "product"; id: number; name: string }
@@ -55,6 +55,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   const [issueUploadKey, setIssueUploadKey] = useState(0);
   const [returnEvidenceId, setReturnEvidenceId] = useState<number | null>(null);
   const [returnNotes, setReturnNotes] = useState("");
+  const [returnQrPayload, setReturnQrPayload] = useState("");
   useEffect(() => {
     setRequesterName("");
     setContactEmail("");
@@ -75,6 +76,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
     setIssueUploadKey((key) => key + 1);
     setReturnEvidenceId(null);
     setReturnNotes("");
+    setReturnQrPayload("");
   }, [makerspace.id]);
   const products = useStaffGet<{ results: ProductOption[] }>(
     ["inventory-all", makerspace.id],
@@ -164,10 +166,10 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
     issueEvidenceId !== null &&
     !issue.isPending;
   const returnLoan = useMutation({
-    mutationFn: ({ loanId, evidenceId, notes }: ReturnLoanPayload) =>
+    mutationFn: ({ loanId, evidenceId, notes, qrPayload }: ReturnLoanPayload) =>
       staffRequest(`/admin/direct-loans/${loanId}/return`, {
         method: "POST",
-        body: JSON.stringify({ evidence_id: evidenceId, notes }),
+        body: JSON.stringify({ evidence_id: evidenceId, notes, qr_payload: qrPayload.trim() }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["direct-loans", makerspace.id] });
@@ -179,12 +181,14 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
     setReturningLoan(null);
     setReturnEvidenceId(null);
     setReturnNotes("");
+    setReturnQrPayload("");
   };
   const openReturnModal = (loan: DirectLoan) => {
     returnLoan.reset();
     setReturningLoan(loan);
     setReturnEvidenceId(null);
     setReturnNotes("");
+    setReturnQrPayload("");
   };
   const closeReturnModal = () => {
     if (returnLoan.isPending) return;
@@ -193,10 +197,12 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   };
   const submitReturn = () => {
     if (!returningLoan || returnEvidenceId === null || !returnNotes.trim()) return;
+    if (returningLoan.return_scan_required && !returnQrPayload.trim()) return;
     returnLoan.mutate({
       loanId: returningLoan.id,
       evidenceId: returnEvidenceId,
       notes: returnNotes.trim(),
+      qrPayload: returnQrPayload,
     });
   };
   const addLine = () => {
@@ -407,10 +413,12 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
         makerspaceId={makerspace.id}
         evidenceId={returnEvidenceId}
         notes={returnNotes}
+        qrPayload={returnQrPayload}
         pending={returnLoan.isPending}
         error={returnLoan.error?.message ?? ""}
         onEvidenceUploaded={setReturnEvidenceId}
         onNotesChange={setReturnNotes}
+        onQrPayloadChange={setReturnQrPayload}
         onCancel={closeReturnModal}
         onSubmit={submitReturn}
       />
@@ -423,9 +431,3 @@ function labelForTarget(target: QrResolveResponse["target"], fallback: string) {
   if (target.type === "asset") return `Unit: ${target.product} | ${target.asset_tag} | ${target.status}`;
   return `Container: ${target.label || target.code || fallback}`;
 }
-
-
-
-
-
-

@@ -13257,6 +13257,11 @@
                         "readOnly": true,
                         "nullable": true
                     },
+                    "issue_evidence_id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
                     "return_evidence_id": {
                         "type": "integer",
                         "readOnly": true,
@@ -13264,6 +13269,10 @@
                     },
                     "return_notes": {
                         "type": "string",
+                        "readOnly": true
+                    },
+                    "return_scan_required": {
+                        "type": "boolean",
                         "readOnly": true
                     },
                     "source": {
@@ -13285,11 +13294,13 @@
                     "container_label",
                     "due_at",
                     "id",
+                    "issue_evidence_id",
                     "issued_by",
                     "items",
                     "public_token",
                     "return_evidence_id",
                     "return_notes",
+                    "return_scan_required",
                     "source",
                     "status",
                     "target_label",
@@ -13367,6 +13378,10 @@
                     },
                     "notes": {
                         "type": "string"
+                    },
+                    "qr_payload": {
+                        "type": "string",
+                        "maxLength": 64
                     },
                     "returned_by_identifier": {
                         "type": "string"

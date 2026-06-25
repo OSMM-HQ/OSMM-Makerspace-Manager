@@ -3,6 +3,7 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from apps.audit import services as audit
+from apps.boxes.models import QrCode, QrScanEvent
 from apps.evidence import storage
 from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests.direct_loan_audit import record_item_logs
@@ -17,7 +18,7 @@ from apps.hardware_requests.workflow_errors import (
 from apps.inventory.models import InventoryAsset
 
 
-def return_direct_loan(loan, actor, evidence_id, notes):
+def return_direct_loan(loan, actor, evidence_id, notes, *, qr_payload=""):
     notes = str(notes or "").strip()
     if not notes:
         raise RequestValidationError("Return notes are required.")
@@ -44,6 +45,7 @@ def return_direct_loan(loan, actor, evidence_id, notes):
         ):
             raise ReturnValidationError("Evidence already used.")
         validate_evidence_upload(evidence, label="Return")
+        return_qr = _return_scan_qr(locked, qr_payload)
         _return_request_items(locked.request)
         if locked.asset_ids:
             InventoryAsset.objects.select_for_update().filter(
@@ -72,6 +74,14 @@ def return_direct_loan(loan, actor, evidence_id, notes):
         locked.request.save(
             update_fields=["status", "closed_by", "closed_at", "updated_at"]
         )
+        if return_qr is not None:
+            QrScanEvent.objects.create(
+                makerspace=locked.makerspace,
+                qr_code=return_qr,
+                actor=actor,
+                context=QrScanEvent.Context.RETURN,
+                request=locked.request,
+            )
         record_item_logs(
             actor, "admin_direct.returned", locked.makerspace, locked.request, locked
         )
@@ -83,6 +93,51 @@ def return_direct_loan(loan, actor, evidence_id, notes):
             meta={"request_id": locked.request_id},
         )
         return locked
+
+
+def _return_scan_qr(loan, qr_payload):
+    expected_ids = [int(qr_id) for qr_id in (loan.qr_ids or [])]
+    qr_payload = str(qr_payload or "").strip()
+    if not expected_ids and loan.container_id:
+        container_qr = (
+            QrCode.objects.select_for_update()
+            .filter(
+                makerspace=loan.makerspace,
+                target_type=QrCode.TargetType.BOX,
+                target_id=loan.container_id,
+                status=QrCode.Status.ACTIVE,
+            )
+            .first()
+        )
+        if container_qr is not None:
+            expected_ids = [container_qr.id]
+
+    if expected_ids:
+        if not qr_payload:
+            raise RequestValidationError("Return QR scan is required.")
+        qr = (
+            QrCode.objects.select_for_update()
+            .filter(pk__in=expected_ids, makerspace=loan.makerspace, payload=qr_payload)
+            .first()
+        )
+        if qr is None:
+            raise RequestValidationError("Scanned QR does not match this direct loan.")
+        return qr
+
+    if not qr_payload:
+        return None
+    qr = (
+        QrCode.objects.select_for_update()
+        .filter(
+            makerspace=loan.makerspace,
+            payload=qr_payload,
+            status=QrCode.Status.ACTIVE,
+        )
+        .first()
+    )
+    if qr is None:
+        raise RequestValidationError("QR code is not active for this makerspace.")
+    return qr
 
 
 def validate_evidence_upload(evidence, *, label):
