@@ -185,6 +185,24 @@ def test_export_csv_scoped_to_viewable_kinds():
     assert "Hidden hardware" not in body  # hardware stream excluded for print manager
 
 
+def test_export_xlsx_returns_spreadsheet_and_invalid_format_400():
+    space = make_space("proc-xlsx")
+    manager = make_space_manager("proc-xlsx-mgr", space)
+    ToBuyItem.objects.create(makerspace=space, kind=ToBuyItem.Kind.HARDWARE, name="Drill bits", quantity=4)
+    client = authenticated_client(manager)
+
+    xlsx = client.get(f"{export_url(space)}?format=xlsx")
+    assert xlsx.status_code == 200
+    assert (
+        xlsx["Content-Type"]
+        == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+    bad = client.get(f"{export_url(space)}?format=pdf")
+    assert bad.status_code == 400
+    assert "format" in bad.data
+
+
 def test_negative_estimated_cost_and_zero_quantity_are_rejected():
     space = make_space("proc-validate")
     admin = make_space_manager("proc-validate-mgr", space)

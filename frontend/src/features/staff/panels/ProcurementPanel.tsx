@@ -72,18 +72,23 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
     onSuccess: invalidate,
   });
 
-  const exportCsv = useMutation({
-    mutationFn: () => downloadStaffFile(`${base}/export?${statusFilter === "all" ? "" : `status=${statusFilter}`}`, `to-buy-${makerspace.slug}.csv`),
+  const exportToBuy = useMutation({
+    mutationFn: (format: "csv" | "xlsx") => {
+      const params = new URLSearchParams({ format });
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      return downloadStaffFile(`${base}/export?${params.toString()}`, `to-buy-${makerspace.slug}.${format}`);
+    },
   });
 
   const rows = items.data ?? [];
   const visibleEstimatedTotal = rows.reduce((sum, item) => sum + itemTotal(item), 0);
   const pendingBudget = rows.filter((item) => item.status === "pending").reduce((sum, item) => sum + itemTotal(item), 0);
+  const boughtTotal = rows.filter((item) => item.status === "bought").reduce((sum, item) => sum + itemTotal(item), 0);
 
   return (
     <Panel title="To Buy">
       <p className="mb-3 text-xs text-muted">
-        Shopping list for {makerspace.name}. Add what to buy with quantity and a link, mark items bought, and export to CSV.
+        Shopping list for {makerspace.name}. Add what to buy with quantity and a link, mark items bought, and export the list.
       </p>
 
       <form
@@ -114,12 +119,13 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
         ) : null}
       </form>
       {create.error ? <p className="mt-2 text-sm text-danger">{create.error instanceof Error ? create.error.message : "Could not add item."}</p> : null}
-      {exportCsv.error ? <p className="mt-2 text-sm text-danger">{exportCsv.error instanceof Error ? exportCsv.error.message : "Could not export CSV."}</p> : null}
+      {exportToBuy.error ? <p className="mt-2 text-sm text-danger">{exportToBuy.error instanceof Error ? exportToBuy.error.message : "Could not export list."}</p> : null}
 
       <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           <Metric label="Visible estimated total" value={formatAmount(visibleEstimatedTotal)} />
           <Metric label="Pending budget" value={formatAmount(pendingBudget)} />
+          <Metric label="Bought total" value={formatAmount(boughtTotal)} />
           <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-muted">
             Status
             <select className="desk-input" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
@@ -129,11 +135,15 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
             </select>
           </label>
         </div>
-        <button className="desk-button justify-self-start lg:justify-self-end" type="button" disabled={exportCsv.isPending} onClick={() => exportCsv.mutate()}>
-          Export CSV
-        </button>
+        <div className="flex flex-wrap gap-2 justify-self-start lg:justify-self-end">
+          <button className="desk-button" type="button" disabled={exportToBuy.isPending} onClick={() => exportToBuy.mutate("csv")}>
+            Export CSV
+          </button>
+          <button className="desk-button" type="button" disabled={exportToBuy.isPending} onClick={() => exportToBuy.mutate("xlsx")}>
+            Export XLSX
+          </button>
+        </div>
       </div>
-
       {items.isFetching && !items.isLoading ? <p className="mt-2 text-xs text-muted">Refreshing list...</p> : null}
       {items.isLoading ? (
         <p className="mt-3 text-sm text-muted">Loading...</p>
