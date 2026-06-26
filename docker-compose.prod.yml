@@ -145,6 +145,19 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  beat:
+    image: ${MAKERSPACE_BACKEND_IMAGE:-ghcr.io/shaan-shoukath/osmm-backend}:${MAKERSPACE_IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment: *backend-env
+    command: celery -A config beat -l info
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
   frontend:
     image: ${MAKERSPACE_FRONTEND_IMAGE:-ghcr.io/shaan-shoukath/osmm-frontend}:${MAKERSPACE_IMAGE_TAG:-latest}
     ports:

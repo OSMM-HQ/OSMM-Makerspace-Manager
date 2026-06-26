@@ -116,6 +116,21 @@ services:
           name: makerspace-redis
           property: connectionString
 
+  - type: worker
+    name: makerspace-beat
+    env: docker
+    plan: starter
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    dockerCommand: celery -A config beat -l info
+    envVars:
+      - fromGroup: makerspace-prod
+      - key: CELERY_BROKER_URL
+        fromService:
+          type: redis
+          name: makerspace-redis
+          property: connectionString
+
   - type: web
     name: makerspace-frontend
     env: static

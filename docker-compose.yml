@@ -154,6 +154,21 @@ services:
       migrate:
         condition: service_completed_successfully
 
+  beat:
+    build:
+      context: ./backend
+    container_name: osmm-beat
+    restart: unless-stopped
+    environment: *backend-env
+    command: celery -A config beat -l info
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
   frontend:
     build:
       context: ./frontend

@@ -2,6 +2,7 @@ from datetime import timedelta
 from pathlib import Path
 from urllib.parse import urlsplit
 
+from celery.schedules import crontab
 import environ
 from corsheaders.defaults import default_headers
 
@@ -235,6 +236,13 @@ CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_ACCEPT_CONTENT = ["json"]
+# Beat runs return reminders hourly; the internal cron endpoint remains a manual/external fallback.
+CELERY_BEAT_SCHEDULE = {
+    "return-reminders": {
+        "task": "apps.hardware_requests.tasks.send_return_reminders_task",
+        "schedule": crontab(minute=0),
+    },
+}
 
 CORS_ALLOWED_ORIGINS = env.list(
     "CORS_ALLOWED_ORIGINS",
