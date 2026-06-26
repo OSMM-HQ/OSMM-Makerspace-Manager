@@ -1,15 +1,13 @@
-import csv
-from io import StringIO
-
-from django.http import Http404, HttpResponse
+from django.http import Http404
 from django.shortcuts import get_object_or_404
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.views import APIView
 
 from apps.accounts import rbac
+from apps.admin_api.exports import csv_response, xlsx_response
 from apps.admin_api.permissions import IsActiveStaff
 from apps.audit import services as audit
 from apps.makerspaces.guards import require_module
@@ -30,16 +28,6 @@ PROCUREMENT_ERROR_RESPONSES = {
     403: OpenApiResponse(description="Permission denied."),
     404: OpenApiResponse(description="Not found."),
 }
-
-
-def _csv_safe(value):
-    # Prevent CSV/spreadsheet formula injection: a cell starting with one of these
-    # is treated as a formula by Excel/Sheets. User-controlled name/link could
-    # carry one, so neutralize it with a leading apostrophe.
-    text = "" if value is None else str(value)
-    if text[:1] in ("=", "+", "-", "@", "\t", "\r"):
-        return "'" + text
-    return text
 
 
 def _list_limit(request):
@@ -200,37 +188,62 @@ class ToBuyExportView(APIView):
     serializer_class = ToBuyItemSerializer
 
     @extend_schema(
-        summary="Export to-buy items as CSV",
-        parameters=[STATUS_PARAM],
-        responses={(200, "text/csv"): OpenApiTypes.STR, **PROCUREMENT_ERROR_RESPONSES},
+        summary="Export to-buy items as CSV or XLSX",
+        parameters=[
+            STATUS_PARAM,
+            OpenApiParameter(
+                "format",
+                OpenApiTypes.STR,
+                OpenApiParameter.QUERY,
+                enum=["csv", "xlsx"],
+            ),
+        ],
+        responses={
+            (200, "text/csv"): OpenApiTypes.STR,
+            (
+                200,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ): OpenApiTypes.BINARY,
+            **PROCUREMENT_ERROR_RESPONSES,
+        },
     )
     def get(self, request, makerspace_id, *args, **kwargs):
         require_module(get_object_or_404(Makerspace, pk=makerspace_id), MODULE_KEY)
         kinds = access.viewable_kinds(request.user, makerspace_id)
         if not kinds:
             raise PermissionDenied()
+        fmt = request.query_params.get("format", "csv")
+        if fmt not in {"csv", "xlsx"}:
+            raise ValidationError({"format": "Use csv or xlsx."})
         items = ToBuyItem.objects.filter(makerspace_id=makerspace_id, kind__in=kinds)
         items = (
             _apply_status_filter(items, request)
             .select_related("created_by")
             .order_by("-created_at", "-id")
         )
-        buffer = StringIO()
-        writer = csv.writer(buffer)
-        writer.writerow(
-            ["kind", "name", "quantity", "link", "status", "estimated_unit_cost", "added_by", "created_at"]
-        )
+        rows = [
+            [
+                "kind",
+                "name",
+                "quantity",
+                "link",
+                "status",
+                "estimated_unit_cost",
+                "added_by",
+                "created_at",
+            ]
+        ]
         for item in items:
-            writer.writerow([
-                _csv_safe(item.kind),
-                _csv_safe(item.name),
+            rows.append([
+                item.kind,
+                item.name,
                 item.quantity,
-                _csv_safe(item.link),
-                _csv_safe(item.status),
+                item.link,
+                item.status,
                 item.estimated_unit_cost if item.estimated_unit_cost is not None else "",
-                _csv_safe(item.created_by.username if item.created_by else ""),
+                item.created_by.username if item.created_by else "",
                 item.created_at.isoformat(),
             ])
-        response = HttpResponse(buffer.getvalue(), content_type="text/csv")
-        response["Content-Disposition"] = 'attachment; filename="to-buy.csv"'
-        return response
+        if fmt == "xlsx":
+            return xlsx_response(rows, "to-buy.xlsx")
+        return csv_response(rows, "to-buy.csv")

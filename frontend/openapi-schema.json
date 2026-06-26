@@ -11147,8 +11147,19 @@
         "/api/v1/procurement/makerspace/{makerspace_id}/to-buy/export": {
             "get": {
                 "operationId": "api_v1_procurement_makerspace_to_buy_export_retrieve",
-                "summary": "Export to-buy items as CSV",
+                "summary": "Export to-buy items as CSV or XLSX",
                 "parameters": [
+                    {
+                        "in": "query",
+                        "name": "format",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "csv",
+                                "xlsx"
+                            ]
+                        }
+                    },
                     {
                         "in": "path",
                         "name": "makerspace_id",
@@ -11184,6 +11195,12 @@
                             "text/csv": {
                                 "schema": {
                                     "type": "string"
+                                }
+                            },
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
                                 }
                             }
                         },
