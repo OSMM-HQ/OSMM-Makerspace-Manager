@@ -251,3 +251,27 @@ def test_superadmin_sees_both_and_can_target_either_kind():
     create = client.post(f"{list_url(space)}?kind=printing", {"name": "New spool", "quantity": 1}, format="json")
     assert create.status_code == 201
     assert create.data["kind"] == ToBuyItem.Kind.PRINTING
+
+
+def test_bought_toggle_delete_and_export_all_succeed():
+    space = make_space("proc-regression")
+    admin = make_space_manager("proc-regression-mgr", space)
+    client = authenticated_client(admin)
+
+    created = client.post(
+        list_url(space),
+        {"name": "Replacement chuck", "quantity": 1},
+        format="json",
+    )
+    assert created.status_code == 201
+    item = ToBuyItem.objects.get(id=created.data["id"])
+
+    bought = client.patch(detail_url(item), {"status": ToBuyItem.Status.BOUGHT}, format="json")
+    csv_export = client.get(export_url(space))
+    xlsx_export = client.get(f"{export_url(space)}?format=xlsx")
+    deleted = client.delete(detail_url(item))
+
+    assert bought.status_code == 200
+    assert csv_export.status_code == 200
+    assert xlsx_export.status_code == 200
+    assert deleted.status_code == 204
