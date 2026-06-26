@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { ConfirmDialog, DataTable, FilterBar, Modal, StatusBadge } from "../../../components/ui";
 import type { DataTableColumn } from "../../../components/ui";
-import { staffRequest } from "../../../lib/api";
+import { downloadStaffFile, staffRequest } from "../../../lib/api";
 import { useDebouncedValue } from "../../../lib/useDebouncedValue";
 import { readStorage, writeStorage } from "../../../lib/safeStorage";
 import { ImageUploader } from "../ImageUploader";
@@ -147,6 +147,17 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
       invalidate();
     },
   });
+  // Export the current view: selected rows when any are checked, else every row
+  // matching the active filters (archived/search/low-stock).
+  const exportInventory = useMutation({
+    mutationFn: (format: "csv" | "xlsx") => {
+      const base = `/admin/makerspace/${makerspace.id}/inventory/export?format=${format}`;
+      const query = selectedIds.length
+        ? `${base}&ids=${selectedIds.map((id) => String(id)).join(",")}`
+        : `${base}&archived=${showArchived ? "true" : "false"}&q=${encodeURIComponent(debouncedSearch)}${lowStockParam}`;
+      return downloadStaffFile(query, `inventory-${makerspace.slug}.${format}`);
+    },
+  });
   const openFix = (product: AdminProduct) => {
     if (product.tracking_mode === "individual") {
       setAssetFixTarget(product);
@@ -221,12 +232,15 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
               <button className="desk-button" type="button" onClick={() => writeStorage(storageKey, search)}>Save view</button>
               <button className="desk-button" type="button" disabled={!selectedIds.length || bulkQr.isPending} onClick={() => { setBulkQrMessage(""); setQrConfirm(true); }}>Enable QR</button>
               <button className="desk-button" type="button" disabled={!selectedIds.length || bulkQr.isPending} onClick={() => { setBulkQrMessage(""); setQrConfirm(false); }}>Disable QR</button>
+              <button className="desk-button" type="button" disabled={exportInventory.isPending} onClick={() => exportInventory.mutate("csv")}>{selectedIds.length ? `Export CSV (${selectedIds.length})` : "Export CSV"}</button>
+              <button className="desk-button" type="button" disabled={exportInventory.isPending} onClick={() => exportInventory.mutate("xlsx")}>{selectedIds.length ? `Export XLSX (${selectedIds.length})` : "Export XLSX"}</button>
             </>
           )}
         />
         <DataTable<AdminProduct> columns={columns} data={rows} getRowId={(row) => row.id} selectedIds={selectedIds} onSelectionChange={setSelectedIds} loading={products.isLoading} emptyTitle={showArchived ? "No archived inventory" : "No active inventory"} skeletonCols={columns.length + 1} />
         {toBuyMessage ? <p className="text-sm text-muted">{toBuyMessage}</p> : null}
         {bulkQrMessage ? <p className="text-sm text-muted">{bulkQrMessage}</p> : null}
+        {exportInventory.error ? <p className="text-sm text-danger">{exportInventory.error instanceof Error ? exportInventory.error.message : "Could not export inventory."}</p> : null}
       </div>
       <ItemModal title="Add item" open={addOpen} onClose={() => setAddOpen(false)} form={form} setForm={setForm} categories={categoryRows} includeQuantities pending={create.isPending} error={create.error?.message} onSubmit={() => create.mutate()} />
       <ItemModal title={editing?.name ?? "Edit item"} open={Boolean(editing)} onClose={() => setEditing(null)} form={form} setForm={setForm} categories={categoryRows} pending={update.isPending} error={update.error?.message} onSubmit={() => update.mutate()}>

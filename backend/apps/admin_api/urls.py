@@ -42,6 +42,11 @@ urlpatterns = [
         views.InventoryListCreateView.as_view(),
         name="admin-inventory",
     ),
+    path(
+        "makerspace/<int:makerspace_id>/inventory/export",
+        views.InventoryExportView.as_view(),
+        name="admin-inventory-export",
+    ),
     path("inventory/<int:pk>", views.InventoryDetailView.as_view(), name="admin-inventory-detail"),
     path("inventory/<int:pk>/qr-history", views.ProductQrHistoryView.as_view(), name="admin-inventory-qr-history"),
     path("inventory/<int:product_pk>/assets", views.InventoryAssetListView.as_view(), name="admin-inventory-assets"),
