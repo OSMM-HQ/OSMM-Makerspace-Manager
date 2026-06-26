@@ -368,6 +368,7 @@ def test_report_payments_totals():
         {
             "printer_id": printer.id,
             "printer_name": "Prusa MK4",
+            "printer_model": "",
             "image_url": None,
             "completed_requests": 2,
             "hours": 1.5,

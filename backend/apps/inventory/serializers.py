@@ -83,6 +83,7 @@ class PublicMakerspaceSerializer(serializers.Serializer):
 
 class PublicStatsBusiestPrinterSerializer(serializers.Serializer):
     name = serializers.CharField(read_only=True)
+    model = serializers.CharField(read_only=True, allow_blank=True)
     hours = serializers.FloatField(read_only=True)
     completed = serializers.IntegerField(read_only=True)
     image_url = serializers.URLField(read_only=True, allow_null=True)
@@ -90,6 +91,7 @@ class PublicStatsBusiestPrinterSerializer(serializers.Serializer):
 
 class PublicStatsPrinterSerializer(serializers.Serializer):
     name = serializers.CharField(read_only=True)
+    model = serializers.CharField(read_only=True, allow_blank=True)
     jobs = serializers.IntegerField(read_only=True)
     hours = serializers.FloatField(read_only=True)
     grams = serializers.FloatField(read_only=True)

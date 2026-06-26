@@ -2,6 +2,7 @@ import { ImageThumbnail } from "../../../components/ui/ImageThumbnail";
 
 type PrinterHoursRow = {
   printer_name: string;
+  printer_model?: string;
   image_url?: string | null;
   completed_requests: number;
   hours: number;
@@ -10,6 +11,7 @@ type PrinterHoursRow = {
 
 type PrinterOutcomeRow = {
   printer_name: string;
+  printer_model?: string;
   image_url?: string | null;
   completed: number;
   failed: number;
@@ -31,6 +33,7 @@ export function PrinterHoursTable({
       rows={rows.map((row) => ({
         makerspace_id: row.makerspace_id,
         name: row.printer_name,
+        model: row.printer_model,
         image_url: row.image_url,
         values: [row.completed_requests, row.hours],
       }))}
@@ -52,6 +55,7 @@ export function PrinterOutcomesTable({
       rows={rows.map((row) => ({
         makerspace_id: row.makerspace_id,
         name: row.printer_name,
+        model: row.printer_model,
         image_url: row.image_url,
         values: [row.completed, row.failed, row.grams_used],
       }))}
@@ -69,6 +73,7 @@ function PrinterTable({
   rows: {
     makerspace_id?: number;
     name: string;
+    model?: string;
     image_url?: string | null;
     values: (number | string)[];
   }[];
@@ -96,7 +101,10 @@ function PrinterTable({
                 <td className="px-3 py-2">
                   <ImageThumbnail src={row.image_url} alt={row.name} className="h-10 w-10" />
                 </td>
-                <td className="px-3 py-2 text-ink">{row.name}</td>
+                <td className="px-3 py-2 text-ink">
+                  {row.name}
+                  {row.model ? <span className="block text-xs text-muted">{row.model}</span> : null}
+                </td>
                 {row.values.map((value, valueIndex) => (
                   <td key={valueIndex} className="px-3 py-2 text-right text-ink">
                     {value}

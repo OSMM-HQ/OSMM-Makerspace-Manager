@@ -152,6 +152,7 @@ def _per_printer(report):
         rows.append(
             {
                 "name": hours_row.get("printer_name") or outcome_row.get("printer_name") or "",
+                "model": hours_row.get("printer_model") or outcome_row.get("printer_model") or "",
                 "jobs": outcome_row.get("completed") or 0,
                 "hours": _float(hours_row.get("hours")),
                 "grams": _float(outcome_row.get("grams_used")),
@@ -167,6 +168,7 @@ def _public_printer_row(row):
         return None
     return {
         "name": row.get("printer_name") or "",
+        "model": row.get("printer_model") or "",
         "hours": _float(row.get("hours")),
         "completed": row.get("completed_requests") or 0,
         "image_url": row.get("image_url"),

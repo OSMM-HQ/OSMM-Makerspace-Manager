@@ -15,6 +15,7 @@ export type PrintingReport = {
   printer_hours: {
     printer_id: number;
     printer_name: string;
+    printer_model?: string;
     image_url?: string | null;
     completed_requests: number;
     hours: number;
@@ -23,6 +24,7 @@ export type PrintingReport = {
   printer_outcomes: {
     printer_id: number;
     printer_name: string;
+    printer_model?: string;
     image_url?: string | null;
     completed: number;
     failed: number;

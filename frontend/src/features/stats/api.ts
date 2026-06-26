@@ -13,12 +13,14 @@ export type PublicStatsPrinting = {
   hours_this_month: number;
   busiest_printer: {
     name: string;
+    model: string;
     hours: number;
     completed: number;
     image_url?: string | null;
   } | null;
   per_printer: {
     name: string;
+    model: string;
     jobs: number;
     hours: number;
     grams: number;

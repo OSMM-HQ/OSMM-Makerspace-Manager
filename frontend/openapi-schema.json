@@ -18130,6 +18130,9 @@
                     "printer_name": {
                         "type": "string"
                     },
+                    "printer_model": {
+                        "type": "string"
+                    },
                     "image_url": {
                         "type": "string",
                         "format": "uri",
@@ -18160,6 +18163,9 @@
                         "type": "integer"
                     },
                     "printer_name": {
+                        "type": "string"
+                    },
+                    "printer_model": {
                         "type": "string"
                     },
                     "image_url": {
@@ -18821,6 +18827,10 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "model": {
+                        "type": "string",
+                        "readOnly": true
+                    },
                     "hours": {
                         "type": "number",
                         "format": "double",
@@ -18841,6 +18851,7 @@
                     "completed",
                     "hours",
                     "image_url",
+                    "model",
                     "name"
                 ]
             },
@@ -19014,6 +19025,10 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "model": {
+                        "type": "string",
+                        "readOnly": true
+                    },
                     "jobs": {
                         "type": "integer",
                         "readOnly": true
@@ -19040,6 +19055,7 @@
                     "hours",
                     "image_url",
                     "jobs",
+                    "model",
                     "name"
                 ]
             },

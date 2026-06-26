@@ -290,7 +290,9 @@ def test_printing_report_printer_hours_include_manual_duration():
     requester = make_user("manual-hours-requester", access_status=User.AccessStatus.ACTIVE)
     manager = make_print_manager("manual-hours-manager", makerspace)
     printer = PrintPrinter.objects.create(makerspace=makerspace, name="A printer")
-    manual_only = PrintPrinter.objects.create(makerspace=makerspace, name="B printer")
+    manual_only = PrintPrinter.objects.create(
+        makerspace=makerspace, name="B printer", model="Bambu X1"
+    )
     spool = FilamentSpool.objects.create(
         makerspace=makerspace,
         printer=printer,
@@ -337,8 +339,11 @@ def test_printing_report_printer_hours_include_manual_duration():
     hours = {row["printer_id"]: row for row in response.data["printer_hours"]}
     assert hours[printer.id]["hours"] == 1.5
     assert hours[printer.id]["completed_requests"] == 1
+    assert hours[printer.id]["printer_model"] == ""
     assert hours[manual_only.id]["hours"] == 1.5
     assert hours[manual_only.id]["completed_requests"] == 0
+    # Manual-only fallback row must carry the printer's model through _add_manual_hours.
+    assert hours[manual_only.id]["printer_model"] == "Bambu X1"
 
 
 def test_printing_report_merges_manual_logs_and_includes_manual_only_printers():
@@ -347,7 +352,9 @@ def test_printing_report_merges_manual_logs_and_includes_manual_only_printers():
     requester = make_user("manual-report-requester", access_status=User.AccessStatus.ACTIVE)
     manager = make_print_manager("manual-report-manager", makerspace)
     printer = PrintPrinter.objects.create(makerspace=makerspace, name="A printer")
-    manual_only = PrintPrinter.objects.create(makerspace=makerspace, name="B printer")
+    manual_only = PrintPrinter.objects.create(
+        makerspace=makerspace, name="B printer", model="Voron 2.4"
+    )
     spool = FilamentSpool.objects.create(
         makerspace=makerspace,
         printer=printer,
@@ -397,6 +404,7 @@ def test_printing_report_merges_manual_logs_and_includes_manual_only_printers():
         {
             "printer_id": printer.id,
             "printer_name": "A printer",
+            "printer_model": "",
             "image_url": None,
             "completed": 1,
             "failed": 0,
@@ -406,6 +414,8 @@ def test_printing_report_merges_manual_logs_and_includes_manual_only_printers():
         {
             "printer_id": manual_only.id,
             "printer_name": "B printer",
+            # Manual-only fallback row must carry the model through _add_manual_outcomes.
+            "printer_model": "Voron 2.4",
             "image_url": None,
             "completed": 0,
             "failed": 0,

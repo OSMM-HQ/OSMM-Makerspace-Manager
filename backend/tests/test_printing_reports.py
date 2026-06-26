@@ -153,6 +153,7 @@ def test_makerspace_printing_report_aggregates_totals_hours_filament_and_periods
         {
             "printer_id": printer.id,
             "printer_name": "Prusa MK4",
+            "printer_model": "",
             "image_url": None,
             "completed_requests": 3,
             "hours": 3.0,
@@ -264,6 +265,7 @@ def test_printing_report_keeps_estimate_based_request_grams_separate_from_spool_
         {
             "printer_id": printer.id,
             "printer_name": "Estimate rig",
+            "printer_model": "",
             "image_url": None,
             "completed": 1,
             "failed": 0,
@@ -402,7 +404,7 @@ def test_admin_printing_report_is_superadmin_only_and_includes_makerspaces():
         role=User.Role.SUPERADMIN,
         access_status=User.AccessStatus.ACTIVE,
     )
-    printer_a = PrintPrinter.objects.create(makerspace=space_a, name="A1")
+    printer_a = PrintPrinter.objects.create(makerspace=space_a, name="A1", model="Ender 5")
     printer_b = PrintPrinter.objects.create(makerspace=space_b, name="X1")
     spool_a = FilamentSpool.objects.create(
         makerspace=space_a,
@@ -453,6 +455,13 @@ def test_admin_printing_report_is_superadmin_only_and_includes_makerspaces():
         space_a.id,
         space_b.id,
     }
+    # Aggregate/superadmin rows carry printer_model alongside makerspace_id.
+    models_by_ms = {
+        row["makerspace_id"]: row["printer_model"]
+        for row in response.data["printer_hours"]
+    }
+    assert models_by_ms[space_a.id] == "Ender 5"
+    assert models_by_ms[space_b.id] == ""
     assert {row["makerspace_id"] for row in response.data["filament_used"]} == {
         space_a.id,
         space_b.id,

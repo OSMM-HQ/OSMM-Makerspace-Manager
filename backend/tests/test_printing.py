@@ -845,6 +845,7 @@ def test_printer_outcomes_in_report():
         {
             "printer_id": printer.id,
             "printer_name": "Prusa MK4",
+            "printer_model": "",
             "image_url": None,
             "completed": 1,
             "failed": 1,

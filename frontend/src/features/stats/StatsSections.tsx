@@ -54,6 +54,11 @@ export function PrintingSection({ printing }: { printing: PublicStatsPrinting })
                 <p className="break-words text-xl font-bold text-ink">
                   {printing.busiest_printer.name}
                 </p>
+                {printing.busiest_printer.model ? (
+                  <p className="break-words text-xs text-muted">
+                    {printing.busiest_printer.model}
+                  </p>
+                ) : null}
                 <p className="text-muted">
                   {formatNumber(printing.busiest_printer.hours)} hours /{" "}
                   {printing.busiest_printer.completed} completed
@@ -130,7 +135,12 @@ export function PrintingSection({ printing }: { printing: PublicStatsPrinting })
                     <td className="py-2 pr-3 text-ink">
                       <div className="flex items-center gap-3">
                         <ImageThumbnail src={row.image_url} alt={row.name} />
-                        <span className="min-w-0 break-words">{row.name}</span>
+                        <span className="min-w-0 break-words">
+                          {row.name}
+                          {row.model ? (
+                            <span className="block text-xs text-muted">{row.model}</span>
+                          ) : null}
+                        </span>
                       </div>
                     </td>
                     <td className="px-3 py-2 text-right text-ink">{row.jobs}</td>

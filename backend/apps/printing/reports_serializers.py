@@ -15,6 +15,7 @@ class PrintingReportTotalsSerializer(serializers.Serializer):
 class PrintingReportPrinterHoursSerializer(serializers.Serializer):
     printer_id = serializers.IntegerField()
     printer_name = serializers.CharField()
+    printer_model = serializers.CharField(allow_blank=True, required=False)
     image_url = serializers.URLField(required=False, allow_null=True)
     completed_requests = serializers.IntegerField()
     hours = serializers.FloatField()
@@ -24,6 +25,7 @@ class PrintingReportPrinterHoursSerializer(serializers.Serializer):
 class PrintingReportPrinterOutcomeSerializer(serializers.Serializer):
     printer_id = serializers.IntegerField()
     printer_name = serializers.CharField()
+    printer_model = serializers.CharField(allow_blank=True, required=False)
     image_url = serializers.URLField(required=False, allow_null=True)
     completed = serializers.IntegerField()
     failed = serializers.IntegerField()

@@ -15,7 +15,7 @@ def printer_hours(requests, include_makerspace, manual_logs=None):
         status__in=COMPLETED_STATUSES,
         printer__isnull=False,
     )
-    values = ["printer_id", "printer__name"]
+    values = ["printer_id", "printer__name", "printer__model"]
     if include_makerspace:
         values.append("printer__makerspace_id")
 
@@ -31,6 +31,7 @@ def printer_hours(requests, include_makerspace, manual_logs=None):
         item = {
             "printer_id": row["printer_id"],
             "printer_name": row["printer__name"],
+            "printer_model": row["printer__model"] or "",
             "completed_requests": row["completed_requests"],
             "_minutes": row["minutes"] or 0,
         }
@@ -69,7 +70,7 @@ def printer_outcomes(requests, include_makerspace, manual_logs=None):
         printer__isnull=False,
         status__in=COMPLETED_STATUSES + [PrintRequest.Status.FAILED],
     )
-    values = ["printer_id", "printer__name"]
+    values = ["printer_id", "printer__name", "printer__model"]
     if include_makerspace:
         values.append("printer__makerspace_id")
     rows = (
@@ -87,6 +88,7 @@ def printer_outcomes(requests, include_makerspace, manual_logs=None):
         item = {
             "printer_id": row["printer_id"],
             "printer_name": row["printer__name"],
+            "printer_model": row["printer__model"] or "",
             "completed": row["completed"],
             "failed": row["failed"],
             "grams_used": decimal_to_float(row["grams_used"]),
@@ -117,6 +119,7 @@ def _add_manual_hours(data, by_printer, manual_logs, values, include_makerspace)
         item = {
             "printer_id": printer_id,
             "printer_name": row["printer__name"],
+            "printer_model": row["printer__model"] or "",
             "completed_requests": 0,
             "_minutes": manual_minutes,
         }
@@ -127,7 +130,7 @@ def _add_manual_hours(data, by_printer, manual_logs, values, include_makerspace)
 
 
 def _add_manual_outcomes(data, by_printer, manual_logs, include_makerspace):
-    values = ["printer_id", "printer__name"]
+    values = ["printer_id", "printer__name", "printer__model"]
     if include_makerspace:
         values.append("printer__makerspace_id")
     manual_rows = (
@@ -147,6 +150,7 @@ def _add_manual_outcomes(data, by_printer, manual_logs, include_makerspace):
         item = {
             "printer_id": printer_id,
             "printer_name": row["printer__name"],
+            "printer_model": row["printer__model"] or "",
             "completed": 0,
             "failed": 0,
             "grams_used": decimal_to_float(manual_grams),
