@@ -1,3 +1,4 @@
+from django.db import IntegrityError
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
@@ -56,13 +57,18 @@ class BulkImportPreviewView(APIView):
         rows = serializer.validated_data.get("rows")
         if rows is None:
             rows = _rows_from_upload(serializer.validated_data["file"])
-        return Response(
-            bulk_import.preview_import(
+        try:
+            result = bulk_import.preview_import(
                 makerspace,
                 rows,
                 serializer.validated_data.get("mapping") or {},
             )
-        )
+        except IntegrityError:
+            return Response(
+                {"detail": "Import failed due to a data conflict; no changes were applied."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response(result)
 
 
 class BulkImportApplyView(APIView):
@@ -82,12 +88,18 @@ class BulkImportApplyView(APIView):
         rows = serializer.validated_data.get("rows")
         if rows is None:
             rows = _rows_from_upload(serializer.validated_data["file"])
-        result = bulk_import.apply_import(
-            request.user,
-            makerspace,
-            rows,
-            serializer.validated_data.get("mapping") or {},
-        )
+        try:
+            result = bulk_import.apply_import(
+                request.user,
+                makerspace,
+                rows,
+                serializer.validated_data.get("mapping") or {},
+            )
+        except IntegrityError:
+            return Response(
+                {"detail": "Import failed due to a data conflict; no changes were applied."},
+                status=status.HTTP_409_CONFLICT,
+            )
         return Response(result, status=status.HTTP_200_OK)
 
 
