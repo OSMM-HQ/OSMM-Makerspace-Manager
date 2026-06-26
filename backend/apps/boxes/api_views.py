@@ -30,7 +30,12 @@ from apps.boxes.services import revoke_qr_code
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.platform import module_enabled
-from apps.openapi import QR_BOX_EXAMPLE, QR_SCAN_EXAMPLE
+from apps.openapi import (
+    QR_BOX_EXAMPLE,
+    QR_RESOLVE_REQUEST_EXAMPLE,
+    QR_RESOLVE_RESPONSE_EXAMPLE,
+    QR_SCAN_EXAMPLE,
+)
 
 
 class QrPermissionMixin:
@@ -171,8 +176,17 @@ class QrResolveView(QrPermissionMixin, APIView):
     @extend_schema(
         tags=["QR assets"],
         summary="Resolve QR target and scanner allowed actions",
+        description=(
+            "Resolve the opaque payload encoded in a physical QR label to its target "
+            "(box, product, or asset) and the scanner actions the caller may take. "
+            "`payload` is the raw 32-char lowercase hex token printed on the label "
+            "(Python `uuid4().hex`, e.g. `3f9a1c2b4d5e6f7081920a1b2c3d4e5f`) - it is the "
+            "value stored as `QrCode.payload` (and `Box.code` for boxes), not a URL or JSON. "
+            "Resolving a QR also records an immutable scanner-lookup scan event."
+        ),
         request=QrResolveSerializer,
         responses={200: QrResolveResultSerializer},
+        examples=[QR_RESOLVE_REQUEST_EXAMPLE, QR_RESOLVE_RESPONSE_EXAMPLE],
     )
     def post(self, request, *args, **kwargs):
         serializer = QrResolveSerializer(data=request.data)

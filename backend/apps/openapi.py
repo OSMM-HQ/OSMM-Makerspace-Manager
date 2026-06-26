@@ -78,8 +78,41 @@ QR_BOX_EXAMPLE = OpenApiExample(
 
 QR_SCAN_EXAMPLE = OpenApiExample(
     "Scan QR during issue",
-    value={"payload": "BOX-ABC123", "context": "issue", "request_id": 99},
+    # The payload is the opaque 32-char hex token printed on the physical QR label
+    # (uuid4().hex) - the same value stored as QrCode.payload / Box.code.
+    value={"payload": "3f9a1c2b4d5e6f7081920a1b2c3d4e5f", "context": "issue", "request_id": 99},
     request_only=True,
+)
+
+QR_RESOLVE_REQUEST_EXAMPLE = OpenApiExample(
+    "Resolve a scanned QR payload",
+    # `payload` is exactly the opaque string encoded in the QR image - a 32-char
+    # lowercase hex token (Python uuid4().hex). It is NOT a URL or JSON; the scanner
+    # reads this raw string off the label and posts it here to resolve the target.
+    value={"payload": "3f9a1c2b4d5e6f7081920a1b2c3d4e5f"},
+    request_only=True,
+)
+
+QR_RESOLVE_RESPONSE_EXAMPLE = OpenApiExample(
+    "Resolved box QR",
+    value={
+        "qr": {
+            "id": 12,
+            "makerspace": 1,
+            "payload": "3f9a1c2b4d5e6f7081920a1b2c3d4e5f",
+            "target_type": "box",
+            "target_id": 5,
+            "status": "active",
+            "created_at": "2026-06-27T09:30:00Z",
+            "updated_at": "2026-06-27T09:30:00Z",
+            "revoked_at": None,
+        },
+        "target": {"type": "box", "id": 5, "label": "Electronics Box A", "code": "3f9a1c2b4d5e6f7081920a1b2c3d4e5f"},
+        # Sorted, deduped action set as emitted by _allowed_scanner_actions for a
+        # QR-manager scanning an active box (scanner module on).
+        "allowed_actions": ["contents", "move_container", "record_scan", "revoke", "view"],
+    },
+    response_only=True,
 )
 
 PUBLIC_TOOL_SCAN_EXAMPLE = OpenApiExample(
