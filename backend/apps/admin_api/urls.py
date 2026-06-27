@@ -11,6 +11,17 @@ from apps.admin_api.views_email_logs import EmailLogListView, EmailLogRetryView
 from apps.admin_api.views_notification_recipients import NotificationRecipientsView
 from apps.admin_api.views_notification_rules import NotificationRulesView
 from apps.admin_api.views_platform import PlatformEmailSettingsView
+from apps.admin_api.views_warranty import (
+    AssetWarrantyView,
+    MakerspaceWarrantyReportView,
+    PrinterWarrantyView,
+)
+from apps.admin_api.views_warranty_documents import (
+    WarrantyDocumentCreateView,
+    WarrantyDocumentDeleteView,
+    WarrantyDocumentPresignView,
+    WarrantyDocumentUrlView,
+)
 from apps.makerspaces.models import MakerspaceMembership
 from apps.printing.views_printer_image import PrinterImageView
 
@@ -51,6 +62,7 @@ urlpatterns = [
     path("inventory/<int:pk>/qr-history", views.ProductQrHistoryView.as_view(), name="admin-inventory-qr-history"),
     path("inventory/<int:product_pk>/assets", views.InventoryAssetListView.as_view(), name="admin-inventory-assets"),
     path("assets/<int:pk>/fix-status", views.InventoryAssetStatusActionView.as_view(), name="admin-inventory-asset-fix-status"),
+    path("assets/<int:pk>/warranty", AssetWarrantyView.as_view(), name="admin-asset-warranty"),
     path("assets/<int:pk>/qr-history", views.AssetQrHistoryView.as_view(), name="admin-inventory-asset-qr-history"),
     path(
         "inventory/<int:pk>/image",
@@ -61,6 +73,36 @@ urlpatterns = [
         "printing/printers/<int:pk>/image",
         PrinterImageView.as_view(),
         name="admin-printer-image",
+    ),
+    path(
+        "printing/printers/<int:pk>/warranty",
+        PrinterWarrantyView.as_view(),
+        name="admin-printer-warranty",
+    ),
+    path(
+        "warranty/<int:pk>/documents/presign",
+        WarrantyDocumentPresignView.as_view(),
+        name="admin-warranty-document-presign",
+    ),
+    path(
+        "warranty/<int:pk>/documents",
+        WarrantyDocumentCreateView.as_view(),
+        name="admin-warranty-documents",
+    ),
+    path(
+        "warranty/documents/<int:pk>/url",
+        WarrantyDocumentUrlView.as_view(),
+        name="admin-warranty-document-url",
+    ),
+    path(
+        "warranty/documents/<int:pk>",
+        WarrantyDocumentDeleteView.as_view(),
+        name="admin-warranty-document-detail",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/warranties",
+        MakerspaceWarrantyReportView.as_view(),
+        name="admin-makerspace-warranties",
     ),
     path(
         "inventory/needs-fix",
@@ -171,7 +213,8 @@ urlpatterns = [
         "api-clients/<int:pk>/rotate-secret",
         api_client_views.ApiClientRotateSecretView.as_view(),
         name="admin-api-client-rotate-secret",
-    ),    path(
+    ),
+    path(
         "api-key-requests",
         api_client_views.ApiKeyRequestListCreateView.as_view(),
         name="admin-api-key-requests",

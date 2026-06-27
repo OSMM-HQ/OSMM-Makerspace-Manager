@@ -20,6 +20,7 @@ const StocktakePanel = lazy(() => import("./panels/StocktakePanel").then((m) => 
 const StockTransferPanel = lazy(() => import("./panels/StockTransferPanel").then((m) => ({ default: m.StockTransferPanel })));
 const ProcurementPanel = lazy(() => import("./panels/ProcurementPanel").then((m) => ({ default: m.ProcurementPanel })));
 const EmailLogPanel = lazy(() => import("./panels/EmailLogPanel").then((m) => ({ default: m.EmailLogPanel })));
+const WarrantyPanel = lazy(() => import("./panels/WarrantyPanel").then((m) => ({ default: m.WarrantyPanel })));
 const Categories = lazy(() => import("./panels/Categories").then((m) => ({ default: m.Categories })));
 const NeedsFixShelf = lazy(() => import("./panels/NeedsFixShelf").then((m) => ({ default: m.NeedsFixShelf })));
 const ApiClientsPanel = lazy(() => import("./ApiClientsPanel").then((m) => ({ default: m.ApiClientsPanel })));
@@ -102,12 +103,20 @@ export function StaffTabContent({
         />
       ) : null}
       {activeTab === "stocktake" && canEditInventory ? <StocktakePanel key={makerspaceKey} makerspace={activeMakerspace} isSuperadmin={isSuperadmin} /> : null}
-      {activeTab === "containers" && canManageQr ? <ContainersPanel key={makerspaceKey} makerspace={activeMakerspace} /> : null}
+      {activeTab === "containers" && canManageQr ? <ContainersPanel key={makerspaceKey} makerspace={activeMakerspace} canEditInventory={canEditInventory} /> : null}
       {activeTab === "ledger" ? (
         <Ledger
           key={makerspaceKey}
           makerspace={activeMakerspace}
           isSuperadmin={isSuperadmin}
+        />
+      ) : null}
+      {activeTab === "warranty" && (canEditInventory || canSeePrinting) ? (
+        <WarrantyPanel
+          key={makerspaceKey}
+          makerspace={activeMakerspace}
+          canEditInventory={canEditInventory}
+          canSeePrinting={canSeePrinting}
         />
       ) : null}
       {activeTab === "reports" ? (

@@ -729,6 +729,98 @@
                 }
             }
         },
+        "/api/v1/admin/assets/{id}/warranty": {
+            "get": {
+                "operationId": "api_v1_admin_assets_warranty_retrieve",
+                "summary": "Retrieve warranty details for an inventory asset",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Warranty"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "api_v1_admin_assets_warranty_update",
+                "summary": "Create or update warranty details for an inventory asset",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyUpsert"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyUpsert"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyUpsert"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Warranty"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid warranty details."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/audit-logs": {
             "get": {
                 "operationId": "api_v1_admin_audit_logs_list",
@@ -5293,6 +5385,74 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/warranties": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_warranties_list",
+                "summary": "List warranty records for a makerspace",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "page_size",
+                        "required": false,
+                        "in": "query",
+                        "description": "Number of results to return per page.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "active",
+                                "expired",
+                                "expiring_soon",
+                                "unknown"
+                            ]
+                        },
+                        "description": "Filter rows by computed warranty status."
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedWarrantyReportRowList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspaces": {
             "get": {
                 "operationId": "api_v1_admin_makerspaces_list",
@@ -5741,6 +5901,98 @@
                             }
                         },
                         "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/printing/printers/{id}/warranty": {
+            "get": {
+                "operationId": "api_v1_admin_printing_printers_warranty_retrieve",
+                "summary": "Retrieve warranty details for a 3D printer",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Warranty"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "api_v1_admin_printing_printers_warranty_update",
+                "summary": "Create or update warranty details for a 3D printer",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyUpsert"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyUpsert"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyUpsert"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Warranty"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid warranty details."
                     }
                 }
             }
@@ -7840,6 +8092,198 @@
                             }
                         },
                         "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/warranty/{id}/documents": {
+            "post": {
+                "operationId": "api_v1_admin_warranty_documents_create",
+                "summary": "Finalize an uploaded warranty document",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyDocumentFinalize"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyDocumentFinalize"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyDocumentFinalize"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WarrantyDocument"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid or duplicate warranty document."
+                    },
+                    "503": {
+                        "description": "Warranty document storage is unavailable."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/warranty/{id}/documents/presign": {
+            "post": {
+                "operationId": "api_v1_admin_warranty_documents_presign_create",
+                "summary": "Create a warranty document upload URL",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyDocumentPresign"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyDocumentPresign"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyDocumentPresign"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WarrantyDocumentUploadResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid document upload request."
+                    },
+                    "503": {
+                        "description": "Warranty document storage is unavailable."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/warranty/documents/{id}": {
+            "delete": {
+                "operationId": "api_v1_admin_warranty_documents_destroy",
+                "summary": "Delete a warranty document",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/warranty/documents/{id}/url": {
+            "get": {
+                "operationId": "api_v1_admin_warranty_documents_url_retrieve",
+                "summary": "Create a signed warranty document view URL",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/WarrantyDocumentUrl"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "description": "Warranty document storage is unavailable."
                     }
                 }
             }
@@ -16547,6 +16991,37 @@
                     }
                 }
             },
+            "PaginatedWarrantyReportRowList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WarrantyReportRow"
+                        }
+                    }
+                }
+            },
             "PatchedApiClient": {
                 "type": "object",
                 "properties": {
@@ -20961,6 +21436,272 @@
                 ],
                 "type": "string",
                 "description": "* `superadmin` - Super Admin\n* `space_manager` - Space Manager\n* `guest_admin` - Guest Admin\n* `requester` - Requester"
+            },
+            "Warranty": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "host_kind": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "host_id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "host_label": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "asset_id": {
+                        "type": "integer",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "asset_tag": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "serial_number": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "printer_id": {
+                        "type": "integer",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "printer_name": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "printer_model": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "purchased_on": {
+                        "type": "string",
+                        "format": "date",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "warranty_expires_on": {
+                        "type": "string",
+                        "format": "date",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "vendor_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "vendor_contact": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "documents": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/WarrantyDocument"
+                        },
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "asset_id",
+                    "asset_tag",
+                    "documents",
+                    "host_id",
+                    "host_kind",
+                    "host_label",
+                    "id",
+                    "printer_id",
+                    "printer_model",
+                    "printer_name",
+                    "purchased_on",
+                    "serial_number",
+                    "status",
+                    "vendor_contact",
+                    "vendor_name",
+                    "warranty_expires_on"
+                ]
+            },
+            "WarrantyDocument": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "original_filename": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "content_type": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "size_bytes": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "content_type",
+                    "created_at",
+                    "id",
+                    "original_filename",
+                    "size_bytes"
+                ]
+            },
+            "WarrantyDocumentFinalize": {
+                "type": "object",
+                "properties": {
+                    "object_key": {
+                        "type": "string",
+                        "maxLength": 300
+                    },
+                    "original_filename": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "object_key",
+                    "original_filename"
+                ]
+            },
+            "WarrantyDocumentPresign": {
+                "type": "object",
+                "properties": {
+                    "filename": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "content_type": {
+                        "type": "string",
+                        "maxLength": 100
+                    }
+                },
+                "required": [
+                    "content_type",
+                    "filename"
+                ]
+            },
+            "WarrantyDocumentUploadResponse": {
+                "type": "object",
+                "properties": {
+                    "object_key": {
+                        "type": "string"
+                    },
+                    "upload": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                },
+                "required": [
+                    "object_key",
+                    "upload"
+                ]
+            },
+            "WarrantyDocumentUrl": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "format": "uri"
+                    }
+                },
+                "required": [
+                    "url"
+                ]
+            },
+            "WarrantyReportRow": {
+                "type": "object",
+                "properties": {
+                    "host_kind": {
+                        "type": "string"
+                    },
+                    "host_id": {
+                        "type": "integer"
+                    },
+                    "host_label": {
+                        "type": "string"
+                    },
+                    "serial_number": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "vendor_name": {
+                        "type": "string"
+                    },
+                    "purchased_on": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "warranty_expires_on": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "document_count": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "document_count",
+                    "host_id",
+                    "host_kind",
+                    "host_label",
+                    "purchased_on",
+                    "serial_number",
+                    "status",
+                    "vendor_name",
+                    "warranty_expires_on"
+                ]
+            },
+            "WarrantyUpsert": {
+                "type": "object",
+                "properties": {
+                    "purchased_on": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "warranty_expires_on": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "vendor_name": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "vendor_contact": {
+                        "type": "string",
+                        "maxLength": 200
+                    }
+                }
             }
         },
         "securitySchemes": {

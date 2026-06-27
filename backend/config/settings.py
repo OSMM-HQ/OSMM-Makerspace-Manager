@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.printing",
     "apps.audit",
     "apps.evidence",
+    "apps.warranty",
     "apps.admin_api",
     "apps.integrations",
     "apps.operations",
@@ -164,6 +165,11 @@ STORAGES = {
 EVIDENCE_URL_TTL_SECONDS = env.int("EVIDENCE_URL_TTL_SECONDS", default=300)
 EVIDENCE_MAX_BYTES = env.int("EVIDENCE_MAX_BYTES", default=10485760)
 EVIDENCE_ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"]
+WARRANTY_DOC_MAX_BYTES = env.int("WARRANTY_DOC_MAX_BYTES", default=10485760)
+WARRANTY_DOC_ALLOWED_MIME = env.list(
+    "WARRANTY_DOC_ALLOWED_MIME",
+    default=["application/pdf", "image/jpeg", "image/png", "image/webp"],
+)
 PUBLIC_IMAGE_BUCKET = env("PUBLIC_IMAGE_BUCKET", default="public-images")
 PUBLIC_IMAGE_BASE_URL = env("PUBLIC_IMAGE_BASE_URL", default="")
 PUBLIC_IMAGE_MAX_BYTES = env.int("PUBLIC_IMAGE_MAX_BYTES", default=10485760)

@@ -12,6 +12,7 @@ const TAB_MODULES: Record<string, string[]> = {
   qr: ["qr_management"],
   scanner: ["scanner"],
   reports: ["reports", "printing"],
+  warranty: ["staff_admin", "printing"],
 };
 
 const TAB_PATHS: Record<string, string> = {

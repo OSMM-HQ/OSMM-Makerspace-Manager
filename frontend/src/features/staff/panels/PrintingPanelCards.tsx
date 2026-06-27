@@ -7,6 +7,7 @@ import {
   printingRequest,
 } from "./PrintingPanelParts";
 import { ImageThumbnail } from "../../../components/ui/ImageThumbnail";
+import { WarrantySection } from "../WarrantySection";
 
 export function PrinterCard({
   printer,
@@ -40,6 +41,9 @@ export function PrinterCard({
         <Row label="Spool" value={printer.active_spool ? `${printer.active_spool.material} ${printer.active_spool.color}` : "None"} />
         <Row label="Left after queue" value={`${printer.estimated_spool_remaining_after_queue_grams ?? "-"} g`} />
       </dl>
+      <div className="mt-3">
+        <WarrantySection hostKind="printer" hostId={printer.id} />
+      </div>
       <div className="desk-actions mt-3 flex flex-wrap gap-2">
         <button type="button" onClick={onEdit}>Edit</button>
         <button type="button" disabled={!printer.is_active} onClick={onDeactivate}>Deactivate</button>

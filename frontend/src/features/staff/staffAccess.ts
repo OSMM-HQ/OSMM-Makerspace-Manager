@@ -1,11 +1,11 @@
 const ALL_TABS = [
   "requests", "direct", "inventory", "needsfix", "categories", "printing", "tobuy", "transfers",
-  "stocktake", "containers", "ledger", "reports", "bulk", "qr", "scanner", "api", "settings", "emailtemplates", "users", "platform", "audit",
+  "stocktake", "containers", "ledger", "reports", "warranty", "bulk", "qr", "scanner", "api", "settings", "emailtemplates", "users", "platform", "audit",
   "email-logs",
 ] as const;
 
 const FULL_ACCESS_ROLES = ["space_manager", "inventory_manager"];
-const PRINTING_TABS = ["requests", "printing", "tobuy", "reports", "api", "emailtemplates"];
+const PRINTING_TABS = ["requests", "printing", "tobuy", "reports", "warranty", "api", "emailtemplates"];
 const GUEST_ADMIN_TABS = ["requests", "direct"];
 
 export const TAB_LABELS: Record<string, string> = {
@@ -24,6 +24,7 @@ export const TAB_LABELS: Record<string, string> = {
   printing: "3D Printing",
   tobuy: "To Buy",
   reports: "Reports",
+  warranty: "Warranties",
   audit: "Audit log",
   users: "Users",
   settings: "Settings",
@@ -37,7 +38,7 @@ export const TAB_GROUPS: { label: string; tabs: string[] }[] = [
   { label: "Operate", tabs: ["requests", "direct", "ledger", "transfers", "stocktake", "tobuy"] },
   { label: "Inventory", tabs: ["inventory", "categories", "needsfix", "containers", "bulk", "qr", "scanner"] },
   { label: "3D Printing", tabs: ["printing"] },
-  { label: "Insights", tabs: ["reports", "audit"] },
+  { label: "Insights", tabs: ["reports", "warranty", "audit"] },
   { label: "Admin", tabs: ["users", "settings", "emailtemplates", "email-logs", "api", "platform"] },
 ];
 
@@ -70,6 +71,7 @@ export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boo
     if (tabName === "scanner") return canManageQr;
     if (tabName === "audit") return canViewAudit;
     if (tabName === "reports") return canViewAudit || canSeePrinting;
+    if (tabName === "warranty") return canEditInventory || canSeePrinting;
     if (tabName === "users") return canManageMakerspace;
     if (tabName === "settings") return canManageMakerspace;
     if (tabName === "emailtemplates") return canEditInventory || canSeePrinting;

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { staffRequest } from "../../../lib/api";
+import { WarrantySection } from "../WarrantySection";
 import { invalidateContainerViews } from "../queryInvalidation";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 import { QrImage } from "./QrImage";
@@ -17,7 +18,7 @@ type History = { scans: { id: string; source: string; context: string; actor: nu
 // Containers had list + create (in QR tools) but no edit/move/contents/history surface in
 // React - they were only manageable in the Django admin. This panel wires the operations
 // container endpoints (MANAGE_QR for edit/move, VIEW_INVENTORY for contents/history).
-export function ContainersPanel({ makerspace }: { makerspace: Makerspace }) {
+export function ContainersPanel({ makerspace, canEditInventory }: { makerspace: Makerspace; canEditInventory: boolean }) {
   const containers = useStaffGet<{ results: Container[] }>(["containers", makerspace.id], `/admin/makerspace/${makerspace.id}/containers?page_size=1000`);
   return (
     <Panel title="Containers">
@@ -25,7 +26,7 @@ export function ContainersPanel({ makerspace }: { makerspace: Makerspace }) {
       {containers.error instanceof Error ? <p className="text-sm text-danger">{containers.error.message}</p> : null}
       <div className="grid gap-2">
         {containers.data?.results?.map((container) => (
-          <ContainerRow key={container.id} container={container} makerspaceId={makerspace.id} />
+          <ContainerRow key={container.id} container={container} makerspaceId={makerspace.id} canEditInventory={canEditInventory} />
         ))}
         {!containers.isLoading && !containers.error && !containers.data?.results?.length ? (
           <p className="text-sm text-muted">No containers yet. Create one in QR tools.</p>
@@ -35,7 +36,7 @@ export function ContainersPanel({ makerspace }: { makerspace: Makerspace }) {
   );
 }
 
-function ContainerRow({ container, makerspaceId }: { container: Container; makerspaceId: number }) {
+function ContainerRow({ container, makerspaceId, canEditInventory }: { container: Container; makerspaceId: number; canEditInventory: boolean }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [panel, setPanel] = useState<"contents" | "history" | null>(null);
@@ -93,7 +94,7 @@ function ContainerRow({ container, makerspaceId }: { container: Container; maker
           )) : !contents.isLoading && !contents.error ? <p className="text-xs text-muted">None</p> : null}
           <p className="mt-1 text-xs font-semibold text-ink">Asset units</p>
           {!contents.isLoading && !contents.error && contents.data?.assets.length ? contents.data.assets.map((asset) => (
-            <AssetQrRow key={asset.id} asset={asset} />
+            <AssetQrRow key={asset.id} asset={asset} canEditInventory={canEditInventory} />
           )) : !contents.isLoading && !contents.error ? <p className="text-xs text-muted">None</p> : null}
           {contents.data?.children.length ? (
             <p className="mt-1 text-xs text-muted">Sub-containers: {contents.data.children.map((child) => child.label).join(", ")}</p>
@@ -116,18 +117,25 @@ function ContainerRow({ container, makerspaceId }: { container: Container; maker
 
 // Reprint a single unit's QR without rebuilding a whole batch: POST asset/<id>/qr is a
 // get_or_create, so it returns the existing active QR (or makes one) and we render it.
-function AssetQrRow({ asset }: { asset: { id: number; asset_tag: string; product: string; status: string } }) {
+function AssetQrRow({ asset, canEditInventory }: { asset: { id: number; asset_tag: string; product: string; status: string }; canEditInventory: boolean }) {
   const [qrId, setQrId] = useState<number | null>(null);
+  const [showWarranty, setShowWarranty] = useState(false);
   const show = useMutation({
     mutationFn: () => staffRequest<{ id: number }>(`/admin/assets/${asset.id}/qr`, { method: "POST", body: JSON.stringify({}) }),
     onSuccess: (qr) => setQrId(qr.id),
   });
   return (
-    <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
-      <span>{asset.asset_tag} ({asset.status})</span>
-      <button type="button" className="text-accent-ink" disabled={show.isPending} onClick={() => show.mutate()}>{qrId ? "QR shown" : "Show QR"}</button>
-      {qrId ? <QrImage qrId={qrId} label={asset.asset_tag} /> : null}
-      {show.error instanceof Error ? <span className="text-danger">{show.error.message}</span> : null}
+    <div className="min-w-0 rounded-md border border-line bg-surface p-2">
+      <div className="flex flex-wrap items-center gap-2 text-xs text-muted">
+        <span className="min-w-0 break-words">{asset.asset_tag} ({asset.status})</span>
+        <button type="button" className="text-accent-ink" disabled={show.isPending} onClick={() => show.mutate()}>{qrId ? "QR shown" : "Show QR"}</button>
+        <button type="button" className="text-accent-ink" onClick={() => setShowWarranty((value) => !value)}>
+          {showWarranty ? "Hide warranty" : "Warranty"}
+        </button>
+        {qrId ? <QrImage qrId={qrId} label={asset.asset_tag} /> : null}
+        {show.error instanceof Error ? <span className="text-danger">{show.error.message}</span> : null}
+      </div>
+      {showWarranty ? <div className="mt-2"><WarrantySection hostKind="asset" hostId={asset.id} disabled={!canEditInventory} /></div> : null}
     </div>
   );
 }

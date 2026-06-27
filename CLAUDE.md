@@ -2,6 +2,59 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — warranty tracking (Phase 1) for assets + printers (2026-06-27)
+
+New per-host **warranty tracking** (purchase/expiry dates, vendor, multiple private bill/doc uploads,
+display-only status). Codex Stage-1 APPROVED after 1 revision round; built backend → tests → frontend,
+each verified; `manage.py check` + `tsc -b` + `npm run build` green; warranty + admin drift-guard tests
+pass. Spec (gitignored): `docs/superpowers/specs/2026-06-27-warranty-tracking-design.md`. **Phase 2
+(repair-flow integration: broken-reject for individual assets + warranty on the to-be-fixed shelf +
+asset MAINTENANCE) is deferred to its own spec/batch.**
+
+- **New `apps/warranty/` app.** `Warranty` carries a nullable `OneToOneField` to EITHER
+  `inventory.InventoryAsset` OR `printing.PrintPrinter` (asset-XOR-printer `CheckConstraint`
+  `warranty_exactly_one_host`; OneToOne gives one-warranty-per-host); fields `purchased_on`,
+  `warranty_expires_on`, `vendor_name`, `vendor_contact`; `makerspace` FK **always derived from the
+  host** in the upsert view (client-supplied makerspace is never trusted). `WarrantyDocument` FKs the
+  warranty with a **unique** `object_key`, delete-only. `status.py` computes
+  `unknown/expired/expiring_soon/active` (`WARRANTY_EXPIRY_SOON_DAYS=30`). Quantity-tracked products
+  are **out of scope** (no per-unit identity). Migration `warranty/0001`.
+- **Storage** (`apps/warranty/storage.py`) mirrors the PRIVATE evidence bucket (NOT public-images):
+  `warranty/<makerspace_id>/<uuid>.<ext>` keys, presign POST/PUT per `STORAGE_PRESIGN_METHOD`, evidence
+  finalize/TOCTOU reuse, signed GET URLs. **Byte-sniffing at finalize** (`validate_warranty_object`):
+  `%PDF-` magic for PDFs, `evidence.image_validation.image_mime_from_bytes` for images, else reject —
+  stronger than printing's declared-content-type trust. Finalize also asserts the key prefix matches
+  the warranty's makerspace + rejects a reused key (unique `object_key`). Settings
+  `WARRANTY_DOC_ALLOWED_MIME` (pdf/jpeg/png/webp), `WARRANTY_DOC_MAX_BYTES` (10 MB), reuses
+  `EVIDENCE_URL_TTL_SECONDS`.
+- **RBAC derived from host type** (`apps/admin_api/warranty_access.py`): asset → `EDIT_INVENTORY`
+  (+`staff_admin` module), printer → `MANAGE_PRINTING` (+`printing`). **Status-code contract:** host
+  lookup is scoped by **makerspace membership** (`rbac.scope_by_makerspace` + `get_object_or_404`) →
+  cross-tenant **404**; then `require_action` → same-tenant wrong-role **403** (an Inventory Manager
+  can't touch a printer warranty, a Print Manager can't touch an asset warranty, a Guest Admin neither).
+  Document routes derive the same action from the warranty's host.
+- **API** (`admin_api`, `@extend_schema`): `GET/PUT /admin/assets/<pk>/warranty`,
+  `GET/PUT /admin/printing/printers/<pk>/warranty` (upsert via `get_or_create`); document
+  `…/documents/presign` → `…/documents` (finalize) → `…/documents/<pk>/url` (signed view) →
+  `DELETE …/documents/<pk>`; `GET /admin/makerspace/<id>/warranties` report. Report rows are gated
+  **per-host action** (asset rows need `EDIT_INVENTORY`, printer rows need `MANAGE_PRINTING`; a Guest
+  Admin sees none), filtered on the host makerspace, paginated. Audited
+  `warranty.created/updated/document_added/document_removed`. Origin-scope wiring added in
+  `apps/makerspaces/origin_scope.py` for all warranty URL names. OpenAPI snapshot + generated TS client
+  regenerated.
+- **Public-leak invariant:** warranty data (bills/vendor/dates) is in **no** public payload — explicit
+  test asserts absence across public inventory list/detail, `/bootstrap`, public stats, and public
+  printing serializers.
+- **`/control/` admin:** `Warranty` + read-only `WarrantyDocument` registered (Inventory sidebar group).
+  `WarrantyDocument` (no direct makerspace FK) added to `config.admin_access.NESTED_MAKERSPACE_LOOKUPS`
+  as `warranty__makerspace_id` so the superadmin hidden-scope drift-guard stays clean.
+- **Frontend:** reusable `WarrantySection.tsx` (edit form + multi-doc upload via presign→finalize, view
+  signed-URL, delete; `WarrantyStatusBadge`) mounted as a collapsible per-asset block in the
+  ContainersPanel asset drawer (gated `canEditInventory`) and on the printer card in `PrintingPanel`.
+  New **Warranties** report tab (`WarrantyPanel`, Insights group, gated `canEditInventory ||
+  canSeePrinting`). `warrantyApi.ts` mirrors the `ImageUploader` upload flow. Tests:
+  `backend/tests/test_warranty.py` (9 tests).
+
 ## Recent batch — pastel "notebook" UI reskin (frontend-only, 2026-06-22)
 
 Whole-app reskin from the red/orange "Blueprint" brutalist theme to a soft **pastel "notebook"**

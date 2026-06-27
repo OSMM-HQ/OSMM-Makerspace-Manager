@@ -12,6 +12,7 @@ from django.urls import reverse
 NESTED_MAKERSPACE_LOOKUPS = {
     "hardware_requests.hardwarerequestitemasset": "asset__makerspace_id",
     "printing.printrequest": "bucket__makerspace_id",
+    "warranty.warrantydocument": "warranty__makerspace_id",
 }
 
 # Registered admin models that are intentionally NOT makerspace-scoped (account/global).
