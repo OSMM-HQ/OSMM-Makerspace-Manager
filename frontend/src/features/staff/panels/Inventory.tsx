@@ -204,7 +204,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
     { key: "name", header: "Name", sortable: true, render: (product) => <button type="button" className="text-left font-semibold text-ink hover:text-accent-ink" onClick={() => openEdit(product)}>{product.name}</button> },
     { key: "tracking_mode", header: "Mode", sortable: true, render: (product) => <span className="inline-flex items-center gap-2"><span>{product.tracking_mode}</span>{product.is_archived ? <StatusBadge status="archived" label="Archived" /> : null}</span> },
     { key: "total_quantity", header: "Total", sortable: true },
-    { key: "available_quantity", header: "Available", sortable: true, render: (product) => <InventoryAvailability product={product} canUseToBuy={canUseToBuy} onAddToBuy={openToBuy} /> },
+    { key: "available_quantity", header: "Available", sortable: true, render: (product) => <InventoryAvailability product={product} /> },
     { key: "issued_quantity", header: "Issued", sortable: true },
     { key: "damaged_quantity", header: "Damaged", sortable: true },
     { key: "lost_quantity", header: "Lost", sortable: true },
@@ -213,7 +213,7 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
         <button className="desk-button" type="button" onClick={() => openEdit(product)}>Edit</button>
         {!product.is_archived ? <button className="desk-button" type="button" disabled={product.tracking_mode === "individual" ? product.available_quantity + product.damaged_quantity <= 0 : product.available_quantity <= 0} onClick={() => openFix(product)}>To Fix</button> : null}
         {product.is_archived ? <button className="desk-button" type="button" disabled={unarchive.isPending} onClick={() => unarchive.mutate(product)}>Back to inventory</button> : <button className="desk-button" type="button" onClick={() => setArchiveTarget(product)}>Archive</button>}
-        {canUseToBuy ? <button className="desk-button" type="button" onClick={() => openToBuy(product)}>To Buy</button> : null}
+        {canUseToBuy ? <button className="desk-button bg-accent text-accent-ink hover:bg-accent-bright" type="button" onClick={() => openToBuy(product)}>To Buy</button> : null}
       </div>
     ) },
   ];
@@ -435,10 +435,10 @@ function formFromProduct(product: AdminProduct): ItemForm {
   return { name: product.name, tracking_mode: product.tracking_mode, category: product.category ? String(product.category) : "", description: product.description, total_quantity: String(product.total_quantity), available_quantity: String(product.available_quantity), storage_location: product.storage_location ?? "", is_public: product.is_public, public_self_checkout_enabled: product.public_self_checkout_enabled, show_public_count: product.show_public_count, public_availability_mode: product.public_availability_mode };
 }
 
-function InventoryAvailability({ product, canUseToBuy = false, onAddToBuy }: { product: AdminProduct; canUseToBuy?: boolean; onAddToBuy: (product: AdminProduct) => void }) {
+function InventoryAvailability({ product }: { product: AdminProduct }) {
   const isLowStock = product.available_quantity <= Math.ceil(product.total_quantity * 0.2);
   const badge = product.available_quantity <= 0 ? <StatusBadge status="lost" label="Unavailable" /> : isLowStock ? <StatusBadge status="limited" label="Limited" /> : <StatusBadge status="available" label="Available" />;
-  return <span className="inline-flex items-center gap-2"><span className="font-medium text-ink">{product.available_quantity}</span>{badge}{canUseToBuy && isLowStock ? <button className="whitespace-nowrap rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-accent-ink hover:bg-accent-bright" type="button" onClick={() => onAddToBuy(product)}>+ To Buy</button> : null}</span>;
+  return <span className="inline-flex items-center gap-2"><span className="font-medium text-ink">{product.available_quantity}</span>{badge}</span>;
 }
 
 function defaultToBuyQuantity(product: AdminProduct) {

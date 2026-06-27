@@ -176,6 +176,9 @@ def _add_manual_outcomes(data, by_printer, manual_logs, include_makerspace):
             manual_failed=Count(
                 "id", filter=Q(outcome=ManualPrintLog.Outcome.FAILED)
             ),
+            manual_success=Count(
+                "id", filter=Q(outcome=ManualPrintLog.Outcome.SUCCESS)
+            ),
         )
         .order_by("printer__makerspace_id", "printer__name", "printer_id")
     )
@@ -183,17 +186,19 @@ def _add_manual_outcomes(data, by_printer, manual_logs, include_makerspace):
         printer_id = row["printer_id"]
         manual_grams = row["manual_grams"] or Decimal("0")
         manual_failed = row["manual_failed"] or 0
+        manual_success = row["manual_success"] or 0
         if printer_id in by_printer:
             item = by_printer[printer_id]
             item["grams_used"] = decimal_to_float(Decimal(str(item["grams_used"])) + manual_grams)
             item["manual_logs"] = row["manual_count"]
             item["failed"] = (item.get("failed") or 0) + manual_failed
+            item["completed"] = (item.get("completed") or 0) + manual_success
             continue
         item = {
             "printer_id": printer_id,
             "printer_name": row["printer__name"],
             "printer_model": row["printer__model"] or "",
-            "completed": 0,
+            "completed": manual_success,
             "failed": manual_failed,
             "grams_used": decimal_to_float(manual_grams),
             "manual_logs": row["manual_count"],
