@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import {
   addAuthExpiredListener,
@@ -22,7 +22,10 @@ import {
   persistSelectedMakerspace,
   persistStaffTab,
   readStoredMakerspace,
+  staffBasePath,
   staffMakerspaceSlugFromPath,
+  staffTabPath,
+  tabFromStaffPath,
 } from "./staffTabs";
 import { type Makerspace, useStaffGet } from "./panels/shared";
 import { useTenant } from "../../lib/tenant";
@@ -45,6 +48,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
   const tenant = useTenant();
   const queryClient = useQueryClient();
   const location = useLocation();
+  const navigate = useNavigate();
   const [user, setUser] = useState<StaffAuthUser | null>(null);
   const [selected, setSelectedState] = useState<number | null>(() => readStoredMakerspace());
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(
@@ -138,6 +142,20 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     "/admin/makerspaces",
     Boolean(user) && !user?.must_change_password,
   );
+  const chooseMakerspace = useCallback((id: number | null) => {
+    if (singleTenantLocked) return;
+    if (id === null) {
+      setSelected(null);
+      navigate(staffBasePath(guestOnly));
+      return;
+    }
+    const ms = makerspaces.data?.find((m) => m.id === id);
+    setSelected(id);
+    if (ms?.slug) {
+      const currentTab = tabFromStaffPath(location.pathname, guestOnly);
+      navigate(staffTabPath(currentTab, guestOnly, ms.slug));
+    }
+  }, [guestOnly, location.pathname, makerspaces.data, navigate, setSelected, singleTenantLocked]);
   const activeMakerspace = useMemo(
     () => {
       return makerspaces.data?.find((item) => item.id === selected);
@@ -237,7 +255,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
         makerspaces={makerspaces.data ?? []}
         loading={makerspaces.isLoading}
         username={user.username}
-        onSelect={setSelected}
+        onSelect={chooseMakerspace}
         onSignOut={signOut}
       />
     );
@@ -249,7 +267,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
         makerspaces={makerspaces.data ?? []}
         loading={makerspaces.isLoading}
         username={user.username}
-        onSelect={setSelected}
+        onSelect={chooseMakerspace}
         onSignOut={signOut}
       />
     );
@@ -277,7 +295,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
       isSuperadmin={isSuperadmin}
       makerspaces={makerspaceList}
       selected={selected}
-      setSelected={setSelected}
+      setSelected={chooseMakerspace}
       setTab={setTab}
       signOut={signOut}
       singleTenantLocked={singleTenantLocked}
