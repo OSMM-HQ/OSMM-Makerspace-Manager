@@ -2,6 +2,51 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — print filament grams + fail-hours + manual outcomes + email leaderboard (2026-06-28)
+
+Phase-per-commit batch (Codex Stage-1 APPROVED after 3 rounds; Stage-4 clean after 2 fixes; **1002
+backend tests pass** — the lone `test_global_csp_img_src_does_not_allow_s3_public_origin` failure is
+the documented dev-container env artifact). Migration `printing/0017`. Also bundled two fixes:
+
+- **Makerspace switching bounce (frontend).** `StaffApp.tsx`: an effect forced `selected` to match the
+  URL slug, but the sidebar/picker/"Switch makerspace" controls changed state without changing the URL,
+  so every switch bounced back (superadmin couldn't open another makerspace). New `chooseMakerspace`
+  sets state **and** navigates in one handler (React-batched, no bounce); scoped to non-guest
+  (`!guestOnly`) since guest-admin uses a different shell. **Not a data issue** — all makerspaces had
+  inventory; one (Kochi) is intentionally `superadmin_access_enabled=False`.
+- **Warranty 500s = deploy gap.** The `warranty/0001` migration was never applied to a running DB;
+  every warranty endpoint 500'd with `relation "warranty_warranty" does not exist`. Fix is operational
+  (`manage.py migrate warranty`), no code change.
+
+- **Requester filament estimate + editable at accept.** Reuses `PrintRequest.estimated_filament_grams`
+  (no new field). Public submit takes an optional grams input (`public_serializers`/`public_workflow`,
+  None→`Decimal("0.00")`, never None into the non-null column). `PrintAcceptSerializer` +
+  `workflow.accept(..., estimated_filament_grams=None)` persist it via `_transition`'s accept branch
+  using `is not None` (explicit 0 overwrites; omitted/null **preserves** the requester's value).
+  Frontend: public form grams field, `AcceptPrintDialog` prefilled-editable grams (null on blank), and
+  the Start panel default changed `"100"`→`""` so it falls back to the request's planned grams instead
+  of clobbering the accepted plan.
+- **Failed prints contribute partial printer hours.** New `PrintRequest.fail_percent_complete` +
+  `failed_at` (RunPython backfills `failed_at=updated_at` for existing failed rows). `workflow.fail`
+  stores both; `reports_printer_activity.printer_hours` gains a `failed_requests` arg adding
+  `estimated_minutes * fail_percent_complete / 100`; wired in both `printing.reports.build_printing_report`
+  (failed-period filtered on `failed_at`) and the public `inventory.public_stats` builder +
+  `_printing_hours_this_month`.
+- **Manual print logs get a success/failed outcome.** `ManualPrintLog.outcome`/`percent_complete`/
+  `reason`. `services_manual_logs.log_manual_print` validates (success forces 100% + blank reason;
+  failed requires a reason); serializer + view + the `/control/` admin form/display all updated. Reports:
+  manual hours weighted by `percent_complete`; failed manual logs count into the per-printer `failed`
+  tally. Frontend `ManualPrintLogSection` gains a Success/Failed toggle (+ %/reason) and a status badge.
+- **Top-requesters leaderboard groups by email, displays by name.** `reports._top_requesters` now groups
+  by `Lower(contact_email)` (collapsing one person's prints across shadow-user rows) and shows
+  `requester_name` (Max non-blank; falls back to email then the legacy label). Blank-email/legacy rows
+  keep the old requester-id grouping. A **deliberate reporting choice** (the persisted requester is keyed
+  on `external_checkin_user_id`); it changes no auth/identity. `bucket__makerspace_id` stays in the key
+  for the superadmin aggregate.
+- Grams already render on spool rows + the printer-outcomes report (confirmed, no change). OpenAPI
+  snapshot regenerated (generated `api.ts` is paths-only, unchanged). Tests: `test_printing_grams.py`,
+  `test_printing_failed_hours.py`, `test_printing_manual_outcome.py`, `test_printing_top_requesters_email.py`.
+
 ## Recent batch — warranty tracking (Phase 1) for assets + printers (2026-06-27)
 
 New per-host **warranty tracking** (purchase/expiry dates, vendor, multiple private bill/doc uploads,
