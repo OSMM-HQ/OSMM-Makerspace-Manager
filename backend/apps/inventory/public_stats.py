@@ -189,14 +189,17 @@ def _printing_hours_this_month(makerspace_id):
         ).aggregate(total=Sum("estimated_minutes"))["total"]
         or 0
     )
-    manual_minutes = (
+    # Weight manual minutes by completion to match the all-time report: a success
+    # is 100% (full duration), a failed log counts duration * percent_complete / 100.
+    manual_weighted = (
         ManualPrintLog.objects.filter(
             makerspace_id=makerspace_id,
             created_at__gte=start,
             created_at__lt=end,
-        ).aggregate(total=Sum("duration_minutes"))["total"]
+        ).aggregate(total=Sum(F("duration_minutes") * F("percent_complete")))["total"]
         or 0
     )
+    manual_minutes = manual_weighted / 100
     # Failed prints this month contribute partial run-time (minutes x percent/100),
     # date-windowed on failed_at since they have no completed_at.
     failed_weighted = (

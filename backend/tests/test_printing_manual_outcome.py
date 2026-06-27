@@ -3,6 +3,8 @@ from decimal import Decimal
 import pytest
 from django.urls import reverse
 
+from apps.inventory.public_stats import _printing_hours_this_month
+from apps.printing import services_manual_logs
 from apps.printing.models import FilamentSpool, ManualPrintLog, PrintPrinter
 from apps.printing.reports import build_printing_report
 from tests.test_printing import (
@@ -110,3 +112,19 @@ def test_failed_manual_log_counts_partial_hours_and_failed_tally():
     assert hours[printer.id]["hours"] == round(50 / 60, 1)
     assert outcomes[printer.id]["failed"] == 1
     assert outcomes[printer.id]["manual_logs"] == 1
+
+
+def test_failed_manual_log_monthly_public_hours_are_weighted():
+    makerspace, manager, printer, spool = _setup("manual-month")
+    # 100 min at 50% -> must count as 50 min (0.83h), not the full 100 min.
+    services_manual_logs.log_manual_print(
+        manager, makerspace, printer, spool,
+        grams_used=Decimal("20.00"),
+        title="Walk-up",
+        note="",
+        duration_minutes=100,
+        outcome="failed",
+        percent_complete=50,
+        reason="clog",
+    )
+    assert _printing_hours_this_month(makerspace.id) == round(50 / 60, 2)
