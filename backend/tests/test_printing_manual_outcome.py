@@ -114,6 +114,20 @@ def test_failed_manual_log_counts_partial_hours_and_failed_tally():
     assert outcomes[printer.id]["manual_logs"] == 1
 
 
+def test_successful_manual_log_counts_as_completed():
+    makerspace, manager, printer, spool = _setup("manual-success-completed")
+    authenticated_client(manager).post(
+        manual_log_url(),
+        _payload(makerspace, printer, spool, outcome="success"),
+        format="json",
+    )
+    report = build_printing_report(makerspace.id)
+    outcomes = {r["printer_id"]: r for r in report["printer_outcomes"]}
+    assert outcomes[printer.id]["completed"] == 1
+    assert outcomes[printer.id]["failed"] == 0
+    assert outcomes[printer.id]["manual_logs"] == 1
+
+
 def test_failed_manual_log_monthly_public_hours_are_weighted():
     makerspace, manager, printer, spool = _setup("manual-month")
     # 100 min at 50% -> must count as 50 min (0.83h), not the full 100 min.
