@@ -1,7 +1,11 @@
 import uuid
 
 from django.conf import settings
-from django.core.validators import FileExtensionValidator, MinValueValidator
+from django.core.validators import (
+    FileExtensionValidator,
+    MaxValueValidator,
+    MinValueValidator,
+)
 from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Lower
@@ -118,6 +122,24 @@ class ManualPrintLog(models.Model):
     # Print run time so manual logs contribute to per-printer hours in reports
     # (0 = unknown/not entered, excluded from hour totals).
     duration_minutes = models.PositiveIntegerField(default=0)
+
+    class Outcome(models.TextChoices):
+        SUCCESS = "success", "Success"
+        FAILED = "failed", "Failed"
+
+    # A manually-logged print can be a success or a failure. A failed log still
+    # consumed filament (grams_used > 0 stays enforced); percent_complete scales
+    # how much of duration_minutes counts toward printer hours (success = 100).
+    outcome = models.CharField(
+        max_length=16,
+        choices=Outcome.choices,
+        default=Outcome.SUCCESS,
+    )
+    percent_complete = models.PositiveSmallIntegerField(
+        default=100,
+        validators=[MaxValueValidator(100)],
+    )
+    reason = models.TextField(blank=True, default="")
     title = models.CharField(max_length=200)
     requester_name = models.CharField(max_length=120, blank=True, default="")
     contact_email = models.EmailField(blank=True, default="")
@@ -252,6 +274,14 @@ class PrintRequest(models.Model):
         default=0,
         validators=[MinValueValidator(0)],
     )
+    # How far a failed print got (0-100). Persisted at fail() so failed jobs can
+    # contribute partial time to per-printer hours; failed_at lets those partials
+    # be date-window filtered in reports (failed rows have no completed_at).
+    fail_percent_complete = models.PositiveSmallIntegerField(
+        default=0,
+        validators=[MaxValueValidator(100)],
+    )
+    failed_at = models.DateTimeField(null=True, blank=True)
     reprint_of = models.ForeignKey(
         "self",
         null=True,
