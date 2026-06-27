@@ -16,6 +16,9 @@ type ManualPrintLog = {
   spool_label: string | null;
   grams_used: string;
   duration_minutes: number;
+  outcome: "success" | "failed";
+  percent_complete: number;
+  reason: string;
   requester_name: string;
   contact_email: string;
   contact_phone: string;
@@ -41,6 +44,9 @@ export function ManualPrintLogSection({
   const [spoolId, setSpoolId] = useState("");
   const [gramsUsed, setGramsUsed] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
+  const [outcome, setOutcome] = useState<"success" | "failed">("success");
+  const [percentComplete, setPercentComplete] = useState("100");
+  const [reason, setReason] = useState("");
   const [requesterName, setRequesterName] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -65,6 +71,7 @@ export function ManualPrintLogSection({
     && gramsUsed
     && Number.isFinite(gramsValue)
     && gramsValue > 0
+    && (outcome === "success" || reason.trim())
   );
 
   const createLog = useMutation({
@@ -77,6 +84,9 @@ export function ManualPrintLogSection({
           filament_spool_id: Number(spoolId),
           grams_used: gramsUsed,
           duration_minutes: Number(durationMinutes) || 0,
+          outcome,
+          percent_complete: outcome === "failed" ? Number(percentComplete) || 0 : 100,
+          reason: outcome === "failed" ? reason.trim() : "",
           title: title.trim(),
           requester_name: requesterName.trim(),
           contact_email: contactEmail.trim(),
@@ -90,6 +100,9 @@ export function ManualPrintLogSection({
       setSpoolId("");
       setGramsUsed("");
       setDurationMinutes("");
+      setOutcome("success");
+      setPercentComplete("100");
+      setReason("");
       setRequesterName("");
       setContactEmail("");
       setContactPhone("");
@@ -184,6 +197,36 @@ export function ManualPrintLogSection({
             onChange={(event) => setContactPhone(event.target.value)}
           />
         </div>
+        <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <select
+            className="desk-input min-w-0"
+            value={outcome}
+            onChange={(event) => setOutcome(event.target.value as "success" | "failed")}
+          >
+            <option value="success">Success</option>
+            <option value="failed">Failed</option>
+          </select>
+          {outcome === "failed" ? (
+            <input
+              className="desk-input min-w-0"
+              placeholder="% complete"
+              type="number"
+              min="0"
+              max="100"
+              step="1"
+              value={percentComplete}
+              onChange={(event) => setPercentComplete(event.target.value)}
+            />
+          ) : null}
+        </div>
+        {outcome === "failed" ? (
+          <input
+            className="desk-input min-w-0"
+            placeholder="Failure reason (required)"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+          />
+        ) : null}
         <textarea
           className="desk-input min-h-20"
           placeholder="Note"
@@ -210,12 +253,28 @@ export function ManualPrintLogSection({
         {logRows.map((log) => (
           <article key={log.id} className="rounded-md border border-line bg-surface px-3 py-2 text-sm">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <strong className="text-ink">{log.title}</strong>
+              <strong className="text-ink">
+                {log.title}
+                {log.outcome === "failed" ? (
+                  <span className="ml-2 rounded-full bg-danger px-2 py-0.5 text-xs font-semibold text-bg">
+                    Failed {log.percent_complete}%
+                  </span>
+                ) : (
+                  <span className="ml-2 rounded-full bg-success px-2 py-0.5 text-xs font-semibold text-success-ink">
+                    Success
+                  </span>
+                )}
+              </strong>
               <span className="text-muted">
                 {Number(log.grams_used).toFixed(2)}g
                 {log.duration_minutes ? ` · ${log.duration_minutes} min` : ""}
               </span>
             </div>
+            {log.outcome === "failed" && log.reason ? (
+              <p className="mt-1 text-xs text-danger">
+                <span className="font-medium">Reason: </span>{log.reason}
+              </p>
+            ) : null}
             <p className="mt-1 text-xs text-muted">
               {[log.printer_name, log.spool_label].filter(Boolean).join(" - ") || "No printer"}
             </p>

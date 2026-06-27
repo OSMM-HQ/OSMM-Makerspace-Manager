@@ -130,22 +130,37 @@ export function CompletePrintDialog({ request, pending, error, onClose, onSubmit
   );
 }
 
-export function AcceptPrintDialog({ open, pending, error, onClose, onSubmit }: {
+export function AcceptPrintDialog({ open, request, pending, error, onClose, onSubmit }: {
   open: boolean;
+  request?: { estimated_filament_grams?: string } | null;
   pending: boolean;
   error?: string;
   onClose: () => void;
-  onSubmit: (price: string) => void;
+  onSubmit: (price: string, grams: string | null) => void;
 }) {
   const [price, setPrice] = useState("0");
-  useEffect(() => { if (open) setPrice("0"); }, [open]);
+  const [grams, setGrams] = useState("");
+  useEffect(() => {
+    if (open) {
+      setPrice("0");
+      setGrams(request?.estimated_filament_grams ?? "");
+    }
+  }, [open, request]);
   const priceValue = Number(price);
-  const disabled = !price.trim() || !Number.isFinite(priceValue) || priceValue < 0;
+  const gramsTrimmed = grams.trim();
+  const gramsValue = gramsTrimmed === "" ? null : Number(gramsTrimmed);
+  const gramsInvalid = gramsValue !== null && (!Number.isFinite(gramsValue) || gramsValue < 0);
+  const disabled = !price.trim() || !Number.isFinite(priceValue) || priceValue < 0 || gramsInvalid;
   return (
-    <Modal open={open} onClose={onClose} title="Accept print request" footer={<DialogActions pending={pending} disabled={disabled} submitLabel="Accept request" onCancel={onClose} onSubmit={() => onSubmit(price.trim() || "0")} />}>
+    <Modal open={open} onClose={onClose} title="Accept print request" footer={<DialogActions pending={pending} disabled={disabled} submitLabel="Accept request" onCancel={onClose} onSubmit={() => onSubmit(price.trim() || "0", gramsTrimmed === "" ? null : gramsTrimmed)} />}>
       <label className="block">
         <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Price (cash) &mdash; 0 = free</span>
         <input className="desk-input w-full" type="number" min="0" step="0.01" value={price} onChange={(event) => setPrice(event.target.value)} />
+      </label>
+      <label className="mt-3 block">
+        <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Estimated filament (g)</span>
+        <input className="desk-input w-full" type="number" min="0" step="0.01" value={grams} onChange={(event) => setGrams(event.target.value)} />
+        <span className="mt-1 block text-xs text-muted">Prefilled from the requester&rsquo;s estimate. Blank leaves it unchanged.</span>
       </label>
       <ErrorText message={error} />
     </Modal>

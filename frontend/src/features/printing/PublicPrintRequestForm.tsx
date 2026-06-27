@@ -11,6 +11,7 @@ export type FormState = {
   projectBrief: string;
   preferredSettings: string;
   filamentSpoolId: string;
+  estimatedFilamentGrams: string;
   material: string;
   color: string;
   quantity: number;
@@ -25,6 +26,7 @@ export const initialForm: FormState = {
   projectBrief: "",
   preferredSettings: "",
   filamentSpoolId: "",
+  estimatedFilamentGrams: "",
   material: "",
   color: "",
   quantity: 1,
@@ -164,6 +166,24 @@ export function PrintDetailsForm({
                   updateField("quantity", Math.max(1, Number(event.target.value) || 1))
                 }
               />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
+                Estimated filament (g) &mdash; optional
+              </span>
+              <input
+                className="desk-input w-full"
+                min={0}
+                step="0.01"
+                type="number"
+                value={form.estimatedFilamentGrams}
+                onChange={(event) =>
+                  updateField("estimatedFilamentGrams", event.target.value)
+                }
+              />
+              <span className="mt-1 block text-xs text-muted">
+                If you know it from your slicer &mdash; staff can adjust this.
+              </span>
             </label>
             <TextInput label="Source link (optional)" value={form.sourceLink} onChange={(value) => updateField("sourceLink", value)} />
           </div>
