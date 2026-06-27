@@ -89,6 +89,13 @@ def _transition(
             extra_update_fields.append("payment_status")
         if status in (PrintRequest.Status.REJECTED, PrintRequest.Status.FAILED):
             locked.reason = reason
+        if status == PrintRequest.Status.FAILED:
+            # Persist how far the print got + when it failed, so failed jobs can
+            # contribute partial time to printer-hour reports (failed rows have no
+            # completed_at, so failed_at is what date-window queries filter on).
+            locked.fail_percent_complete = max(0, min(100, int(percent_complete or 0)))
+            locked.failed_at = now
+            extra_update_fields.extend(["fail_percent_complete", "failed_at"])
 
         locked.save(
             update_fields=[
