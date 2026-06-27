@@ -57,6 +57,15 @@ class PrintRequestSubmitSerializer(serializers.Serializer):
     material = serializers.CharField(required=False, allow_blank=True, max_length=100)
     color = serializers.CharField(required=False, allow_blank=True, max_length=100)
     filament_spool_id = serializers.IntegerField(required=False, allow_null=True)
+    # Optional requester estimate of how much filament the job needs; staff can
+    # adjust it at accept. Omitted/null -> 0 on create (never None into the field).
+    estimated_filament_grams = serializers.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        min_value=0,
+        required=False,
+        allow_null=True,
+    )
     quantity = serializers.IntegerField(min_value=1, default=1)
     # Bound to the model column limits so overlong input is a clean 400, not a DB DataError.
     source_link = serializers.URLField(required=False, allow_blank=True, max_length=200)

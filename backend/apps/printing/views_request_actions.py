@@ -37,6 +37,9 @@ class PrintRequestActionView(ManagedPrintRequestQuerysetMixin, generics.GenericA
                     print_request,
                     request.user,
                     price=input_serializer.validated_data["price"],
+                    estimated_filament_grams=input_serializer.validated_data.get(
+                        "estimated_filament_grams"
+                    ),
                 )
             elif self.action == "reject":
                 updated = workflow.reject(

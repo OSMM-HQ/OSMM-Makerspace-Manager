@@ -71,6 +71,14 @@ def _transition(
             locked.accepted_by = actor
             locked.price = _coerce_price(price)
             extra_update_fields.extend(["accepted_by", "price"])
+            # The manager can set/edit the planned filament at accept. `is not None`
+            # (not truthiness) so an explicit 0 updates while an omitted field
+            # preserves the requester's submitted estimate.
+            if estimated_filament_grams is not None:
+                locked.estimated_filament_grams = _coerce_filament_grams(
+                    estimated_filament_grams
+                )
+                extra_update_fields.append("estimated_filament_grams")
         if status == PrintRequest.Status.COMPLETED:
             locked.completed_at = now
             locked.payment_status = (
@@ -204,8 +212,15 @@ def _assign_print_job(
         raise InvalidTransition(str(exc)) from exc
 
 
-def accept(print_request, actor, *, price=0):
-    return _transition(print_request, actor, PrintRequest.Status.ACCEPTED, "accepted", price=price)
+def accept(print_request, actor, *, price=0, estimated_filament_grams=None):
+    return _transition(
+        print_request,
+        actor,
+        PrintRequest.Status.ACCEPTED,
+        "accepted",
+        price=price,
+        estimated_filament_grams=estimated_filament_grams,
+    )
 
 def reject(print_request, actor, reason):
     return _transition(print_request, actor, PrintRequest.Status.REJECTED, "rejected", reason=reason)
