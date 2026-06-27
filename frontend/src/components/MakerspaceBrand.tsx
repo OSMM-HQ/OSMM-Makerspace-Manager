@@ -35,7 +35,7 @@ export function MakerspaceBrand({
   className = "",
 }: MakerspaceBrandProps) {
   return (
-    <span className={`inline-flex items-center gap-3 ${className}`}>
+    <span className={`inline-flex min-w-0 max-w-full items-center gap-3 ${className}`}>
       {logoUrl ? (
         <img
           src={logoUrl}
@@ -45,7 +45,7 @@ export function MakerspaceBrand({
       ) : null}
       {!hideName || !logoUrl ? (
         <span
-          className={`font-display font-bold tracking-tight text-ink ${NAME_SIZE[size]}`}
+          className={`font-display font-bold leading-tight break-words min-w-0 text-ink ${NAME_SIZE[size]}`}
         >
           {name}
         </span>

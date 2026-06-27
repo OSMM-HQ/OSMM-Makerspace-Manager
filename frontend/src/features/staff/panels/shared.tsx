@@ -20,6 +20,11 @@ export type Makerspace = {
   logo_url?: string | null;
   cover_image_url?: string | null;
   enabled_modules?: string[];
+  branding_config?: {
+    display_name?: string;
+    support_email?: string;
+    support_url?: string;
+  } | null;
 };
 
 export type Product = {

@@ -8,7 +8,11 @@ from apps.accounts.models import User
 from apps.inventory import public_image_storage
 from apps.integrations.email import platform_email_configured
 from apps.integrations.smtp_validation import validate_smtp_settings
-from apps.makerspaces.models import Makerspace, normalize_frontend_domain
+from apps.makerspaces.models import (
+    Makerspace,
+    default_branding_config,
+    normalize_frontend_domain,
+)
 from apps.makerspaces.validators import validate_google_maps_url
 
 # Bare hostname (DNS labels); allows "localhost" and "alpha-lab.example.com",
@@ -39,6 +43,17 @@ class MakerspaceSerializer(serializers.ModelSerializer):
     smtp_password_set = serializers.SerializerMethodField()
     logo_url = serializers.SerializerMethodField()
     cover_image_url = serializers.SerializerMethodField()
+    # Optional public-name override stored under branding_config["display_name"].
+    # Blank => public pages fall back to the registered makerspace name. Written
+    # through this dedicated, validated field (not the whole branding_config blob)
+    # so we only touch the one key under the row lock and never clobber the rest.
+    public_display_name = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        max_length=200,
+        trim_whitespace=True,
+    )
 
     class Meta:
         model = Makerspace
@@ -65,6 +80,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "enabled_modules",
             "theme_config",
             "branding_config",
+            "public_display_name",
             "telegram_group_chat_id",
             "telegram_bot_token",
             "telegram_bot_token_set",
@@ -89,6 +105,10 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "cover_image_url",
             "telegram_bot_token_set",
             "smtp_password_set",
+            # branding_config is returned (so the settings form can seed the
+            # current display-name override) but only written via the validated
+            # public_display_name field, never as an unchecked whole-blob PATCH.
+            "branding_config",
             "created_at",
             "updated_at",
         ]
@@ -168,10 +188,22 @@ class MakerspaceSerializer(serializers.ModelSerializer):
         validate_smtp_settings(attrs, self.instance)
         return attrs
 
+    def create(self, validated_data):
+        # public_display_name is a non-model write field; the default
+        # ModelSerializer.create would pass it to Makerspace.objects.create and
+        # 500. Fold it into branding_config["display_name"] instead.
+        public_display_name = validated_data.pop("public_display_name", None)
+        if public_display_name is not None:
+            branding = default_branding_config()
+            branding["display_name"] = public_display_name
+            validated_data["branding_config"] = branding
+        return super().create(validated_data)
+
     def update(self, instance, validated_data):
         missing = object()
         telegram_bot_token = validated_data.pop("telegram_bot_token", missing)
         smtp_password = validated_data.pop("smtp_password", missing)
+        public_display_name = validated_data.pop("public_display_name", missing)
         new_flag = validated_data.pop("superadmin_access_enabled", None)
         with transaction.atomic():
             locked = Makerspace.objects.select_for_update().get(pk=instance.pk)
@@ -198,6 +230,12 @@ class MakerspaceSerializer(serializers.ModelSerializer):
                 locked.superadmin_access_enabled = new_flag
             for field, value in validated_data.items():
                 setattr(locked, field, value)
+            if public_display_name is not missing:
+                # Merge into the FRESH locked row's branding_config so we never
+                # overwrite support_email/support_url from a stale client copy.
+                branding = dict(locked.branding_config or {})
+                branding["display_name"] = public_display_name
+                locked.branding_config = branding
             if telegram_bot_token is not missing:
                 locked.set_telegram_bot_token(telegram_bot_token)
             if smtp_password is not missing:

@@ -18,6 +18,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
   const queryClient = useQueryClient();
   const [domainInput, setDomainInput] = useState("");
   const [hideFromDirectory, setHideFromDirectory] = useState(false);
+  const [displayNameInput, setDisplayNameInput] = useState("");
   const settings = useStaffGet<Makerspace>(
     ["makerspace-settings", makerspace.id],
     `/admin/makerspaces/${makerspace.id}`,
@@ -86,11 +87,34 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
   const currentDomain = settings.data?.frontend_domain ?? makerspace.frontend_domain ?? null;
   const currentHidden =
     settings.data?.hidden_from_central_directory ?? makerspace.hidden_from_central_directory ?? false;
+  const currentDisplayName = settings.data?.branding_config?.display_name ?? "";
 
   useEffect(() => {
     setDomainInput(currentDomain ?? "");
     setHideFromDirectory(Boolean(currentDomain) && currentHidden);
   }, [currentDomain, currentHidden, makerspace.id]);
+
+  useEffect(() => {
+    setDisplayNameInput(currentDisplayName);
+  }, [currentDisplayName, makerspace.id]);
+
+  const updateDisplayName = useMutation({
+    mutationFn: (value: string) =>
+      staffRequest<Makerspace>(`/admin/makerspaces/${makerspace.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ public_display_name: value }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["makerspace-settings", makerspace.id] });
+      queryClient.invalidateQueries({ queryKey: ["makerspaces"] });
+      queryClient.invalidateQueries({ queryKey: ["staff", "makerspaces"] });
+    },
+  });
+
+  const trimmedDisplayName = displayNameInput.trim();
+  const displayNameChanged = trimmedDisplayName !== currentDisplayName.trim();
+  const displayNameSaveDisabled =
+    settings.isLoading || updateDisplayName.isPending || !displayNameChanged;
 
   const trimmedDomain = domainInput.trim();
   const hasDomain = trimmedDomain.length > 0;
@@ -161,6 +185,43 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
               onChanged={refreshBranding}
             />
           </div>
+          <form
+            className="mt-4 grid min-w-0 max-w-xl gap-2"
+            onSubmit={(event) => {
+              event.preventDefault();
+              if (!displayNameSaveDisabled) {
+                updateDisplayName.mutate(trimmedDisplayName);
+              }
+            }}
+          >
+            <label className="text-sm font-semibold text-ink" htmlFor="public-display-name">
+              Public display name
+            </label>
+            <input
+              id="public-display-name"
+              className="desk-input"
+              placeholder={makerspace.name}
+              value={displayNameInput}
+              disabled={settings.isLoading}
+              onChange={(event) => setDisplayNameInput(event.target.value)}
+            />
+            <p className="text-xs text-muted">
+              Shown on this makerspace&apos;s public pages. Leave blank to use the registered
+              name (<span className="font-semibold text-ink">{makerspace.name}</span>).
+            </p>
+            <div>
+              <button
+                className="desk-button-primary w-full max-w-full sm:w-auto"
+                type="submit"
+                disabled={displayNameSaveDisabled}
+              >
+                {updateDisplayName.isPending ? "Saving..." : "Save display name"}
+              </button>
+            </div>
+            {updateDisplayName.error ? (
+              <p className="text-sm text-danger">{updateDisplayName.error.message}</p>
+            ) : null}
+          </form>
         </div>
         <MakerspaceLocationSettings
           makerspace={makerspace}
