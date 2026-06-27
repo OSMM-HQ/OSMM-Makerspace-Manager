@@ -151,7 +151,10 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     }
     const ms = makerspaces.data?.find((m) => m.id === id);
     setSelected(id);
-    if (ms?.slug) {
+    // Only the non-guest staff console uses slug-scoped /m/<slug>/admin routes.
+    // Guest-admin keeps its own shell, so leave its switching as-is (a slug
+    // navigate here would remount the non-guest app and drop the guest UI).
+    if (ms?.slug && !guestOnly) {
       const currentTab = tabFromStaffPath(location.pathname, guestOnly);
       navigate(staffTabPath(currentTab, guestOnly, ms.slug));
     }
