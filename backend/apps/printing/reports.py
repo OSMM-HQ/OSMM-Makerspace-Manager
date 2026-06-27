@@ -1,7 +1,7 @@
 from decimal import Decimal
 
-from django.db.models import Count, Q, Sum
-from django.db.models.functions import Coalesce, TruncDay, TruncHour, TruncMonth
+from django.db.models import Count, Max, Q, Sum
+from django.db.models.functions import Coalesce, Lower, TruncDay, TruncHour, TruncMonth
 
 from apps.accounts import rbac
 from apps.hardware_requests.display import requester_label_for_user
@@ -104,26 +104,59 @@ def _totals(requests):
 
 
 def _top_requesters(requests, include_makerspace):
-    values = ["requester_id", "requester__username", "requester__external_checkin_user_id"]
+    # Group by the requester's contact email (the human identity entered on every
+    # request) but DISPLAY their name. This is a deliberate REPORTING choice: it
+    # collapses one person's prints -- even across separate shadow-user rows -- into
+    # a single leaderboard line. It does not change auth/identity anywhere. Rows
+    # without a contact email fall back to the original requester-id grouping/label.
+    grams_filter = Q(status__in=COMPLETED_STATUSES)
+    grams = Coalesce(Sum("estimated_filament_grams", filter=grams_filter), Decimal("0"))
+
+    email_keys = ["email_key"]
     if include_makerspace:
-        values.append("bucket__makerspace_id")
-    order = ["-grams", "-request_count", "-items"]
-    if include_makerspace:
-        order = ["bucket__makerspace_id", *order]
-    rows = (
-        requests.values(*values)
+        email_keys.append("bucket__makerspace_id")
+    email_rows = (
+        requests.exclude(contact_email="")
+        .annotate(email_key=Lower("contact_email"))
+        .values(*email_keys)
         .annotate(
             request_count=Count("id"),
             items=Sum("quantity"),
-            grams=Coalesce(
-                Sum("estimated_filament_grams", filter=Q(status__in=COMPLETED_STATUSES)),
-                Decimal("0"),
-            ),
+            grams=grams,
+            # Max ignores blank "" in favour of a real name; a stable representative
+            # id keeps the serializer's requester_id contract + React keys intact.
+            display_name=Max("requester_name"),
+            display_email=Max("contact_email"),
+            rep_requester_id=Max("requester_id"),
         )
-        .order_by(*order)
     )
     data = []
-    for row in rows:
+    for row in email_rows:
+        name = (
+            (row["display_name"] or "").strip()
+            or (row["display_email"] or "").strip()
+            or "Anonymous"
+        )
+        item = {
+            "requester_id": row["rep_requester_id"],
+            "requester": name,
+            "grams": decimal_to_float(row["grams"]),
+            "requests": row["request_count"],
+            "items": row["items"] or 0,
+        }
+        if include_makerspace:
+            item["makerspace_id"] = row["bucket__makerspace_id"]
+        data.append(item)
+
+    legacy_values = ["requester_id", "requester__username", "requester__external_checkin_user_id"]
+    if include_makerspace:
+        legacy_values.append("bucket__makerspace_id")
+    legacy_rows = (
+        requests.filter(contact_email="")
+        .values(*legacy_values)
+        .annotate(request_count=Count("id"), items=Sum("quantity"), grams=grams)
+    )
+    for row in legacy_rows:
         item = {
             "requester_id": row["requester_id"],
             "requester": requester_label_for_user(
@@ -137,6 +170,15 @@ def _top_requesters(requests, include_makerspace):
         if include_makerspace:
             item["makerspace_id"] = row["bucket__makerspace_id"]
         data.append(item)
+
+    data.sort(
+        key=lambda item: (
+            item["makerspace_id"] if include_makerspace else 0,
+            -item["grams"],
+            -item["requests"],
+            -item["items"],
+        )
+    )
     return data
 
 
