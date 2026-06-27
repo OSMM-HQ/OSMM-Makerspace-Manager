@@ -438,7 +438,7 @@ function formFromProduct(product: AdminProduct): ItemForm {
 function InventoryAvailability({ product }: { product: AdminProduct }) {
   const isLowStock = product.available_quantity <= Math.ceil(product.total_quantity * 0.2);
   const badge = product.available_quantity <= 0 ? <StatusBadge status="lost" label="Unavailable" /> : isLowStock ? <StatusBadge status="limited" label="Limited" /> : <StatusBadge status="available" label="Available" />;
-  return <span className="inline-flex items-center gap-2"><span className="font-medium text-ink">{product.available_quantity}</span>{badge}</span>;
+  return <span className="inline-flex items-center gap-2"><span className="inline-block w-8 font-medium tabular-nums text-ink">{product.available_quantity}</span>{badge}</span>;
 }
 
 function defaultToBuyQuantity(product: AdminProduct) {
