@@ -21,6 +21,18 @@ class ManualPrintLogSerializer(serializers.ModelSerializer):
         required=False,
         default=0,
     )
+    outcome = serializers.ChoiceField(
+        choices=ManualPrintLog.Outcome.choices,
+        required=False,
+        default=ManualPrintLog.Outcome.SUCCESS,
+    )
+    percent_complete = serializers.IntegerField(
+        min_value=0,
+        max_value=100,
+        required=False,
+        default=100,
+    )
+    reason = serializers.CharField(required=False, allow_blank=True, default="")
     printer_name = serializers.CharField(
         source="printer.name",
         read_only=True,
@@ -45,6 +57,9 @@ class ManualPrintLogSerializer(serializers.ModelSerializer):
             "filament_spool_id",
             "grams_used",
             "duration_minutes",
+            "outcome",
+            "percent_complete",
+            "reason",
             "title",
             "requester_name",
             "contact_email",
@@ -67,6 +82,15 @@ class ManualPrintLogSerializer(serializers.ModelSerializer):
         if value <= 0:
             raise serializers.ValidationError("Must be greater than 0.")
         return value
+
+    def validate(self, attrs):
+        if attrs.get("outcome") == ManualPrintLog.Outcome.FAILED and not (
+            attrs.get("reason") or ""
+        ).strip():
+            raise serializers.ValidationError(
+                {"reason": "A failure reason is required for a failed print."}
+            )
+        return attrs
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_spool_label(self, obj):

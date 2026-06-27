@@ -4,7 +4,7 @@ from django.db.models import Count, F, Q, Sum
 from django.db.models.functions import Coalesce
 
 from apps.inventory import public_image_storage
-from apps.printing.models import PrintPrinter, PrintRequest
+from apps.printing.models import ManualPrintLog, PrintPrinter, PrintRequest
 from apps.printing.reports_filament import decimal_to_float
 
 COMPLETED_STATUSES = [PrintRequest.Status.COMPLETED, PrintRequest.Status.COLLECTED]
@@ -136,15 +136,17 @@ def printer_outcomes(requests, include_makerspace, manual_logs=None):
 
 
 def _add_manual_hours(data, by_printer, manual_logs, values, include_makerspace):
+    # Weight each manual log's run-time by its completion: a success is 100%
+    # (full duration), a failed log counts duration * percent_complete / 100.
     manual_rows = (
         manual_logs.filter(printer__isnull=False)
         .values(*values)
-        .annotate(manual_minutes=Sum("duration_minutes"))
+        .annotate(weighted=Sum(F("duration_minutes") * F("percent_complete")))
         .order_by("printer__makerspace_id", "printer__name", "printer_id")
     )
     for row in manual_rows:
         printer_id = row["printer_id"]
-        manual_minutes = row["manual_minutes"] or 0
+        manual_minutes = (row["weighted"] or 0) / 100
         if printer_id in by_printer:
             by_printer[printer_id]["_minutes"] += manual_minutes
             continue
@@ -168,23 +170,31 @@ def _add_manual_outcomes(data, by_printer, manual_logs, include_makerspace):
     manual_rows = (
         manual_logs.filter(printer__isnull=False)
         .values(*values)
-        .annotate(manual_grams=Coalesce(Sum("grams_used"), Decimal("0")), manual_count=Count("id"))
+        .annotate(
+            manual_grams=Coalesce(Sum("grams_used"), Decimal("0")),
+            manual_count=Count("id"),
+            manual_failed=Count(
+                "id", filter=Q(outcome=ManualPrintLog.Outcome.FAILED)
+            ),
+        )
         .order_by("printer__makerspace_id", "printer__name", "printer_id")
     )
     for row in manual_rows:
         printer_id = row["printer_id"]
         manual_grams = row["manual_grams"] or Decimal("0")
+        manual_failed = row["manual_failed"] or 0
         if printer_id in by_printer:
             item = by_printer[printer_id]
             item["grams_used"] = decimal_to_float(Decimal(str(item["grams_used"])) + manual_grams)
             item["manual_logs"] = row["manual_count"]
+            item["failed"] = (item.get("failed") or 0) + manual_failed
             continue
         item = {
             "printer_id": printer_id,
             "printer_name": row["printer__name"],
             "printer_model": row["printer__model"] or "",
             "completed": 0,
-            "failed": 0,
+            "failed": manual_failed,
             "grams_used": decimal_to_float(manual_grams),
             "manual_logs": row["manual_count"],
         }

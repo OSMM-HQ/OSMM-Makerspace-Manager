@@ -20,7 +20,27 @@ def log_manual_print(
     requester_name="",
     contact_email="",
     contact_phone="",
+    outcome=ManualPrintLog.Outcome.SUCCESS,
+    percent_complete=100,
+    reason="",
 ):
+    # Normalise the success/failed outcome so the stored row is always consistent:
+    # a success is implicitly 100% with no failure reason; a failure must carry a
+    # reason and a 0-100 completion. Mirrors the request fail() contract.
+    if outcome not in ManualPrintLog.Outcome.values:
+        raise InvalidTransition("Outcome must be 'success' or 'failed'.")
+    if outcome == ManualPrintLog.Outcome.SUCCESS:
+        percent_complete = 100
+        reason = ""
+    else:
+        reason = (reason or "").strip()
+        if not reason:
+            raise InvalidTransition("A failure reason is required for a failed print.")
+        try:
+            percent_complete = int(percent_complete if percent_complete is not None else 0)
+        except (TypeError, ValueError) as exc:
+            raise InvalidTransition("Percent complete must be a whole number.") from exc
+        percent_complete = max(0, min(100, percent_complete))
     with transaction.atomic():
         try:
             printer = PrintPrinter.objects.select_for_update().get(pk=printer.pk)
@@ -57,6 +77,9 @@ def log_manual_print(
             filament_spool=spool,
             grams_used=grams_used,
             duration_minutes=duration_minutes or 0,
+            outcome=outcome,
+            percent_complete=percent_complete,
+            reason=reason,
             title=title,
             requester_name=requester_name,
             contact_email=contact_email,

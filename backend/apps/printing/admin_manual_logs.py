@@ -27,6 +27,15 @@ class ManualPrintLogAdminForm(forms.Form):
     filament_spool = forms.ModelChoiceField(queryset=FilamentSpool.objects.none())
     grams_used = forms.DecimalField(max_digits=8, decimal_places=2, min_value=0)
     duration_minutes = forms.IntegerField(min_value=0, required=False, initial=0)
+    outcome = forms.ChoiceField(
+        choices=ManualPrintLog.Outcome.choices,
+        required=False,
+        initial=ManualPrintLog.Outcome.SUCCESS,
+    )
+    percent_complete = forms.IntegerField(
+        min_value=0, max_value=100, required=False, initial=100
+    )
+    reason = forms.CharField(required=False, widget=forms.Textarea)
     title = forms.CharField(max_length=200)
     requester_name = forms.CharField(max_length=120, required=False)
     contact_email = forms.EmailField(required=False)
@@ -60,8 +69,8 @@ class ManualPrintLogAdminForm(forms.Form):
 
 @admin.register(ManualPrintLog)
 class ManualPrintLogAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
-    list_display = ("title", "requester_name", "contact_email", "contact_phone", "makerspace", "printer", "filament_spool", "grams_used", "created_at")
-    list_filter = ("makerspace", "printer")
+    list_display = ("title", "outcome", "requester_name", "contact_email", "contact_phone", "makerspace", "printer", "filament_spool", "grams_used", "created_at")
+    list_filter = ("makerspace", "printer", "outcome")
     search_fields = ("title", "requester_name", "contact_email", "contact_phone", "note", "printer__name", "filament_spool__material")
     readonly_fields = (
         "makerspace",
@@ -69,6 +78,9 @@ class ManualPrintLogAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         "filament_spool",
         "grams_used",
         "duration_minutes",
+        "outcome",
+        "percent_complete",
+        "reason",
         "title",
         "requester_name",
         "contact_email",
@@ -108,6 +120,13 @@ class ManualPrintLogAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
                     requester_name=data.get("requester_name", ""),
                     contact_email=data.get("contact_email", ""),
                     contact_phone=data.get("contact_phone", ""),
+                    outcome=data.get("outcome") or ManualPrintLog.Outcome.SUCCESS,
+                    percent_complete=(
+                        data.get("percent_complete")
+                        if data.get("percent_complete") is not None
+                        else 100
+                    ),
+                    reason=data.get("reason", ""),
                 )
             except (InvalidTransition, DRFValidationError) as exc:
                 form.add_error(None, str(exc))
