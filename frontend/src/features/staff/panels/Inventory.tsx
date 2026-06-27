@@ -209,11 +209,11 @@ export function Inventory({ makerspace, canViewAudit = false, canUseToBuy = fals
     { key: "damaged_quantity", header: "Damaged", sortable: true },
     { key: "lost_quantity", header: "Lost", sortable: true },
     { key: "actions", header: "", render: (product) => (
-      <div className="desk-actions flex flex-wrap gap-2">
-        <button className="desk-button" type="button" onClick={() => openEdit(product)}>Edit</button>
-        {!product.is_archived ? <button className="desk-button" type="button" disabled={product.tracking_mode === "individual" ? product.available_quantity + product.damaged_quantity <= 0 : product.available_quantity <= 0} onClick={() => openFix(product)}>To Fix</button> : null}
-        {product.is_archived ? <button className="desk-button" type="button" disabled={unarchive.isPending} onClick={() => unarchive.mutate(product)}>Back to inventory</button> : <button className="desk-button" type="button" onClick={() => setArchiveTarget(product)}>Archive</button>}
-        {canUseToBuy ? <button className="desk-button bg-accent text-accent-ink hover:bg-accent-bright" type="button" onClick={() => openToBuy(product)}>To Buy</button> : null}
+      <div className="desk-actions ml-auto grid w-max grid-cols-2 gap-2">
+        <button className="desk-button w-full" type="button" onClick={() => openEdit(product)}>Edit</button>
+        {!product.is_archived ? <button className="desk-button w-full" type="button" disabled={product.tracking_mode === "individual" ? product.available_quantity + product.damaged_quantity <= 0 : product.available_quantity <= 0} onClick={() => openFix(product)}>To Fix</button> : null}
+        {product.is_archived ? <button className="desk-button w-full" type="button" disabled={unarchive.isPending} onClick={() => unarchive.mutate(product)}>Back to inventory</button> : <button className="desk-button w-full" type="button" onClick={() => setArchiveTarget(product)}>Archive</button>}
+        {canUseToBuy ? <button className="desk-button w-full bg-accent text-accent-ink hover:bg-accent-bright" type="button" onClick={() => openToBuy(product)}>To Buy</button> : null}
       </div>
     ) },
   ];
