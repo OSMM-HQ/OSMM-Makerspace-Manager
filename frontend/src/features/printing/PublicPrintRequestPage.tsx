@@ -68,7 +68,6 @@ export function PublicPrintRequestPage() {
   const [screenshotFiles, setScreenshotFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [copiedStatusUrl, setCopiedStatusUrl] = useState(false);
   const [activeStatusToken, setActiveStatusToken] = useState("");
   const [statusEmail, setStatusEmail] = useState("");
   const statusLinkHandledRef = useRef(false);
@@ -121,9 +120,6 @@ export function PublicPrintRequestPage() {
   });
 
   const statusStorageKey = makerspaceSlug ? `tinkerspace.printStatus.${makerspaceSlug}` : "";
-  const statusUrl = activeStatusToken && typeof window !== "undefined"
-    ? `${window.location.origin}${tenantPath("print")}?token=${activeStatusToken}`
-    : "";
 
   useEffect(() => {
     if (statusLinkHandledRef.current) return;
@@ -136,7 +132,6 @@ export function PublicPrintRequestPage() {
   useEffect(() => {
     if (!statusStorageKey || !activeStatusToken) return;
     window.localStorage.setItem(statusStorageKey, activeStatusToken);
-    setCopiedStatusUrl(false);
   }, [activeStatusToken, statusStorageKey]);
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -221,14 +216,6 @@ export function PublicPrintRequestPage() {
     if (statusEmail.trim()) statusByEmailMutation.mutate(statusEmail.trim());
   }
 
-  async function copyStatusUrl() {
-    if (!statusUrl) return;
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(statusUrl);
-    }
-    setCopiedStatusUrl(true);
-  }
-
   return (
     <main className="desk-shell">
       <header className="border-b border-line bg-panel">
@@ -311,9 +298,6 @@ export function PublicPrintRequestPage() {
               tokenStatus={statusQuery.data}
               tokenStatusPending={Boolean(activeStatusToken) && statusQuery.isPending}
               tokenStatusError={statusQuery.error}
-              statusUrl={statusUrl}
-              statusUrlCopied={copiedStatusUrl}
-              onCopyStatusUrl={copyStatusUrl}
               onStatusEmailChange={setStatusEmail}
               onSubmitStatusEmail={checkStatusByEmail}
             />
