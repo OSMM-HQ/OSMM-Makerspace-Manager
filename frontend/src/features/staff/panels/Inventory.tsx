@@ -438,7 +438,7 @@ function formFromProduct(product: AdminProduct): ItemForm {
 function InventoryAvailability({ product, canUseToBuy = false, onAddToBuy }: { product: AdminProduct; canUseToBuy?: boolean; onAddToBuy: (product: AdminProduct) => void }) {
   const isLowStock = product.available_quantity <= Math.ceil(product.total_quantity * 0.2);
   const badge = product.available_quantity <= 0 ? <StatusBadge status="lost" label="Unavailable" /> : isLowStock ? <StatusBadge status="limited" label="Limited" /> : <StatusBadge status="available" label="Available" />;
-  return <span className="inline-flex items-center gap-2"><span className="font-medium text-ink">{product.available_quantity}</span>{badge}{canUseToBuy && isLowStock ? <button className="text-xs font-semibold text-accent-ink hover:text-ink" type="button" onClick={() => onAddToBuy(product)}>Add to To Buy</button> : null}</span>;
+  return <span className="inline-flex items-center gap-2"><span className="font-medium text-ink">{product.available_quantity}</span>{badge}{canUseToBuy && isLowStock ? <button className="whitespace-nowrap rounded-full bg-accent px-2.5 py-0.5 text-xs font-semibold text-accent-ink hover:bg-accent-bright" type="button" onClick={() => onAddToBuy(product)}>+ To Buy</button> : null}</span>;
 }
 
 function defaultToBuyQuantity(product: AdminProduct) {
