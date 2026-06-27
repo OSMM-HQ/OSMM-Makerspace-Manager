@@ -16137,6 +16137,24 @@
                         "minimum": 0,
                         "default": 0
                     },
+                    "outcome": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ManualPrintLogOutcomeEnum"
+                            }
+                        ],
+                        "default": "success"
+                    },
+                    "percent_complete": {
+                        "type": "integer",
+                        "maximum": 100,
+                        "minimum": 0,
+                        "default": 100
+                    },
+                    "reason": {
+                        "type": "string",
+                        "default": ""
+                    },
                     "title": {
                         "type": "string",
                         "maxLength": 200
@@ -16189,6 +16207,14 @@
                     "spool_label",
                     "title"
                 ]
+            },
+            "ManualPrintLogOutcomeEnum": {
+                "enum": [
+                    "success",
+                    "failed"
+                ],
+                "type": "string",
+                "description": "* `success` - Success\n* `failed` - Failed"
             },
             "ModeEnum": {
                 "enum": [
@@ -16369,15 +16395,6 @@
                     "catalog",
                     "mutes"
                 ]
-            },
-            "OutcomeEnum": {
-                "enum": [
-                    "returned",
-                    "damaged",
-                    "missing"
-                ],
-                "type": "string",
-                "description": "* `returned` - returned\n* `damaged` - damaged\n* `missing` - missing"
             },
             "PaginatedAdminRequestList": {
                 "type": "object",
@@ -17869,6 +17886,12 @@
                         "format": "decimal",
                         "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$",
                         "default": "0.00"
+                    },
+                    "estimated_filament_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$",
+                        "nullable": true
                     }
                 }
             },
@@ -18497,6 +18520,12 @@
                     },
                     "filament_spool_id": {
                         "type": "integer",
+                        "nullable": true
+                    },
+                    "estimated_filament_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$",
                         "nullable": true
                     },
                     "quantity": {
@@ -20613,13 +20642,22 @@
                         "type": "integer"
                     },
                     "outcome": {
-                        "$ref": "#/components/schemas/OutcomeEnum"
+                        "$ref": "#/components/schemas/ReturnAssetResolutionOutcomeEnum"
                     }
                 },
                 "required": [
                     "asset_id",
                     "outcome"
                 ]
+            },
+            "ReturnAssetResolutionOutcomeEnum": {
+                "enum": [
+                    "returned",
+                    "damaged",
+                    "missing"
+                ],
+                "type": "string",
+                "description": "* `returned` - returned\n* `damaged` - damaged\n* `missing` - missing"
             },
             "ReturnDue": {
                 "type": "object",

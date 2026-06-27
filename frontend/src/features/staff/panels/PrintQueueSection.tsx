@@ -46,21 +46,25 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
   const [selectedPrinter, setSelectedPrinter] = useState("");
   const [selectedSpool, setSelectedSpool] = useState("");
   const [estimatedMinutes, setEstimatedMinutes] = useState("60");
-  const [estimatedGrams, setEstimatedGrams] = useState("100");
+  const [estimatedGrams, setEstimatedGrams] = useState("");
   const [acceptingRequest, setAcceptingRequest] = useState<PrintRequest | null>(null);
   const [completingRequest, setCompletingRequest] = useState<PrintRequest | null>(null);
   const [failingRequest, setFailingRequest] = useState<PrintRequest | null>(null);
   const [rejectingRequest, setRejectingRequest] = useState<PrintRequest | null>(null);
 
   const action = useMutation({
-    mutationFn: ({ request, name, reason, percentComplete, price, actualGrams }: { request: PrintRequest; name: "start" | "complete" | "fail" | "accept" | "reject" | "reprint" | "collect"; reason?: string; percentComplete?: number; price?: string; actualGrams?: string }) => {
+    mutationFn: ({ request, name, reason, percentComplete, price, grams, actualGrams }: { request: PrintRequest; name: "start" | "complete" | "fail" | "accept" | "reject" | "reprint" | "collect"; reason?: string; percentComplete?: number; price?: string; grams?: string | null; actualGrams?: string }) => {
       const body =
         name === "start"
           ? {
               printer_id: selectedPrinter ? Number(selectedPrinter) : undefined,
               filament_spool_id: selectedSpool ? Number(selectedSpool) : undefined,
               estimated_minutes: Number(estimatedMinutes),
-              estimated_filament_grams: estimatedGrams,
+              // Blank panel field -> use this request's planned grams (set at accept)
+              // so the accepted plan isn't clobbered by a generic default.
+              estimated_filament_grams: estimatedGrams.trim()
+                ? estimatedGrams
+                : String(request.estimated_filament_grams ?? 0),
             }
           : name === "complete"
             ? actualGrams !== undefined ? { actual_filament_grams: actualGrams } : {}
@@ -69,7 +73,7 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
               : name === "reject"
                 ? { reason }
                 : name === "accept"
-                  ? { price: price ?? "0" }
+                  ? { price: price ?? "0", estimated_filament_grams: grams ?? null }
                   : {};
       return printingRequest(`/printing/manage/requests/${request.id}/${name}`, {
         method: "POST",
@@ -212,10 +216,11 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
 
       <AcceptPrintDialog
         open={Boolean(acceptingRequest)}
+        request={acceptingRequest}
         pending={action.isPending}
         error={acceptingRequest ? actionError : undefined}
         onClose={() => setAcceptingRequest(null)}
-        onSubmit={(price) => acceptingRequest && action.mutate({ request: acceptingRequest, name: "accept", price })}
+        onSubmit={(price, grams) => acceptingRequest && action.mutate({ request: acceptingRequest, name: "accept", price, grams })}
       />
       <CompletePrintDialog
         request={completingRequest}

@@ -55,6 +55,7 @@ export type PrintRequestPayload = PrintIdentityBody & {
   material?: string;
   color?: string;
   filament_spool_id?: number | null;
+  estimated_filament_grams?: number | null;
   quantity: number;
   source_link?: string;
   file_ids: number[];

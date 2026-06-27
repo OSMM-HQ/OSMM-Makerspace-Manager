@@ -192,6 +192,9 @@ export function PublicPrintRequestPage() {
         filament_spool_id: form.filamentSpoolId
           ? Number(form.filamentSpoolId)
           : null,
+        estimated_filament_grams: form.estimatedFilamentGrams.trim()
+          ? Number(form.estimatedFilamentGrams)
+          : null,
         quantity: form.quantity,
         source_link: optional(form.sourceLink),
         file_ids: fileIds,
