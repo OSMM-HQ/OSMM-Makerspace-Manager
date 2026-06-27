@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
@@ -76,6 +78,11 @@ def submit_public_print_request(makerspace, data, result):
             material = material or spool.material
             color = color or spool.color
 
+        # The model column is non-null (default 0); never pass None into it.
+        requested_grams = data.get("estimated_filament_grams")
+        if requested_grams is None:
+            requested_grams = Decimal("0.00")
+
         request = PrintRequest.objects.create(
             bucket=bucket,
             requester=requester,
@@ -87,6 +94,7 @@ def submit_public_print_request(makerspace, data, result):
             material=material,
             color=color,
             requested_filament_spool=spool,
+            estimated_filament_grams=requested_grams,
             quantity=data.get("quantity", 1),
             source_link=data.get("source_link", ""),
             contact_email=data.get("contact_email", "").strip(),

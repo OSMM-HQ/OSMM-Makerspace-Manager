@@ -175,6 +175,15 @@ class PrintAcceptSerializer(serializers.Serializer):
         required=False,
         default=0,
     )
+    # No default + allow_null: omitted/null preserves the requester's submitted
+    # estimate; an explicit value (including 0) overwrites it in the workflow.
+    estimated_filament_grams = serializers.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        min_value=0,
+        required=False,
+        allow_null=True,
+    )
 
 
 class RejectFailSerializer(serializers.Serializer):
