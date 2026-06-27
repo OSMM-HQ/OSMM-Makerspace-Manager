@@ -35,8 +35,13 @@ def build_printing_report(makerspace_id=None, *, include_makerspace=False, date_
     requests, spools, manual_logs = _scoped_querysets(makerspace_id)
     request_period = _apply_date_range(requests, "created_at", date_range)
     completed_period = _apply_date_range(requests, "completed_at", date_range)
+    # Failed jobs have no completed_at, so they're date-windowed on failed_at and
+    # passed separately so their partial run-time counts toward printer hours.
+    failed_period = _apply_date_range(requests, "failed_at", date_range)
     manual_period = _apply_date_range(manual_logs, "created_at", date_range)
-    printer_hour_rows = printer_hours(completed_period, include_makerspace, manual_period)
+    printer_hour_rows = printer_hours(
+        completed_period, include_makerspace, manual_period, failed_requests=failed_period
+    )
     printer_outcome_rows = printer_outcomes(completed_period, include_makerspace, manual_period)
     attach_printer_image_urls(printer_hour_rows, printer_outcome_rows)
 

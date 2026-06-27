@@ -85,7 +85,10 @@ def build_printing_report(makerspace_id):
     requests = PrintRequest.objects.filter(bucket__makerspace_id=makerspace_id)
     spools = FilamentSpool.objects.filter(makerspace_id=makerspace_id)
     manual_logs = ManualPrintLog.objects.filter(makerspace_id=makerspace_id)
-    printer_hour_rows = printer_hours(requests, False, manual_logs)
+    # `requests` is unfiltered here (all-time), so failed jobs' partial run-time
+    # is included by passing the same queryset as failed_requests (printer_hours
+    # filters status=FAILED internally).
+    printer_hour_rows = printer_hours(requests, False, manual_logs, failed_requests=requests)
     printer_outcome_rows = printer_outcomes(requests, False, manual_logs)
     attach_printer_image_urls(printer_hour_rows, printer_outcome_rows)
     status_rows = requests.values("status").annotate(count=Count("id"))
@@ -194,7 +197,19 @@ def _printing_hours_this_month(makerspace_id):
         ).aggregate(total=Sum("duration_minutes"))["total"]
         or 0
     )
-    return _float((request_minutes + manual_minutes) / 60)
+    # Failed prints this month contribute partial run-time (minutes x percent/100),
+    # date-windowed on failed_at since they have no completed_at.
+    failed_weighted = (
+        PrintRequest.objects.filter(
+            bucket__makerspace_id=makerspace_id,
+            status=PrintRequest.Status.FAILED,
+            failed_at__gte=start,
+            failed_at__lt=end,
+        ).aggregate(total=Sum(F("estimated_minutes") * F("fail_percent_complete")))["total"]
+        or 0
+    )
+    failed_minutes = failed_weighted / 100
+    return _float((request_minutes + manual_minutes + failed_minutes) / 60)
 
 
 def _hardware_stats(makerspace):

@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, F, Q, Sum
 from django.db.models.functions import Coalesce
 
 from apps.inventory import public_image_storage
@@ -10,7 +10,7 @@ from apps.printing.reports_filament import decimal_to_float
 COMPLETED_STATUSES = [PrintRequest.Status.COMPLETED, PrintRequest.Status.COLLECTED]
 
 
-def printer_hours(requests, include_makerspace, manual_logs=None):
+def printer_hours(requests, include_makerspace, manual_logs=None, failed_requests=None):
     completed = requests.filter(
         status__in=COMPLETED_STATUSES,
         printer__isnull=False,
@@ -40,11 +40,43 @@ def printer_hours(requests, include_makerspace, manual_logs=None):
         data.append(item)
         by_printer[row["printer_id"]] = item
 
+    if failed_requests is not None:
+        _add_failed_hours(data, by_printer, failed_requests, values, include_makerspace)
     if manual_logs is not None:
         _add_manual_hours(data, by_printer, manual_logs, values, include_makerspace)
     for item in data:
         item["hours"] = round(item.pop("_minutes") / 60, 1)
     return data
+
+
+def _add_failed_hours(data, by_printer, failed_requests, values, include_makerspace):
+    # A failed print still ran the printer for part of its estimate. Count
+    # estimated_minutes * fail_percent_complete / 100 toward printer hours.
+    failed_rows = (
+        failed_requests.filter(
+            status=PrintRequest.Status.FAILED, printer__isnull=False
+        )
+        .values(*values)
+        .annotate(weighted=Sum(F("estimated_minutes") * F("fail_percent_complete")))
+        .order_by("printer__makerspace_id", "printer__name", "printer_id")
+    )
+    for row in failed_rows:
+        printer_id = row["printer_id"]
+        partial_minutes = (row["weighted"] or 0) / 100
+        if printer_id in by_printer:
+            by_printer[printer_id]["_minutes"] += partial_minutes
+            continue
+        item = {
+            "printer_id": printer_id,
+            "printer_name": row["printer__name"],
+            "printer_model": row["printer__model"] or "",
+            "completed_requests": 0,
+            "_minutes": partial_minutes,
+        }
+        if include_makerspace:
+            item["makerspace_id"] = row["printer__makerspace_id"]
+        data.append(item)
+        by_printer[printer_id] = item
 
 
 def attach_printer_image_urls(*row_groups):
