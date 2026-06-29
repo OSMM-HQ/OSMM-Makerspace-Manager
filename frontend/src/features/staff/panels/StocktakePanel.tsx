@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { staffRequest } from "../../../lib/api";
+import { Pagination } from "../../../components/ui/Pagination";
+import { usePaginatedQuery } from "../../../lib/usePaginatedQuery";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 import { invalidateInventoryViews } from "../queryInvalidation";
 
@@ -29,7 +31,11 @@ export function StocktakePanel({ makerspace, isSuperadmin = false }: { makerspac
   const [openId, setOpenId] = useState<number | null>(null);
   const [createNotes, setCreateNotes] = useState("Cycle count");
   const [createContainerId, setCreateContainerId] = useState("");
-  const stocktakes = useStaffGet<{ results: StocktakeRow[] }>(["stocktakes", makerspace.id], `/admin/makerspace/${makerspace.id}/stocktakes`);
+  const stocktakes = usePaginatedQuery<StocktakeRow>({
+    key: ["stocktakes", makerspace.id],
+    path: `/admin/makerspace/${makerspace.id}/stocktakes`,
+    resetKey: String(makerspace.id),
+  });
   const containers = useStaffGet<{ results: ContainerOption[] }>(["stocktake-containers", makerspace.id], `/admin/makerspace/${makerspace.id}/containers?page_size=1000`);
   const create = useMutation({
     mutationFn: () =>
@@ -76,7 +82,7 @@ export function StocktakePanel({ makerspace, isSuperadmin = false }: { makerspac
       {createError ? <p className="mt-2 text-sm text-danger">{createError}</p> : null}
       {actionError ? <p className="mt-2 text-sm text-danger">{actionError}</p> : null}
       <div className="mt-3 grid gap-2">
-        {stocktakes.data?.results?.map((row) => (
+        {stocktakes.results.map((row) => (
           <div key={row.id} className="rounded-md border border-line bg-surface p-3 text-sm">
             <div className="flex flex-wrap items-center gap-2">
               <strong>#{row.id}</strong>
@@ -99,6 +105,7 @@ export function StocktakePanel({ makerspace, isSuperadmin = false }: { makerspac
           </div>
         ))}
       </div>
+      <Pagination page={stocktakes.page} totalPages={stocktakes.totalPages} onChange={stocktakes.setPage} count={stocktakes.count} pageSize={stocktakes.pageSize} />
     </Panel>
   );
 }

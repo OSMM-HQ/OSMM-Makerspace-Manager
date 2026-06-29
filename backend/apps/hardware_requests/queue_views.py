@@ -1,6 +1,7 @@
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics
+from rest_framework.filters import SearchFilter
 
 from apps.accounts import rbac
 from apps.hardware_requests.models import HardwareRequest
@@ -13,10 +14,21 @@ from apps.hardware_requests.view_helpers import (
 from apps.makerspaces.models import Makerspace
 from apps.makerspaces.guards import require_module
 
+# Staff search the queues by who borrowed / what for. Scoped to the queue's own
+# makerspace filter already, so this only narrows within the tenant.
+REQUEST_SEARCH_FIELDS = [
+    "requester_name",
+    "requester_contact_email",
+    "requester_contact_phone",
+    "requested_for",
+]
+
 
 class PendingRequestsView(generics.ListAPIView):
     permission_classes = [CanReviewRequest]
     serializer_class = AdminRequestSerializer
+    filter_backends = [SearchFilter]
+    search_fields = REQUEST_SEARCH_FIELDS
 
     def get_queryset(self):
         makerspace_id = self.kwargs["makerspace_id"]
@@ -43,6 +55,8 @@ class PendingRequestsView(generics.ListAPIView):
 class AcceptedRequestsView(generics.ListAPIView):
     permission_classes = [CanViewHandoverQueue]
     serializer_class = AdminRequestSerializer
+    filter_backends = [SearchFilter]
+    search_fields = REQUEST_SEARCH_FIELDS
 
     def get_queryset(self):
         makerspace_id = self.kwargs["makerspace_id"]
@@ -69,6 +83,8 @@ class AcceptedRequestsView(generics.ListAPIView):
 class ActiveLoansView(generics.ListAPIView):
     permission_classes = [CanViewHandoverQueue]
     serializer_class = AdminRequestSerializer
+    filter_backends = [SearchFilter]
+    search_fields = REQUEST_SEARCH_FIELDS
 
     def get_queryset(self):
         makerspace_id = self.kwargs["makerspace_id"]
@@ -102,6 +118,8 @@ class RequestHistoryView(generics.ListAPIView):
     # ISSUE_REQUEST (the handover-queue viewers) to match the accepted/active loan views.
     permission_classes = [CanViewHandoverQueue]
     serializer_class = AdminRequestSerializer
+    filter_backends = [SearchFilter]
+    search_fields = REQUEST_SEARCH_FIELDS
 
     def get_queryset(self):
         makerspace_id = self.kwargs["makerspace_id"]

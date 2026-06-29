@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import QrScanner from "../../components/ui/QrScanner";
+import { Pagination } from "../../components/ui/Pagination";
 import { staffRequest } from "../../lib/api";
+import { usePaginatedQuery } from "../../lib/usePaginatedQuery";
 import { DirectLoanList, type DirectLoan } from "./DirectLoanList";
 import { invalidateInventoryViews } from "./queryInvalidation";
 import { DirectLoanReturnModal } from "./DirectLoanReturnModal";
@@ -94,10 +96,11 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
     : containers.data?.results ?? [];
   const activeProducts = (products.data?.results ?? []).filter((product) => !product.is_archived);
   const productById = new Map(activeProducts.map((product) => [product.id, product]));
-  const loans = useStaffGet<{ results: DirectLoan[] }>(
-    ["direct-loans", makerspace.id],
-    `/admin/makerspace/${makerspace.id}/direct-loans`,
-  );
+  const loans = usePaginatedQuery<DirectLoan>({
+    key: ["direct-loans", makerspace.id],
+    path: `/admin/makerspace/${makerspace.id}/direct-loans`,
+    resetKey: String(makerspace.id),
+  });
   const verify = useMutation({
     mutationFn: (submitted: string) =>
       staffRequest<VerifyResponse>(`/admin/makerspace/${makerspace.id}/checkin/verify`, {
@@ -407,7 +410,8 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
         {showScanner ? <QrScanner onScan={handleScan} onClose={() => setShowScanner(false)} /> : null}
         {showContainerScanner ? <QrScanner onScan={handleContainerScan} onClose={() => setShowContainerScanner(false)} /> : null}
       </Panel>
-      <DirectLoanList loans={loans.data?.results ?? []} onReturn={openReturnModal} />
+      <DirectLoanList loans={loans.results} onReturn={openReturnModal} />
+      <Pagination page={loans.page} totalPages={loans.totalPages} onChange={loans.setPage} count={loans.count} pageSize={loans.pageSize} />
       <DirectLoanReturnModal
         loan={returningLoan}
         makerspaceId={makerspace.id}

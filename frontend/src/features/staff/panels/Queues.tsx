@@ -3,6 +3,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { staffRequest } from "../../../lib/api";
 import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
+import { Pagination } from "../../../components/ui/Pagination";
+import { useDebouncedValue } from "../../../lib/useDebouncedValue";
+import { usePaginatedQuery } from "../../../lib/usePaginatedQuery";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 import { RequestList } from "./QueuesList";
 import { actionInvalidationScope, invalidateRequestQueues } from "./QueuesInvalidation";
@@ -63,12 +66,36 @@ export function Queues({ makerspace, guestOnly }: { makerspace: Makerspace; gues
   const [modalError, setModalError] = useState("");
   const [defaultLoanDays, setDefaultLoanDays] = useState("7");
   const [showHistory, setShowHistory] = useState(false);
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebouncedValue(search);
 
   const policy = useStaffGet<{ id: number; default_loan_days: number }>(["return-policy", makerspace.id], `/admin/makerspace/${makerspace.id}/return-policy`, !guestOnly);
-  const pending = useStaffGet<{ results: HardwareRequest[] }>(["pending", makerspace.id], `/admin/makerspace/${makerspace.id}/pending-requests`, !guestOnly);
-  const accepted = useStaffGet<{ results: HardwareRequest[] }>(["accepted", makerspace.id], `/admin/makerspace/${makerspace.id}/accepted-requests`);
-  const active = useStaffGet<{ results: HardwareRequest[] }>(["active", makerspace.id], `/admin/makerspace/${makerspace.id}/active-loans`);
-  const history = useStaffGet<{ results: HardwareRequest[] }>(["request-history", makerspace.id], `/admin/makerspace/${makerspace.id}/request-history`, showHistory);
+  const pending = usePaginatedQuery<HardwareRequest>({
+    key: ["pending", makerspace.id],
+    path: `/admin/makerspace/${makerspace.id}/pending-requests`,
+    enabled: !guestOnly,
+    search: debouncedSearch,
+    resetKey: String(makerspace.id),
+  });
+  const accepted = usePaginatedQuery<HardwareRequest>({
+    key: ["accepted", makerspace.id],
+    path: `/admin/makerspace/${makerspace.id}/accepted-requests`,
+    search: debouncedSearch,
+    resetKey: String(makerspace.id),
+  });
+  const active = usePaginatedQuery<HardwareRequest>({
+    key: ["active", makerspace.id],
+    path: `/admin/makerspace/${makerspace.id}/active-loans`,
+    search: debouncedSearch,
+    resetKey: String(makerspace.id),
+  });
+  const history = usePaginatedQuery<HardwareRequest>({
+    key: ["request-history", makerspace.id],
+    path: `/admin/makerspace/${makerspace.id}/request-history`,
+    enabled: showHistory,
+    search: debouncedSearch,
+    resetKey: String(makerspace.id),
+  });
 
   const action = useMutation({
     mutationFn: ({ path, body }: { path: string; body?: object }) => staffRequest(path, { method: "POST", body: JSON.stringify(body ?? {}) }),
@@ -135,23 +162,32 @@ export function Queues({ makerspace, guestOnly }: { makerspace: Makerspace; gues
   return (
     <div className="grid gap-4">
       {!guestOnly ? <ReturnPolicyPanel policyDays={policy.data?.default_loan_days ?? 7} value={defaultLoanDays} pending={savePolicy.isPending} onChange={setDefaultLoanDays} onSave={() => savePolicy.mutate()} /> : null}
+      <input
+        className="desk-input"
+        placeholder="Search requester name, email, phone, or purpose"
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+      />
       {!guestOnly ? (
         <Panel title="Pending review">
-          {pending.isLoading ? <RequestListSkeleton /> : <RequestList rows={pending.data?.results ?? []} actions={(row) => <PendingActions row={row} disabled={action.isPending} openModal={openModal} setAcceptRow={setAcceptRow} setRejectRow={setRejectRow} setDueRow={setDueRow} />} />}
+          {pending.isLoading ? <RequestListSkeleton /> : <RequestList rows={pending.results} actions={(row) => <PendingActions row={row} disabled={action.isPending} openModal={openModal} setAcceptRow={setAcceptRow} setRejectRow={setRejectRow} setDueRow={setDueRow} />} />}
+          <Pagination page={pending.page} totalPages={pending.totalPages} onChange={pending.setPage} count={pending.count} pageSize={pending.pageSize} />
           {pending.error instanceof Error ? <p className="mt-2 text-sm text-danger">{pending.error.message}</p> : null}
         </Panel>
       ) : null}
       <Panel title="Ready for handover">
-        {accepted.isLoading ? <RequestListSkeleton /> : <RequestList rows={accepted.data?.results ?? []} actions={(row) => <AcceptedActions row={row} disabled={action.isPending} openModal={openModal} setAssignIssueRow={setAssignIssueRow} setDueRow={setDueRow} />} />}
+        {accepted.isLoading ? <RequestListSkeleton /> : <RequestList rows={accepted.results} actions={(row) => <AcceptedActions row={row} disabled={action.isPending} openModal={openModal} setAssignIssueRow={setAssignIssueRow} setDueRow={setDueRow} />} />}
+        <Pagination page={accepted.page} totalPages={accepted.totalPages} onChange={accepted.setPage} count={accepted.count} pageSize={accepted.pageSize} />
         {accepted.error instanceof Error ? <p className="mt-2 text-sm text-danger">{accepted.error.message}</p> : null}
       </Panel>
       {!guestOnly ? (
         <Panel title="Active loans">
-          {active.isLoading ? <RequestListSkeleton /> : <RequestList rows={active.data?.results ?? []} actions={(row) => <ActiveActions row={row} disabled={action.isPending} openModal={openModal} setDueRow={setDueRow} setReturnRow={setReturnRow} />} />}
+          {active.isLoading ? <RequestListSkeleton /> : <RequestList rows={active.results} actions={(row) => <ActiveActions row={row} disabled={action.isPending} openModal={openModal} setDueRow={setDueRow} setReturnRow={setReturnRow} />} />}
+          <Pagination page={active.page} totalPages={active.totalPages} onChange={active.setPage} count={active.count} pageSize={active.pageSize} />
           {active.error instanceof Error ? <p className="mt-2 text-sm text-danger">{active.error.message}</p> : null}
         </Panel>
       ) : null}
-      <HistoryPanel show={showHistory} loading={history.isLoading} rows={history.data?.results ?? []} onToggle={() => setShowHistory((value) => !value)} />
+      <HistoryPanel show={showHistory} loading={history.isLoading} rows={history.results} page={history.page} totalPages={history.totalPages} count={history.count} pageSize={history.pageSize} onPageChange={history.setPage} onToggle={() => setShowHistory((value) => !value)} />
       <ConfirmDialog open={Boolean(acceptRow)} title="Accept request" message={acceptRow ? `Accept request #${acceptRow.id} from ${acceptRow.requester_display || acceptRow.requester_username}?${modalError ? ` Error: ${modalError}` : ""}` : ""} confirmLabel="Accept" pending={action.isPending} onCancel={closeModals} onConfirm={() => { if (acceptRow) void runAction(`/admin/requests/${acceptRow.id}/accept`); }} />
       <ReturnDueModal row={dueRow} defaultValue={dueRow?.return_due_at ? localDateTimeValue(dueRow.return_due_at) : localDateTimeValue(defaultDueDate(Number(defaultLoanDays) || 7).toISOString())} open={Boolean(dueRow)} pending={action.isPending} error={modalError} onClose={closeModals} onSubmit={submitReturnDue} />
       <RejectRequestModal row={rejectRow} open={Boolean(rejectRow)} pending={action.isPending} error={modalError} onClose={closeModals} onSubmit={submitReject} />
@@ -185,11 +221,37 @@ function ActiveActions({ row, disabled, openModal, setDueRow, setReturnRow }: Qu
   return <><button disabled={disabled} onClick={() => openModal(setDueRow, row)}>Set due</button><button disabled={disabled} onClick={() => openModal(setReturnRow, row)}>Return</button></>;
 }
 
-function HistoryPanel({ show, loading, rows, onToggle }: { show: boolean; loading: boolean; rows: HardwareRequest[]; onToggle: () => void }) {
+function HistoryPanel({
+  show,
+  loading,
+  rows,
+  page,
+  totalPages,
+  count,
+  pageSize,
+  onPageChange,
+  onToggle,
+}: {
+  show: boolean;
+  loading: boolean;
+  rows: HardwareRequest[];
+  page: number;
+  totalPages: number;
+  count: number;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  onToggle: () => void;
+}) {
   return (
     <Panel title="History">
       <button type="button" className="text-sm text-accent-ink" onClick={onToggle}>{show ? "Hide history" : "Show history (returned / rejected / closed with issue)"}</button>
-      {show ? <div className="mt-3">{loading ? <p className="text-sm text-muted">Loading history...</p> : null}<RequestList rows={rows} actions={() => null} /></div> : null}
+      {show ? (
+        <div className="mt-3">
+          {loading ? <p className="text-sm text-muted">Loading history...</p> : null}
+          <RequestList rows={rows} actions={() => null} />
+          <Pagination page={page} totalPages={totalPages} onChange={onPageChange} count={count} pageSize={pageSize} />
+        </div>
+      ) : null}
     </Panel>
   );
 }

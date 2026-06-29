@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { staffRequest } from "../../../lib/api";
+import { Pagination } from "../../../components/ui/Pagination";
+import { usePaginatedQuery } from "../../../lib/usePaginatedQuery";
 import { Panel, type Makerspace, type Product, useStaffGet } from "./shared";
 import { ErrorText, TransferTable } from "./StockTransferTable";
 import { invalidateContainerViews, invalidateInventoryViews } from "../queryInvalidation";
@@ -64,10 +66,11 @@ export function StockTransferPanel({
     `/admin/makerspace/${sourceMakerspaceId}/inventory?page_size=1000`,
     canCreate,
   );
-  const transfers = useStaffGet<ListResponse<Transfer>>(
-    ["transfers", sourceMakerspaceId],
-    `/admin/makerspace/${sourceMakerspaceId}/stock-transfers`,
-  );
+  const transfers = usePaginatedQuery<Transfer>({
+    key: ["transfers", sourceMakerspaceId],
+    path: `/admin/makerspace/${sourceMakerspaceId}/stock-transfers`,
+    resetKey: String(sourceMakerspaceId),
+  });
   const sourceContainers = useStaffGet<ListResponse<Container>>(
     ["containers", sourceMakerspaceId],
     `/admin/makerspace/${sourceMakerspaceId}/containers?page_size=1000`,
@@ -258,13 +261,14 @@ export function StockTransferPanel({
         )}
 
         <TransferTable
-          transfers={transfers.data?.results ?? []}
+          transfers={transfers.results}
           loading={transfers.isLoading}
           error={transfers.error?.message}
           makerspaceNames={makerspaceNames}
           sourceContainerNames={sourceContainerNames}
           destinationContainerNames={destinationContainerNames}
         />
+        <Pagination page={transfers.page} totalPages={transfers.totalPages} onChange={transfers.setPage} count={transfers.count} pageSize={transfers.pageSize} />
       </div>
     </Panel>
   );

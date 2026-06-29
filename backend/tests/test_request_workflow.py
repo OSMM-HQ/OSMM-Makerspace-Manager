@@ -608,6 +608,27 @@ def test_admin_accept_reserves_inventory_and_writes_audit():
     assert audit.target_id == str(hardware_request.id)
 
 
+def test_pending_requests_search_filters_by_requester_identity():
+    makerspace = make_space("queue-search")
+    product = make_product(makerspace, total_quantity=5, available_quantity=5)
+    ada = make_hardware_request(makerspace, product)
+    ada.requester_name = "Ada Lovelace"
+    ada.save(update_fields=["requester_name"])
+    grace = make_hardware_request(makerspace, product)
+    grace.requester_name = "Grace Hopper"
+    grace.save(update_fields=["requester_name"])
+    admin = make_member("queue-search-admin", makerspace)
+
+    response = authenticated_client(admin).get(
+        pending_requests_url(makerspace), {"search": "Lovelace"}
+    )
+
+    assert response.status_code == 200
+    ids = [row["id"] for row in response.data["results"]]
+    assert ada.id in ids
+    assert grace.id not in ids
+
+
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 def test_accept_and_reject_send_contact_email(django_capture_on_commit_callbacks, mailoutbox):
     makerspace = make_space("request-status-email")

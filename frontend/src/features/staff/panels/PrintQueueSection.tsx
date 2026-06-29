@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Skeleton } from "../../../components/ui";
+import { Pagination } from "../../../components/ui/Pagination";
+import { usePaginatedQuery } from "../../../lib/usePaginatedQuery";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 import {
   ErrorText,
@@ -31,17 +33,47 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
   );
   const reqUrl = (status: string) =>
     `/printing/manage/requests/?makerspace=${makerspace.id}&status=${status}`;
-  const pending = useStaffGet<{ results: PrintRequest[] }>(["print-requests", makerspace.id, "pending"], reqUrl("pending"));
-  const accepted = useStaffGet<{ results: PrintRequest[] }>(["print-requests", makerspace.id, "accepted"], reqUrl("accepted"));
-  const printing = useStaffGet<{ results: PrintRequest[] }>(["print-requests", makerspace.id, "printing"], reqUrl("printing"));
-  const completed = useStaffGet<{ results: PrintRequest[] }>(["print-requests", makerspace.id, "completed"], reqUrl("completed"));
+  const pending = usePaginatedQuery<PrintRequest>({
+    key: ["print-requests", makerspace.id, "pending"],
+    path: reqUrl("pending"),
+    resetKey: `${makerspace.id}:pending`,
+  });
+  const accepted = usePaginatedQuery<PrintRequest>({
+    key: ["print-requests", makerspace.id, "accepted"],
+    path: reqUrl("accepted"),
+    resetKey: `${makerspace.id}:accepted`,
+  });
+  const printing = usePaginatedQuery<PrintRequest>({
+    key: ["print-requests", makerspace.id, "printing"],
+    path: reqUrl("printing"),
+    resetKey: `${makerspace.id}:printing`,
+  });
+  const completed = usePaginatedQuery<PrintRequest>({
+    key: ["print-requests", makerspace.id, "completed"],
+    path: reqUrl("completed"),
+    resetKey: `${makerspace.id}:completed`,
+  });
 
   const [showHistory, setShowHistory] = useState(false);
   // History queries only fire when expanded (terminal lists can be large) - useStaffGet's
   // third arg is the TanStack `enabled` flag, so the network call is deferred until needed.
-  const collected = useStaffGet<{ results: PrintRequest[] }>(["print-requests", makerspace.id, "collected"], reqUrl("collected"), showHistory);
-  const rejected = useStaffGet<{ results: PrintRequest[] }>(["print-requests", makerspace.id, "rejected"], reqUrl("rejected"), showHistory);
-  const failed = useStaffGet<{ results: PrintRequest[] }>(["print-requests", makerspace.id, "failed"], reqUrl("failed"));
+  const collected = usePaginatedQuery<PrintRequest>({
+    key: ["print-requests", makerspace.id, "collected"],
+    path: reqUrl("collected"),
+    enabled: showHistory,
+    resetKey: `${makerspace.id}:collected`,
+  });
+  const rejected = usePaginatedQuery<PrintRequest>({
+    key: ["print-requests", makerspace.id, "rejected"],
+    path: reqUrl("rejected"),
+    enabled: showHistory,
+    resetKey: `${makerspace.id}:rejected`,
+  });
+  const failed = usePaginatedQuery<PrintRequest>({
+    key: ["print-requests", makerspace.id, "failed"],
+    path: reqUrl("failed"),
+    resetKey: `${makerspace.id}:failed`,
+  });
 
   const [selectedPrinter, setSelectedPrinter] = useState("");
   const [selectedSpool, setSelectedSpool] = useState("");
@@ -107,13 +139,14 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
         {pending.isLoading ? (
           <PrintRowsSkeleton title="Pending review" />
         ) : (
-          <PrintRows title="Pending review" rows={pending.data?.results ?? []} action={(row) => (
+          <PrintRows title="Pending review" rows={pending.results} action={(row) => (
             <>
               <button disabled={action.isPending} onClick={() => setAcceptingRequest(row)}>Accept</button>
               <button disabled={action.isPending} onClick={() => setRejectingRequest(row)}>Reject</button>
             </>
           )} />
         )}
+        <Pagination page={pending.page} totalPages={pending.totalPages} onChange={pending.setPage} count={pending.count} pageSize={pending.pageSize} />
       </div>
 
       <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted">Start-on-printer settings</p>
@@ -148,49 +181,57 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
       </div>
       {selectedSpool && !selectedSpoolRow ? <p className="mb-3 text-xs text-danger">Choose a spool assigned to the selected printer, or an unassigned active spool.</p> : null}
       <div className="grid gap-3 lg:grid-cols-2">
-        {accepted.isLoading ? (
-          <PrintRowsSkeleton title="Accepted" />
-        ) : (
-          <PrintRows title="Accepted" rows={accepted.data?.results ?? []} action={(row) => (
-            <button disabled={!canStartPrint || action.isPending} onClick={() => action.mutate({ request: row, name: "start" })}>
-              {action.isPending ? "Starting..." : "Start on printer"}
-            </button>
-          )} />
-        )}
-        {printing.isLoading ? (
-          <PrintRowsSkeleton title="Printing" />
-        ) : (
-          <PrintRows title="Printing" rows={printing.data?.results ?? []} action={(row) => (
-            <>
-              <button disabled={action.isPending} onClick={() => setCompletingRequest(row)}>Complete</button>
-              <button disabled={action.isPending} onClick={() => setFailingRequest(row)}>Fail</button>
-            </>
-          )} />
-        )}
+        <div className="grid gap-2">
+          {accepted.isLoading ? (
+            <PrintRowsSkeleton title="Accepted" />
+          ) : (
+            <PrintRows title="Accepted" rows={accepted.results} action={(row) => (
+              <button disabled={!canStartPrint || action.isPending} onClick={() => action.mutate({ request: row, name: "start" })}>
+                {action.isPending ? "Starting..." : "Start on printer"}
+              </button>
+            )} />
+          )}
+          <Pagination page={accepted.page} totalPages={accepted.totalPages} onChange={accepted.setPage} count={accepted.count} pageSize={accepted.pageSize} />
+        </div>
+        <div className="grid gap-2">
+          {printing.isLoading ? (
+            <PrintRowsSkeleton title="Printing" />
+          ) : (
+            <PrintRows title="Printing" rows={printing.results} action={(row) => (
+              <>
+                <button disabled={action.isPending} onClick={() => setCompletingRequest(row)}>Complete</button>
+                <button disabled={action.isPending} onClick={() => setFailingRequest(row)}>Fail</button>
+              </>
+            )} />
+          )}
+          <Pagination page={printing.page} totalPages={printing.totalPages} onChange={printing.setPage} count={printing.count} pageSize={printing.pageSize} />
+        </div>
       </div>
 
       <div className="mt-3">
         {completed.isLoading ? (
           <PrintRowsSkeleton title="Ready for collection" />
         ) : (
-          <PrintRows title="Ready for collection" rows={completed.data?.results ?? []} action={(row) => (
+          <PrintRows title="Ready for collection" rows={completed.results} action={(row) => (
             <button disabled={action.isPending} onClick={() => action.mutate({ request: row, name: "collect" })}>
               {action.isPending ? "..." : "Mark collected"}
             </button>
           )} />
         )}
+        <Pagination page={completed.page} totalPages={completed.totalPages} onChange={completed.setPage} count={completed.count} pageSize={completed.pageSize} />
       </div>
 
       <div className="mt-3">
         {failed.isLoading ? (
           <PrintRowsSkeleton title="Failed" />
         ) : (
-          <PrintRows title="Failed" rows={failed.data?.results ?? []} action={(row) => (
+          <PrintRows title="Failed" rows={failed.results} action={(row) => (
             <button disabled={action.isPending} onClick={() => action.mutate({ request: row, name: "reprint" })}>
               {action.isPending ? "..." : "Reprint"}
             </button>
           )} />
         )}
+        <Pagination page={failed.page} totalPages={failed.totalPages} onChange={failed.setPage} count={failed.count} pageSize={failed.pageSize} />
       </div>
 
       <div className="mt-4">
@@ -199,8 +240,14 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
         </button>
         {showHistory ? (
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
-            <PrintRows title="Collected" rows={collected.data?.results ?? []} action={() => null} />
-            <PrintRows title="Rejected" rows={rejected.data?.results ?? []} action={() => null} />
+            <div className="grid gap-2">
+              <PrintRows title="Collected" rows={collected.results} action={() => null} />
+              <Pagination page={collected.page} totalPages={collected.totalPages} onChange={collected.setPage} count={collected.count} pageSize={collected.pageSize} />
+            </div>
+            <div className="grid gap-2">
+              <PrintRows title="Rejected" rows={rejected.results} action={() => null} />
+              <Pagination page={rejected.page} totalPages={rejected.totalPages} onChange={rejected.setPage} count={rejected.count} pageSize={rejected.pageSize} />
+            </div>
           </div>
         ) : null}
       </div>
