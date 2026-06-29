@@ -2,6 +2,55 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — manager fixes + features (P5–P10; branch feat/manager-fixes-and-features, 2026-06-30)
+
+Continuation of the 9-phase manager batch (P1/P2/P4 landed earlier; **P3 public-stats privacy DROPPED per
+user**). Phase-per-commit via the Codex loop; Codex Stage-1 APPROVED; Stage-4 clean after 2 P2 fixes;
+**1026 backend tests pass** (the 3 pre-existing `test_printing_*`/`test_public_stats` failures are
+unrelated to this batch). Plan (gitignored): `docs/superpowers/specs/2026-06-29-manager-fixes-and-features-plan.md`.
+
+- **P5 — direct-loan return resolutions + accountability + public report-a-problem** (`7ba8867`). Migration
+  `hardware_requests/0021`: `ReturnEvent.box` made **nullable** (containerless direct returns can still record
+  an immutable ReturnEvent) + new **`PublicProblemReport`** model (makerspace/loan/request/requester/note/
+  resolved_at/by). `return_direct_loan(loan, actor, evidence_id, notes, resolutions, *, qr_payload="")` replaces
+  the old raw-SQL flip: quantity buckets route through `availability.return_items`; **individual units flip
+  `InventoryAsset.status` DIRECTLY (NOT `move_asset_status` — that double-counts, since `return_items` already
+  did the bucket math)** via a direct-loan asset helper reading `PublicToolLoan.asset_ids`; writes
+  `RequesterAccountability` + a `ReturnEvent` (box=container, may be None) + `finalize_return_status`. **Direct
+  returns require full resolution** of every outstanding unit (no partial-return state on `PublicToolLoan`).
+  `DirectLoanReturnSerializer` gains `resolutions` (reuses `ReturnItemResolutionSerializer`; rejects duplicate
+  item_ids); `DirectLoanSerializer` gains `return_items` (item_id/remaining/tracking_mode/assets) so the modal
+  builds resolutions. Public self-checkout return stays **one-tap** + an optional `report_problem`+`problem_note`
+  → a `PublicProblemReport` (stock stays available; public users never classify damage). Frontend:
+  `DirectLoanReturnModal` per-item returned/damaged/missing + per-asset outcome dropdowns;
+  `PublicToolScanPanel` report-a-problem checkbox. Tests `test_admin_direct_loans.py`,
+  `test_public_self_checkout.py`.
+- **P6 — unified individual-asset editor** (`06dc130`). `InventoryAssetDetailView` PATCH `/admin/assets/<pk>`
+  (`InventoryAssetAdminUpdateSerializer`: asset_tag/serial_number/box/notes/public_self_checkout_enabled;
+  **`status` read-only** — lifecycle stays with the guarded fix-status action). 404-before-403 (scope_by_action
+  VIEW_INVENTORY → get_object_or_404, then require_action EDIT_INVENTORY); rejects an **ISSUED/RESERVED** asset
+  (buckets mid-loan); per-makerspace asset_tag uniqueness → clean 400; same-makerspace box validation; audited
+  `inventory.asset_updated`. Frontend `AssetEditForm.tsx` inline editor wired into `IndividualAssets`. Test
+  `test_inventory_asset_editor.py`.
+- **P7 — optional partial approval** (`ca849a7`). `accept_request(actor, request, accepted=None)` — `None` =
+  accept all (Telegram callback + Django admin unchanged); optional per-item map, each `0 ≤ qty ≤ requested`,
+  all-zero → 400, **unknown/cross-request item_id → 400** (Stage-4 fix). `AcceptRequestSerializer`
+  (`accepted_quantities`, dup-item rejected). Frontend `QueuesAcceptModal` per-item quantity inputs (replaced the
+  accept ConfirmDialog). Test `test_partial_accept.py`.
+- **P8 — accountability dashboard** (`4ce4421`). `apps/operations/accountability.py` +
+  `AccountabilityReportView` GET `/admin/makerspace/<id>/accountability` (VIEW_AUDIT-gated, scoped via the same
+  `_makerspace_for_inventory_view` + hide rules as the analytics reports). Composite: overdue active loans
+  (reviewed `HardwareRequest` **deduped** against direct via `public_tool_loan__isnull`, + direct
+  `PublicToolLoan`), repeat offenders grouped from `RequesterAccountability`, and access-restricted requesters.
+  Frontend `AccountabilityPanel` (Insights tab; restrict/restore actions gated to superadmin —
+  restrict/restore stay `IsActiveSuperAdmin`). Test `test_accountability_dashboard.py`.
+- **P9 — actionable warranty report** (`9712c43`, frontend-only). `WarrantyPanel` rows expand to the inline
+  `WarrantySection` editor (asset rows gated `canEditInventory`, printer rows `canSeePrinting`; backend per-host
+  RBAC already enforced).
+- **P10 — complete reports UI** (`f3e9499`, frontend-only). `OperationsReports` surfaces the previously
+  export-only / unsurfaced backend reports as preview tables — **taken-items, active-loans, returns, qr-scans**
+  — and adds `qr-scans` to the export cards (backend already had every `REPORT_KEYS` entry + export).
+
 ## Recent batch — print filament grams + fail-hours + manual outcomes + email leaderboard (2026-06-28)
 
 Phase-per-commit batch (Codex Stage-1 APPROVED after 3 rounds; Stage-4 clean after 2 fixes; **1002
