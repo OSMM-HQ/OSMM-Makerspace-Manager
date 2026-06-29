@@ -52,6 +52,7 @@ export const openApiPaths = [
   "/api/v1/admin/api-clients/{id}",
   "/api/v1/admin/api-clients/{id}/rotate-secret",
   "/api/v1/admin/api-key-requests",
+  "/api/v1/admin/assets/{id}",
   "/api/v1/admin/assets/{id}/fix-status",
   "/api/v1/admin/assets/{id}/qr",
   "/api/v1/admin/assets/{id}/qr-history",

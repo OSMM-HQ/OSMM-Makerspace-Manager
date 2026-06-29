@@ -10,6 +10,7 @@ from apps.accounts import rbac
 from apps.admin_api.permissions import IsActiveStaff, require_action
 from apps.admin_api.serializers_inventory import (
     InventoryAssetAdminSerializer,
+    InventoryAssetAdminUpdateSerializer,
     InventoryAssetStatusActionSerializer,
 )
 from apps.admin_api.views_inventory import InventoryPagination
@@ -47,6 +48,58 @@ class InventoryAssetListView(generics.ListAPIView):
             .filter(product=product)
             .order_by("asset_tag", "id")
         )
+
+
+class InventoryAssetDetailView(APIView):
+    permission_classes = [IsActiveStaff]
+
+    @extend_schema(
+        tags=["Admin inventory"],
+        summary="Update an individual asset",
+        request=InventoryAssetAdminUpdateSerializer,
+        responses={200: InventoryAssetAdminSerializer},
+    )
+    def patch(self, request, pk, *args, **kwargs):
+        asset = get_object_or_404(
+            rbac.scope_by_action(
+                request.user,
+                rbac.Action.VIEW_INVENTORY,
+                InventoryAsset.objects.select_related("product", "makerspace", "box"),
+            ),
+            pk=pk,
+        )
+        require_module(asset.makerspace_id, "staff_admin")
+        require_action(request.user, rbac.Action.EDIT_INVENTORY, asset.makerspace_id)
+        if asset.product.tracking_mode != TrackingMode.INDIVIDUAL:
+            raise ValidationError("Asset edits are only for individual-tracked products.")
+        if asset.status in {InventoryAsset.Status.ISSUED, InventoryAsset.Status.RESERVED}:
+            raise ValidationError("Cannot edit an asset that is currently issued or reserved.")
+
+        serializer = InventoryAssetAdminUpdateSerializer(
+            asset,
+            data=request.data,
+            partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            locked_asset = (
+                InventoryAsset.objects.select_for_update()
+                .select_related("product", "makerspace")
+                .get(pk=asset.pk)
+            )
+            serializer.instance = locked_asset
+            asset = serializer.save()
+            audit.record(
+                request.user,
+                "inventory.asset_updated",
+                makerspace=asset.makerspace,
+                target=asset,
+                meta={
+                    "product_id": asset.product_id,
+                    "fields": sorted(serializer.validated_data.keys()),
+                },
+            )
+        return Response(InventoryAssetAdminSerializer(asset).data)
 
 
 class InventoryAssetStatusActionView(APIView):

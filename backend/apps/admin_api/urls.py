@@ -61,6 +61,7 @@ urlpatterns = [
     path("inventory/<int:pk>", views.InventoryDetailView.as_view(), name="admin-inventory-detail"),
     path("inventory/<int:pk>/qr-history", views.ProductQrHistoryView.as_view(), name="admin-inventory-qr-history"),
     path("inventory/<int:product_pk>/assets", views.InventoryAssetListView.as_view(), name="admin-inventory-assets"),
+    path("assets/<int:pk>", views.InventoryAssetDetailView.as_view(), name="admin-inventory-asset-detail"),
     path("assets/<int:pk>/fix-status", views.InventoryAssetStatusActionView.as_view(), name="admin-inventory-asset-fix-status"),
     path("assets/<int:pk>/warranty", AssetWarrantyView.as_view(), name="admin-asset-warranty"),
     path("assets/<int:pk>/qr-history", views.AssetQrHistoryView.as_view(), name="admin-inventory-asset-qr-history"),

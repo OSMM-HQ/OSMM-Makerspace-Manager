@@ -601,6 +601,61 @@
                 }
             }
         },
+        "/api/v1/admin/assets/{id}": {
+            "patch": {
+                "operationId": "api_v1_admin_assets_partial_update",
+                "summary": "Update an individual asset",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedInventoryAssetAdminUpdate"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedInventoryAssetAdminUpdate"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedInventoryAssetAdminUpdate"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InventoryAssetAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/assets/{id}/fix-status": {
             "post": {
                 "operationId": "api_v1_admin_assets_fix_status_create",
@@ -15068,6 +15123,10 @@
                         "nullable": true,
                         "readOnly": true
                     },
+                    "public_self_checkout_enabled": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
                     "notes": {
                         "type": "string",
                         "readOnly": true
@@ -15087,6 +15146,7 @@
                     "notes",
                     "product",
                     "product_name",
+                    "public_self_checkout_enabled",
                     "qr_code_id",
                     "qr_payload",
                     "serial_number",
@@ -17458,6 +17518,29 @@
                         "type": "string",
                         "format": "date-time",
                         "readOnly": true
+                    }
+                }
+            },
+            "PatchedInventoryAssetAdminUpdate": {
+                "type": "object",
+                "properties": {
+                    "asset_tag": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "serial_number": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "box": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "notes": {
+                        "type": "string"
+                    },
+                    "public_self_checkout_enabled": {
+                        "type": "boolean"
                     }
                 }
             },

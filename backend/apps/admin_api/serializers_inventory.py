@@ -2,7 +2,7 @@ from django.utils.text import slugify
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.boxes.models import QrCode
+from apps.boxes.models import Box, QrCode
 from apps.inventory import public_image_storage
 from apps.inventory.models import (
     Category,
@@ -248,6 +248,7 @@ class InventoryAssetAdminSerializer(serializers.ModelSerializer):
             "status",
             "qr_code_id",
             "qr_payload",
+            "public_self_checkout_enabled",
             "notes",
             "updated_at",
         ]
@@ -274,6 +275,57 @@ class InventoryAssetAdminSerializer(serializers.ModelSerializer):
     def get_qr_payload(self, obj) -> str | None:
         qr = self._active_qr(obj)
         return qr.payload if qr else None
+
+
+class NullableBoxPrimaryKeyRelatedField(serializers.PrimaryKeyRelatedField):
+    def to_internal_value(self, data):
+        if data == "":
+            return None
+        return super().to_internal_value(data)
+
+
+class InventoryAssetAdminUpdateSerializer(serializers.ModelSerializer):
+    box = NullableBoxPrimaryKeyRelatedField(
+        queryset=Box.objects.all(),
+        allow_null=True,
+        required=False,
+    )
+
+    class Meta:
+        model = InventoryAsset
+        fields = [
+            "asset_tag",
+            "serial_number",
+            "box",
+            "notes",
+            "public_self_checkout_enabled",
+        ]
+
+    def validate_box(self, value):
+        if value is not None and value.makerspace_id != self.instance.makerspace_id:
+            raise serializers.ValidationError("Container is not in this makerspace.")
+        return value
+
+    def validate(self, attrs):
+        asset_tag = attrs.get("asset_tag")
+        if asset_tag is not None:
+            duplicate = (
+                InventoryAsset.objects.filter(
+                    makerspace_id=self.instance.makerspace_id,
+                    asset_tag=asset_tag,
+                )
+                .exclude(pk=self.instance.pk)
+                .exists()
+            )
+            if duplicate:
+                raise serializers.ValidationError(
+                    {
+                        "asset_tag": (
+                            "An asset with this tag already exists in this makerspace."
+                        )
+                    }
+                )
+        return attrs
 
 
 class InventoryAssetStatusActionSerializer(serializers.Serializer):

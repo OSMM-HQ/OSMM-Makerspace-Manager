@@ -9,6 +9,7 @@ import { useDebouncedValue } from "../../../lib/useDebouncedValue";
 import { readStorage, writeStorage } from "../../../lib/safeStorage";
 import { ImageUploader } from "../ImageUploader";
 import { QrImage } from "./QrImage";
+import { AssetEditForm } from "./AssetEditForm";
 import { invalidateInventoryViews } from "../queryInvalidation";
 import { categoryResults, Panel, type Category, type CategoryListResponse, type Makerspace, type Product, useStaffGet } from "./shared";
 
@@ -25,7 +26,7 @@ type ItemForm = {
   storage_location: string; is_public: boolean; public_self_checkout_enabled: boolean; show_public_count: boolean; public_availability_mode: string;
 };
 type AdjustmentForm = { delta_available: string; delta_damaged: string; delta_lost: string; reason: string };
-type InventoryAssetRow = { id: number; asset_tag: string; serial_number: string; status: string; box_label: string | null; qr_code_id: number | null; qr_payload: string | null };
+type InventoryAssetRow = { id: number; asset_tag: string; serial_number: string; status: string; box: number | null; box_label: string | null; qr_code_id: number | null; qr_payload: string | null; notes: string; public_self_checkout_enabled: boolean };
 type Actor = { username: string; role: string };
 type LendingHistoryEntry = { id: number; username: string; issued_at: string; quantity: number; accepted_by: Actor | null; issued_by: Actor | null };
 type LendingHistoryResponse = { product_id: number; last_borrower: LendingHistoryEntry | null; recent: LendingHistoryEntry[] };
@@ -342,7 +343,18 @@ function QrHistory({ title, queryKey, path }: { title: string; queryKey: unknown
 
 function IndividualAssets({ productId, makerspaceId, refreshInventory }: { productId: number; makerspaceId: number; refreshInventory: () => void }) {
   const queryClient = useQueryClient();
+  const [editingAssetId, setEditingAssetId] = useState<number | null>(null);
   const assets = useStaffGet<{ results: InventoryAssetRow[] }>(["inventory-assets", productId], `/admin/inventory/${productId}/assets`);
+  const containers = useStaffGet<{ results: { id: number; label: string }[] } | { id: number; label: string }[]>(
+    ["containers-all", makerspaceId],
+    `/admin/makerspace/${makerspaceId}/containers?page_size=1000`,
+  );
+  const containerOptions = Array.isArray(containers.data) ? containers.data : containers.data?.results ?? [];
+  const saveAsset = () => {
+    setEditingAssetId(null);
+    queryClient.invalidateQueries({ queryKey: ["inventory-assets", productId] });
+    refreshInventory();
+  };
   const action = useMutation({
     mutationFn: ({ assetId, action }: { assetId: number; action: "shelve" | "repair" }) =>
       staffRequest(`/admin/assets/${assetId}/fix-status`, {
@@ -374,6 +386,9 @@ function IndividualAssets({ productId, makerspaceId, refreshInventory }: { produ
               </div>
             </div>
             <div className="desk-actions flex flex-wrap gap-2">
+              <button className="desk-button" type="button" onClick={() => setEditingAssetId((current) => (current === asset.id ? null : asset.id))}>
+                {editingAssetId === asset.id ? "Close" : "Edit"}
+              </button>
               <QrHistory title="Asset QR history" queryKey={["asset-qr-history", asset.id]} path={`/admin/assets/${asset.id}/qr-history`} />
               {asset.status === "maintenance" ? (
                 <button className="desk-button" type="button" disabled={action.isPending} onClick={() => action.mutate({ assetId: asset.id, action: "repair" })}>Move back to inventory</button>
@@ -381,6 +396,11 @@ function IndividualAssets({ productId, makerspaceId, refreshInventory }: { produ
                 <button className="desk-button" type="button" disabled={action.isPending || !["available", "damaged"].includes(asset.status)} onClick={() => action.mutate({ assetId: asset.id, action: "shelve" })}>To Fix</button>
               )}
             </div>
+            {editingAssetId === asset.id ? (
+              <div className="w-full">
+                <AssetEditForm asset={asset} containers={containerOptions} onSaved={saveAsset} onCancel={() => setEditingAssetId(null)} />
+              </div>
+            ) : null}
           </div>
         ))}
       </div>
