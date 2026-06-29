@@ -82,7 +82,9 @@ def _repeat_offenders(makerspace_id, limit):
 
 def _overdue_loans(makerspace_id, limit):
     now = timezone.now()
-    rows = _overdue_requests(makerspace_id, now) + _overdue_direct_loans(makerspace_id, now)
+    # Bound each source at the DB (limit + 1, oldest first) before materializing so a
+    # makerspace with thousands of overdue loans can't load them all into memory.
+    rows = _overdue_requests(makerspace_id, now, limit) + _overdue_direct_loans(makerspace_id, now, limit)
     rows.sort(key=lambda row: row["due_at"])
     truncated = len(rows) > limit
     return [
@@ -95,7 +97,7 @@ def _overdue_loans(makerspace_id, limit):
     ], truncated
 
 
-def _overdue_requests(makerspace_id, now):
+def _overdue_requests(makerspace_id, now, limit):
     queryset = (
         HardwareRequest.objects.filter(
             makerspace_id=makerspace_id,
@@ -108,6 +110,7 @@ def _overdue_requests(makerspace_id, now):
         )
         .select_related("requester")
         .prefetch_related("items__product")
+        .order_by("return_due_at")[: limit + 1]
     )
     return [
         {
@@ -121,12 +124,12 @@ def _overdue_requests(makerspace_id, now):
     ]
 
 
-def _overdue_direct_loans(makerspace_id, now):
+def _overdue_direct_loans(makerspace_id, now, limit):
     queryset = PublicToolLoan.objects.filter(
         makerspace_id=makerspace_id,
         status=PublicToolLoan.Status.CHECKED_OUT,
         due_at__lt=now,
-    ).select_related("requester")
+    ).select_related("requester").order_by("due_at")[: limit + 1]
     return [
         {
             "type": "direct",
