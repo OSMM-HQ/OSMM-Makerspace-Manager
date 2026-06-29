@@ -1,5 +1,6 @@
 from rest_framework.exceptions import ValidationError
 
+from apps.inventory import availability
 from apps.inventory.models import InventoryProduct, TrackingMode
 
 
@@ -25,16 +26,10 @@ def move_quantity_stock(source_product, destination_container, quantity):
             destination_container,
         )
 
-    source_product.available_quantity -= quantity
-    source_product.total_quantity -= quantity
-    source_product.save(
-        update_fields=["available_quantity", "total_quantity", "updated_at"]
-    )
-
-    destination_product.available_quantity += quantity
-    destination_product.total_quantity += quantity
-    destination_product.save(
-        update_fields=["available_quantity", "total_quantity", "updated_at"]
+    source_product, destination_product = availability.transfer_available_quantity(
+        source_product,
+        destination_product,
+        quantity,
     )
     return destination_product, True
 

@@ -3,6 +3,7 @@ from django.utils import timezone
 from rest_framework.exceptions import ValidationError
 
 from apps.audit import services as audit
+from apps.inventory import availability
 from apps.inventory.models import InventoryAsset, InventoryProduct
 from apps.operations.models import (
     InventoryAdjustment,
@@ -265,27 +266,17 @@ def _create_ledger_entry(actor, stocktake, line, *, bucket, delta, old_status=""
 def _apply_ledger_entries(entries):
     for entry in entries:
         product = InventoryProduct.objects.select_for_update().get(pk=entry.product_id)
+        kwargs = {}
         if entry.bucket == StocktakeLedgerEntry.Bucket.AVAILABLE:
-            product.available_quantity += entry.delta
+            kwargs["delta_available"] = entry.delta
         elif entry.bucket == StocktakeLedgerEntry.Bucket.DAMAGED:
-            product.damaged_quantity += entry.delta
+            kwargs["delta_damaged"] = entry.delta
         elif entry.bucket == StocktakeLedgerEntry.Bucket.LOST:
-            product.lost_quantity += entry.delta
-        if min(product.available_quantity, product.damaged_quantity, product.lost_quantity) < 0:
+            kwargs["delta_lost"] = entry.delta
+        try:
+            availability.apply_stocktake_delta(product, **kwargs)
+        except availability.InsufficientStock:
             raise ValidationError("Stocktake adjustment would make inventory negative.")
-        _save_product_totals(product)
-
-
-def _save_product_totals(product):
-    product.total_quantity = (
-        product.available_quantity
-        + product.reserved_quantity
-        + product.issued_quantity
-        + product.damaged_quantity
-        + product.lost_quantity
-        + product.needs_fix_quantity
-    )
-    product.save()
 
 
 def _record_adjustment(actor, stocktake, line, entries):

@@ -227,6 +227,40 @@ def transfer_available_quantity(source_product, destination_product, quantity):
     )
     return source, destination
 
+
+def apply_stocktake_delta(product, *, delta_available=0, delta_damaged=0, delta_lost=0):
+    """Apply signed deltas to available/damaged/lost for a stocktake variance,
+    recompute total_quantity as the sum of all buckets, and save. Caller must
+    hold the product row lock inside transaction.atomic(). Refuses to make
+    available/damaged/lost negative (raises InsufficientStock)."""
+    if not connection.in_atomic_block:
+        raise RuntimeError(
+            "apply_stocktake_delta must be called inside transaction.atomic()."
+        )
+    product.available_quantity += delta_available
+    product.damaged_quantity += delta_damaged
+    product.lost_quantity += delta_lost
+    if min(product.available_quantity, product.damaged_quantity, product.lost_quantity) < 0:
+        raise InsufficientStock("Stocktake adjustment would make inventory negative.")
+    product.total_quantity = (
+        product.available_quantity
+        + product.reserved_quantity
+        + product.issued_quantity
+        + product.damaged_quantity
+        + product.lost_quantity
+        + product.needs_fix_quantity
+    )
+    product.save(
+        update_fields=[
+            "available_quantity",
+            "damaged_quantity",
+            "lost_quantity",
+            "total_quantity",
+            "updated_at",
+        ]
+    )
+
+
 def reserve_for_request(request):
     if not connection.in_atomic_block:
         raise RuntimeError("reserve_for_request must be called inside transaction.atomic().")

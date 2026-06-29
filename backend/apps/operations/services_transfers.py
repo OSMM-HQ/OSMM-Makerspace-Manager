@@ -139,10 +139,6 @@ def _apply_cross_makerspace_line(
     if quantity > src.available_quantity:
         raise ValidationError({"quantity": "Cannot transfer more than the available stock."})
 
-    src.available_quantity -= quantity
-    src.total_quantity -= quantity
-    src.save(update_fields=["available_quantity", "total_quantity", "updated_at"])
-
     dest_queryset = InventoryProduct.objects.select_for_update().filter(
         makerspace_id=dest_makerspace_id,
         name__iexact=src.name,
@@ -170,9 +166,7 @@ def _apply_cross_makerspace_line(
             # receiving makerspace opts in explicitly.
             is_public=False,
         )
-    dest.available_quantity += quantity
-    dest.total_quantity += quantity
-    dest.save(update_fields=["available_quantity", "total_quantity", "updated_at"])
+    availability.transfer_available_quantity(src, dest, quantity)
 
     StockTransferLine.objects.create(
         transfer=transfer,
