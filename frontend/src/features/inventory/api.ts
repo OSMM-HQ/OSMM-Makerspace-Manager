@@ -147,7 +147,14 @@ export async function publicToolCheckout(
 
 export async function publicToolReturn(
   slug: string,
-  payload: { identifier: string; payload: string; evidence_id: number; remark: string },
+  payload: {
+    identifier: string;
+    payload: string;
+    evidence_id: number;
+    remark: string;
+    report_problem?: boolean;
+    problem_note?: string;
+  },
 ): Promise<PublicToolLoan> {
   return tenantPublicRequest<PublicToolLoan>(
     slug,

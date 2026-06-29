@@ -46,6 +46,8 @@ export function PublicToolScanPanel({
   const [issueEvidenceId, setIssueEvidenceId] = useState<number | null>(null);
   const [returnEvidenceId, setReturnEvidenceId] = useState<number | null>(null);
   const [returnRemark, setReturnRemark] = useState("");
+  const [reportProblem, setReportProblem] = useState(false);
+  const [problemNote, setProblemNote] = useState("");
   const [uploadKey, setUploadKey] = useState(0);
   const effectivePayload = scannedToken.trim();
   const checkout = useMutation({
@@ -70,11 +72,15 @@ export function PublicToolScanPanel({
         payload: effectivePayload,
         evidence_id: returnEvidenceId as number,
         remark: returnRemark.trim(),
+        report_problem: reportProblem,
+        problem_note: reportProblem ? problemNote.trim() : "",
       }),
     onSuccess: () => {
       invalidatePublicInventory(queryClient, makerspaceSlug);
       setReturnEvidenceId(null);
       setReturnRemark("");
+      setReportProblem(false);
+      setProblemNote("");
       setUploadKey((key) => key + 1);
     },
   });
@@ -88,7 +94,8 @@ export function PublicToolScanPanel({
     !contactEmail.trim() ||
     !effectivePayload ||
     returnEvidenceId === null ||
-    !returnRemark.trim();
+    !returnRemark.trim() ||
+    (reportProblem && !problemNote.trim());
   const error = checkout.error?.message ?? returnTool.error?.message;
   const result = checkout.data ?? returnTool.data;
 
@@ -165,6 +172,26 @@ export function PublicToolScanPanel({
               onChange={(event) => setReturnRemark(event.target.value)}
             />
           </label>
+          <label className="mt-3 flex items-center gap-2 text-sm text-ink">
+            <input
+              type="checkbox"
+              checked={reportProblem}
+              onChange={(event) => setReportProblem(event.target.checked)}
+            />
+            <span>Report a problem with this tool</span>
+          </label>
+          {reportProblem ? (
+            <label className="mt-2 block">
+              <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
+                What's wrong? (staff will review)
+              </span>
+              <textarea
+                className="desk-input min-h-16 w-full"
+                value={problemNote}
+                onChange={(event) => setProblemNote(event.target.value)}
+              />
+            </label>
+          ) : null}
           <button
             className="desk-button mt-3 w-full disabled:cursor-not-allowed disabled:opacity-50"
             disabled={returnDisabled || returnTool.isPending}

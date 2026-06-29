@@ -14,6 +14,15 @@ export type DirectLoan = {
   return_notes?: string;
   return_scan_required?: boolean;
   items: { product_name: string; quantity: number }[];
+  return_items?: DirectLoanReturnItem[];
+};
+
+export type DirectLoanReturnItem = {
+  item_id: number;
+  product_name: string;
+  remaining_quantity: number;
+  tracking_mode: string;
+  assets: { asset_id: number; asset_tag: string }[];
 };
 
 export function DirectLoanList({

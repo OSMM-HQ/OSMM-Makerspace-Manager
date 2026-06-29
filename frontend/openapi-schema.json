@@ -14286,6 +14286,13 @@
                         ],
                         "nullable": true,
                         "readOnly": true
+                    },
+                    "return_items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DirectLoanReturnItem"
+                        },
+                        "readOnly": true
                     }
                 },
                 "required": [
@@ -14298,6 +14305,7 @@
                     "items",
                     "public_token",
                     "return_evidence_id",
+                    "return_items",
                     "return_notes",
                     "return_scan_required",
                     "source",
@@ -14384,11 +14392,62 @@
                     },
                     "returned_by_identifier": {
                         "type": "string"
+                    },
+                    "resolutions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ReturnItemResolution"
+                        }
                     }
                 },
                 "required": [
                     "evidence_id",
                     "notes"
+                ]
+            },
+            "DirectLoanReturnAsset": {
+                "type": "object",
+                "properties": {
+                    "asset_id": {
+                        "type": "integer"
+                    },
+                    "asset_tag": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "asset_id",
+                    "asset_tag"
+                ]
+            },
+            "DirectLoanReturnItem": {
+                "type": "object",
+                "properties": {
+                    "item_id": {
+                        "type": "integer"
+                    },
+                    "product_name": {
+                        "type": "string"
+                    },
+                    "remaining_quantity": {
+                        "type": "integer"
+                    },
+                    "tracking_mode": {
+                        "type": "string"
+                    },
+                    "assets": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DirectLoanReturnAsset"
+                        }
+                    }
+                },
+                "required": [
+                    "assets",
+                    "item_id",
+                    "product_name",
+                    "remaining_quantity",
+                    "tracking_mode"
                 ]
             },
             "DirectLoanUserAttribution": {
@@ -20064,6 +20123,14 @@
                     },
                     "remark": {
                         "type": "string"
+                    },
+                    "report_problem": {
+                        "type": "boolean",
+                        "default": false
+                    },
+                    "problem_note": {
+                        "type": "string",
+                        "default": ""
                     }
                 },
                 "required": [

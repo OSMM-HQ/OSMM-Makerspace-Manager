@@ -8,6 +8,7 @@ from apps.hardware_requests import admin_loans  # noqa: F401
 from apps.hardware_requests import admin_requests  # noqa: F401
 from apps.hardware_requests.admin_loans import (
     HardwareRequestItemAssetAdmin,
+    PublicProblemReportAdmin,
     PublicToolLoanAdmin,
     RequesterAccountabilityAdmin,
     ReturnEventAdmin,
@@ -25,7 +26,10 @@ from apps.hardware_requests.models import (
 )
 from apps.hardware_requests.request_workflow import accept_request, reject_request
 from apps.hardware_requests.return_models import RequesterAccountability, ReturnEvent
-from apps.hardware_requests.self_checkout_models import PublicToolLoan
+from apps.hardware_requests.self_checkout_models import (
+    PublicProblemReport,
+    PublicToolLoan,
+)
 from apps.hardware_requests.workflow_errors import (
     BoxUnavailable,
     BoxValidationError,
@@ -49,6 +53,8 @@ __all__ = [
     "InsufficientStock",
     "InvalidTransition",
     "ModelAdmin",
+    "PublicProblemReport",
+    "PublicProblemReportAdmin",
     "PublicToolLoan",
     "PublicToolLoanAdmin",
     "RequesterAccountability",

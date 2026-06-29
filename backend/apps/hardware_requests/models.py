@@ -153,4 +153,7 @@ from apps.hardware_requests.return_models import (  # noqa: E402
     ReturnEvent,
 )
 from apps.hardware_requests.asset_link_models import HardwareRequestItemAsset  # noqa: E402
-from apps.hardware_requests.self_checkout_models import PublicToolLoan  # noqa: E402
+from apps.hardware_requests.self_checkout_models import (  # noqa: E402
+    PublicProblemReport,
+    PublicToolLoan,
+)

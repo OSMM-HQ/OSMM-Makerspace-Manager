@@ -145,6 +145,8 @@ class PublicToolReturnView(APIView):
             serializer.validated_data["payload"],
             evidence_id=serializer.validated_data["evidence_id"],
             remark=serializer.validated_data["remark"],
+            report_problem=serializer.validated_data["report_problem"],
+            problem_note=serializer.validated_data["problem_note"],
         )
         return Response(PublicToolLoanSerializer(loan).data)
 

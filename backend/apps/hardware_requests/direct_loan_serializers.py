@@ -2,6 +2,8 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.hardware_requests.self_checkout_serializers import PublicToolLoanSerializer
+from apps.hardware_requests.serializers import ReturnItemResolutionSerializer
+from apps.inventory.models import InventoryAsset, TrackingMode
 
 
 class DirectLoanItemSerializer(serializers.Serializer):
@@ -41,11 +43,28 @@ class DirectLoanReturnSerializer(serializers.Serializer):
     notes = serializers.CharField()
     qr_payload = serializers.CharField(max_length=64, required=False, allow_blank=True)
     returned_by_identifier = serializers.CharField(required=False, allow_blank=True)
+    # Optional + may be empty: a container-only direct loan carries no request
+    # items, so a return resolves nothing. Loans WITH outstanding units still
+    # require full resolution, enforced in return_direct_loan.
+    resolutions = ReturnItemResolutionSerializer(many=True, required=False, default=list)
 
 
 class DirectLoanUserAttributionSerializer(serializers.Serializer):
     username = serializers.CharField()
     role = serializers.CharField()
+
+
+class DirectLoanReturnAssetSerializer(serializers.Serializer):
+    asset_id = serializers.IntegerField()
+    asset_tag = serializers.CharField()
+
+
+class DirectLoanReturnItemSerializer(serializers.Serializer):
+    item_id = serializers.IntegerField()
+    product_name = serializers.CharField()
+    remaining_quantity = serializers.IntegerField()
+    tracking_mode = serializers.CharField()
+    assets = DirectLoanReturnAssetSerializer(many=True)
 
 
 class DirectLoanSerializer(PublicToolLoanSerializer):
@@ -65,10 +84,52 @@ class DirectLoanSerializer(PublicToolLoanSerializer):
     return_scan_required = serializers.SerializerMethodField()
     source = serializers.CharField(read_only=True)
     issued_by = serializers.SerializerMethodField()
+    return_items = serializers.SerializerMethodField()
 
     @extend_schema_field(serializers.BooleanField())
     def get_return_scan_required(self, obj) -> bool:
         return bool(obj.qr_ids) or obj.container_id is not None
+
+    @extend_schema_field(DirectLoanReturnItemSerializer(many=True))
+    def get_return_items(self, obj) -> list[dict[str, object]]:
+        # Per-item info the return modal needs to build resolutions: the request
+        # item id, outstanding quantity, tracking mode, and (for individual-tracked
+        # items) the still-issued physical units pulled from the loan's asset_ids.
+        if "items" in getattr(obj.request, "_prefetched_objects_cache", {}):
+            items = sorted(obj.request.items.all(), key=lambda item: item.product.name)
+        else:
+            items = list(
+                obj.request.items.select_related("product").order_by("product__name")
+            )
+        asset_ids = [int(asset_id) for asset_id in (obj.asset_ids or [])]
+        assets_by_product: dict[int, list[dict[str, object]]] = {}
+        if asset_ids:
+            for asset in InventoryAsset.objects.filter(
+                pk__in=asset_ids,
+                makerspace_id=obj.makerspace_id,
+                status=InventoryAsset.Status.ISSUED,
+            ).only("id", "asset_tag", "product_id"):
+                assets_by_product.setdefault(asset.product_id, []).append(
+                    {"asset_id": asset.id, "asset_tag": asset.asset_tag}
+                )
+        result = []
+        for item in items:
+            remaining = item.issued_quantity - (
+                item.returned_quantity + item.damaged_quantity + item.missing_quantity
+            )
+            if remaining <= 0:
+                continue
+            is_individual = item.product.tracking_mode == TrackingMode.INDIVIDUAL
+            result.append(
+                {
+                    "item_id": item.id,
+                    "product_name": item.product.name,
+                    "remaining_quantity": remaining,
+                    "tracking_mode": item.product.tracking_mode,
+                    "assets": assets_by_product.get(item.product_id, []) if is_individual else [],
+                }
+            )
+        return result
 
     @extend_schema_field(serializers.CharField(allow_null=True))
     def get_container_label(self, obj):

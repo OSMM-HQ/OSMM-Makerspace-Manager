@@ -15,6 +15,8 @@ class ReturnEvent(models.Model):
     )
     box = models.ForeignKey(
         "boxes.Box",
+        null=True,
+        blank=True,
         on_delete=models.PROTECT,
     )
     evidence = models.OneToOneField(

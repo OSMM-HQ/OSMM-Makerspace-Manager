@@ -13,6 +13,7 @@ from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests.models import (
     HardwareRequest,
     HardwareRequestItem,
+    PublicProblemReport,
     PublicToolLoan,
     ReturnEvent,
 )
@@ -96,7 +97,16 @@ def checkout_tool(makerspace, contact_email, payload, *, requester_name, contact
         return loan
 
 
-def return_tool(makerspace, identifier, payload, *, evidence_id, remark):
+def return_tool(
+    makerspace,
+    identifier,
+    payload,
+    *,
+    evidence_id,
+    remark,
+    report_problem=False,
+    problem_note="",
+):
     result = checkin.verify(makerspace, identifier)
     remark = str(remark or "").strip()
     if not remark:
@@ -148,6 +158,21 @@ def return_tool(makerspace, identifier, payload, *, evidence_id, remark):
             target=loan.request,
             meta={"qr_id": qr.id, "target": loan.target_label},
         )
+        if report_problem:
+            report = PublicProblemReport.objects.create(
+                makerspace=makerspace,
+                loan=loan,
+                request=loan.request,
+                requester=requester,
+                note=problem_note.strip(),
+            )
+            audit.record(
+                requester,
+                "public_tool.problem_reported",
+                makerspace=makerspace,
+                target=report,
+                meta={"loan_id": loan.pk, "request_id": loan.request_id},
+            )
         return loan
 
 
