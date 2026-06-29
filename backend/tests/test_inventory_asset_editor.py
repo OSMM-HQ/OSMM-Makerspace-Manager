@@ -229,3 +229,24 @@ def test_patch_same_tenant_wrong_role_is_forbidden():
     assert response.status_code == 403
     asset.refresh_from_db()
     assert asset.notes == ""
+
+
+def test_patch_asset_from_tenant_branded_origin_is_allowed():
+    # Stage-4: the origin-scope guard must resolve the asset <pk> route to its
+    # makerspace for tenant-branded staff domains, else legitimate PATCHes 403.
+    makerspace = make_space("asset-editor-origin")
+    makerspace.frontend_domain = "tools.example.org"
+    makerspace.save(update_fields=["frontend_domain"])
+    admin = make_admin(makerspace)
+    asset = make_asset(makerspace, tag="ORIGIN-1")
+
+    response = authed(admin).patch(
+        asset_url(asset),
+        {"notes": "scoped via origin"},
+        format="json",
+        HTTP_ORIGIN="https://tools.example.org",
+    )
+
+    assert response.status_code == 200
+    asset.refresh_from_db()
+    assert asset.notes == "scoped via origin"
