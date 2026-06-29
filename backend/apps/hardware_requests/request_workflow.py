@@ -81,10 +81,12 @@ def accept_request(actor, request, accepted=None):
                 )
         total = 0
         for item in items:
+            # accepted is None => accept all (full). A provided map is authoritative:
+            # an item not listed is declined (0), so an empty map accepts nothing.
             qty = (
                 item.requested_quantity
                 if accepted is None
-                else int(accepted.get(item.pk, item.requested_quantity))
+                else int(accepted.get(item.pk, 0))
             )
             if qty < 0 or qty > item.requested_quantity:
                 raise RequestValidationError(

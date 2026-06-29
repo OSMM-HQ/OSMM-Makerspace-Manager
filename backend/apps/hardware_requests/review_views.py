@@ -31,7 +31,11 @@ class AcceptRequestView(APIView):
         hardware_request = _scoped_request(request.user, pk, rbac.Action.ACCEPT_REQUEST)
         serializer = AcceptRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        if serializer.validated_data.get("accepted_quantities"):
+        # Distinguish "field omitted" (accept all — the Telegram/Django-admin default)
+        # from an explicitly-provided map. A provided map is authoritative: items not
+        # listed default to 0 in accept_request, so an explicit [] declines everything
+        # and hits the all-zero 400 rather than silently accepting the whole request.
+        if "accepted_quantities" in serializer.validated_data:
             accepted = {
                 entry["item_id"]: entry["quantity"]
                 for entry in serializer.validated_data["accepted_quantities"]

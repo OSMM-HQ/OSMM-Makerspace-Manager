@@ -121,7 +121,10 @@ def test_no_payload_accepts_all_requested_units():
     assert product.reserved_quantity == 3
 
 
-def test_partial_accept_reserves_requested_subset_and_omitted_item_defaults_full():
+def test_partial_accept_map_is_authoritative_omitted_item_is_declined():
+    # A provided accepted_quantities map is authoritative: an item not listed is
+    # declined (qty 0), not silently accepted in full. (The UI always sends every
+    # item; this guards malformed/partial API payloads.)
     makerspace = make_space("partial-subset")
     product = make_product(makerspace, total_quantity=5, available_quantity=5)
     omitted_product = make_product(
@@ -145,13 +148,32 @@ def test_partial_accept_reserves_requested_subset_and_omitted_item_defaults_full
     item.refresh_from_db()
     omitted_item.refresh_from_db()
     assert item.accepted_quantity == 1
-    assert omitted_item.accepted_quantity == omitted_item.requested_quantity == 2
+    assert omitted_item.accepted_quantity == 0
     product.refresh_from_db()
     omitted_product.refresh_from_db()
     assert product.available_quantity == 4
     assert product.reserved_quantity == 1
-    assert omitted_product.available_quantity == 3
-    assert omitted_product.reserved_quantity == 2
+    assert omitted_product.available_quantity == 5
+    assert omitted_product.reserved_quantity == 0
+
+
+def test_explicit_empty_accepted_quantities_declines_everything():
+    makerspace = make_space("partial-empty")
+    product = make_product(makerspace, total_quantity=5, available_quantity=5)
+    hardware_request = make_request(makerspace, [(product, 3)])
+    admin = make_member("partial-empty-admin", makerspace)
+
+    response = authenticated_client(admin).post(
+        accept_url(hardware_request),
+        {"accepted_quantities": []},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    hardware_request.refresh_from_db()
+    product.refresh_from_db()
+    assert hardware_request.status == "pending_approval"
+    assert product.reserved_quantity == 0
 
 
 def test_all_zero_partial_accept_returns_400_and_does_not_reserve():
