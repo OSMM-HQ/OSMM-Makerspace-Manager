@@ -60,7 +60,14 @@ class ManagedPrinterListCreateView(ManagedPrinterMixin, generics.ListCreateAPIVi
     def perform_create(self, serializer):
         makerspace_id = serializer.validated_data["makerspace_id"]
         self.assert_can_manage_makerspace(makerspace_id)
-        serializer.save()
+        printer = serializer.save()
+        audit.record(
+            self.request.user,
+            "printing.printer_created",
+            makerspace=printer.makerspace,
+            target=printer,
+            meta={"name": printer.name},
+        )
 
     @extend_schema(
         parameters=[OpenApiParameter("makerspace", int, OpenApiParameter.QUERY)],
@@ -90,7 +97,14 @@ class ManagedPrinterDetailView(ManagedPrinterMixin, generics.RetrieveUpdateDestr
             "makerspace_id", serializer.instance.makerspace_id
         )
         self.assert_can_manage_makerspace(makerspace_id)
-        serializer.save()
+        printer = serializer.save()
+        audit.record(
+            self.request.user,
+            "printing.printer_updated",
+            makerspace=printer.makerspace,
+            target=printer,
+            meta={"name": printer.name},
+        )
 
     def destroy(self, request, *args, **kwargs):
         # Hard-delete is allowed even when the printer is referenced by HISTORY: the
