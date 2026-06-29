@@ -1180,3 +1180,40 @@ def test_direct_return_individual_asset_outcomes_flip_status_without_double_coun
     assert product.damaged_quantity == 1
     assert product.issued_quantity == 0
     assert product.total_quantity == 2
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_direct_return_rejects_duplicate_item_resolutions(monkeypatch):
+    # Stage-4 P2: duplicate item_id in resolutions would be applied twice by
+    # availability.return_items (over-return). Serializer must reject it.
+    makerspace = make_space("direct-return-dup-item")
+    admin = make_admin(makerspace)
+    product = make_product(makerspace, total_quantity=3, available_quantity=3)
+    client = authed(admin)
+    client.post(
+        direct_url(makerspace),
+        direct_payload(items=[{"product_id": product.id, "quantity": 2}]),
+        format="json",
+    )
+    loan = PublicToolLoan.objects.get()
+    item = loan.request.items.get()
+    evidence = make_return_evidence(makerspace, admin)
+    allow_uploaded(monkeypatch)
+
+    response = client.post(
+        f"/api/v1/admin/direct-loans/{loan.id}/return",
+        return_body(
+            evidence,
+            resolutions=[
+                {"item_id": item.id, "returned": 1},
+                {"item_id": item.id, "returned": 1},
+            ],
+        ),
+        format="json",
+    )
+
+    assert response.status_code == 400
+    loan.refresh_from_db()
+    assert loan.status == PublicToolLoan.Status.CHECKED_OUT
+    product.refresh_from_db()
+    assert product.issued_quantity == 2

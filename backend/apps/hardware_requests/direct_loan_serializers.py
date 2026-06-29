@@ -48,6 +48,17 @@ class DirectLoanReturnSerializer(serializers.Serializer):
     # require full resolution, enforced in return_direct_loan.
     resolutions = ReturnItemResolutionSerializer(many=True, required=False, default=list)
 
+    def validate(self, attrs):
+        # Duplicate item_ids would each be applied by availability.return_items
+        # (over-returning the item), and the full-resolution check only keeps the
+        # last one. Reject them up front (mirrors ReturnRequestSerializer).
+        item_ids = [resolution["item_id"] for resolution in attrs.get("resolutions") or []]
+        if len(item_ids) != len(set(item_ids)):
+            raise serializers.ValidationError(
+                {"resolutions": "Duplicate item_id values are not allowed."}
+            )
+        return attrs
+
 
 class DirectLoanUserAttributionSerializer(serializers.Serializer):
     username = serializers.CharField()

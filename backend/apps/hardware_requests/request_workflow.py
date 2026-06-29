@@ -73,6 +73,12 @@ def accept_request(actor, request, accepted=None):
             )
 
         items = list(locked.items.select_related("product").order_by("product_id"))
+        if accepted is not None:
+            unknown = set(accepted) - {item.pk for item in items}
+            if unknown:
+                raise RequestValidationError(
+                    "Accepted quantities reference items that are not in this request."
+                )
         total = 0
         for item in items:
             qty = (

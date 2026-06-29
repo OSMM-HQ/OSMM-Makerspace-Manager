@@ -240,3 +240,27 @@ def test_accept_partial_then_issue_moves_only_accepted_units():
     assert product.available_quantity == 4
     assert product.reserved_quantity == 0
     assert product.issued_quantity == 1
+
+def test_accept_rejects_unknown_item_id():
+    # Stage-4 P2: a stale/cross-request item_id must 400, not silently default the
+    # request's real items to full acceptance.
+    makerspace = make_space("partial-unknown-item")
+    product = make_product(makerspace, total_quantity=5, available_quantity=5)
+    hardware_request = make_request(makerspace, [(product, 3)])
+    item = hardware_request.items.get()
+    admin = make_member("partial-unknown-admin", makerspace)
+
+    response = authenticated_client(admin).post(
+        accept_url(hardware_request),
+        {"accepted_quantities": [{"item_id": item.id + 9999, "quantity": 1}]},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.data["code"] == "validation_error"
+    hardware_request.refresh_from_db()
+    item.refresh_from_db()
+    product.refresh_from_db()
+    assert hardware_request.status == "pending_approval"
+    assert item.accepted_quantity == 0
+    assert product.reserved_quantity == 0
