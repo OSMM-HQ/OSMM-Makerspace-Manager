@@ -64,7 +64,7 @@ def submit_request(
         return request
 
 
-def accept_request(actor, request):
+def accept_request(actor, request, accepted=None):
     with transaction.atomic():
         locked = locked_request(request)
         if locked.status != HardwareRequest.Status.PENDING_APPROVAL:
@@ -73,9 +73,25 @@ def accept_request(actor, request):
             )
 
         items = list(locked.items.select_related("product").order_by("product_id"))
+        total = 0
         for item in items:
-            item.accepted_quantity = item.requested_quantity
+            qty = (
+                item.requested_quantity
+                if accepted is None
+                else int(accepted.get(item.pk, item.requested_quantity))
+            )
+            if qty < 0 or qty > item.requested_quantity:
+                raise RequestValidationError(
+                    "Accepted quantity must be between 0 and the requested quantity."
+                )
+            item.accepted_quantity = qty
             item.save(update_fields=["accepted_quantity"])
+            total += qty
+
+        if total == 0:
+            raise RequestValidationError(
+                "Accept at least one unit, or reject the request instead."
+            )
 
         # reserve_for_request now runs the individual-asset guard under its own
         # product row lock, so the check and the reservation can't race apart.
@@ -92,6 +108,7 @@ def accept_request(actor, request):
             "request.accepted",
             makerspace=locked.makerspace,
             target=locked,
+            meta={"accepted": {item.pk: item.accepted_quantity for item in items}},
         )
         transaction.on_commit(
             lambda request_id=locked.pk: notifications.notify_request_accepted(

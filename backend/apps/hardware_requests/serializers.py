@@ -156,6 +156,26 @@ class AdminRequestSerializer(serializers.Serializer):
         return requester_label(obj)
 
 
+class AcceptQuantitySerializer(serializers.Serializer):
+    item_id = serializers.IntegerField()
+    quantity = serializers.IntegerField(min_value=0)
+
+
+class AcceptRequestSerializer(serializers.Serializer):
+    accepted_quantities = serializers.ListField(
+        child=AcceptQuantitySerializer(),
+        required=False,
+    )
+
+    def validate(self, attrs):
+        item_ids = [entry["item_id"] for entry in attrs.get("accepted_quantities", [])]
+        if len(item_ids) != len(set(item_ids)):
+            raise serializers.ValidationError(
+                {"accepted_quantities": "Duplicate item_id values are not allowed."}
+            )
+        return attrs
+
+
 class RejectRequestSerializer(serializers.Serializer):
     reason = serializers.CharField(allow_blank=False, trim_whitespace=True)
 

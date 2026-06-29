@@ -7,6 +7,7 @@ from apps.accounts import rbac
 from apps.hardware_requests import workflow
 from apps.hardware_requests.permissions import CanReviewRequest
 from apps.hardware_requests.serializers import (
+    AcceptRequestSerializer,
     AdminRequestSerializer,
     RejectRequestSerializer,
 )
@@ -23,12 +24,25 @@ class AcceptRequestView(APIView):
     @extend_schema(
         tags=["Admin requests"],
         summary="Accept borrow request",
-        request=None,
+        request=AcceptRequestSerializer,
         responses={200: AdminRequestSerializer, **ACTION_ERROR_RESPONSES},
     )
     def post(self, request, pk, *args, **kwargs):
         hardware_request = _scoped_request(request.user, pk, rbac.Action.ACCEPT_REQUEST)
-        updated = workflow.accept_request(request.user, hardware_request)
+        serializer = AcceptRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        if serializer.validated_data.get("accepted_quantities"):
+            accepted = {
+                entry["item_id"]: entry["quantity"]
+                for entry in serializer.validated_data["accepted_quantities"]
+            }
+        else:
+            accepted = None
+        updated = workflow.accept_request(
+            request.user,
+            hardware_request,
+            accepted=accepted,
+        )
         return Response(AdminRequestSerializer(updated).data)
 
 

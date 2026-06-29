@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { staffRequest } from "../../../lib/api";
-import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
 import { Pagination } from "../../../components/ui/Pagination";
 import { useDebouncedValue } from "../../../lib/useDebouncedValue";
 import { usePaginatedQuery } from "../../../lib/usePaginatedQuery";
@@ -20,6 +19,7 @@ import {
   type ReturnRequestValues,
 } from "./QueuesModals";
 import { RequestListSkeleton } from "./QueuesSkeleton";
+import { AcceptRequestModal } from "./QueuesAcceptModal";
 
 export type RequestItem = {
   id: number;
@@ -135,6 +135,9 @@ export function Queues({ makerspace, guestOnly }: { makerspace: Makerspace; gues
   const submitReturnDue = (values: ReturnDueValues) => {
     if (dueRow) void runAction(`/admin/requests/${dueRow.id}/return-due`, { return_due_at: values.returnDueAt ? new Date(values.returnDueAt).toISOString() : null });
   };
+  const submitAccept = (acceptedQuantities: { item_id: number; quantity: number }[]) => {
+    if (acceptRow) void runAction(`/admin/requests/${acceptRow.id}/accept`, { accepted_quantities: acceptedQuantities });
+  };
   const submitReject = (values: RejectRequestValues) => {
     if (rejectRow) void runAction(`/admin/requests/${rejectRow.id}/reject`, { reason: values.reason });
   };
@@ -188,7 +191,7 @@ export function Queues({ makerspace, guestOnly }: { makerspace: Makerspace; gues
         </Panel>
       ) : null}
       <HistoryPanel show={showHistory} loading={history.isLoading} rows={history.results} page={history.page} totalPages={history.totalPages} count={history.count} pageSize={history.pageSize} onPageChange={history.setPage} onToggle={() => setShowHistory((value) => !value)} />
-      <ConfirmDialog open={Boolean(acceptRow)} title="Accept request" message={acceptRow ? `Accept request #${acceptRow.id} from ${acceptRow.requester_display || acceptRow.requester_username}?${modalError ? ` Error: ${modalError}` : ""}` : ""} confirmLabel="Accept" pending={action.isPending} onCancel={closeModals} onConfirm={() => { if (acceptRow) void runAction(`/admin/requests/${acceptRow.id}/accept`); }} />
+      <AcceptRequestModal row={acceptRow} open={Boolean(acceptRow)} pending={action.isPending} error={modalError} onClose={closeModals} onSubmit={submitAccept} />
       <ReturnDueModal row={dueRow} defaultValue={dueRow?.return_due_at ? localDateTimeValue(dueRow.return_due_at) : localDateTimeValue(defaultDueDate(Number(defaultLoanDays) || 7).toISOString())} open={Boolean(dueRow)} pending={action.isPending} error={modalError} onClose={closeModals} onSubmit={submitReturnDue} />
       <RejectRequestModal row={rejectRow} open={Boolean(rejectRow)} pending={action.isPending} error={modalError} onClose={closeModals} onSubmit={submitReject} />
       <AssignIssueModal row={assignIssueRow} open={Boolean(assignIssueRow)} pending={action.isPending} error={modalError} onClose={closeModals} onSubmit={submitAssignIssue} makerspaceId={makerspace.id} />

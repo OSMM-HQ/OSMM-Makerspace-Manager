@@ -6798,6 +6798,25 @@
                 "tags": [
                     "Admin requests"
                 ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AcceptRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AcceptRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AcceptRequest"
+                            }
+                        }
+                    }
+                },
                 "security": [
                     {
                         "jwtAuth": []
@@ -13004,6 +13023,33 @@
     },
     "components": {
         "schemas": {
+            "AcceptQuantity": {
+                "type": "object",
+                "properties": {
+                    "item_id": {
+                        "type": "integer"
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "required": [
+                    "item_id",
+                    "quantity"
+                ]
+            },
+            "AcceptRequest": {
+                "type": "object",
+                "properties": {
+                    "accepted_quantities": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AcceptQuantity"
+                        }
+                    }
+                }
+            },
             "AccessStatusEnum": {
                 "enum": [
                     "active",
