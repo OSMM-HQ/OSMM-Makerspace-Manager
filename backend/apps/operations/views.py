@@ -62,6 +62,7 @@ from apps.operations.views_qr_batches import (
     QrPrintBatchListCreateView,
 )
 from apps.operations.views_reports import (
+    AccountabilityReportView,
     AggregateAnalyticsView,
     AggregateLedgerView,
     AggregateReportExportView,

@@ -18,7 +18,7 @@ from apps.accounts import rbac
 from apps.admin_api.permissions import IsActiveStaff, require_action
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.models import Makerspace
-from apps.operations import ledger, reports
+from apps.operations import accountability, ledger, reports
 from apps.operations.serializers import EmptySerializer, GenericObjectSerializer, LedgerResponseSerializer
 
 DATE_RANGE_PARAMETERS = [
@@ -83,6 +83,23 @@ class AnalyticsView(APIView):
         require_action(request.user, rbac.Action.VIEW_AUDIT, makerspace.id)
         require_module(makerspace, "reports")
         return Response(reports.report_data(report_key, makerspace.id, limit=_limit_param(request), date_range=_date_range(request)))
+
+
+class AccountabilityReportView(APIView):
+    permission_classes = [IsActiveStaff]
+    serializer_class = GenericObjectSerializer
+
+    @extend_schema(
+        tags=["Analytics"],
+        summary="Requester accountability dashboard",
+        request=None,
+        responses={200: OpenApiTypes.OBJECT},
+    )
+    def get(self, request, makerspace_id, *args, **kwargs):
+        makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
+        require_action(request.user, rbac.Action.VIEW_AUDIT, makerspace.id)
+        require_module(makerspace, "reports")
+        return Response(accountability.accountability_data(makerspace.id))
 
 
 class AggregateAnalyticsView(APIView):

@@ -2050,6 +2050,43 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/accountability": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_accountability_retrieve",
+                "summary": "Requester accountability dashboard",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Analytics"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/active-loans": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_active_loans_list",

@@ -21,6 +21,7 @@ const StockTransferPanel = lazy(() => import("./panels/StockTransferPanel").then
 const ProcurementPanel = lazy(() => import("./panels/ProcurementPanel").then((m) => ({ default: m.ProcurementPanel })));
 const EmailLogPanel = lazy(() => import("./panels/EmailLogPanel").then((m) => ({ default: m.EmailLogPanel })));
 const WarrantyPanel = lazy(() => import("./panels/WarrantyPanel").then((m) => ({ default: m.WarrantyPanel })));
+const AccountabilityPanel = lazy(() => import("./panels/AccountabilityPanel").then((m) => ({ default: m.AccountabilityPanel })));
 const Categories = lazy(() => import("./panels/Categories").then((m) => ({ default: m.Categories })));
 const NeedsFixShelf = lazy(() => import("./panels/NeedsFixShelf").then((m) => ({ default: m.NeedsFixShelf })));
 const ApiClientsPanel = lazy(() => import("./ApiClientsPanel").then((m) => ({ default: m.ApiClientsPanel })));
@@ -118,6 +119,9 @@ export function StaffTabContent({
           canEditInventory={canEditInventory}
           canSeePrinting={canSeePrinting}
         />
+      ) : null}
+      {activeTab === "accountability" && canViewAudit ? (
+        <AccountabilityPanel key={makerspaceKey} makerspace={activeMakerspace} isSuperadmin={isSuperadmin} />
       ) : null}
       {activeTab === "reports" ? (
         <OperationsReports

@@ -1,6 +1,6 @@
 const ALL_TABS = [
   "requests", "direct", "inventory", "needsfix", "categories", "printing", "tobuy", "transfers",
-  "stocktake", "containers", "ledger", "reports", "warranty", "bulk", "qr", "scanner", "api", "settings", "emailtemplates", "users", "platform", "audit",
+  "stocktake", "containers", "ledger", "reports", "accountability", "warranty", "bulk", "qr", "scanner", "api", "settings", "emailtemplates", "users", "platform", "audit",
   "email-logs",
 ] as const;
 
@@ -24,6 +24,7 @@ export const TAB_LABELS: Record<string, string> = {
   printing: "3D Printing",
   tobuy: "To Buy",
   reports: "Reports",
+  accountability: "Accountability",
   warranty: "Warranties",
   audit: "Audit log",
   users: "Users",
@@ -38,7 +39,7 @@ export const TAB_GROUPS: { label: string; tabs: string[] }[] = [
   { label: "Operate", tabs: ["requests", "direct", "ledger", "transfers", "stocktake", "tobuy"] },
   { label: "Inventory", tabs: ["inventory", "categories", "needsfix", "containers", "bulk", "qr", "scanner"] },
   { label: "3D Printing", tabs: ["printing"] },
-  { label: "Insights", tabs: ["reports", "warranty", "audit"] },
+  { label: "Insights", tabs: ["reports", "accountability", "warranty", "audit"] },
   { label: "Admin", tabs: ["users", "settings", "emailtemplates", "email-logs", "api", "platform"] },
 ];
 
@@ -70,6 +71,7 @@ export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boo
     if (tabName === "qr") return canManageQr;
     if (tabName === "scanner") return canManageQr;
     if (tabName === "audit") return canViewAudit;
+    if (tabName === "accountability") return canViewAudit;
     if (tabName === "reports") return canViewAudit || canSeePrinting;
     if (tabName === "warranty") return canEditInventory || canSeePrinting;
     if (tabName === "users") return canManageMakerspace;
