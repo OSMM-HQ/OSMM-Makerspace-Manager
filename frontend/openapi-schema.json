@@ -4889,6 +4889,51 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/problem-reports/{id}/resolve": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_problem_reports_resolve_create",
+                "summary": "Resolve a public problem report",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Analytics"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/qr-print-batches": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_qr_print_batches_list",

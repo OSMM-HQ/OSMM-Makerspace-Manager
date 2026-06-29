@@ -63,6 +63,7 @@ from apps.operations.views_qr_batches import (
 )
 from apps.operations.views_reports import (
     AccountabilityReportView,
+    ProblemReportResolveView,
     AggregateAnalyticsView,
     AggregateLedgerView,
     AggregateReportExportView,

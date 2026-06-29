@@ -22,11 +22,13 @@ type Overdue = {
   days_overdue: number;
 };
 type Restriction = { requester_id: number; username: string; access_status: string; restriction_reason: string };
+type ProblemReport = { id: number; requester_username: string; label: string; note: string; created_at: string };
 type AccountabilityResponse = {
   repeat_offenders: Offender[];
   overdue: Overdue[];
   restrictions: Restriction[];
-  truncated: { repeat_offenders: boolean; overdue: boolean };
+  problem_reports: ProblemReport[];
+  truncated: { repeat_offenders: boolean; overdue: boolean; problem_reports: boolean };
 };
 
 export function AccountabilityPanel({ makerspace, isSuperadmin }: { makerspace: Makerspace; isSuperadmin: boolean }) {
@@ -47,6 +49,11 @@ export function AccountabilityPanel({ makerspace, isSuperadmin }: { makerspace: 
   });
   const restore = useMutation({
     mutationFn: (userId: number) => staffRequest(`/admin/users/${userId}/restore-access`, { method: "POST" }),
+    onSuccess: refresh,
+  });
+  const resolveReport = useMutation({
+    mutationFn: (reportId: number) =>
+      staffRequest(`/admin/makerspace/${makerspace.id}/problem-reports/${reportId}/resolve`, { method: "POST" }),
     onSuccess: refresh,
   });
 
@@ -70,6 +77,28 @@ export function AccountabilityPanel({ makerspace, isSuperadmin }: { makerspace: 
               </div>
             ))}
             {data.truncated.overdue ? <p className="text-xs text-muted">Showing the earliest overdue loans only.</p> : null}
+          </div>
+        )}
+      </Panel>
+
+      <Panel title="Reported problems">
+        {!data?.problem_reports.length ? (
+          <p className="text-sm text-muted">No open problem reports from public returns.</p>
+        ) : (
+          <div className="grid gap-2">
+            {data.problem_reports.map((row) => (
+              <div key={row.id} className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-line bg-surface p-2 text-sm">
+                <div className="min-w-0">
+                  <p className="font-medium text-ink">{row.label || "(tool)"}</p>
+                  <p className="text-xs text-muted">{row.requester_username} | {new Date(row.created_at).toLocaleString()}</p>
+                  <p className="mt-1 break-words text-ink">{row.note}</p>
+                </div>
+                <button className="desk-button" type="button" disabled={resolveReport.isPending} onClick={() => resolveReport.mutate(row.id)}>
+                  Resolve
+                </button>
+              </div>
+            ))}
+            {data.truncated.problem_reports ? <p className="text-xs text-muted">Showing the oldest open reports only.</p> : null}
           </div>
         )}
       </Panel>
@@ -151,6 +180,7 @@ export function AccountabilityPanel({ makerspace, isSuperadmin }: { makerspace: 
       </Panel>
       {restrict.error ? <p className="text-sm text-danger">{(restrict.error as Error).message}</p> : null}
       {restore.error ? <p className="text-sm text-danger">{(restore.error as Error).message}</p> : null}
+      {resolveReport.error ? <p className="text-sm text-danger">{(resolveReport.error as Error).message}</p> : null}
     </div>
   );
 }

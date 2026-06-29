@@ -87,6 +87,15 @@ class InventoryAssetDetailView(APIView):
                 .select_related("product", "makerspace")
                 .get(pk=asset.pk)
             )
+            # Re-check under the row lock: the asset may have been issued/reserved
+            # (or otherwise changed) between the initial read and acquiring the lock.
+            if locked_asset.product.tracking_mode != TrackingMode.INDIVIDUAL:
+                raise ValidationError("Asset edits are only for individual-tracked products.")
+            if locked_asset.status in {
+                InventoryAsset.Status.ISSUED,
+                InventoryAsset.Status.RESERVED,
+            }:
+                raise ValidationError("Cannot edit an asset that is currently issued or reserved.")
             serializer.instance = locked_asset
             asset = serializer.save()
             audit.record(

@@ -102,6 +102,40 @@ class AccountabilityReportView(APIView):
         return Response(accountability.accountability_data(makerspace.id))
 
 
+class ProblemReportResolveView(APIView):
+    permission_classes = [IsActiveStaff]
+    serializer_class = GenericObjectSerializer
+
+    @extend_schema(
+        tags=["Analytics"],
+        summary="Resolve a public problem report",
+        request=None,
+        responses={200: OpenApiTypes.OBJECT},
+    )
+    def post(self, request, makerspace_id, pk, *args, **kwargs):
+        from apps.audit import services as audit
+        from apps.hardware_requests.models import PublicProblemReport
+
+        makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
+        require_action(request.user, rbac.Action.EDIT_INVENTORY, makerspace.id)
+        require_module(makerspace, "reports")
+        report = get_object_or_404(
+            PublicProblemReport.objects.filter(makerspace_id=makerspace.id), pk=pk
+        )
+        if report.resolved_at is None:
+            report.resolved_at = timezone.now()
+            report.resolved_by = request.user
+            report.save(update_fields=["resolved_at", "resolved_by"])
+            audit.record(
+                request.user,
+                "public_problem.resolved",
+                makerspace=makerspace,
+                target=report,
+                meta={"loan_id": report.loan_id},
+            )
+        return Response({"id": report.id, "resolved": True})
+
+
 class AggregateAnalyticsView(APIView):
     permission_classes = [IsActiveStaff]
     serializer_class = GenericObjectSerializer

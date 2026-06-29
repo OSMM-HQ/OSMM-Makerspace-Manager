@@ -25,6 +25,7 @@ urlpatterns = [
     path("admin/reports/<slug:report_key>/export", views.AggregateReportExportView.as_view(), name="report-export-aggregate"),
     path("admin/makerspace/<int:makerspace_id>/ledger", views.LedgerView.as_view(), name="ledger"),
     path("admin/makerspace/<int:makerspace_id>/accountability", views.AccountabilityReportView.as_view(), name="accountability-dashboard"),
+    path("admin/makerspace/<int:makerspace_id>/problem-reports/<int:pk>/resolve", views.ProblemReportResolveView.as_view(), name="problem-report-resolve"),
     path("admin/makerspace/<int:makerspace_id>/analytics/summary", views.AnalyticsView.as_view(), {"report_key": "summary"}, name="analytics-summary"),
     path("admin/makerspace/<int:makerspace_id>/analytics/taken-items", views.AnalyticsView.as_view(), {"report_key": "taken-items"}, name="analytics-taken-items"),
     path("admin/makerspace/<int:makerspace_id>/analytics/active-loans", views.AnalyticsView.as_view(), {"report_key": "active-loans"}, name="analytics-active-loans"),

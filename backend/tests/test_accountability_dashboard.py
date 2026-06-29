@@ -137,7 +137,7 @@ def test_accountability_dashboard_aggregates_repeat_offenders_overdue_and_restri
             "restriction_reason": "Lost tools pending review.",
         }
     ]
-    assert response.data["truncated"] == {"repeat_offenders": False, "overdue": False}
+    assert response.data["truncated"] == {"repeat_offenders": False, "overdue": False, "problem_reports": False}
 
 
 def test_accountability_dashboard_cross_tenant_makerspace_returns_404():
@@ -162,3 +162,39 @@ def test_accountability_dashboard_requires_view_audit_in_same_makerspace():
     response = authenticated_client(guest).get(_url(makerspace))
 
     assert response.status_code == 403
+
+
+def test_accountability_surfaces_and_resolves_public_problem_reports():
+    from apps.hardware_requests.models import PublicProblemReport
+
+    makerspace = make_space("accountability-problems")
+    admin = make_member("accountability-problems-admin", makerspace)
+    product = make_product(makerspace, total_quantity=2, available_quantity=2)
+    requester = make_user("problem-reporter")
+    loan = _direct_loan(makerspace, product, requester, due_at=timezone.now() + timedelta(days=3))
+    report = PublicProblemReport.objects.create(
+        makerspace=makerspace,
+        loan=loan,
+        request=loan.request,
+        requester=requester,
+        note="Tip is bent.",
+    )
+
+    client = authenticated_client(admin)
+    response = client.get(_url(makerspace))
+    assert response.status_code == 200
+    assert [row["id"] for row in response.data["problem_reports"]] == [report.id]
+    assert response.data["problem_reports"][0]["note"] == "Tip is bent."
+
+    resolve = client.post(
+        f"/api/v1/admin/makerspace/{makerspace.id}/problem-reports/{report.id}/resolve",
+        {},
+        format="json",
+    )
+    assert resolve.status_code == 200
+    report.refresh_from_db()
+    assert report.resolved_at is not None
+    assert report.resolved_by == admin
+
+    after = client.get(_url(makerspace))
+    assert after.data["problem_reports"] == []

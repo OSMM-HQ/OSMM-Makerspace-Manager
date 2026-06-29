@@ -5,6 +5,7 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.hardware_requests.models import (
     HardwareRequest,
+    PublicProblemReport,
     PublicToolLoan,
     RequesterAccountability,
 )
@@ -13,15 +14,38 @@ from apps.hardware_requests.models import (
 def accountability_data(makerspace_id, *, limit=200):
     repeat_offenders, repeat_truncated = _repeat_offenders(makerspace_id, limit)
     overdue, overdue_truncated = _overdue_loans(makerspace_id, limit)
+    problem_reports, problems_truncated = _problem_reports(makerspace_id, limit)
     return {
         "repeat_offenders": repeat_offenders,
         "overdue": overdue,
         "restrictions": _restricted_requesters(makerspace_id),
+        "problem_reports": problem_reports,
         "truncated": {
             "repeat_offenders": repeat_truncated,
             "overdue": overdue_truncated,
+            "problem_reports": problems_truncated,
         },
     }
+
+
+def _problem_reports(makerspace_id, limit):
+    rows = list(
+        PublicProblemReport.objects.filter(
+            makerspace_id=makerspace_id, resolved_at__isnull=True
+        )
+        .select_related("requester", "loan")
+        .order_by("created_at")[: limit + 1]
+    )
+    return [
+        {
+            "id": report.id,
+            "requester_username": report.requester.username,
+            "label": report.loan.target_label,
+            "note": report.note,
+            "created_at": report.created_at.isoformat(),
+        }
+        for report in rows[:limit]
+    ], len(rows) > limit
 
 
 def _repeat_offenders(makerspace_id, limit):
