@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 import { EmptyState, SkeletonRows } from "../../../components/ui";
 import { WarrantyStatusBadge } from "../WarrantyStatusBadge";
+import { WarrantySection } from "../WarrantySection";
 import type { WarrantyReportRow, WarrantyStatus } from "../warrantyApi";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 
@@ -27,6 +28,8 @@ export function WarrantyPanel({
 }) {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [page, setPage] = useState(1);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const canManageRow = (row: WarrantyReportRow) => (row.host_kind === "asset" ? canEditInventory : canSeePrinting);
   const statusQuery = status === "all" ? "" : `&status=${status}`;
   const warranties = useStaffGet<WarrantyResponse>(
     ["warranties", makerspace.id, page, PAGE_SIZE, status],
@@ -83,27 +86,49 @@ export function WarrantyPanel({
                 <th className="px-3 py-2">Expires</th>
                 <th className="px-3 py-2">Status</th>
                 <th className="px-3 py-2 text-right">Docs</th>
+                <th className="px-3 py-2 text-right">Manage</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line bg-surface">
-              {visibleRows.map((row) => (
-                <tr key={`${row.host_kind}-${row.host_id}`}>
-                  <td className="px-3 py-2 align-top">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-md border border-line bg-bg px-2 py-0.5 text-xs font-medium text-muted">
-                        {row.host_kind}
-                      </span>
-                      <span className="max-w-56 break-words font-medium text-ink">{row.host_label}</span>
-                    </div>
-                    {row.serial_number ? <p className="mt-1 text-xs text-muted">Serial: {row.serial_number}</p> : null}
-                  </td>
-                  <td className="px-3 py-2 align-top text-ink"><span className="block max-w-48 break-words">{row.vendor_name || "-"}</span></td>
-                  <td className="whitespace-nowrap px-3 py-2 align-top text-muted">{formatDate(row.purchased_on)}</td>
-                  <td className="whitespace-nowrap px-3 py-2 align-top text-muted">{formatDate(row.warranty_expires_on)}</td>
-                  <td className="whitespace-nowrap px-3 py-2 align-top"><WarrantyStatusBadge status={row.status} /></td>
-                  <td className="whitespace-nowrap px-3 py-2 text-right align-top text-muted">{row.document_count}</td>
-                </tr>
-              ))}
+              {visibleRows.map((row) => {
+                const rowKey = `${row.host_kind}-${row.host_id}`;
+                const isOpen = expanded === rowKey;
+                const manageable = canManageRow(row);
+                return (
+                  <Fragment key={rowKey}>
+                    <tr>
+                      <td className="px-3 py-2 align-top">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-md border border-line bg-bg px-2 py-0.5 text-xs font-medium text-muted">
+                            {row.host_kind}
+                          </span>
+                          <span className="max-w-56 break-words font-medium text-ink">{row.host_label}</span>
+                        </div>
+                        {row.serial_number ? <p className="mt-1 text-xs text-muted">Serial: {row.serial_number}</p> : null}
+                      </td>
+                      <td className="px-3 py-2 align-top text-ink"><span className="block max-w-48 break-words">{row.vendor_name || "-"}</span></td>
+                      <td className="whitespace-nowrap px-3 py-2 align-top text-muted">{formatDate(row.purchased_on)}</td>
+                      <td className="whitespace-nowrap px-3 py-2 align-top text-muted">{formatDate(row.warranty_expires_on)}</td>
+                      <td className="whitespace-nowrap px-3 py-2 align-top"><WarrantyStatusBadge status={row.status} /></td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right align-top text-muted">{row.document_count}</td>
+                      <td className="whitespace-nowrap px-3 py-2 text-right align-top">
+                        {manageable ? (
+                          <button className="desk-button" type="button" onClick={() => setExpanded(isOpen ? null : rowKey)}>
+                            {isOpen ? "Close" : "Manage"}
+                          </button>
+                        ) : <span className="text-xs text-muted">-</span>}
+                      </td>
+                    </tr>
+                    {isOpen && manageable ? (
+                      <tr key={`${rowKey}-edit`}>
+                        <td colSpan={7} className="bg-bg px-3 py-3">
+                          <WarrantySection hostKind={row.host_kind} hostId={row.host_id} />
+                        </td>
+                      </tr>
+                    ) : null}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
