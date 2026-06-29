@@ -250,6 +250,63 @@ def test_managed_spool_create_and_remaining_weight_adjustment():
     assert "remaining_weight_grams" in response.data
 
 
+def test_managed_printer_and_spool_create_update_write_audit_rows():
+    from apps.audit.models import AuditLog
+
+    makerspace = make_space("manage-audit")
+    manager = make_print_manager("manage-audit-manager", makerspace)
+    client = authenticated_client(manager)
+
+    response = client.post(
+        printer_list_url(),
+        {"makerspace": makerspace.id, "name": "Bambu X1", "status": "active"},
+        format="json",
+    )
+    assert response.status_code == 201
+    printer_id = response.data["id"]
+    assert AuditLog.objects.filter(
+        action="printing.printer_created", target_id=str(printer_id)
+    ).exists()
+
+    response = client.patch(
+        printer_detail_url(PrintPrinter.objects.get(pk=printer_id)),
+        {"name": "Bambu X1 Carbon"},
+        format="json",
+    )
+    assert response.status_code == 200
+    assert AuditLog.objects.filter(
+        action="printing.printer_updated", target_id=str(printer_id)
+    ).exists()
+
+    response = client.post(
+        spool_list_url(),
+        {
+            "makerspace": makerspace.id,
+            "printer": printer_id,
+            "material": "PLA",
+            "color": "blue",
+            "initial_weight_grams": "1000.00",
+            "remaining_weight_grams": "1000.00",
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+    spool_id = response.data["id"]
+    assert AuditLog.objects.filter(
+        action="print.spool_created", target_id=str(spool_id)
+    ).exists()
+
+    response = client.patch(
+        spool_detail_url(FilamentSpool.objects.get(pk=spool_id)),
+        {"remaining_weight_grams": "800.00"},
+        format="json",
+    )
+    assert response.status_code == 200
+    assert AuditLog.objects.filter(
+        action="print.spool_updated", target_id=str(spool_id)
+    ).exists()
+
+
 def test_managed_fail_print_requires_reason_and_stores_reason():
     makerspace = make_space("manage-fail-print")
     bucket = make_bucket(makerspace)

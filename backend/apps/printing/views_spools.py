@@ -28,7 +28,14 @@ class ManagedFilamentSpoolListCreateView(
     def perform_create(self, serializer):
         makerspace_id = serializer.validated_data["makerspace_id"]
         self.assert_can_manage_makerspace(makerspace_id)
-        serializer.save()
+        spool = serializer.save()
+        audit.record(
+            self.request.user,
+            "print.spool_created",
+            makerspace=spool.makerspace,
+            target=spool,
+            meta={"material": spool.material, "color": spool.color},
+        )
 
     @extend_schema(
         parameters=[
@@ -64,7 +71,14 @@ class ManagedFilamentSpoolDetailView(
             "makerspace_id", serializer.instance.makerspace_id
         )
         self.assert_can_manage_makerspace(makerspace_id)
-        serializer.save()
+        spool = serializer.save()
+        audit.record(
+            self.request.user,
+            "print.spool_updated",
+            makerspace=spool.makerspace,
+            target=spool,
+            meta={"material": spool.material, "color": spool.color},
+        )
 
     def destroy(self, request, *args, **kwargs):
         spool = self.get_object()
