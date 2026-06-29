@@ -7,7 +7,7 @@ import { staffRequest } from "../../lib/api";
 import { usePaginatedQuery } from "../../lib/usePaginatedQuery";
 import { DirectLoanList, type DirectLoan } from "./DirectLoanList";
 import { invalidateInventoryViews } from "./queryInvalidation";
-import { DirectLoanReturnModal } from "./DirectLoanReturnModal";
+import { DirectLoanReturnModal, type DirectLoanResolution } from "./DirectLoanReturnModal";
 import { Panel, type Makerspace, useStaffGet } from "./StaffPanels";
 import { EvidenceUpload } from "./panels/EvidenceUpload";
 
@@ -26,7 +26,7 @@ type ContainerResponse = ContainerOption[] | { results: ContainerOption[] };
 type VerifyResponse = { username: string };
 type LineDraft = { key: number; productId: string; quantity: string };
 type ScannedPayload = { payload: string; label: string };
-type ReturnLoanPayload = { loanId: number; evidenceId: number; notes: string; qrPayload: string };
+type ReturnLoanPayload = { loanId: number; evidenceId: number; notes: string; qrPayload: string; resolutions: DirectLoanResolution[] };
 type QrResolveResponse = {
   target:
     | { type: "product"; id: number; name: string }
@@ -169,10 +169,10 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
     issueEvidenceId !== null &&
     !issue.isPending;
   const returnLoan = useMutation({
-    mutationFn: ({ loanId, evidenceId, notes, qrPayload }: ReturnLoanPayload) =>
+    mutationFn: ({ loanId, evidenceId, notes, qrPayload, resolutions }: ReturnLoanPayload) =>
       staffRequest(`/admin/direct-loans/${loanId}/return`, {
         method: "POST",
-        body: JSON.stringify({ evidence_id: evidenceId, notes, qr_payload: qrPayload.trim() }),
+        body: JSON.stringify({ evidence_id: evidenceId, notes, qr_payload: qrPayload.trim(), resolutions }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["direct-loans", makerspace.id] });
@@ -198,7 +198,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
     returnLoan.reset();
     resetReturnState();
   };
-  const submitReturn = () => {
+  const submitReturn = (resolutions: DirectLoanResolution[]) => {
     if (!returningLoan || returnEvidenceId === null || !returnNotes.trim()) return;
     if (returningLoan.return_scan_required && !returnQrPayload.trim()) return;
     returnLoan.mutate({
@@ -206,6 +206,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
       evidenceId: returnEvidenceId,
       notes: returnNotes.trim(),
       qrPayload: returnQrPayload,
+      resolutions,
     });
   };
   const addLine = () => {

@@ -137,8 +137,15 @@ def _direct_return_url(loan):
     return f"/api/v1/admin/direct-loans/{loan.id}/return"
 
 
-def _return_body(evidence, notes="Container returned."):
-    return {"evidence_id": evidence.id, "notes": notes}
+def _return_body(evidence, loan, notes="Container returned."):
+    resolutions = []
+    for item in loan.request.items.all():
+        remaining = item.issued_quantity - (
+            item.returned_quantity + item.damaged_quantity + item.missing_quantity
+        )
+        if remaining > 0:
+            resolutions.append({"item_id": item.id, "returned": remaining})
+    return {"evidence_id": evidence.id, "notes": notes, "resolutions": resolutions}
 
 
 def test_ledger_returns_outstanding_request_and_self_checkout_scoped_to_makerspace():
@@ -259,7 +266,7 @@ def test_container_only_direct_handout_appears_once_in_ledger_and_returns(
     monkeypatch.setattr("apps.evidence.storage.object_exists", lambda key: True)
     returned = client.post(
         _direct_return_url(loan),
-        _return_body(evidence),
+        _return_body(evidence, loan),
         format="json",
     )
 

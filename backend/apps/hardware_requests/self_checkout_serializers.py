@@ -7,6 +7,19 @@ class PublicToolScanSerializer(serializers.Serializer):
     payload = serializers.CharField(max_length=64)
     evidence_id = serializers.IntegerField()
     remark = serializers.CharField()
+    report_problem = serializers.BooleanField(required=False, default=False)
+    problem_note = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+    )
+
+    def validate(self, attrs):
+        if attrs.get("report_problem") and not attrs.get("problem_note", "").strip():
+            raise serializers.ValidationError(
+                {"problem_note": "Problem note is required."}
+            )
+        return attrs
 
 
 # Checkout collects full identity; email IS the Check-In identifier (no separate

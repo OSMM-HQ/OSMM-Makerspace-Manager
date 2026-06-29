@@ -19,10 +19,29 @@ pytestmark = pytest.mark.django_db
 _current_direct_makerspace = None
 
 
-def return_body(evidence, notes="Returned in good condition.", qr_payload=None):
+def full_resolutions(loan):
+    resolutions = []
+    for item in loan.request.items.all():
+        remaining = item.issued_quantity - (
+            item.returned_quantity + item.damaged_quantity + item.missing_quantity
+        )
+        if remaining > 0:
+            resolutions.append({"item_id": item.id, "returned": remaining})
+    return resolutions
+
+
+def return_body(
+    evidence, notes="Returned in good condition.", qr_payload=None, loan=None, resolutions=None
+):
     body = {"evidence_id": evidence.id, "notes": notes}
     if qr_payload is not None:
         body["qr_payload"] = qr_payload
+    if resolutions is None:
+        # Success-path callers pass loan=... so resolutions cover its outstanding
+        # units; negative tests error before build_resolutions runs, so the
+        # placeholder below just satisfies the serializer's allow_empty=False.
+        resolutions = full_resolutions(loan) if loan is not None else [{"item_id": 1, "returned": 1}]
+    body["resolutions"] = resolutions
     return body
 
 
@@ -183,7 +202,7 @@ def test_admin_direct_manual_handout_and_return_logs_product(monkeypatch):
     allow_uploaded(monkeypatch)
     returned = client.post(
         f"/api/v1/admin/direct-loans/{loan.id}/return",
-        return_body(evidence, notes="All good on return."),
+        return_body(evidence, notes="All good on return.", loan=loan),
         format="json",
     )
 
@@ -519,7 +538,7 @@ def test_direct_return_rejects_already_returned_loan(monkeypatch):
 
     first = client.post(
         f"/api/v1/admin/direct-loans/{loan.id}/return",
-        return_body(evidence),
+        return_body(evidence, loan=loan),
         format="json",
     )
     second = client.post(
@@ -570,7 +589,7 @@ def test_every_qr_in_multi_qr_direct_loan_is_tracked(monkeypatch):
     allow_uploaded(monkeypatch)
     returned = client.post(
         f"/api/v1/admin/direct-loans/{loan.id}/return",
-        return_body(evidence, qr_payload=qr_a.payload),
+        return_body(evidence, qr_payload=qr_a.payload, loan=loan),
         format="json",
     )
 
@@ -621,7 +640,7 @@ def test_direct_return_requires_matching_qr_for_qr_loan(monkeypatch):
 
     returned = client.post(
         f"/api/v1/admin/direct-loans/{loan.id}/return",
-        return_body(make_return_evidence(makerspace, admin), qr_payload=qr.payload),
+        return_body(make_return_evidence(makerspace, admin), qr_payload=qr.payload, loan=loan),
         format="json",
     )
 
@@ -670,7 +689,7 @@ def test_direct_return_requires_container_qr_when_container_has_active_qr(monkey
 
     returned = client.post(
         f"/api/v1/admin/direct-loans/{loan.id}/return",
-        return_body(make_return_evidence(makerspace, admin), qr_payload=container_qr.payload),
+        return_body(make_return_evidence(makerspace, admin), qr_payload=container_qr.payload, loan=loan),
         format="json",
     )
 
@@ -949,7 +968,7 @@ def test_direct_return_rejects_reused_evidence_across_loans(monkeypatch):
 
     first = client.post(
         f"/api/v1/admin/direct-loans/{loan_a_id}/return",
-        return_body(evidence),
+        return_body(evidence, loan=PublicToolLoan.objects.get(pk=loan_a_id)),
         format="json",
     )
     assert first.status_code == 200
@@ -1017,3 +1036,147 @@ def _public_issue_evidence(makerspace, identifier):
         object_key=f"evidence/{makerspace.id}/issue/{identifier}-{EvidencePhoto.objects.count() + 1}",
         uploaded_by=get_or_create_requester(identifier),
     )
+
+
+# --- Phase 5: direct-loan return resolutions + accountability ---
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_direct_return_damaged_routes_to_buckets_and_accountability(monkeypatch):
+    from apps.hardware_requests.models import RequesterAccountability, ReturnEvent
+
+    makerspace = make_space("direct-return-damaged")
+    admin = make_admin(makerspace)
+    product = make_product(makerspace, total_quantity=3, available_quantity=3)
+    client = authed(admin)
+    issued = client.post(
+        direct_url(makerspace),
+        direct_payload(items=[{"product_id": product.id, "quantity": 2}]),
+        format="json",
+    )
+    assert issued.status_code == 201
+    loan = PublicToolLoan.objects.get()
+    item = loan.request.items.get()
+    evidence = make_return_evidence(makerspace, admin)
+    allow_uploaded(monkeypatch)
+
+    returned = client.post(
+        f"/api/v1/admin/direct-loans/{loan.id}/return",
+        return_body(
+            evidence,
+            resolutions=[{"item_id": item.id, "returned": 1, "damaged": 1}],
+        ),
+        format="json",
+    )
+
+    assert returned.status_code == 200
+    product.refresh_from_db()
+    assert product.available_quantity == 2
+    assert product.damaged_quantity == 1
+    assert product.issued_quantity == 0
+    assert product.total_quantity == 3
+    loan.request.refresh_from_db()
+    assert loan.request.status == HardwareRequest.Status.CLOSED_WITH_ISSUE
+    assert RequesterAccountability.objects.filter(
+        request=loan.request,
+        issue_type=RequesterAccountability.IssueType.DAMAGED,
+        quantity=1,
+    ).exists()
+    # Containerless direct return still records an (immutable) ReturnEvent with a null box.
+    event = ReturnEvent.objects.get(request=loan.request)
+    assert event.box is None
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_direct_return_rejects_partial_resolution(monkeypatch):
+    makerspace = make_space("direct-return-partial")
+    admin = make_admin(makerspace)
+    product = make_product(makerspace, total_quantity=3, available_quantity=3)
+    client = authed(admin)
+    client.post(
+        direct_url(makerspace),
+        direct_payload(items=[{"product_id": product.id, "quantity": 2}]),
+        format="json",
+    )
+    loan = PublicToolLoan.objects.get()
+    item = loan.request.items.get()
+    evidence = make_return_evidence(makerspace, admin)
+    allow_uploaded(monkeypatch)
+
+    response = client.post(
+        f"/api/v1/admin/direct-loans/{loan.id}/return",
+        return_body(evidence, resolutions=[{"item_id": item.id, "returned": 1}]),
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert response.data["detail"] == (
+        "Direct loan returns must resolve every outstanding unit."
+    )
+    loan.refresh_from_db()
+    assert loan.status == PublicToolLoan.Status.CHECKED_OUT
+    product.refresh_from_db()
+    assert product.issued_quantity == 2
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_direct_return_individual_asset_outcomes_flip_status_without_double_count(monkeypatch):
+    makerspace = make_space("direct-return-individual")
+    admin = make_admin(makerspace)
+    product = make_product(
+        makerspace,
+        tracking_mode=TrackingMode.INDIVIDUAL,
+        total_quantity=2,
+        available_quantity=2,
+    )
+    asset_a = InventoryAsset.objects.create(
+        makerspace=makerspace, product=product, asset_tag="IND-A"
+    )
+    asset_b = InventoryAsset.objects.create(
+        makerspace=makerspace, product=product, asset_tag="IND-B"
+    )
+    qr_a = make_asset_qr(makerspace, asset_a)
+    qr_b = make_asset_qr(makerspace, asset_b)
+    client = authed(admin)
+    issued = client.post(
+        direct_url(makerspace),
+        direct_payload(qr_payloads=[qr_a.payload, qr_b.payload]),
+        format="json",
+    )
+    assert issued.status_code == 201
+    loan = PublicToolLoan.objects.get()
+    item = loan.request.items.get()
+    evidence = make_return_evidence(makerspace, admin)
+    allow_uploaded(monkeypatch)
+
+    returned = client.post(
+        f"/api/v1/admin/direct-loans/{loan.id}/return",
+        return_body(
+            evidence,
+            qr_payload=qr_a.payload,
+            resolutions=[
+                {
+                    "item_id": item.id,
+                    "returned": 1,
+                    "damaged": 1,
+                    "assets": [
+                        {"asset_id": asset_a.id, "outcome": "returned"},
+                        {"asset_id": asset_b.id, "outcome": "damaged"},
+                    ],
+                }
+            ],
+        ),
+        format="json",
+    )
+
+    assert returned.status_code == 200
+    asset_a.refresh_from_db()
+    asset_b.refresh_from_db()
+    assert asset_a.status == InventoryAsset.Status.AVAILABLE
+    assert asset_b.status == InventoryAsset.Status.DAMAGED
+    product.refresh_from_db()
+    # Buckets moved exactly once (return_items), asset status set directly — no double count.
+    assert product.available_quantity == 1
+    assert product.damaged_quantity == 1
+    assert product.issued_quantity == 0
+    assert product.total_quantity == 2

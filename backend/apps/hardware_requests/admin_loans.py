@@ -3,7 +3,10 @@ from unfold.admin import ModelAdmin
 
 from apps.hardware_requests.asset_link_models import HardwareRequestItemAsset
 from apps.hardware_requests.return_models import RequesterAccountability, ReturnEvent
-from apps.hardware_requests.self_checkout_models import PublicToolLoan
+from apps.hardware_requests.self_checkout_models import (
+    PublicProblemReport,
+    PublicToolLoan,
+)
 from config.admin_access import SuperuserOnlyModelAdmin
 
 
@@ -53,6 +56,45 @@ class PublicToolLoanAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
+@admin.register(PublicProblemReport)
+class PublicProblemReportAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+    list_display = (
+        "id",
+        "makerspace",
+        "loan",
+        "requester",
+        "created_at",
+        "resolved_at",
+        "resolved_by",
+    )
+    list_filter = ("makerspace", "resolved_at", "created_at")
+    search_fields = (
+        "requester__username",
+        "requester__email",
+        "request__requester_username",
+        "note",
+    )
+    readonly_fields = (
+        "makerspace",
+        "loan",
+        "request",
+        "requester",
+        "note",
+        "created_at",
+    )
+    fields = (
+        "makerspace",
+        "loan",
+        "request",
+        "requester",
+        "note",
+        "created_at",
+        "resolved_at",
+        "resolved_by",
+    )
+
+    def has_add_permission(self, request):
+        return False
 
 @admin.register(ReturnEvent)
 class ReturnEventAdmin(SuperuserOnlyModelAdmin, ModelAdmin):

@@ -95,3 +95,38 @@ class PublicToolLoan(models.Model):
             models.Index(fields=["makerspace", "status"]),
             models.Index(fields=["requester", "status"]),
         ]
+
+class PublicProblemReport(models.Model):
+    makerspace = models.ForeignKey(
+        "makerspaces.Makerspace",
+        on_delete=models.PROTECT,
+        related_name="public_problem_reports",
+    )
+    loan = models.ForeignKey(
+        "hardware_requests.PublicToolLoan",
+        on_delete=models.PROTECT,
+        related_name="problem_reports",
+    )
+    request = models.ForeignKey(
+        "hardware_requests.HardwareRequest",
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    requester = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    note = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+
+    class Meta:
+        indexes = [models.Index(fields=["makerspace", "resolved_at"])]

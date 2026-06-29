@@ -420,3 +420,69 @@ def test_public_self_checkout_evidence_upload_url_is_audited(monkeypatch):
     assert event.target_type == "evidence.evidencephoto"
     assert event.target_id == str(photo.id)
     assert event.meta == {"surface": "public_self_checkout", "type": EvidencePhoto.EvidenceType.ISSUE}
+
+
+# --- Phase 5: public report-a-problem (one-tap return stays unchanged) ---
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_public_return_report_problem_creates_report_and_keeps_stock_available():
+    from apps.hardware_requests.models import PublicProblemReport
+
+    makerspace = make_space("checkout-report")
+    product = make_product(makerspace, public_self_checkout_enabled=True)
+    qr = make_qr(makerspace, product)
+    client = api_client()
+    checkout = client.post(checkout_url(makerspace), checkout_payload(qr.payload), format="json")
+    assert checkout.status_code == 201
+
+    returned = client.post(
+        return_url(makerspace),
+        return_payload(qr.payload, report_problem=True, problem_note="Tip is bent."),
+        format="json",
+    )
+
+    assert returned.status_code == 200
+    assert returned.data["status"] == PublicToolLoan.Status.RETURNED
+    product.refresh_from_db()
+    # Public users never classify damage — stock returns to available, flagged for staff.
+    assert product.available_quantity == 2
+    assert product.damaged_quantity == 0
+    report = PublicProblemReport.objects.get()
+    assert report.note == "Tip is bent."
+    assert report.makerspace == makerspace
+    assert report.resolved_at is None
+    assert AuditLog.objects.filter(action="public_tool.problem_reported").exists()
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_public_return_without_report_creates_no_problem_report():
+    from apps.hardware_requests.models import PublicProblemReport
+
+    makerspace = make_space("checkout-no-report")
+    product = make_product(makerspace, public_self_checkout_enabled=True)
+    qr = make_qr(makerspace, product)
+    client = api_client()
+    client.post(checkout_url(makerspace), checkout_payload(qr.payload), format="json")
+
+    returned = client.post(return_url(makerspace), return_payload(qr.payload), format="json")
+
+    assert returned.status_code == 200
+    assert not PublicProblemReport.objects.exists()
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
+def test_public_return_report_problem_requires_note():
+    makerspace = make_space("checkout-report-note")
+    product = make_product(makerspace, public_self_checkout_enabled=True)
+    qr = make_qr(makerspace, product)
+    client = api_client()
+    client.post(checkout_url(makerspace), checkout_payload(qr.payload), format="json")
+
+    response = client.post(
+        return_url(makerspace),
+        return_payload(qr.payload, report_problem=True, problem_note="   "),
+        format="json",
+    )
+
+    assert response.status_code == 400

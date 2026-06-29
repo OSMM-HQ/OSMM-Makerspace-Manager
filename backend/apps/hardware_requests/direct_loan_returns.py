@@ -7,18 +7,33 @@ from apps.boxes.models import QrCode, QrScanEvent
 from apps.evidence import storage
 from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests.direct_loan_audit import record_item_logs
-from apps.hardware_requests.models import HardwareRequest, PublicToolLoan, ReturnEvent
-from apps.hardware_requests.self_checkout_workflow import _return_request_items
+from apps.hardware_requests.models import PublicToolLoan, ReturnEvent
+from apps.hardware_requests.return_helpers import (
+    OUTCOME_MAP,
+    build_resolutions,
+    finalize_return_status,
+    remaining_quantity,
+    write_accountability,
+)
 from apps.hardware_requests.workflow_errors import (
     EvidenceNotUploaded,
     InvalidTransition,
     RequestValidationError,
     ReturnValidationError,
 )
-from apps.inventory.models import InventoryAsset
+from apps.inventory import availability
+from apps.inventory.models import InventoryAsset, TrackingMode
 
 
-def return_direct_loan(loan, actor, evidence_id, notes, *, qr_payload=""):
+def return_direct_loan(
+    loan,
+    actor,
+    evidence_id,
+    notes,
+    resolutions,
+    *,
+    qr_payload="",
+):
     notes = str(notes or "").strip()
     if not notes:
         raise RequestValidationError("Return notes are required.")
@@ -32,8 +47,8 @@ def return_direct_loan(loan, actor, evidence_id, notes, *, qr_payload=""):
 
     with transaction.atomic():
         locked = (
-            PublicToolLoan.objects.select_for_update()
-            .select_related("request")
+            PublicToolLoan.objects.select_for_update(of=("self",))
+            .select_related("container", "makerspace", "request")
             .get(pk=loan.pk)
         )
         if locked.status != PublicToolLoan.Status.CHECKED_OUT:
@@ -46,12 +61,27 @@ def return_direct_loan(loan, actor, evidence_id, notes, *, qr_payload=""):
             raise ReturnValidationError("Evidence already used.")
         validate_evidence_upload(evidence, label="Return")
         return_qr = _return_scan_qr(locked, qr_payload)
-        _return_request_items(locked.request)
-        if locked.asset_ids:
-            InventoryAsset.objects.select_for_update().filter(
-                pk__in=locked.asset_ids,
-                makerspace=locked.makerspace,
-            ).update(status=InventoryAsset.Status.AVAILABLE)
+        outstanding = [
+            item
+            for item in locked.request.items.select_related("product").all()
+            if remaining_quantity(item) > 0
+        ]
+        if outstanding:
+            validated = build_resolutions(locked.request, resolutions)
+            _require_full_resolution(locked.request, validated)
+            availability.return_items(locked.request, validated)
+            for resolution in validated:
+                item = resolution["item"]
+                if item.product.tracking_mode == TrackingMode.INDIVIDUAL:
+                    _flip_direct_loan_assets(actor, locked, item, resolution)
+            write_accountability(actor, locked.request, evidence, validated)
+        elif resolutions:
+            # Nothing outstanding (e.g. a container-only handout) but the caller
+            # sent resolutions — reject rather than silently ignore them.
+            raise ReturnValidationError("This direct loan has no outstanding units to resolve.")
+        event = _create_return_event(actor, locked, evidence, notes)
+        finalize_return_status(locked.request, actor)
+
         locked.status = PublicToolLoan.Status.RETURNED
         locked.returned_at = timezone.now()
         locked.return_evidence = evidence
@@ -68,12 +98,6 @@ def return_direct_loan(loan, actor, evidence_id, notes, *, qr_payload=""):
                 )
         except IntegrityError as exc:
             raise ReturnValidationError("Evidence already used.") from exc
-        locked.request.status = HardwareRequest.Status.RETURNED
-        locked.request.closed_by = actor
-        locked.request.closed_at = locked.returned_at
-        locked.request.save(
-            update_fields=["status", "closed_by", "closed_at", "updated_at"]
-        )
         if return_qr is not None:
             QrScanEvent.objects.create(
                 makerspace=locked.makerspace,
@@ -90,9 +114,79 @@ def return_direct_loan(loan, actor, evidence_id, notes, *, qr_payload=""):
             "evidence.attached",
             makerspace=locked.makerspace,
             target=evidence,
-            meta={"request_id": locked.request_id},
+            meta={"request_id": locked.request_id, "return_event_id": event.pk},
         )
         return locked
+
+
+def _require_full_resolution(request, validated):
+    resolved_by_item = {
+        resolution["item"].pk: (
+            resolution["returned"] + resolution["damaged"] + resolution["missing"]
+        )
+        for resolution in validated
+    }
+    for item in request.items.select_related("product").all():
+        remaining = remaining_quantity(item)
+        if remaining <= 0:
+            continue
+        if resolved_by_item.get(item.pk) != remaining:
+            raise ReturnValidationError(
+                "Direct loan returns must resolve every outstanding unit."
+            )
+
+
+def _flip_direct_loan_assets(actor, locked, item, resolution):
+    asset_ids = [int(asset_id) for asset_id in (locked.asset_ids or [])]
+    assets = list(
+        InventoryAsset.objects.select_for_update()
+        .filter(
+            pk__in=asset_ids,
+            product=item.product,
+            makerspace=locked.makerspace,
+            status=InventoryAsset.Status.ISSUED,
+        )
+        .order_by("pk")
+    )
+    assets_by_id = {asset.pk: asset for asset in assets}
+    asset_outcomes = resolution["asset_outcomes"]
+    if asset_outcomes:
+        requested_ids = [asset["asset_id"] for asset in asset_outcomes]
+        if len(set(requested_ids)) != len(requested_ids) or any(
+            asset_id not in assets_by_id for asset_id in requested_ids
+        ):
+            raise ReturnValidationError(
+                "Return asset does not belong to this direct loan."
+            )
+        for asset_outcome in asset_outcomes:
+            asset = assets_by_id[asset_outcome["asset_id"]]
+            asset.status = OUTCOME_MAP[asset_outcome["outcome"]][1]
+            asset.save(update_fields=["status", "updated_at"])
+        return
+
+    quantity = resolution["returned"]
+    if quantity <= 0:
+        return
+    if len(assets) < quantity:
+        raise ReturnValidationError("Return quantity exceeds issued direct loan assets.")
+    for asset in assets[:quantity]:
+        asset.status = InventoryAsset.Status.AVAILABLE
+        asset.save(update_fields=["status", "updated_at"])
+
+
+def _create_return_event(actor, locked, evidence, notes):
+    try:
+        with transaction.atomic():
+            return ReturnEvent.objects.create(
+                request=locked.request,
+                makerspace=locked.makerspace,
+                box=locked.container,
+                evidence=evidence,
+                remark=notes,
+                actor=actor,
+            )
+    except IntegrityError as exc:
+        raise ReturnValidationError("Evidence already used.") from exc
 
 
 def _return_scan_qr(loan, qr_payload):
