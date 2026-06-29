@@ -25,7 +25,7 @@ type Summary = {
   missing_quantity: number;
 };
 
-const exportReports = ["taken-items", "active-loans", "returns", "damaged-lost"] as const;
+const exportReports = ["taken-items", "active-loans", "returns", "qr-scans", "damaged-lost"] as const;
 
 export function OperationsReports({
   makerspace,
@@ -61,6 +61,10 @@ export function OperationsReports({
   const topBorrowers = useStaffGet<ReportRows>(["operations-report", "top-borrowers", scopeKey, startDate, endDate], analyticsPreview("top-borrowers"), hardwareEnabled);
   const damagedLost = useStaffGet<ReportRows>(["operations-report", "damaged-lost", scopeKey, startDate, endDate], analyticsPreview("damaged-lost"), hardwareEnabled);
   const recentlyAdded = useStaffGet<ReportRows>(["operations-report", "recently-added", scopeKey, startDate, endDate], analyticsPreview("recently-added"), hardwareEnabled);
+  const takenItems = useStaffGet<ReportRows>(["operations-report", "taken-items", scopeKey, startDate, endDate], analyticsPreview("taken-items"), hardwareEnabled);
+  const activeLoans = useStaffGet<ReportRows>(["operations-report", "active-loans", scopeKey, startDate, endDate], analyticsPreview("active-loans"), hardwareEnabled);
+  const returns = useStaffGet<ReportRows>(["operations-report", "returns", scopeKey, startDate, endDate], analyticsPreview("returns"), hardwareEnabled);
+  const qrScans = useStaffGet<ReportRows>(["operations-report", "qr-scans", scopeKey, startDate, endDate], analyticsPreview("qr-scans"), hardwareEnabled);
 
   const scopeLabel = aggregate ? "all makerspaces" : makerspace.name;
   const makerspaceName = (id: number) => makerspaces.find((space) => space.id === id)?.name ?? `#${id}`;
@@ -183,6 +187,34 @@ export function OperationsReports({
         <Panel title="Recently added">
           <DataState loading={recentlyAdded.isLoading} error={recentlyAdded.error} empty={!reportRows(recentlyAdded.data).length}>
             <ReportTable data={recentlyAdded.data} />
+          </DataState>
+        </Panel>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Panel title="Taken items">
+          <DataState loading={takenItems.isLoading} error={takenItems.error} empty={!reportRows(takenItems.data).length}>
+            <ReportTable data={takenItems.data} />
+          </DataState>
+        </Panel>
+
+        <Panel title="Active loans">
+          <DataState loading={activeLoans.isLoading} error={activeLoans.error} empty={!reportRows(activeLoans.data).length}>
+            <ReportTable data={activeLoans.data} />
+          </DataState>
+        </Panel>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-2">
+        <Panel title="Returns">
+          <DataState loading={returns.isLoading} error={returns.error} empty={!reportRows(returns.data).length}>
+            <ReportTable data={returns.data} />
+          </DataState>
+        </Panel>
+
+        <Panel title="QR scans">
+          <DataState loading={qrScans.isLoading} error={qrScans.error} empty={!reportRows(qrScans.data).length}>
+            <ReportTable data={qrScans.data} />
           </DataState>
         </Panel>
       </div>
