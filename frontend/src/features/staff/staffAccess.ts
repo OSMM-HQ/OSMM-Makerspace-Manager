@@ -4,6 +4,8 @@ const ALL_TABS = [
   "email-logs",
 ] as const;
 
+export const STAFF_TAB_KEYS: readonly string[] = ALL_TABS;
+
 const FULL_ACCESS_ROLES = ["space_manager", "inventory_manager"];
 const PRINTING_TABS = ["requests", "printing", "tobuy", "reports", "warranty", "api", "emailtemplates"];
 const GUEST_ADMIN_TABS = ["requests", "direct"];
