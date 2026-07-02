@@ -1,9 +1,10 @@
-import { Navigate, useLocation } from "react-router-dom";
+import { Link, Navigate, useLocation } from "react-router-dom";
 
 import { StaffHeader } from "./StaffHeader";
 import { StaffSidebar } from "./StaffSidebar";
 import { StaffTabContent } from "./StaffTabContent";
-import { getStaffAccess } from "./staffAccess";
+import { EmptyState } from "../../components/ui/EmptyState";
+import { getStaffAccess, STAFF_TAB_KEYS, TAB_LABELS } from "./staffAccess";
 import {
   filterTabsByEnabledModules,
   readStoredStaffTab,
@@ -64,6 +65,8 @@ export function StaffWorkspace({
       : makerspaces;
   const moduleAllowedTabs = filterTabsByEnabledModules(allowedTabs, activeMakerspace);
   const routeTab = tabFromStaffPath(location.pathname, guestOnly);
+  const routeTabDenied =
+    !!routeTab && STAFF_TAB_KEYS.includes(routeTab) && !moduleAllowedTabs.includes(routeTab);
   const requestedTab = routeTab || readStoredStaffTab();
   const activeTab = moduleAllowedTabs.includes(requestedTab)
     ? requestedTab
@@ -74,7 +77,7 @@ export function StaffWorkspace({
     ? staffTabPath(activeTab, guestOnly, activeMakerspace?.slug, singleTenantLocked)
     : staffTabPath(defaultTab, guestOnly, activeMakerspace?.slug, singleTenantLocked);
 
-  if (location.pathname !== activeTabPath) {
+  if (!routeTabDenied && location.pathname !== activeTabPath) {
     return <Navigate replace to={activeTabPath} />;
   }
 
@@ -82,7 +85,7 @@ export function StaffWorkspace({
     <main className="desk-shell grid grid-cols-1 lg:grid-cols-[260px_minmax(0,1fr)]">
       <StaffSidebar
         activeMakerspace={activeMakerspace}
-        activeTab={activeTab}
+        activeTab={routeTabDenied ? "" : activeTab}
         allowedTabs={moduleAllowedTabs}
         collapsedGroups={collapsedGroups}
         guestOnly={guestOnly}
@@ -107,23 +110,35 @@ export function StaffWorkspace({
         />
 
         <div className="min-w-0 p-5">
-          <StaffTabContent
-            activeMakerspace={activeMakerspace}
-            activeTab={activeTab}
-            guestOnly={guestOnly || handoutOnly}
-            makerspaces={visibleMakerspaces}
-            isSuperadmin={isSuperadmin}
-            printingOnly={printingOnly}
-            canChooseToBuyKind={canChooseToBuyKind}
-            canEditInventory={canEditInventory}
-            canIssueDirectLoan={canIssueDirectLoan}
-            canUseToBuy={canUseToBuy}
-            canManageQr={canManageQr}
-            canManageMakerspace={canManageMakerspace}
-            canSeeHardware={canSeeHardware}
-            canSeePrinting={canSeePrinting}
-            canViewAudit={canViewAudit}
-          />
+          {routeTabDenied ? (
+            <EmptyState
+              title="Access denied"
+              description="You don't have permission to view this page, or it isn't enabled for this makerspace."
+              action={
+                <Link className="desk-button-primary" to={activeTabPath}>
+                  Go to {TAB_LABELS[activeTab] ?? "your workspace"}
+                </Link>
+              }
+            />
+          ) : (
+            <StaffTabContent
+              activeMakerspace={activeMakerspace}
+              activeTab={activeTab}
+              guestOnly={guestOnly || handoutOnly}
+              makerspaces={visibleMakerspaces}
+              isSuperadmin={isSuperadmin}
+              printingOnly={printingOnly}
+              canChooseToBuyKind={canChooseToBuyKind}
+              canEditInventory={canEditInventory}
+              canIssueDirectLoan={canIssueDirectLoan}
+              canUseToBuy={canUseToBuy}
+              canManageQr={canManageQr}
+              canManageMakerspace={canManageMakerspace}
+              canSeeHardware={canSeeHardware}
+              canSeePrinting={canSeePrinting}
+              canViewAudit={canViewAudit}
+            />
+          )}
         </div>
       </section>
     </main>
