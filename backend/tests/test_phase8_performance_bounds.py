@@ -41,7 +41,9 @@ def test_report_preview_limit_keeps_rows_enveloped_and_export_full():
     exported = client.get(f"/api/v1/admin/makerspace/{space.id}/reports/recently-added/export")
 
     assert preview.status_code == 200
-    assert list(preview.data) == ["rows"]
+    # P6 added a typed_rows companion to the report envelope (frontend charts prefer it);
+    # the preview still limits rows while export stays full.
+    assert list(preview.data) == ["rows", "typed_rows"]
     assert len(preview.data["rows"]) == 3
     assert exported.status_code == 200
     assert exported.content.decode().count("Report Product") == 3

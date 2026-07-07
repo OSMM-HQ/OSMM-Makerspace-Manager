@@ -1940,6 +1940,20 @@
                 "parameters": [
                     {
                         "in": "query",
+                        "name": "makerspace",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "overdue",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "page",
                         "schema": {
                             "type": "integer"
@@ -1950,6 +1964,48 @@
                         "name": "page_size",
                         "schema": {
                             "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "search",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sort",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "-due",
+                                "-holder",
+                                "-item_name",
+                                "-makerspace_id",
+                                "-quantity",
+                                "-since",
+                                "-source",
+                                "due",
+                                "holder",
+                                "item_name",
+                                "makerspace_id",
+                                "quantity",
+                                "since",
+                                "source"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "source",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "direct",
+                                "reviewed",
+                                "self_checkout"
+                            ]
                         }
                     }
                 ],
@@ -1967,6 +2023,107 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/LedgerResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/ledger/export": {
+            "get": {
+                "operationId": "api_v1_admin_ledger_export_retrieve",
+                "summary": "Export outstanding inventory loans across all makerspaces",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "format",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "csv",
+                                "xlsx"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "makerspace",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "overdue",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "search",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sort",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "-due",
+                                "-holder",
+                                "-item_name",
+                                "-makerspace_id",
+                                "-quantity",
+                                "-since",
+                                "-source",
+                                "due",
+                                "holder",
+                                "item_name",
+                                "makerspace_id",
+                                "quantity",
+                                "since",
+                                "source"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "source",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "direct",
+                                "reviewed",
+                                "self_checkout"
+                            ]
+                        }
+                    }
+                ],
+                "tags": [
+                    "Ledger"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "text/csv": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
                                 }
                             }
                         },
@@ -4421,6 +4578,13 @@
                     },
                     {
                         "in": "query",
+                        "name": "overdue",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "page",
                         "schema": {
                             "type": "integer"
@@ -4431,6 +4595,48 @@
                         "name": "page_size",
                         "schema": {
                             "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "search",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sort",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "-due",
+                                "-holder",
+                                "-item_name",
+                                "-makerspace_id",
+                                "-quantity",
+                                "-since",
+                                "-source",
+                                "due",
+                                "holder",
+                                "item_name",
+                                "makerspace_id",
+                                "quantity",
+                                "since",
+                                "source"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "source",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "direct",
+                                "reviewed",
+                                "self_checkout"
+                            ]
                         }
                     }
                 ],
@@ -4448,6 +4654,108 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/LedgerResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/ledger/export": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_ledger_export_retrieve",
+                "summary": "Export outstanding inventory loans",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "format",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "csv",
+                                "xlsx"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "overdue",
+                        "schema": {
+                            "type": "boolean"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "search",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "sort",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "-due",
+                                "-holder",
+                                "-item_name",
+                                "-makerspace_id",
+                                "-quantity",
+                                "-since",
+                                "-source",
+                                "due",
+                                "holder",
+                                "item_name",
+                                "makerspace_id",
+                                "quantity",
+                                "since",
+                                "source"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "source",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "direct",
+                                "reviewed",
+                                "self_checkout"
+                            ]
+                        }
+                    }
+                ],
+                "tags": [
+                    "Ledger"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "text/csv": {
+                                "schema": {
+                                    "type": "string"
+                                }
+                            },
+                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                                "schema": {
+                                    "type": "string",
+                                    "format": "binary"
                                 }
                             }
                         },
@@ -15948,6 +16256,14 @@
                 "properties": {
                     "count": {
                         "type": "integer"
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true
                     },
                     "results": {
                         "type": "array",

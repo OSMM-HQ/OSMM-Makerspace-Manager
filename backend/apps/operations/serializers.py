@@ -105,6 +105,8 @@ class LedgerRowSerializer(serializers.Serializer):
 
 class LedgerResponseSerializer(serializers.Serializer):
     count = serializers.IntegerField()
+    next = serializers.CharField(allow_null=True, required=False)
+    previous = serializers.CharField(allow_null=True, required=False)
     results = LedgerRowSerializer(many=True)
 
 
