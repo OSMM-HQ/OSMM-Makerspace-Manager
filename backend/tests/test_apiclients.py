@@ -42,9 +42,14 @@ def _admin_user(username, role=User.Role.SPACE_MANAGER, **kwargs):
 
 
 def test_api_client_admin_changelist_is_superadmin_only():
-    a, b = Makerspace.objects.create(name="A", slug="a"), Makerspace.objects.create(name="B", slug="b")
-    ApiClient.issue(label="A-client", makerspace=a)
-    ApiClient.issue(label="B-client", makerspace=b)
+    a = Makerspace.objects.create(name="A", slug="a")
+    b = Makerspace.objects.create(name="B", slug="b")
+    ApiClient.issue(
+        label="A-client", makerspace=a, allowed_origins=["https://a.example.com"]
+    )
+    ApiClient.issue(
+        label="B-client", makerspace=b, allowed_origins=["https://b.example.com"]
+    )
     manager = _admin_user(
         "api-client-manager",
         access_status=User.AccessStatus.ACTIVE,

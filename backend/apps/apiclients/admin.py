@@ -1,6 +1,7 @@
 import secrets
 
 from django.contrib import admin, messages
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from unfold.admin import ModelAdmin
 from apps.apiclients.models import ApiClient, ApiKeyRequest
@@ -144,13 +145,24 @@ class ApiKeyRequestAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
                 skipped_count += 1
                 continue
 
-            client, raw_secret = ApiClient.issue(
-                label=api_key_request.label,
-                makerspace=api_key_request.makerspace,
-                allowed_origins=api_key_request.allowed_origins or [],
-                created_by=request.user,
-                client_type="server",
-            )
+            try:
+                client, raw_secret = ApiClient.issue(
+                    label=api_key_request.label,
+                    makerspace=api_key_request.makerspace,
+                    allowed_origins=api_key_request.allowed_origins or [],
+                    created_by=request.user,
+                    client_type="server",
+                )
+            except DjangoValidationError as exc:
+                self.message_user(
+                    request,
+                    (
+                        f"{api_key_request.pk}: "
+                        f"{getattr(exc, 'message_dict', exc.messages)}"
+                    ),
+                    level=messages.ERROR,
+                )
+                continue
             sync_makerspace_origins(api_key_request.makerspace)
             api_key_request.status = ApiKeyRequest.Status.APPROVED
             api_key_request.resolved_by = request.user
