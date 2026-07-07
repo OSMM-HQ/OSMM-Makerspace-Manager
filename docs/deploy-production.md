@@ -115,6 +115,11 @@ TRUST_X_FORWARDED_PROTO=true
 PUBLIC_APP_BASE_URL=<frontend origin>
 ```
 
+Behind a CDN or reverse proxy, also set `TRUSTED_PROXY_COUNT` to the number of trusted
+proxies in front of the backend (e.g. `1` for a single nginx/Cloudflare hop). Without it,
+per-IP rate limits key on the proxy's IP (all users share one bucket → false lockouts) or
+trust a spoofable `X-Forwarded-For`. Leave it unset when the backend is reached directly.
+
 Start with `SECURE_HSTS_SECONDS=0` or a short value while verifying domains. When
 `SECURE_HSTS_SECONDS > 0`, the app also enables HSTS `includeSubDomains` and
 `preload`; do not preload until the entire apex domain and every subdomain are
