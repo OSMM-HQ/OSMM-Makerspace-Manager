@@ -247,7 +247,7 @@ class MeView(APIView):
         },
     )
     def get(self, request, *args, **kwargs):
-        return Response(user_payload(request.user))
+        return Response(user_payload(request.user, request=request))
 
 
 class ChangePasswordView(APIView):
