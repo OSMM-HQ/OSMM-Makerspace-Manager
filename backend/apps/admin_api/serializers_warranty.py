@@ -2,7 +2,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.warranty.models import Warranty, WarrantyDocument
-from apps.warranty.status import warranty_status
+from apps.warranty.status import STATUS_CHOICES, warranty_status
 
 
 class WarrantyDocumentSerializer(serializers.ModelSerializer):
@@ -117,8 +117,17 @@ class WarrantyReportRowSerializer(serializers.Serializer):
     host_id = serializers.IntegerField()
     host_label = serializers.CharField()
     serial_number = serializers.CharField(allow_null=True)
-    vendor_name = serializers.CharField(allow_blank=True)
+    vendor_name = serializers.CharField(allow_blank=True, allow_null=True)
     purchased_on = serializers.DateField(allow_null=True)
     warranty_expires_on = serializers.DateField(allow_null=True)
     status = serializers.CharField()
     document_count = serializers.IntegerField()
+
+
+class WarrantyReportQuerySerializer(serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=[value for value, _label in STATUS_CHOICES],
+        required=False,
+    )
+    missing_docs = serializers.BooleanField(required=False)
+    expires_before = serializers.DateField(required=False)

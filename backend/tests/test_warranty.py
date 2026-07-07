@@ -1,4 +1,4 @@
-﻿from datetime import timedelta
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -448,8 +448,12 @@ def test_warranty_data_does_not_leak_to_public_payloads():
 def test_warranty_report_gates_rows_by_host_action_and_makerspace_scope():
     makerspace = make_space("warranty-report")
     other_space = make_space("warranty-report-other")
-    asset_warranty = attach_asset_warranty(make_asset(makerspace), vendor_name="Asset Report Vendor")
-    printer_warranty = attach_printer_warranty(make_printer(makerspace), vendor_name="Printer Report Vendor")
+    covered_asset = make_asset(makerspace, tag="A-COVERED")
+    uncovered_asset = make_asset(makerspace, tag="A-UNCOVERED")
+    covered_printer = make_printer(makerspace, name="Printer Covered")
+    uncovered_printer = make_printer(makerspace, name="Printer Uncovered")
+    asset_warranty = attach_asset_warranty(covered_asset, vendor_name="Asset Report Vendor")
+    printer_warranty = attach_printer_warranty(covered_printer, vendor_name="Printer Report Vendor")
     guest_admin = make_member(
         "warranty-report-guest",
         makerspace,
@@ -479,15 +483,35 @@ def test_warranty_report_gates_rows_by_host_action_and_makerspace_scope():
     assert guest.status_code == 200
     assert response_rows(guest) == []
     assert inventory.status_code == 200
-    assert [row["host_kind"] for row in response_rows(inventory)] == ["asset"]
-    assert response_rows(inventory)[0]["vendor_name"] == asset_warranty.vendor_name
+    inventory_rows = response_rows(inventory)
+    assert [row["host_kind"] for row in inventory_rows] == ["asset", "asset"]
+    assert {row["host_id"] for row in inventory_rows} == {covered_asset.id, uncovered_asset.id}
+    covered_asset_row = next(row for row in inventory_rows if row["host_id"] == covered_asset.id)
+    uncovered_asset_row = next(row for row in inventory_rows if row["host_id"] == uncovered_asset.id)
+    assert covered_asset_row["vendor_name"] == asset_warranty.vendor_name
+    assert covered_asset_row["status"] == "active"
+    assert uncovered_asset_row["vendor_name"] is None
+    assert uncovered_asset_row["warranty_expires_on"] is None
+    assert uncovered_asset_row["status"] == "unknown"
     assert printing.status_code == 200
-    assert [row["host_kind"] for row in response_rows(printing)] == ["printer"]
-    assert response_rows(printing)[0]["vendor_name"] == printer_warranty.vendor_name
+    printing_rows = response_rows(printing)
+    assert [row["host_kind"] for row in printing_rows] == ["printer", "printer"]
+    assert {row["host_id"] for row in printing_rows} == {covered_printer.id, uncovered_printer.id}
+    covered_printer_row = next(row for row in printing_rows if row["host_id"] == covered_printer.id)
+    uncovered_printer_row = next(row for row in printing_rows if row["host_id"] == uncovered_printer.id)
+    assert covered_printer_row["vendor_name"] == printer_warranty.vendor_name
+    assert covered_printer_row["status"] == "active"
+    assert uncovered_printer_row["vendor_name"] is None
+    assert uncovered_printer_row["warranty_expires_on"] is None
+    assert uncovered_printer_row["status"] == "unknown"
     assert space.status_code == 200
-    assert sorted(row["host_kind"] for row in response_rows(space)) == ["asset", "printer"]
+    assert [row["host_kind"] for row in response_rows(space)] == [
+        "asset",
+        "asset",
+        "printer",
+        "printer",
+    ]
     assert cross_tenant.status_code == 404
-
 
 def test_warranty_report_status_filter_is_applied_server_side():
     makerspace = make_space("warranty-report-filter")
@@ -513,6 +537,60 @@ def test_warranty_report_status_filter_is_applied_server_side():
     assert [row["host_kind"] for row in response_rows(active)] == ["asset"]
     assert invalid.status_code == 400
 
+
+def test_warranty_report_missing_docs_expires_before_and_count_include_uncovered():
+    makerspace = make_space("warranty-report-coverage-filters")
+    today = timezone.localdate()
+    documented_asset = make_asset(makerspace, tag="A-DOC")
+    late_asset = make_asset(makerspace, tag="A-LATE")
+    uncovered_asset = make_asset(makerspace, tag="A-UNCOVERED")
+    no_doc_printer = make_printer(makerspace, name="Printer No Docs")
+    uncovered_printer = make_printer(makerspace, name="Printer Uncovered")
+    documented_warranty = attach_asset_warranty(
+        documented_asset,
+        warranty_expires_on=today + timedelta(days=10),
+    )
+    attach_asset_warranty(late_asset, warranty_expires_on=today + timedelta(days=60))
+    attach_printer_warranty(no_doc_printer, warranty_expires_on=today + timedelta(days=20))
+    WarrantyDocument.objects.create(
+        warranty=documented_warranty,
+        object_key=f"warranty/{makerspace.id}/documented.pdf",
+        original_filename="documented.pdf",
+        content_type="application/pdf",
+        size_bytes=123,
+    )
+    space_manager = make_member("warranty-coverage-filter-manager", makerspace)
+    client = authenticated_client(space_manager)
+    url = reverse("admin-makerspace-warranties", kwargs={"makerspace_id": makerspace.id})
+
+    first_page = client.get(f"{url}?page_size=1")
+    missing_docs = client.get(f"{url}?missing_docs=true&page_size=10")
+    expires_before = client.get(f"{url}?expires_before={today + timedelta(days=30)}&page_size=10")
+    missing_before = client.get(
+        f"{url}?missing_docs=true&expires_before={today + timedelta(days=30)}&page_size=10"
+    )
+
+    assert first_page.status_code == 200
+    assert first_page.data["count"] == 5
+    assert len(response_rows(first_page)) == 1
+    assert missing_docs.status_code == 200
+    assert missing_docs.data["count"] == 4
+    assert {row["host_id"] for row in response_rows(missing_docs) if row["host_kind"] == "asset"} == {
+        late_asset.id,
+        uncovered_asset.id,
+    }
+    assert {row["host_id"] for row in response_rows(missing_docs) if row["host_kind"] == "printer"} == {
+        no_doc_printer.id,
+        uncovered_printer.id,
+    }
+    assert expires_before.status_code == 200
+    assert expires_before.data["count"] == 2
+    assert [row["host_kind"] for row in response_rows(expires_before)] == ["asset", "printer"]
+    assert {row["status"] for row in response_rows(expires_before)} == {"expiring_soon"}
+    assert missing_before.status_code == 200
+    assert missing_before.data["count"] == 1
+    assert response_rows(missing_before)[0]["host_kind"] == "printer"
+    assert response_rows(missing_before)[0]["host_id"] == no_doc_printer.id
 
 def test_warranty_report_excludes_rows_for_disabled_host_modules():
     makerspace = make_space("warranty-report-modules")
