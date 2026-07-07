@@ -1,19 +1,37 @@
-from django.db.models import Count
+from datetime import timedelta
+from math import ceil
+
+from django.db.models import Count, Q
+from django.db.models.functions import Lower
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from drf_spectacular.utils import OpenApiParameter, extend_schema
-from rest_framework.exceptions import ValidationError
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
+from rest_framework.exceptions import NotFound
 from rest_framework.response import Response
+from rest_framework.utils.urls import replace_query_param
 from rest_framework.views import APIView
 
 from apps.accounts import rbac
 from apps.admin_api.permissions import IsActiveStaff
-from apps.admin_api.serializers_warranty import WarrantyReportRowSerializer
+from apps.admin_api.serializers_warranty import (
+    WarrantyReportQuerySerializer,
+    WarrantyReportRowSerializer,
+)
 from apps.admin_api.views_inventory import InventoryPagination
+from apps.inventory.models import InventoryAsset
 from apps.makerspaces.models import Makerspace
 from apps.makerspaces.platform import module_enabled
+from apps.printing.models import PrintPrinter
 from apps.warranty.models import Warranty
-from apps.warranty.status import STATUS_CHOICES, warranty_status
+from apps.warranty.status import (
+    STATUS_ACTIVE,
+    STATUS_CHOICES,
+    STATUS_EXPIRED,
+    STATUS_EXPIRING_SOON,
+    STATUS_UNKNOWN,
+    WARRANTY_EXPIRY_SOON_DAYS,
+    warranty_status,
+)
 
 _VALID_STATUSES = {value for value, _ in STATUS_CHOICES}
 
@@ -24,14 +42,24 @@ class MakerspaceWarrantyReportView(APIView):
 
     @extend_schema(
         tags=["Admin warranty"],
-        summary="List warranty records for a makerspace",
+        summary="List warranty coverage for a makerspace",
         parameters=[
             OpenApiParameter(
                 "status",
                 str,
                 description="Filter rows by computed warranty status.",
                 enum=sorted(_VALID_STATUSES),
-            )
+            ),
+            OpenApiParameter(
+                "missing_docs",
+                bool,
+                description="Only include hosts with no warranty documents or no warranty record.",
+            ),
+            OpenApiParameter(
+                "expires_before",
+                OpenApiTypes.DATE,
+                description="Only include hosts with warranty expiry on or before this date.",
+            ),
         ],
         responses={200: WarrantyReportRowSerializer(many=True)},
     )
@@ -44,58 +72,137 @@ class MakerspaceWarrantyReportView(APIView):
             ),
             pk=makerspace_id,
         )
-        status_filter = request.query_params.get("status")
-        if status_filter and status_filter not in _VALID_STATUSES:
-            raise ValidationError({"status": "Invalid warranty status filter."})
-        rows = _report_rows(request.user, makerspace)
-        if status_filter:
-            rows = [row for row in rows if row["status"] == status_filter]
+        query = WarrantyReportQuerySerializer(data=request.query_params)
+        query.is_valid(raise_exception=True)
+        filters = query.validated_data
+        today = timezone.localdate()
+
+        asset_qs = _asset_hosts(request.user, makerspace, today, filters)
+        printer_qs = _printer_hosts(request.user, makerspace, today, filters)
+        asset_count = asset_qs.count()
+        printer_count = printer_qs.count()
+        total_count = asset_count + printer_count
+
         paginator = self.pagination_class()
-        page = paginator.paginate_queryset(rows, request, view=self)
-        serializer = WarrantyReportRowSerializer(page, many=True)
-        return paginator.get_paginated_response(serializer.data)
-
-
-def _report_rows(user, makerspace):
-    today = timezone.localdate()
-    makerspace_id = makerspace.id
-    rows = []
-    # Mirror the per-host module guard the individual endpoints apply (require_module):
-    # a disabled host module must not expose its warranty rows here either.
-    if rbac.can(user, rbac.Action.EDIT_INVENTORY, makerspace_id) and module_enabled(
-        makerspace, "staff_admin"
-    ):
-        rows.extend(_asset_row(warranty, today) for warranty in _asset_warranties(makerspace_id))
-    if rbac.can(user, rbac.Action.MANAGE_PRINTING, makerspace_id) and module_enabled(
-        makerspace, "printing"
-    ):
-        rows.extend(
-            _printer_row(warranty, today) for warranty in _printer_warranties(makerspace_id)
+        page_size = paginator.get_page_size(request) or total_count or 1
+        page_number = _page_number(request, total_count, page_size, paginator.page_query_param)
+        offset = (page_number - 1) * page_size
+        rows = _page_rows(asset_qs, printer_qs, asset_count, offset, page_size, today)
+        serializer = WarrantyReportRowSerializer(rows, many=True)
+        return Response(
+            {
+                "count": total_count,
+                "next": _page_link(
+                    request, page_number + 1, page_number * page_size < total_count
+                ),
+                "previous": _page_link(request, page_number - 1, page_number > 1),
+                "results": serializer.data,
+            }
         )
-    return sorted(rows, key=lambda row: (row["host_kind"], row["host_label"].lower()))
 
 
-def _asset_warranties(makerspace_id):
-    return (
-        Warranty.objects.filter(asset__makerspace_id=makerspace_id)
-        .select_related("asset")
-        .annotate(document_count=Count("documents"))
-        .order_by("asset__asset_tag")
-    )
+def _asset_hosts(user, makerspace, today, filters):
+    makerspace_id = makerspace.id
+    if not (
+        rbac.can(user, rbac.Action.EDIT_INVENTORY, makerspace_id)
+        and module_enabled(makerspace, "staff_admin")
+    ):
+        return InventoryAsset.objects.none()
+    qs = rbac.scope_by_action(
+        user,
+        rbac.Action.EDIT_INVENTORY,
+        InventoryAsset.objects.select_related("warranty"),
+    ).filter(makerspace_id=makerspace_id)
+    qs = _apply_host_filters(qs, today, filters)
+    return qs.order_by(Lower("asset_tag"), "asset_tag", "id")
 
 
-def _printer_warranties(makerspace_id):
-    return (
-        Warranty.objects.filter(printer__makerspace_id=makerspace_id)
-        .select_related("printer")
-        .annotate(document_count=Count("documents"))
-        .order_by("printer__name")
-    )
+def _printer_hosts(user, makerspace, today, filters):
+    makerspace_id = makerspace.id
+    if not (
+        rbac.can(user, rbac.Action.MANAGE_PRINTING, makerspace_id)
+        and module_enabled(makerspace, "printing")
+    ):
+        return PrintPrinter.objects.none()
+    qs = rbac.scope_by_action(
+        user,
+        rbac.Action.MANAGE_PRINTING,
+        PrintPrinter.objects.select_related("warranty"),
+    ).filter(makerspace_id=makerspace_id)
+    qs = _apply_host_filters(qs, today, filters)
+    return qs.order_by(Lower("name"), "name", Lower("model"), "model", "id")
 
 
-def _asset_row(warranty, today):
-    asset = warranty.asset
-    return _base_row(warranty, today) | {
+def _apply_host_filters(qs, today, filters):
+    qs = qs.annotate(document_count=Count("warranty__documents", distinct=True))
+    if filters.get("missing_docs") is True:
+        qs = qs.filter(Q(warranty__isnull=True) | Q(document_count=0))
+    if expires_before := filters.get("expires_before"):
+        qs = qs.filter(warranty__warranty_expires_on__lte=expires_before)
+    if status := filters.get("status"):
+        qs = _filter_by_status(qs, status, today)
+    return qs
+
+
+def _filter_by_status(qs, status, today):
+    soon_cutoff = today + timedelta(days=WARRANTY_EXPIRY_SOON_DAYS)
+    if status == STATUS_UNKNOWN:
+        return qs.filter(Q(warranty__isnull=True) | Q(warranty__warranty_expires_on__isnull=True))
+    if status == STATUS_EXPIRED:
+        return qs.filter(warranty__warranty_expires_on__lt=today)
+    if status == STATUS_EXPIRING_SOON:
+        return qs.filter(
+            warranty__warranty_expires_on__gte=today,
+            warranty__warranty_expires_on__lte=soon_cutoff,
+        )
+    if status == STATUS_ACTIVE:
+        return qs.filter(warranty__warranty_expires_on__gt=soon_cutoff)
+    return qs
+
+
+def _page_number(request, total_count, page_size, page_query_param):
+    raw = request.query_params.get(page_query_param, "1")
+    if raw == "last":
+        return max(1, ceil(total_count / page_size))
+    try:
+        page_number = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise NotFound("Invalid page.") from exc
+    if page_number < 1:
+        raise NotFound("Invalid page.")
+    if total_count == 0 and page_number != 1:
+        raise NotFound("Invalid page.")
+    if total_count and (page_number - 1) * page_size >= total_count:
+        raise NotFound("Invalid page.")
+    return page_number
+
+
+def _page_link(request, page_number, enabled):
+    if not enabled:
+        return None
+    return replace_query_param(request.build_absolute_uri(), "page", page_number)
+
+
+def _page_rows(asset_qs, printer_qs, asset_count, offset, page_size, today):
+    rows = []
+    remaining = page_size
+    if offset < asset_count:
+        asset_limit = min(remaining, asset_count - offset)
+        rows.extend(_asset_row(asset, today) for asset in asset_qs[offset : offset + asset_limit])
+        remaining -= asset_limit
+        printer_offset = 0
+    else:
+        printer_offset = offset - asset_count
+    if remaining > 0:
+        rows.extend(
+            _printer_row(printer, today)
+            for printer in printer_qs[printer_offset : printer_offset + remaining]
+        )
+    return rows
+
+
+def _asset_row(asset, today):
+    return _base_row(_host_warranty(asset), asset.document_count, today) | {
         "host_kind": "asset",
         "host_id": asset.id,
         "host_label": asset.asset_tag,
@@ -103,10 +210,9 @@ def _asset_row(warranty, today):
     }
 
 
-def _printer_row(warranty, today):
-    printer = warranty.printer
+def _printer_row(printer, today):
     label = f"{printer.name} ({printer.model})" if printer.model else printer.name
-    return _base_row(warranty, today) | {
+    return _base_row(_host_warranty(printer), printer.document_count, today) | {
         "host_kind": "printer",
         "host_id": printer.id,
         "host_label": label,
@@ -114,11 +220,26 @@ def _printer_row(warranty, today):
     }
 
 
-def _base_row(warranty, today):
+def _host_warranty(host):
+    try:
+        return host.warranty
+    except Warranty.DoesNotExist:
+        return None
+
+
+def _base_row(warranty, document_count, today):
+    if warranty is None:
+        return {
+            "vendor_name": None,
+            "purchased_on": None,
+            "warranty_expires_on": None,
+            "status": STATUS_UNKNOWN,
+            "document_count": 0,
+        }
     return {
         "vendor_name": warranty.vendor_name,
         "purchased_on": warranty.purchased_on,
         "warranty_expires_on": warranty.warranty_expires_on,
         "status": warranty_status(warranty, today),
-        "document_count": warranty.document_count,
+        "document_count": document_count or 0,
     }

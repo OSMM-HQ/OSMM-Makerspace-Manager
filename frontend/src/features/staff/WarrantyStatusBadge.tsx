@@ -9,7 +9,7 @@ const statusTone: Record<WarrantyStatus, "success" | "warn" | "danger" | "neutra
 };
 
 const statusLabel: Record<WarrantyStatus, string> = {
-  unknown: "No warranty info",
+  unknown: "Uncovered / no warranty",
   active: "Active",
   expiring_soon: "Expiring soon",
   expired: "Expired",

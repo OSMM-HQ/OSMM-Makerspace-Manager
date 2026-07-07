@@ -35,7 +35,7 @@ export type WarrantyReportRow = {
   host_id: number;
   host_label: string;
   serial_number: string | null;
-  vendor_name: string;
+  vendor_name: string | null;
   purchased_on: string | null;
   warranty_expires_on: string | null;
   status: WarrantyStatus;

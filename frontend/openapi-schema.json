@@ -5561,8 +5561,17 @@
         "/api/v1/admin/makerspace/{makerspace_id}/warranties": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_warranties_list",
-                "summary": "List warranty records for a makerspace",
+                "summary": "List warranty coverage for a makerspace",
                 "parameters": [
+                    {
+                        "in": "query",
+                        "name": "expires_before",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        },
+                        "description": "Only include hosts with warranty expiry on or before this date."
+                    },
                     {
                         "in": "path",
                         "name": "makerspace_id",
@@ -5570,6 +5579,14 @@
                             "type": "integer"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "missing_docs",
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "description": "Only include hosts with no warranty documents or no warranty record."
                     },
                     {
                         "name": "page",
@@ -22025,7 +22042,8 @@
                         "nullable": true
                     },
                     "vendor_name": {
-                        "type": "string"
+                        "type": "string",
+                        "nullable": true
                     },
                     "purchased_on": {
                         "type": "string",

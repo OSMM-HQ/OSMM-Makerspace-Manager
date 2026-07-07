@@ -27,16 +27,20 @@ export function WarrantyPanel({
   canSeePrinting: boolean;
 }) {
   const [status, setStatus] = useState<StatusFilter>("all");
+  const [missingDocs, setMissingDocs] = useState(false);
+  const [expiresBefore, setExpiresBefore] = useState("");
   const [page, setPage] = useState(1);
   const [expanded, setExpanded] = useState<string | null>(null);
   const canManageRow = (row: WarrantyReportRow) => (row.host_kind === "asset" ? canEditInventory : canSeePrinting);
-  const statusQuery = status === "all" ? "" : `&status=${status}`;
+  const queryParams = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
+  if (status !== "all") queryParams.set("status", status);
+  if (missingDocs) queryParams.set("missing_docs", "true");
+  if (expiresBefore) queryParams.set("expires_before", expiresBefore);
   const warranties = useStaffGet<WarrantyResponse>(
-    ["warranties", makerspace.id, page, PAGE_SIZE, status],
-    `/admin/makerspace/${makerspace.id}/warranties?page=${page}&page_size=${PAGE_SIZE}${statusQuery}`,
+    ["warranties", makerspace.id, page, PAGE_SIZE, status, missingDocs, expiresBefore],
+    `/admin/makerspace/${makerspace.id}/warranties?${queryParams.toString()}`,
   );
 
-  // Status is filtered server-side (before pagination), so the loaded page is already scoped.
   const visibleRows = warranties.data?.results ?? [];
   const totalPages = Math.max(1, Math.ceil((warranties.data?.count ?? 0) / PAGE_SIZE));
   const scopeLabel = canEditInventory && canSeePrinting
@@ -44,35 +48,61 @@ export function WarrantyPanel({
     : canEditInventory
       ? "hardware assets"
       : "printers";
+  const filtersActive = status !== "all" || missingDocs || Boolean(expiresBefore);
 
   function updateStatus(value: StatusFilter) {
     setStatus(value);
     setPage(1);
   }
 
+  function updateMissingDocs(value: boolean) {
+    setMissingDocs(value);
+    setPage(1);
+  }
+
+  function updateExpiresBefore(value: string) {
+    setExpiresBefore(value);
+    setPage(1);
+  }
+
   return (
     <Panel title="Warranties">
-      <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-3 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm text-muted">Warranty records for {scopeLabel} in {makerspace.name}.</p>
-          {warranties.data ? <p className="mt-1 text-xs text-muted">{warranties.data.count} records total</p> : null}
+          <p className="text-sm text-muted">Warranty coverage for {scopeLabel} in {makerspace.name}.</p>
+          {warranties.data ? <p className="mt-1 text-xs text-muted">{warranties.data.count} hosts total</p> : null}
         </div>
-        <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-muted sm:w-48">
-          Status
-          <select className="desk-input" value={status} onChange={(event) => updateStatus(event.target.value as StatusFilter)}>
-            <option value="all">All</option>
-            <option value="active">Active</option>
-            <option value="expiring_soon">Expiring soon</option>
-            <option value="expired">Expired</option>
-            <option value="unknown">No warranty info</option>
-          </select>
-        </label>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+          <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-muted sm:w-48">
+            Status
+            <select className="desk-input" value={status} onChange={(event) => updateStatus(event.target.value as StatusFilter)}>
+              <option value="all">All</option>
+              <option value="active">Active</option>
+              <option value="expiring_soon">Expiring soon</option>
+              <option value="expired">Expired</option>
+              <option value="unknown">Uncovered / no warranty</option>
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-muted sm:w-44">
+            Expires before
+            <input className="desk-input" type="date" value={expiresBefore} onChange={(event) => updateExpiresBefore(event.target.value)} />
+          </label>
+          <label className="flex min-h-10 items-center gap-2 text-sm font-medium text-ink">
+            <input
+              type="checkbox"
+              className="h-4 w-4 rounded border-line"
+              checked={missingDocs}
+              onChange={(event) => updateMissingDocs(event.target.checked)}
+            />
+            Missing docs
+          </label>
+        </div>
       </div>
 
       {warranties.isLoading ? <WarrantyTableSkeleton /> : null}
       {warranties.error instanceof Error ? <p className="mb-3 text-sm text-danger">{warranties.error.message}</p> : null}
       {!warranties.isLoading && !warranties.error && !visibleRows.length ? (
-        <EmptyState title="No warranties" description={status === "all" ? "No warranty records have been saved yet." : "No warranty records match this status."} />
+        <EmptyState title="No warranties" description={filtersActive ? "No hosts match these warranty filters." : "No warranty-covered hosts are in scope yet."} />
       ) : null}
 
       {visibleRows.length ? (
@@ -153,13 +183,13 @@ function WarrantyTableSkeleton() {
       <table className="min-w-[820px] divide-y divide-line text-left text-sm">
         <thead className="bg-bg text-xs font-semibold uppercase text-muted">
           <tr>
-            {["Host", "Vendor", "Purchased", "Expires", "Status", "Docs"].map((label) => (
+            {["Host", "Vendor", "Purchased", "Expires", "Status", "Docs", "Manage"].map((label) => (
               <th key={label} className="px-3 py-2">{label}</th>
             ))}
           </tr>
         </thead>
         <tbody className="divide-y divide-line bg-surface">
-          <SkeletonRows rows={4} cols={6} />
+          <SkeletonRows rows={4} cols={7} />
         </tbody>
       </table>
     </div>
