@@ -5,6 +5,16 @@ from corsheaders.signals import check_request_enabled
 from apps.makerspaces.models import Makerspace
 from apps.makerspaces.platform import makerspace_public_origins, makerspace_staff_origins
 
+_STAFF_PATH_PREFIXES = (
+    "/api/v1/auth/",
+    "/api/v1/admin/",
+    "/api/v1/guest-admin/",
+    "/api/v1/printing/manage/",
+    "/api/v1/printing/admin/",
+    "/api/v1/procurement/",
+    "/api/v1/integrations/telegram/test-alert",
+)
+
 
 def _origin_host(origin):
     return (urlsplit(origin).hostname or "").lower()
@@ -47,8 +57,23 @@ def staff_origin_is_registered(origin):
     return False
 
 
+def _is_staff_path(path):
+    if not path:
+        return False
+    for prefix in _STAFF_PATH_PREFIXES:
+        if prefix == "/api/v1/integrations/telegram/test-alert":
+            if path == prefix:
+                return True
+            continue
+        if path == prefix or path.startswith(prefix):
+            return True
+    return False
+
+
 def cors_allow_registered_frontend(sender, request, **kwargs):
     origin = request.headers.get("Origin")
+    if _is_staff_path(request.path):
+        return staff_origin_is_registered(origin)
     return origin_is_registered(origin)
 
 
