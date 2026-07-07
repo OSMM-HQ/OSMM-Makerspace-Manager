@@ -91,6 +91,7 @@ class ApiClient(models.Model):
             rate_limit_tier=rate_limit_tier,
         )
         obj.set_secret(raw)
+        obj.full_clean()
         obj.save()
         return obj, raw  # raw secret shown to the operator exactly once
 

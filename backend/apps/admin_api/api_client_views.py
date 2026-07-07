@@ -1,9 +1,10 @@
 import secrets
 
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics, status
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 
 from apps.accounts import rbac
@@ -54,15 +55,20 @@ class ApiClientListCreateView(generics.ListCreateAPIView):
         makerspace = get_object_or_404(Makerspace, pk=makerspace_id)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        client, secret = ApiClient.issue(
-            label=serializer.validated_data["label"],
-            makerspace=makerspace,
-            allowed_origins=serializer.validated_data["allowed_origins"],
-            created_by=request.user,
-            client_type=serializer.validated_data.get("client_type", "server"),
-            scopes=serializer.validated_data.get("scopes") or [],
-            rate_limit_tier=serializer.validated_data.get("rate_limit_tier", "standard"),
-        )
+        try:
+            client, secret = ApiClient.issue(
+                label=serializer.validated_data["label"],
+                makerspace=makerspace,
+                allowed_origins=serializer.validated_data["allowed_origins"],
+                created_by=request.user,
+                client_type=serializer.validated_data.get("client_type", "server"),
+                scopes=serializer.validated_data.get("scopes") or [],
+                rate_limit_tier=serializer.validated_data.get(
+                    "rate_limit_tier", "standard"
+                ),
+            )
+        except DjangoValidationError as exc:
+            raise ValidationError(getattr(exc, "message_dict", exc.messages)) from exc
         client.is_active = serializer.validated_data.get("is_active", True)
         client.save(update_fields=["is_active", "updated_at"])
         sync_makerspace_origins(makerspace)
