@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { staffRequest } from "../../../lib/api";
@@ -56,7 +56,7 @@ export type HardwareRequest = {
   assigned_box?: { code: string; label: string };
 };
 
-export function Queues({ makerspace, guestOnly }: { makerspace: Makerspace; guestOnly: boolean }) {
+export function Queues({ makerspace, guestOnly, canViewAudit = false }: { makerspace: Makerspace; guestOnly: boolean; canViewAudit?: boolean }) {
   const queryClient = useQueryClient();
   const [acceptRow, setAcceptRow] = useState<HardwareRequest | null>(null);
   const [dueRow, setDueRow] = useState<HardwareRequest | null>(null);
@@ -173,24 +173,24 @@ export function Queues({ makerspace, guestOnly }: { makerspace: Makerspace; gues
       />
       {!guestOnly ? (
         <Panel title="Pending review">
-          {pending.isLoading ? <RequestListSkeleton /> : <RequestList rows={pending.results} actions={(row) => <PendingActions row={row} disabled={action.isPending} openModal={openModal} setAcceptRow={setAcceptRow} setRejectRow={setRejectRow} setDueRow={setDueRow} />} />}
+          {pending.isLoading ? <RequestListSkeleton /> : <RequestList rows={pending.results} canViewAudit={canViewAudit} actions={(row) => <PendingActions row={row} disabled={action.isPending} openModal={openModal} setAcceptRow={setAcceptRow} setRejectRow={setRejectRow} setDueRow={setDueRow} />} />}
           <Pagination page={pending.page} totalPages={pending.totalPages} onChange={pending.setPage} count={pending.count} pageSize={pending.pageSize} />
           {pending.error instanceof Error ? <p className="mt-2 text-sm text-danger">{pending.error.message}</p> : null}
         </Panel>
       ) : null}
       <Panel title="Ready for handover">
-        {accepted.isLoading ? <RequestListSkeleton /> : <RequestList rows={accepted.results} actions={(row) => <AcceptedActions row={row} disabled={action.isPending} openModal={openModal} setAssignIssueRow={setAssignIssueRow} setDueRow={setDueRow} />} />}
+        {accepted.isLoading ? <RequestListSkeleton /> : <RequestList rows={accepted.results} canViewAudit={canViewAudit} actions={(row) => <AcceptedActions row={row} disabled={action.isPending} openModal={openModal} setAssignIssueRow={setAssignIssueRow} setDueRow={setDueRow} />} />}
         <Pagination page={accepted.page} totalPages={accepted.totalPages} onChange={accepted.setPage} count={accepted.count} pageSize={accepted.pageSize} />
         {accepted.error instanceof Error ? <p className="mt-2 text-sm text-danger">{accepted.error.message}</p> : null}
       </Panel>
       {!guestOnly ? (
         <Panel title="Active loans">
-          {active.isLoading ? <RequestListSkeleton /> : <RequestList rows={active.results} actions={(row) => <ActiveActions row={row} disabled={action.isPending} openModal={openModal} setDueRow={setDueRow} setReturnRow={setReturnRow} />} />}
+          {active.isLoading ? <RequestListSkeleton /> : <RequestList rows={active.results} canViewAudit={canViewAudit} actions={(row) => <ActiveActions row={row} disabled={action.isPending} openModal={openModal} setDueRow={setDueRow} setReturnRow={setReturnRow} />} />}
           <Pagination page={active.page} totalPages={active.totalPages} onChange={active.setPage} count={active.count} pageSize={active.pageSize} />
           {active.error instanceof Error ? <p className="mt-2 text-sm text-danger">{active.error.message}</p> : null}
         </Panel>
       ) : null}
-      <HistoryPanel show={showHistory} loading={history.isLoading} rows={history.results} page={history.page} totalPages={history.totalPages} count={history.count} pageSize={history.pageSize} onPageChange={history.setPage} onToggle={() => setShowHistory((value) => !value)} />
+      <HistoryPanel show={showHistory} loading={history.isLoading} rows={history.results} page={history.page} totalPages={history.totalPages} count={history.count} pageSize={history.pageSize} canViewAudit={canViewAudit} onPageChange={history.setPage} onToggle={() => setShowHistory((value) => !value)} />
       <AcceptRequestModal row={acceptRow} open={Boolean(acceptRow)} pending={action.isPending} error={modalError} onClose={closeModals} onSubmit={submitAccept} />
       <ReturnDueModal row={dueRow} defaultValue={dueRow?.return_due_at ? localDateTimeValue(dueRow.return_due_at) : localDateTimeValue(defaultDueDate(Number(defaultLoanDays) || 7).toISOString())} open={Boolean(dueRow)} pending={action.isPending} error={modalError} onClose={closeModals} onSubmit={submitReturnDue} />
       <RejectRequestModal row={rejectRow} open={Boolean(rejectRow)} pending={action.isPending} error={modalError} onClose={closeModals} onSubmit={submitReject} />
@@ -232,6 +232,7 @@ function HistoryPanel({
   totalPages,
   count,
   pageSize,
+  canViewAudit,
   onPageChange,
   onToggle,
 }: {
@@ -242,6 +243,7 @@ function HistoryPanel({
   totalPages: number;
   count: number;
   pageSize: number;
+  canViewAudit: boolean;
   onPageChange: (page: number) => void;
   onToggle: () => void;
 }) {
@@ -251,7 +253,7 @@ function HistoryPanel({
       {show ? (
         <div className="mt-3">
           {loading ? <p className="text-sm text-muted">Loading history...</p> : null}
-          <RequestList rows={rows} actions={() => null} />
+          <RequestList rows={rows} canViewAudit={canViewAudit} actions={() => null} />
           <Pagination page={page} totalPages={totalPages} onChange={onPageChange} count={count} pageSize={pageSize} />
         </div>
       ) : null}
@@ -273,3 +275,7 @@ function localDateTimeValue(value: string) {
   const offset = date.getTimezoneOffset() * 60000;
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 }
+
+
+
+

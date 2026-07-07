@@ -1,4 +1,4 @@
-import { Queues } from "./Queues";
+﻿import { Queues } from "./Queues";
 import { PrintQueueSection } from "./PrintQueueSection";
 import { type Makerspace } from "./shared";
 
@@ -11,18 +11,20 @@ export function RequestsPanel({
   guestOnly,
   canSeeHardware,
   canSeePrinting,
+  canViewAudit,
 }: {
   makerspace: Makerspace;
   guestOnly: boolean;
   canSeeHardware: boolean;
   canSeePrinting: boolean;
+  canViewAudit: boolean;
 }) {
   return (
     <div className="grid gap-8">
       {canSeeHardware ? (
         <section className="grid gap-4">
           <h2 className="text-lg font-semibold text-ink">Hardware requests</h2>
-          <Queues makerspace={makerspace} guestOnly={guestOnly} />
+          <Queues makerspace={makerspace} guestOnly={guestOnly} canViewAudit={canViewAudit} />
         </section>
       ) : null}
       {canSeePrinting ? (
@@ -37,3 +39,5 @@ export function RequestsPanel({
     </div>
   );
 }
+
+

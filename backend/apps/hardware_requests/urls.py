@@ -1,6 +1,6 @@
-from django.urls import path
+﻿from django.urls import path
 
-from apps.hardware_requests import cron_views, views
+from apps.hardware_requests import cron_views, timeline_views, views
 
 app_name = "hardware_requests"
 
@@ -111,6 +111,16 @@ urlpatterns = [
         name="request-return",
     ),
     path(
+        "admin/requests/<int:pk>/timeline",
+        timeline_views.RequestTimelineView.as_view(),
+        name="request-timeline",
+    ),
+    path(
+        "admin/inventory/<int:pk>/chain-of-custody",
+        timeline_views.InventoryChainOfCustodyView.as_view(),
+        name="admin-inventory-chain-of-custody",
+    ),
+    path(
         "guest-admin/makerspace/<int:makerspace_id>/active-loans",
         views.ActiveLoansView.as_view(),
         name="guest-admin-active-loans",
@@ -121,4 +131,5 @@ urlpatterns = [
         name="guest-admin-request-return",
     ),
 ]
+
 

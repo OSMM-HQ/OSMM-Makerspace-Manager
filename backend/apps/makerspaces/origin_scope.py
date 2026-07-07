@@ -1,4 +1,4 @@
-from urllib.parse import urlsplit
+﻿from urllib.parse import urlsplit
 
 from apps.makerspaces.models import Makerspace
 from apps.makerspaces.platform import makerspace_staff_origins
@@ -149,6 +149,7 @@ _REQUEST_ACTIONS = {
     "request-return-due",
     "request-return",
     "guest-admin-request-return",
+    "request-timeline",
 }
 _PRINT_ACTIONS = {
     "managed-request-detail",
@@ -173,6 +174,7 @@ _MODEL_LOOKUPS = {
     "admin-warranty-document-detail": ("warranty.WarrantyDocument", "warranty__makerspace_id"),
     "admin-inventory-adjust-quantity": ("inventory.InventoryProduct", "makerspace_id"),
     "admin-inventory-lending-history": ("inventory.InventoryProduct", "makerspace_id"),
+    "admin-inventory-chain-of-custody": ("inventory.InventoryProduct", "makerspace_id"),
     "admin-needs-fix-action": ("inventory.InventoryProduct", "makerspace_id"),
     "admin-category-detail": ("inventory.Category", "makerspace_id"),
     "container-detail": ("boxes.Box", "makerspace_id"),
@@ -200,3 +202,5 @@ _MODEL_LOOKUPS = {
     **{name: ("hardware_requests.HardwareRequest", "makerspace_id") for name in _REQUEST_ACTIONS},
     **{name: ("printing.PrintRequest", "makerspace_id") for name in _PRINT_ACTIONS},
 }
+
+

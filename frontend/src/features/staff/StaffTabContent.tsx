@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+﻿import { lazy, Suspense } from "react";
 
 import { Skeleton } from "../../components/ui";
 import { Panel, type Makerspace } from "./panels/shared";
@@ -74,6 +74,7 @@ export function StaffTabContent({
           guestOnly={guestOnly}
           canSeeHardware={canSeeHardware}
           canSeePrinting={canSeePrinting}
+          canViewAudit={canViewAudit}
         />
       ) : null}
       {activeTab === "inventory" ? (
@@ -174,3 +175,8 @@ export function StaffTabContent({
     </Suspense>
   );
 }
+
+
+
+
+
