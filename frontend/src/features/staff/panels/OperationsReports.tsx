@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 
 import { downloadStaffFile } from "../../../lib/api";
@@ -25,7 +25,69 @@ type Summary = {
   missing_quantity: number;
 };
 
-const exportReports = ["taken-items", "active-loans", "returns", "qr-scans", "damaged-lost"] as const;
+const reportDefinitions = [
+  { key: "summary", title: "Summary" },
+  { key: "taken-items", title: "Taken items" },
+  { key: "active-loans", title: "Active loans" },
+  { key: "returns", title: "Returns" },
+  { key: "damaged-missing", title: "Damaged / missing" },
+  { key: "damaged-lost", title: "Damaged / lost" },
+  { key: "qr-scans", title: "QR scans" },
+  { key: "most-lent", title: "Most lent" },
+  { key: "top-borrowers", title: "Top borrowers" },
+  { key: "recently-added", title: "Recently added" },
+] as const;
+
+type ReportKey = (typeof reportDefinitions)[number]["key"];
+
+type SavedReportView = {
+  id: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  scope: "all" | `makerspace:${number}`;
+  scopeLabel: string;
+  selectedReport: ReportKey;
+};
+
+const savedViewsStorageKey = "operations-reports-saved-views-v1";
+const exportReports = reportDefinitions.map((report) => report.key);
+function isReportKey(value: string): value is ReportKey {
+  return reportDefinitions.some((report) => report.key === value);
+}
+
+function reportTitle(key: ReportKey) {
+  return reportDefinitions.find((report) => report.key === key)?.title ?? key;
+}
+
+function newSavedViewId() {
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function loadSavedReportViews(): SavedReportView[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(savedViewsStorageKey);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((view): view is SavedReportView => {
+      return Boolean(
+        view &&
+          typeof view.id === "string" &&
+          typeof view.name === "string" &&
+          typeof view.startDate === "string" &&
+          typeof view.endDate === "string" &&
+          typeof view.scope === "string" &&
+          typeof view.scopeLabel === "string" &&
+          typeof view.selectedReport === "string" &&
+          isReportKey(view.selectedReport),
+      );
+    });
+  } catch {
+    return [];
+  }
+}
 
 export function OperationsReports({
   makerspace,
@@ -45,6 +107,12 @@ export function OperationsReports({
   const [allMakerspaces, setAllMakerspaces] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [selectedReport, setSelectedReport] = useState<ReportKey>("most-lent");
+  const [presetName, setPresetName] = useState("");
+  const [savedViews, setSavedViews] = useState<SavedReportView[]>(loadSavedReportViews);
+  useEffect(() => {
+    window.localStorage.setItem(savedViewsStorageKey, JSON.stringify(savedViews));
+  }, [savedViews]);
   const aggregate = isSuperadmin && allMakerspaces;
   const scopeKey = aggregate ? "all" : makerspace.id;
   const analyticsBase = aggregate ? "/admin/analytics" : `/admin/makerspace/${makerspace.id}/analytics`;
@@ -67,7 +135,33 @@ export function OperationsReports({
   const qrScans = useStaffGet<ReportRows>(["operations-report", "qr-scans", scopeKey, startDate, endDate], analyticsPreview("qr-scans"), hardwareEnabled);
 
   const scopeLabel = aggregate ? "all makerspaces" : makerspace.name;
+  const currentScope: SavedReportView["scope"] = aggregate ? "all" : `makerspace:${makerspace.id}`;
   const makerspaceName = (id: number) => makerspaces.find((space) => space.id === id)?.name ?? `#${id}`;
+  const saveCurrentView = () => {
+    const name = presetName.trim() || `${reportTitle(selectedReport)} - ${scopeLabel}`;
+    const view: SavedReportView = {
+      id: newSavedViewId(),
+      name,
+      startDate,
+      endDate,
+      scope: currentScope,
+      scopeLabel,
+      selectedReport,
+    };
+    setSavedViews((existing) => [view, ...existing.filter((item) => item.name !== name)].slice(0, 12));
+    setPresetName("");
+  };
+
+  const applySavedView = (view: SavedReportView) => {
+    setStartDate(view.startDate);
+    setEndDate(view.endDate);
+    setSelectedReport(view.selectedReport);
+    setAllMakerspaces(view.scope === "all" && isSuperadmin);
+  };
+
+  const removeSavedView = (id: string) => {
+    setSavedViews((existing) => existing.filter((view) => view.id !== id));
+  };
 
   const exportReport = useMutation({
     mutationFn: ({ report, format }: { report: string; format: "csv" | "xlsx" }) =>
@@ -100,6 +194,16 @@ export function OperationsReports({
               <span>End</span>
               <input className="desk-input" type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} />
             </label>
+            <label className="grid gap-1 text-xs text-muted">
+              <span>Report</span>
+              <select className="desk-input" value={selectedReport} onChange={(event) => setSelectedReport(event.target.value as ReportKey)}>
+                {reportDefinitions.map((report) => (
+                  <option key={report.key} value={report.key}>
+                    {report.title}
+                  </option>
+                ))}
+              </select>
+            </label>
             {isSuperadmin ? (
               <label className="flex items-center gap-2 pb-2 text-sm text-ink">
                 <input
@@ -112,6 +216,39 @@ export function OperationsReports({
               </label>
             ) : null}
           </div>
+        </div>
+        <div className="mt-4 space-y-3 border-t border-line pt-3">
+          <div className="flex flex-wrap items-end gap-2">
+            <label className="grid min-w-48 gap-1 text-xs text-muted">
+              <span>View name</span>
+              <input
+                className="desk-input"
+                value={presetName}
+                onChange={(event) => setPresetName(event.target.value)}
+                placeholder={`${reportTitle(selectedReport)} - ${scopeLabel}`}
+              />
+            </label>
+            <button className="desk-button" type="button" onClick={saveCurrentView}>
+              Save view
+            </button>
+          </div>
+          {savedViews.length ? (
+            <div className="flex flex-wrap gap-2">
+              {savedViews.map((view) => (
+                <div key={view.id} className="flex items-center gap-1 rounded-md border border-line bg-bg px-2 py-1">
+                  <button className="text-sm font-semibold text-ink" type="button" onClick={() => applySavedView(view)}>
+                    {view.name}
+                  </button>
+                  <span className="text-xs text-muted">
+                    {reportTitle(view.selectedReport)} / {view.scopeLabel}
+                  </span>
+                  <button className="px-1 text-sm text-danger" type="button" onClick={() => removeSavedView(view.id)} aria-label={`Remove ${view.name}`}>
+                    x
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
         {!printingOnly ? (
           <DataState loading={summary.isLoading} error={summary.error} empty={!summary.data}>
@@ -135,13 +272,13 @@ export function OperationsReports({
       <Panel title="Exports">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           {exportReports.map((report) => (
-            <div key={report} className="rounded-md border border-line bg-bg p-3">
-              <p className="text-sm font-semibold capitalize text-ink">{report.replace(/-/g, " ")}</p>
+            <div key={report} className={`rounded-md border p-3 ${selectedReport === report ? "border-accent bg-accent/10" : "border-line bg-bg"}`}>
+              <p className="text-sm font-semibold text-ink">{reportTitle(report)}</p>
               <div className="mt-3 flex gap-2">
-                <button className="desk-button" type="button" disabled={exportReport.isPending} onClick={() => exportReport.mutate({ report, format: "csv" })}>
+                <button className="desk-button" type="button" disabled={exportReport.isPending} onClick={() => { setSelectedReport(report); exportReport.mutate({ report, format: "csv" }); }}>
                   CSV
                 </button>
-                <button className="desk-button" type="button" disabled={exportReport.isPending} onClick={() => exportReport.mutate({ report, format: "xlsx" })}>
+                <button className="desk-button" type="button" disabled={exportReport.isPending} onClick={() => { setSelectedReport(report); exportReport.mutate({ report, format: "xlsx" }); }}>
                   XLSX
                 </button>
               </div>

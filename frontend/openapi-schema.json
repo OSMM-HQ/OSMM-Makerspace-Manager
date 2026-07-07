@@ -342,8 +342,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": {}
+                                    "$ref": "#/components/schemas/AnalyticsReportResponse"
                                 }
                             }
                         },
@@ -2211,8 +2210,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": {}
+                                    "$ref": "#/components/schemas/AnalyticsReportResponse"
                                 }
                             }
                         },
@@ -2271,8 +2269,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": {}
+                                    "$ref": "#/components/schemas/AnalyticsReportResponse"
                                 }
                             }
                         },
@@ -2331,8 +2328,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": {}
+                                    "$ref": "#/components/schemas/AnalyticsReportResponse"
                                 }
                             }
                         },
@@ -2391,8 +2387,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": {}
+                                    "$ref": "#/components/schemas/AnalyticsReportResponse"
                                 }
                             }
                         },
@@ -2451,8 +2446,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": {}
+                                    "$ref": "#/components/schemas/AnalyticsReportResponse"
                                 }
                             }
                         },
@@ -2511,8 +2505,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": {}
+                                    "$ref": "#/components/schemas/AnalyticsReportResponse"
                                 }
                             }
                         },
@@ -2571,8 +2564,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": {}
+                                    "$ref": "#/components/schemas/AnalyticsReportResponse"
                                 }
                             }
                         },
@@ -2631,8 +2623,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": {}
+                                    "$ref": "#/components/schemas/AnalyticsReportResponse"
                                 }
                             }
                         },
@@ -2691,8 +2682,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": {}
+                                    "$ref": "#/components/schemas/AnalyticsReportResponse"
                                 }
                             }
                         },
@@ -2751,8 +2741,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "type": "object",
-                                    "additionalProperties": {}
+                                    "$ref": "#/components/schemas/AnalyticsReportResponse"
                                 }
                             }
                         },
@@ -13158,6 +13147,56 @@
                 "type": "string",
                 "description": "* `active` - Active\n* `restricted` - Restricted\n* `suspended` - Suspended"
             },
+            "ActiveLoansReport": {
+                "type": "object",
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {}
+                        }
+                    },
+                    "typed_rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ActiveLoansReportRow"
+                        }
+                    }
+                },
+                "required": [
+                    "rows",
+                    "typed_rows"
+                ]
+            },
+            "ActiveLoansReportRow": {
+                "type": "object",
+                "properties": {
+                    "makerspace_id": {
+                        "type": "integer"
+                    },
+                    "id": {
+                        "type": "integer"
+                    },
+                    "requester": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "issued_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "id",
+                    "issued_at",
+                    "requester",
+                    "status"
+                ]
+            },
             "AdminRequest": {
                 "type": "object",
                 "properties": {
@@ -13397,6 +13436,75 @@
                     "returned_quantity",
                     "storage_location",
                     "tracking_mode"
+                ]
+            },
+            "AnalyticsReportResponse": {
+                "oneOf": [
+                    {
+                        "$ref": "#/components/schemas/AnalyticsSummary"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TakenItemsReport"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ActiveLoansReport"
+                    },
+                    {
+                        "$ref": "#/components/schemas/ReturnsReport"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DamagedMissingReport"
+                    },
+                    {
+                        "$ref": "#/components/schemas/DamagedLostReport"
+                    },
+                    {
+                        "$ref": "#/components/schemas/QrScansReport"
+                    },
+                    {
+                        "$ref": "#/components/schemas/MostLentReport"
+                    },
+                    {
+                        "$ref": "#/components/schemas/TopBorrowersReport"
+                    },
+                    {
+                        "$ref": "#/components/schemas/RecentlyAddedReport"
+                    }
+                ]
+            },
+            "AnalyticsSummary": {
+                "type": "object",
+                "properties": {
+                    "products": {
+                        "type": "integer"
+                    },
+                    "assets": {
+                        "type": "integer"
+                    },
+                    "active_loans": {
+                        "type": "integer"
+                    },
+                    "available_quantity": {
+                        "type": "integer"
+                    },
+                    "issued_quantity": {
+                        "type": "integer"
+                    },
+                    "damaged_quantity": {
+                        "type": "integer"
+                    },
+                    "missing_quantity": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "active_loans",
+                    "assets",
+                    "available_quantity",
+                    "damaged_quantity",
+                    "issued_quantity",
+                    "missing_quantity",
+                    "products"
                 ]
             },
             "ApiClient": {
@@ -14408,6 +14516,94 @@
                 },
                 "required": [
                     "makerspace_id"
+                ]
+            },
+            "DamagedLostReport": {
+                "type": "object",
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {}
+                        }
+                    },
+                    "typed_rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DamagedLostReportRow"
+                        }
+                    }
+                },
+                "required": [
+                    "rows",
+                    "typed_rows"
+                ]
+            },
+            "DamagedLostReportRow": {
+                "type": "object",
+                "properties": {
+                    "makerspace_id": {
+                        "type": "integer"
+                    },
+                    "product_name": {
+                        "type": "string"
+                    },
+                    "damaged_quantity": {
+                        "type": "integer"
+                    },
+                    "lost_quantity": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "damaged_quantity",
+                    "lost_quantity",
+                    "product_name"
+                ]
+            },
+            "DamagedMissingReport": {
+                "type": "object",
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {}
+                        }
+                    },
+                    "typed_rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DamagedMissingReportRow"
+                        }
+                    }
+                },
+                "required": [
+                    "rows",
+                    "typed_rows"
+                ]
+            },
+            "DamagedMissingReportRow": {
+                "type": "object",
+                "properties": {
+                    "makerspace_id": {
+                        "type": "integer"
+                    },
+                    "product": {
+                        "type": "string"
+                    },
+                    "damaged_quantity": {
+                        "type": "integer"
+                    },
+                    "missing_quantity": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "damaged_quantity",
+                    "missing_quantity",
+                    "product"
                 ]
             },
             "DirectLoan": {
@@ -16532,6 +16728,50 @@
                 ],
                 "type": "string",
                 "description": "* `preview` - Preview\n* `apply` - Apply"
+            },
+            "MostLentReport": {
+                "type": "object",
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {}
+                        }
+                    },
+                    "typed_rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MostLentReportRow"
+                        }
+                    }
+                },
+                "required": [
+                    "rows",
+                    "typed_rows"
+                ]
+            },
+            "MostLentReportRow": {
+                "type": "object",
+                "properties": {
+                    "makerspace_id": {
+                        "type": "integer"
+                    },
+                    "product_name": {
+                        "type": "string"
+                    },
+                    "times_lent": {
+                        "type": "integer"
+                    },
+                    "total_quantity_lent": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "product_name",
+                    "times_lent",
+                    "total_quantity_lent"
+                ]
             },
             "NeedsFixAction": {
                 "type": "object",
@@ -20775,6 +21015,46 @@
                     "target"
                 ]
             },
+            "QrScansReport": {
+                "type": "object",
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {}
+                        }
+                    },
+                    "typed_rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/QrScansReportRow"
+                        }
+                    }
+                },
+                "required": [
+                    "rows",
+                    "typed_rows"
+                ]
+            },
+            "QrScansReportRow": {
+                "type": "object",
+                "properties": {
+                    "makerspace_id": {
+                        "type": "integer"
+                    },
+                    "context": {
+                        "type": "string"
+                    },
+                    "count": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "context",
+                    "count"
+                ]
+            },
             "RateLimitTierEnum": {
                 "enum": [
                     "public",
@@ -20797,6 +21077,51 @@
                 "required": [
                     "database",
                     "status"
+                ]
+            },
+            "RecentlyAddedReport": {
+                "type": "object",
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {}
+                        }
+                    },
+                    "typed_rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/RecentlyAddedReportRow"
+                        }
+                    }
+                },
+                "required": [
+                    "rows",
+                    "typed_rows"
+                ]
+            },
+            "RecentlyAddedReportRow": {
+                "type": "object",
+                "properties": {
+                    "makerspace_id": {
+                        "type": "integer"
+                    },
+                    "product_name": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "total_quantity": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "product_name",
+                    "total_quantity"
                 ]
             },
             "RefreshResponse": {
@@ -21100,6 +21425,56 @@
                     "evidence_id",
                     "remark",
                     "resolutions"
+                ]
+            },
+            "ReturnsReport": {
+                "type": "object",
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {}
+                        }
+                    },
+                    "typed_rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ReturnsReportRow"
+                        }
+                    }
+                },
+                "required": [
+                    "rows",
+                    "typed_rows"
+                ]
+            },
+            "ReturnsReportRow": {
+                "type": "object",
+                "properties": {
+                    "makerspace_id": {
+                        "type": "integer"
+                    },
+                    "id": {
+                        "type": "integer"
+                    },
+                    "requester": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "closed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "closed_at",
+                    "id",
+                    "requester",
+                    "status"
                 ]
             },
             "SourceEnum": {
@@ -21513,6 +21888,46 @@
                 "type": "string",
                 "description": "* `draft` - Draft\n* `counting` - Counting\n* `completed` - Completed\n* `approved` - Approved\n* `applied` - Applied\n* `cancelled` - Cancelled"
             },
+            "TakenItemsReport": {
+                "type": "object",
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {}
+                        }
+                    },
+                    "typed_rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TakenItemsReportRow"
+                        }
+                    }
+                },
+                "required": [
+                    "rows",
+                    "typed_rows"
+                ]
+            },
+            "TakenItemsReportRow": {
+                "type": "object",
+                "properties": {
+                    "makerspace_id": {
+                        "type": "integer"
+                    },
+                    "product": {
+                        "type": "string"
+                    },
+                    "issued_quantity": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "issued_quantity",
+                    "product"
+                ]
+            },
             "TelegramTestAlert": {
                 "type": "object",
                 "properties": {
@@ -21756,6 +22171,50 @@
                 ],
                 "type": "string",
                 "description": "* `pending` - Pending\n* `bought` - Bought"
+            },
+            "TopBorrowersReport": {
+                "type": "object",
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {}
+                        }
+                    },
+                    "typed_rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TopBorrowersReportRow"
+                        }
+                    }
+                },
+                "required": [
+                    "rows",
+                    "typed_rows"
+                ]
+            },
+            "TopBorrowersReportRow": {
+                "type": "object",
+                "properties": {
+                    "makerspace_id": {
+                        "type": "integer"
+                    },
+                    "holder": {
+                        "type": "string"
+                    },
+                    "requests": {
+                        "type": "integer"
+                    },
+                    "items_borrowed": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "holder",
+                    "items_borrowed",
+                    "requests"
+                ]
             },
             "TrackingModeEnum": {
                 "enum": [

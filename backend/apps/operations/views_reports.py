@@ -19,7 +19,12 @@ from apps.admin_api.permissions import IsActiveStaff, require_action
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.models import Makerspace
 from apps.operations import accountability, ledger, reports
-from apps.operations.serializers import EmptySerializer, GenericObjectSerializer, LedgerResponseSerializer
+from apps.operations.schemas_reports import ANALYTICS_REPORT_RESPONSE
+from apps.operations.serializers import (
+    EmptySerializer,
+    GenericObjectSerializer,
+    LedgerResponseSerializer,
+)
 
 DATE_RANGE_PARAMETERS = [
     OpenApiParameter("start", OpenApiTypes.DATE, OpenApiParameter.QUERY),
@@ -76,7 +81,7 @@ class AnalyticsView(APIView):
         summary="Get analytics report",
         request=None,
         parameters=[OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY), *DATE_RANGE_PARAMETERS],
-        responses={200: OpenApiTypes.OBJECT},
+        responses={200: ANALYTICS_REPORT_RESPONSE},
     )
     def get(self, request, makerspace_id, report_key="summary", *args, **kwargs):
         makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
@@ -149,7 +154,7 @@ class AggregateAnalyticsView(APIView):
             OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY),
             *DATE_RANGE_PARAMETERS,
         ],
-        responses={200: OpenApiTypes.OBJECT},
+        responses={200: ANALYTICS_REPORT_RESPONSE},
     )
     def get(self, request, report_key="summary", *args, **kwargs):
         _require_superadmin(request.user)
