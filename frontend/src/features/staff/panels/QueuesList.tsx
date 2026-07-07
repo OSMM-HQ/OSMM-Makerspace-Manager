@@ -1,8 +1,10 @@
-import type React from "react";
+﻿import type React from "react";
+import { useState } from "react";
 
 import { StatusStepper, statusStageLabel } from "../../../components/ui/StatusStepper";
 import { staffRequest } from "../../../lib/api";
 import type { HardwareRequest } from "./Queues";
+import { RequestTimelineBlock } from "./LoanTimeline";
 
 type RequestActor = { username: string; role: string };
 type RequestAttributionFields = {
@@ -20,7 +22,8 @@ async function openEvidence(id: number) {
   }
 }
 
-export function RequestList({ rows, actions }: { rows: HardwareRequest[]; actions: (row: HardwareRequest) => React.ReactNode }) {
+export function RequestList({ rows, actions, canViewAudit = false }: { rows: HardwareRequest[]; actions: (row: HardwareRequest) => React.ReactNode; canViewAudit?: boolean }) {
+  const [timelineId, setTimelineId] = useState<number | null>(null);
   if (!rows.length) return <p className="text-sm text-ink/60">No requests.</p>;
   return (
     <div className="overflow-hidden rounded-md border border-line">
@@ -33,6 +36,7 @@ export function RequestList({ rows, actions }: { rows: HardwareRequest[]; action
             </span>
             <div className="desk-actions ml-0 flex w-full flex-wrap gap-2 text-sm sm:ml-auto sm:w-auto">
               {actions(row)}
+              {canViewAudit ? <button type="button" onClick={() => setTimelineId((current) => (current === row.id ? null : row.id))}>{timelineId === row.id ? "Hide timeline" : "View timeline"}</button> : null}
             </div>
           </div>
           <div className="mt-3 max-w-md">
@@ -43,7 +47,7 @@ export function RequestList({ rows, actions }: { rows: HardwareRequest[]; action
           {row.requester_contact_email || row.requester_contact_phone ? (
             <p className="mt-1 text-xs text-muted">
               <span className="font-medium text-ink">Contact: </span>
-              {[row.requester_contact_email, row.requester_contact_phone].filter(Boolean).join(" · ")}
+              {[row.requester_contact_email, row.requester_contact_phone].filter(Boolean).join(" Â· ")}
             </p>
           ) : null}
           {row.status === "rejected" && row.rejection_reason ? (
@@ -53,13 +57,13 @@ export function RequestList({ rows, actions }: { rows: HardwareRequest[]; action
           ) : null}
           <p className="mt-1 text-xs text-muted">
             {row.return_due_at ? `Due ${new Date(row.return_due_at).toLocaleString()}` : "No return due time set"}
-            {row.return_reminder_sent_at ? ` · reminder sent ${new Date(row.return_reminder_sent_at).toLocaleString()}` : ""}
+            {row.return_reminder_sent_at ? ` Â· reminder sent ${new Date(row.return_reminder_sent_at).toLocaleString()}` : ""}
           </p>
           <div className="mt-2 space-y-0.5 text-xs text-ink/60">
             {row.items.map((item) => (
               <p key={item.id}>
                 {item.product_name} x{item.requested_quantity}
-                {item.storage_location ? <span className="text-muted"> · Shelf: {item.storage_location}</span> : null}
+                {item.storage_location ? <span className="text-muted"> Â· Shelf: {item.storage_location}</span> : null}
               </p>
             ))}
           </div>
@@ -75,6 +79,7 @@ export function RequestList({ rows, actions }: { rows: HardwareRequest[]; action
               ))}
             </div>
           ) : null}
+          {timelineId === row.id ? <RequestTimelineBlock requestId={row.id} /> : null}
           {row.items.some((item) => item.damaged_quantity || item.missing_quantity || item.needs_fix_quantity) ? (
             <ul className="mt-1 text-xs text-danger">
               {row.items
@@ -126,3 +131,7 @@ function statusBadgeClassName(status: string) {
       return "";
   }
 }
+
+
+
+

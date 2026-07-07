@@ -1548,6 +1548,90 @@
                 }
             }
         },
+        "/api/v1/admin/inventory/{id}/chain-of-custody": {
+            "get": {
+                "operationId": "api_v1_admin_inventory_chain_of_custody_retrieve",
+                "summary": "Read-only chain of custody for one inventory item",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Maximum history events to return. Defaults to 200; capped at 500."
+                    }
+                ],
+                "tags": [
+                    "Admin inventory"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InventoryChainOfCustodyResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Workflow conflict."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/inventory/{id}/image": {
             "post": {
                 "operationId": "api_v1_admin_inventory_image_create",
@@ -7724,6 +7808,90 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/AdminRequest"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Workflow conflict."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/requests/{id}/timeline": {
+            "get": {
+                "operationId": "api_v1_admin_requests_timeline_retrieve",
+                "summary": "Read-only immutable timeline for one hardware request",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "description": "Maximum history events to return. Defaults to 200; capped at 500."
+                    }
+                ],
+                "tags": [
+                    "Admin requests"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RequestTimelineResponse"
                                 }
                             }
                         },
@@ -14117,6 +14285,37 @@
                 "type": "string",
                 "description": "* `pending` - Pending\n* `approved` - Approved\n* `rejected` - Rejected"
             },
+            "AssetChainGroup": {
+                "type": "object",
+                "properties": {
+                    "asset_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "asset_tag": {
+                        "type": "string"
+                    },
+                    "serial_number": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "events": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TimelineEvent"
+                        }
+                    }
+                },
+                "required": [
+                    "asset_id",
+                    "asset_tag",
+                    "events",
+                    "serial_number",
+                    "status"
+                ]
+            },
             "AssetGenerate": {
                 "type": "object",
                 "properties": {
@@ -15834,6 +16033,56 @@
                 ],
                 "type": "string",
                 "description": "* `available` - Available\n* `reserved` - Reserved\n* `issued` - Issued\n* `damaged` - Damaged\n* `lost` - Lost\n* `retired` - Retired\n* `maintenance` - Maintenance"
+            },
+            "InventoryChainOfCustodyResponse": {
+                "type": "object",
+                "properties": {
+                    "product_id": {
+                        "type": "integer"
+                    },
+                    "product_name": {
+                        "type": "string"
+                    },
+                    "tracking_mode": {
+                        "type": "string"
+                    },
+                    "limit": {
+                        "type": "integer"
+                    },
+                    "truncated": {
+                        "type": "boolean"
+                    },
+                    "events": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TimelineEvent"
+                        }
+                    },
+                    "asset_groups": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/AssetChainGroup"
+                        }
+                    },
+                    "quantity_summary": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/QuantityChainSummary"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "asset_groups",
+                    "events",
+                    "limit",
+                    "product_id",
+                    "product_name",
+                    "quantity_summary",
+                    "tracking_mode",
+                    "truncated"
+                ]
             },
             "InventoryProductAdmin": {
                 "type": "object",
@@ -21371,6 +21620,41 @@
                     "count"
                 ]
             },
+            "QuantityChainSummary": {
+                "type": "object",
+                "properties": {
+                    "loan_count": {
+                        "type": "integer"
+                    },
+                    "direct_loan_count": {
+                        "type": "integer"
+                    },
+                    "issued_quantity": {
+                        "type": "integer"
+                    },
+                    "returned_quantity": {
+                        "type": "integer"
+                    },
+                    "damaged_quantity": {
+                        "type": "integer"
+                    },
+                    "missing_quantity": {
+                        "type": "integer"
+                    },
+                    "active_quantity": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "active_quantity",
+                    "damaged_quantity",
+                    "direct_loan_count",
+                    "issued_quantity",
+                    "loan_count",
+                    "missing_quantity",
+                    "returned_quantity"
+                ]
+            },
             "RateLimitTierEnum": {
                 "enum": [
                     "public",
@@ -21542,6 +21826,32 @@
                 "required": [
                     "public_token",
                     "status"
+                ]
+            },
+            "RequestTimelineResponse": {
+                "type": "object",
+                "properties": {
+                    "request_id": {
+                        "type": "integer"
+                    },
+                    "limit": {
+                        "type": "integer"
+                    },
+                    "truncated": {
+                        "type": "boolean"
+                    },
+                    "events": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/TimelineEvent"
+                        }
+                    }
+                },
+                "required": [
+                    "events",
+                    "limit",
+                    "request_id",
+                    "truncated"
                 ]
             },
             "ResetPasswordConfirm": {
@@ -22397,6 +22707,56 @@
                     "base_url",
                     "inventory_path",
                     "publishable_key"
+                ]
+            },
+            "TimelineActor": {
+                "type": "object",
+                "properties": {
+                    "username": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "role",
+                    "username"
+                ]
+            },
+            "TimelineEvent": {
+                "type": "object",
+                "properties": {
+                    "kind": {
+                        "type": "string"
+                    },
+                    "at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "actor": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TimelineActor"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "detail": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    },
+                    "evidence_id": {
+                        "type": "integer",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "actor",
+                    "at",
+                    "detail",
+                    "evidence_id",
+                    "kind"
                 ]
             },
             "ToBuyItem": {
