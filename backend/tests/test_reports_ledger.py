@@ -1,4 +1,7 @@
 from datetime import timedelta
+from io import BytesIO
+
+from openpyxl import load_workbook
 
 import pytest
 from django.test import override_settings
@@ -453,7 +456,10 @@ def test_ledger_excludes_fully_returned_loans():
     response = authenticated_client(manager).get(f"/api/v1/admin/makerspace/{makerspace.id}/ledger")
 
     assert response.status_code == 200
-    assert response.data == {"count": 0, "results": []}
+    assert response.data["count"] == 0
+    assert response.data["next"] is None
+    assert response.data["previous"] is None
+    assert response.data["results"] == []
 
 
 def test_space_manager_cannot_read_other_makerspace_ledger_and_sees_own_rows():
@@ -749,6 +755,136 @@ def test_ledger_internal_checkin_fallback_is_member():
 
     assert response.status_code == 200
     assert response.data["results"][0]["holder"] == "Member"
+
+
+
+def test_ledger_search_finds_borrower_beyond_current_page():
+    makerspace = make_space("ledger-search-full-set")
+    manager = make_member("ledger-search-manager", makerspace)
+    product = make_product(makerspace, name="Page Tool")
+    for index in range(44):
+        _request_loan(makerspace, product, f"ledger-page-holder-{index}")
+    target = _request_loan(makerspace, product, "unique-page-forty-borrower")
+
+    page_40 = authenticated_client(manager).get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/ledger?page=40&page_size=1"
+    )
+    searched = authenticated_client(manager).get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/ledger?search=unique-page-forty-borrower&page=1&page_size=1"
+    )
+
+    assert page_40.status_code == 200
+    assert target.id not in {row["reference_id"] for row in page_40.data["results"]}
+    assert searched.status_code == 200
+    assert searched.data["count"] == 1
+    assert searched.data["results"][0]["holder"] == "unique-page-forty-borrower@e.com"
+    assert searched.data["results"][0]["reference_id"] == target.id
+
+
+def test_ledger_source_and_overdue_filters_work():
+    makerspace = make_space("ledger-source-overdue")
+    manager = make_member("ledger-source-overdue-manager", makerspace)
+    reviewed_product = make_product(makerspace, name="Reviewed Overdue")
+    self_product = make_product(makerspace, name="Self Overdue")
+    direct_product = make_product(makerspace, name="Direct Future")
+    reviewed = _request_loan(makerspace, reviewed_product, "reviewed-overdue-holder")
+    reviewed.return_due_at = timezone.now() - timedelta(days=1)
+    reviewed.save(update_fields=["return_due_at"])
+    self_loan = _self_checkout_loan(makerspace, self_product, "self-overdue-holder")
+    self_loan.due_at = timezone.now() - timedelta(days=1)
+    self_loan.save(update_fields=["due_at"])
+    direct_loan = _self_checkout_loan(
+        makerspace,
+        direct_product,
+        "direct-future-holder",
+        source=PublicToolLoan.Source.ADMIN_DIRECT,
+    )
+    direct_loan.due_at = timezone.now() + timedelta(days=5)
+    direct_loan.save(update_fields=["due_at"])
+    client = authenticated_client(manager)
+
+    self_overdue = client.get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/ledger?source=self_checkout&overdue=true"
+    )
+    direct = client.get(f"/api/v1/admin/makerspace/{makerspace.id}/ledger?source=direct")
+    reviewed_only = client.get(f"/api/v1/admin/makerspace/{makerspace.id}/ledger?source=reviewed")
+
+    assert self_overdue.status_code == 200
+    assert [(row["source"], row["item_name"]) for row in self_overdue.data["results"]] == [
+        ("self_checkout", "Self Overdue")
+    ]
+    assert direct.status_code == 200
+    assert [(row["source"], row["item_name"]) for row in direct.data["results"]] == [
+        ("direct_handout", "Direct Future")
+    ]
+    assert reviewed_only.status_code == 200
+    assert [(row["source"], row["item_name"]) for row in reviewed_only.data["results"]] == [
+        ("request", "Reviewed Overdue")
+    ]
+
+
+def test_ledger_export_respects_active_filters():
+    makerspace = make_space("ledger-export-filters")
+    manager = make_member("ledger-export-manager", makerspace)
+    keep = make_product(makerspace, name="Export Match Tool")
+    drop = make_product(makerspace, name="Export Other Tool")
+    _request_loan(makerspace, keep, "export-match-holder")
+    _request_loan(makerspace, drop, "export-other-holder")
+    client = authenticated_client(manager)
+
+    csv_response = client.get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/ledger/export?format=csv&search=Export%20Match"
+    )
+    xlsx_response = client.get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/ledger/export?format=xlsx&search=Export%20Match"
+    )
+
+    assert csv_response.status_code == 200
+    csv_body = csv_response.content.decode()
+    assert "Export Match Tool" in csv_body
+    assert "Export Other Tool" not in csv_body
+    assert xlsx_response.status_code == 200
+    workbook = load_workbook(BytesIO(xlsx_response.content))
+    values = [cell.value for row in workbook.active.iter_rows() for cell in row]
+    assert "Export Match Tool" in values
+    assert "Export Other Tool" not in values
+
+
+def test_ledger_unfiltered_first_page_matches_legacy_merge_ordering_and_content():
+    makerspace = make_space("ledger-legacy-order")
+    manager = make_member("ledger-legacy-manager", makerspace)
+    reviewed_product = make_product(makerspace, name="Legacy Reviewed")
+    self_product = make_product(makerspace, name="Legacy Self")
+    direct_product = make_product(makerspace, name="Legacy Direct")
+    reviewed = _request_loan(makerspace, reviewed_product, "legacy-reviewed-holder")
+    self_loan = _self_checkout_loan(makerspace, self_product, "legacy-self-holder")
+    direct_loan = _self_checkout_loan(
+        makerspace,
+        direct_product,
+        "legacy-direct-holder",
+        source=PublicToolLoan.Source.ADMIN_DIRECT,
+    )
+    now = timezone.now()
+    reviewed.issued_at = now - timedelta(hours=1)
+    self_loan.request.issued_at = now - timedelta(hours=2)
+    direct_loan.request.issued_at = now - timedelta(hours=3)
+    reviewed.save(update_fields=["issued_at"])
+    self_loan.request.save(update_fields=["issued_at"])
+    direct_loan.request.save(update_fields=["issued_at"])
+
+    response = authenticated_client(manager).get(
+        f"/api/v1/admin/makerspace/{makerspace.id}/ledger?page=1&page_size=3"
+    )
+
+    assert response.status_code == 200
+    assert [
+        (row["source"], row["item_name"], row["holder"], row["quantity"], row["reference_id"])
+        for row in response.data["results"]
+    ] == [
+        ("request", "Legacy Reviewed", "legacy-reviewed-holder@e.com", 1, reviewed.id),
+        ("self_checkout", "Legacy Self", "legacy-self-holder@e.com", 1, self_loan.id),
+        ("direct_handout", "Legacy Direct", "legacy-direct-holder@e.com", 1, direct_loan.id),
+    ]
 
 def test_active_loans_xlsx_export_handles_timezone_aware_datetimes():
     """active-loans rows carry tz-aware issued_at; openpyxl rejects tz-aware

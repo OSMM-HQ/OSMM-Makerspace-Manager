@@ -18,58 +18,17 @@ from apps.accounts import rbac
 from apps.admin_api.permissions import IsActiveStaff, require_action
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.models import Makerspace
-from apps.operations import accountability, ledger, reports
+from apps.operations import accountability, reports
 from apps.operations.schemas_reports import ANALYTICS_REPORT_RESPONSE
 from apps.operations.serializers import (
     EmptySerializer,
     GenericObjectSerializer,
-    LedgerResponseSerializer,
 )
 
 DATE_RANGE_PARAMETERS = [
     OpenApiParameter("start", OpenApiTypes.DATE, OpenApiParameter.QUERY),
     OpenApiParameter("end", OpenApiTypes.DATE, OpenApiParameter.QUERY),
 ]
-
-
-class LedgerView(APIView):
-    permission_classes = [IsActiveStaff]
-    serializer_class = LedgerResponseSerializer
-
-    @extend_schema(
-        tags=["Ledger"],
-        summary="List outstanding inventory loans",
-        request=None,
-        parameters=[
-            OpenApiParameter("page", OpenApiTypes.INT, OpenApiParameter.QUERY),
-            OpenApiParameter("page_size", OpenApiTypes.INT, OpenApiParameter.QUERY),
-        ],
-        responses={200: LedgerResponseSerializer},
-    )
-    def get(self, request, makerspace_id, *args, **kwargs):
-        makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
-        require_action(request.user, rbac.Action.VIEW_INVENTORY, makerspace.id)
-        require_module(makerspace, "staff_admin")
-        return Response(_ledger_payload(makerspace.id, request))
-
-
-class AggregateLedgerView(APIView):
-    permission_classes = [IsActiveStaff]
-    serializer_class = LedgerResponseSerializer
-
-    @extend_schema(
-        tags=["Ledger"],
-        summary="List outstanding inventory loans across all makerspaces",
-        request=None,
-        parameters=[
-            OpenApiParameter("page", OpenApiTypes.INT, OpenApiParameter.QUERY),
-            OpenApiParameter("page_size", OpenApiTypes.INT, OpenApiParameter.QUERY),
-        ],
-        responses={200: LedgerResponseSerializer},
-    )
-    def get(self, request, *args, **kwargs):
-        _require_superadmin(request.user)
-        return Response(_ledger_payload(None, request))
 
 
 class AnalyticsView(APIView):
@@ -183,12 +142,10 @@ class ReportExportView(APIView):
         makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
         require_action(request.user, rbac.Action.VIEW_AUDIT, makerspace.id)
         require_module(makerspace, "reports")
-        fmt = request.query_params.get("format", "csv")
+        fmt = _export_format(request)
         rows = reports.report_rows(report_key, makerspace.id, date_range=_date_range(request))
         if fmt == "xlsx":
             return _xlsx_response(rows, f"{report_key}.xlsx")
-        if fmt != "csv":
-            raise ValidationError({"format": "Use csv or xlsx."})
         return _csv_response(rows, f"{report_key}.csv")
 
 
@@ -212,12 +169,10 @@ class AggregateReportExportView(APIView):
     )
     def get(self, request, report_key, *args, **kwargs):
         _require_superadmin(request.user)
-        fmt = request.query_params.get("format", "csv")
+        fmt = _export_format(request)
         rows = reports.report_rows(report_key, date_range=_date_range(request))
         if fmt == "xlsx":
             return _xlsx_response(rows, f"{report_key}.xlsx")
-        if fmt != "csv":
-            raise ValidationError({"format": "Use csv or xlsx."})
         return _csv_response(rows, f"{report_key}.csv")
 
 
@@ -263,11 +218,11 @@ def _require_superadmin(user):
         raise PermissionDenied()
 
 
-def _ledger_payload(makerspace_id, request):
-    page, page_size = _page_params(request)
-    payload = ledger.ledger_page(makerspace_id, page=page, page_size=page_size)
-    serializer = LedgerResponseSerializer(payload)
-    return serializer.data
+def _export_format(request):
+    fmt = (request.query_params.get("format") or "csv").strip().lower()
+    if fmt not in {"csv", "xlsx"}:
+        raise ValidationError({"format": "Use csv or xlsx."})
+    return fmt
 
 
 def _positive_int_param(request, name, default, maximum):
