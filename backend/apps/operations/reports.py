@@ -5,6 +5,7 @@ from apps.boxes.models import QrScanEvent
 from apps.hardware_requests.display import label_from_candidates, requester_label
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
 from apps.inventory.models import InventoryAsset, InventoryProduct
+from apps.operations.reports_typed import typed_report_rows
 
 
 DEFAULT_REPORT_LIMIT = 100
@@ -28,8 +29,13 @@ REPORT_KEYS = [
 def report_data(report_key="summary", makerspace_id=None, *, limit=None, date_range=None):
     if report_key == "summary":
         return _summary(makerspace_id)
-    return {"rows": report_rows(report_key, makerspace_id, limit=_normalized_limit(limit), date_range=date_range)}
-
+    rows = report_rows(
+        report_key,
+        makerspace_id,
+        limit=_normalized_limit(limit),
+        date_range=date_range,
+    )
+    return {"rows": rows, "typed_rows": typed_report_rows(report_key, rows)}
 
 
 def _normalized_limit(limit):
@@ -88,7 +94,7 @@ def _summary(makerspace_id):
 
 def _taken_items(makerspace_id, aggregate, limit=None, date_range=None):
     # Group by product_id (not name) so two distinct products sharing a name are not
-    # merged — there is no unique (makerspace, name) constraint. Name stays the display column.
+    # merged - there is no unique (makerspace, name) constraint. Name stays the display column.
     group = ["product_id", "product__name"]
     display = ["product__name"]
     header = ["product", "issued_quantity"]

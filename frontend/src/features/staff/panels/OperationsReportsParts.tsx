@@ -3,7 +3,8 @@ import type React from "react";
 import { Skeleton, SkeletonRows } from "../../../components/ui";
 
 export type ReportCell = string | number | null;
-export type ReportRows = { rows: ReportCell[][] };
+export type TypedReportRow = Record<string, ReportCell | undefined>;
+export type ReportRows = { rows: ReportCell[][]; typed_rows?: TypedReportRow[] };
 
 type ChartRow = { label: string; value: number };
 
@@ -19,7 +20,21 @@ function rowValue(row: ReportCell[], header: string[], key: string) {
   return row[header.indexOf(key)];
 }
 
+export function typedRows(data?: ReportRows) {
+  return data?.typed_rows ?? [];
+}
+
 export function chartRows(data: ReportRows | undefined, labelKey: string, valueKey: string): ChartRow[] {
+  const typed = typedRows(data);
+  if (typed.length) {
+    return typed
+      .map((row) => ({
+        label: String(row[labelKey] ?? "Unknown"),
+        value: Number(row[valueKey] ?? 0),
+      }))
+      .filter((row) => row.value > 0);
+  }
+
   const header = headers(data);
   return reportRows(data)
     .map((row) => ({
@@ -48,7 +63,7 @@ function ReportSkeleton() {
         ))}
       </div>
       <div className="overflow-x-auto rounded-md border border-line">
-        <table className="min-w-[640px] divide-y divide-line text-left text-sm">
+        <table className="w-full divide-y divide-line text-left text-sm">
           <tbody className="divide-y divide-line bg-bg">
             <SkeletonRows rows={4} cols={4} />
           </tbody>
@@ -236,7 +251,7 @@ export function ReportTable({ data }: { data?: ReportRows }) {
 
   return (
     <div className="mt-4 max-h-80 overflow-x-auto overflow-y-auto rounded-md border border-line">
-      <table className="min-w-[640px] divide-y divide-line text-left text-sm">
+      <table className="w-full divide-y divide-line text-left text-sm">
         <thead className="sticky top-0 bg-surface text-xs uppercase tracking-wide text-muted">
           <tr>
             {tableHeaders.map((header) => (
