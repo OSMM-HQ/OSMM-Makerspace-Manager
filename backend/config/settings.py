@@ -326,6 +326,14 @@ REST_FRAMEWORK = {
         "client_standard": env("THROTTLE_CLIENT_STANDARD", default="120/min"),
         "client_trusted": env("THROTTLE_CLIENT_TRUSTED", default="600/min"),
     },
+    # Proxy-aware client IP for throttling. Default None = DRF's legacy behavior
+    # (REMOTE_ADDR, or the raw X-Forwarded-For string if present). Behind a CDN/reverse
+    # proxy that collapses all traffic to one source IP (or lets clients spoof XFF), set
+    # TRUSTED_PROXY_COUNT to the number of trusted proxies in front of the backend so
+    # throttles key on the real client IP (the Nth-from-last XFF entry). Mirrors the
+    # TRUST_X_FORWARDED_PROTO posture: only trust forwarded headers when a real proxy is
+    # the sole path to the backend.
+    "NUM_PROXIES": env.int("TRUSTED_PROXY_COUNT", default=None),
     "URL_FORMAT_OVERRIDE": None,
 }
 
