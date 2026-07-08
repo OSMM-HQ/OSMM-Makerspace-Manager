@@ -39,6 +39,7 @@ from apps.hardware_requests.workflow_utils import get_or_create_requester
 from apps.hardware_requests.direct_loan_returns import validate_evidence_upload
 from apps.inventory import availability
 from apps.inventory.models import InventoryAsset, InventoryProduct
+from apps.notifications.emit import emit_notification
 
 
 def checkout_tool(makerspace, contact_email, payload, *, requester_name, contact_phone, evidence_id, remark=""):
@@ -172,6 +173,13 @@ def return_tool(
                 makerspace=makerspace,
                 target=report,
                 meta={"loan_id": loan.pk, "request_id": loan.request_id},
+            )
+            emit_notification(
+                makerspace,
+                level="warning",
+                event="problem_report.filed",
+                title="Tool problem reported",
+                body=f"A problem was reported on a returned tool: {loan.target_label}.",
             )
         return loan
 

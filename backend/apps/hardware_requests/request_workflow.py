@@ -16,6 +16,7 @@ from apps.hardware_requests.workflow_utils import (
     locked_request,
 )
 from apps.inventory import availability
+from apps.notifications.emit import emit_notification
 
 
 def submit_request(
@@ -61,6 +62,13 @@ def submit_request(
             target=request,
         )
         transaction.on_commit(lambda: notifications.notify_request_submitted(request))
+        emit_notification(
+            makerspace,
+            level="info",
+            event="request.submitted",
+            title="New hardware request",
+            body=f"{requester_name.strip() or result.username} submitted a hardware request.",
+        )
         return request
 
 

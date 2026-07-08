@@ -5,6 +5,7 @@ from rest_framework.exceptions import ValidationError
 from apps.audit import services as audit
 from apps.inventory import availability
 from apps.inventory.models import InventoryAsset, InventoryProduct
+from apps.notifications.emit import emit_notification
 from apps.operations.models import (
     InventoryAdjustment,
     StocktakeLedgerEntry,
@@ -100,6 +101,13 @@ def complete_stocktake(actor, stocktake):
         locked.completed_at = timezone.now()
         locked.save(update_fields=["status", "completed_at"])
         audit.record(actor, "stocktake.completed", makerspace=locked.makerspace, target=locked)
+        emit_notification(
+            locked.makerspace,
+            level="info",
+            event="stocktake.completed",
+            title="Stocktake awaiting approval",
+            body=f"Stocktake #{locked.pk} was completed and is awaiting approval.",
+        )
         return locked
 
 
