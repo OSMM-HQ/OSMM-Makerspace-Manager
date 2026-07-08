@@ -5,6 +5,7 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 
 from apps.audit import services as audit
+from apps.notifications.emit import emit_notification
 from apps.printing.emails import queue_print_email, queue_staff_print_email
 from apps.printing.models import FilamentSpool, PrintPrinter, PrintRequest
 from apps.printing.spool_reservations import (
@@ -293,10 +294,21 @@ def complete(print_request, actor, *, actual_filament_grams=None):
     )
 
 def fail(print_request, actor, reason, percent_complete=0):
-    return _transition(
+    result = _transition(
         print_request, actor, PrintRequest.Status.FAILED, "failed",
         reason=reason, percent_complete=percent_complete,
     )
+    try:
+        emit_notification(
+            result.bucket.makerspace,
+            level="warning",
+            event="print.failed",
+            title="Print job failed",
+            body=str(reason or "")[:500],
+        )
+    except Exception:
+        pass
+    return result
 
 def mark_collected(print_request, actor):
     with transaction.atomic():

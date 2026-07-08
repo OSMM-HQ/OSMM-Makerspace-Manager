@@ -97,6 +97,19 @@ def _deliver(log):
             "email_delivery_failed",
             extra={"email_log_id": log.pk, "to_email": log.to_email},
         )
+        # Heads-up in the staff inbox on FIRST failure only (attempts is bumped in
+        # `finally` below, so 0 here means the initial delivery attempt) — avoids a
+        # row per retry. Fully fail-safe; never affects delivery.
+        if log.attempts == 0 and log.makerspace_id:
+            from apps.notifications.emit import emit_notification
+
+            emit_notification(
+                log.makerspace,
+                level="warning",
+                event="email.failed",
+                title="Email delivery failed",
+                body=f"Failed to send \"{log.subject}\" to {log.to_email}.",
+            )
     else:
         log.status = EmailLog.Status.SENT
         log.error = ""

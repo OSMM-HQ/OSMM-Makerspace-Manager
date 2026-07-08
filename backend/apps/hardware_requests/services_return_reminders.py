@@ -4,6 +4,7 @@ from django.utils import timezone
 from apps.accounts import rbac
 from apps.hardware_requests import notifications
 from apps.hardware_requests.models import HardwareRequest
+from apps.notifications.emit import emit_notification
 
 
 def run_return_reminders(*, now=None, limit=200) -> dict:
@@ -44,6 +45,13 @@ def run_return_reminders(*, now=None, limit=200) -> dict:
             raise
         if sent:
             sent_count += 1
+            emit_notification(
+                hardware_request.makerspace,
+                level="warning",
+                event="loan.overdue",
+                title="Overdue loan reminder sent",
+                body=f"Request #{hardware_request.pk} is overdue; a reminder was sent.",
+            )
             continue
         HardwareRequest.objects.filter(pk=hardware_request.pk).update(
             return_reminder_sent_at=None
