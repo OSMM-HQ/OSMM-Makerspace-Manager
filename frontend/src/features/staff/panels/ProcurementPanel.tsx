@@ -1,43 +1,51 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import type { UseMutationResult, UseQueryResult } from "@tanstack/react-query";
 
 import { downloadStaffFile, staffRequest } from "../../../lib/api";
+import {
+  ProcurementRow,
+  itemTotal,
+  labelStatus,
+  statusOptions,
+  type Kind,
+  type ToBuyItem,
+  type ToBuyStatus,
+} from "./ProcurementPanelRows";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 
-type Kind = "hardware" | "printing";
-type StatusFilter = "all" | "pending" | "bought";
+type StatusFilter = "all" | ToBuyStatus;
+type UpdateVariables = { id: number; payload: { status: ToBuyStatus; vendor_name: string; actual_unit_cost: number | null } };
 
-type ToBuyItem = {
-  id: number;
-  kind: Kind;
+type Form = {
   name: string;
-  quantity: number;
+  quantity: string;
   link: string;
-  status: "pending" | "bought";
-  estimated_unit_cost: string | null;
-  created_by_username: string | null;
+  estimated_unit_cost: string;
+  vendor_name: string;
+  actual_unit_cost: string;
+  kind: Kind;
 };
 
-type Form = { name: string; quantity: string; link: string; estimated_unit_cost: string; kind: Kind };
-
-const emptyForm: Form = { name: "", quantity: "1", link: "", estimated_unit_cost: "", kind: "hardware" };
-
-// Only render a clickable link for http(s) URLs. The backend URLField already
-// rejects javascript:/data: at write time; this is defense-in-depth so a stored
-// non-http scheme can never become a clickable href.
-function safeHref(link: string): string | null {
-  return /^https?:\/\//i.test(link) ? link : null;
-}
+const emptyForm: Form = {
+  name: "",
+  quantity: "1",
+  link: "",
+  estimated_unit_cost: "",
+  vendor_name: "",
+  actual_unit_cost: "",
+  kind: "hardware",
+};
 
 export function ProcurementPanel({ makerspace, canChooseKind = false }: { makerspace: Makerspace; canChooseKind?: boolean }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<Form>(emptyForm);
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>("pending");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("requested");
   const base = `/procurement/makerspace/${makerspace.id}/to-buy`;
   const statusParam = statusFilter === "all" ? "" : `&status=${statusFilter}`;
   const queryKey = ["procurement", makerspace.id, statusFilter];
   const items = useStaffGet<ToBuyItem[]>(queryKey, `${base}?limit=200${statusParam}`);
-  const invalidate = () => queryClient.invalidateQueries({ queryKey });
+  const invalidate = () => queryClient.invalidateQueries({ queryKey: ["procurement", makerspace.id] });
 
   const create = useMutation({
     mutationFn: () => {
@@ -49,6 +57,8 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
           quantity: Number(form.quantity) || 1,
           link: form.link,
           estimated_unit_cost: form.estimated_unit_cost ? Number(form.estimated_unit_cost) : null,
+          vendor_name: form.vendor_name,
+          actual_unit_cost: form.actual_unit_cost ? Number(form.actual_unit_cost) : null,
         }),
       });
     },
@@ -59,10 +69,10 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
   });
 
   const update = useMutation({
-    mutationFn: (vars: { id: number; status: "pending" | "bought" }) =>
+    mutationFn: (vars: UpdateVariables) =>
       staffRequest(`/procurement/to-buy/${vars.id}`, {
         method: "PATCH",
-        body: JSON.stringify({ status: vars.status }),
+        body: JSON.stringify(vars.payload),
       }),
     onSuccess: invalidate,
   });
@@ -81,130 +91,81 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
   });
 
   const rows = items.data ?? [];
-  const visibleEstimatedTotal = rows.reduce((sum, item) => sum + itemTotal(item), 0);
-  const pendingBudget = rows.filter((item) => item.status === "pending").reduce((sum, item) => sum + itemTotal(item), 0);
-  const boughtTotal = rows.filter((item) => item.status === "bought").reduce((sum, item) => sum + itemTotal(item), 0);
+  const visibleEstimatedTotal = rows.reduce((sum, item) => sum + itemTotal(item, "estimated"), 0);
+  const openBudget = rows.filter((item) => !["received", "cancelled"].includes(item.status)).reduce((sum, item) => sum + itemTotal(item, "estimated"), 0);
+  const receivedTotal = rows.filter((item) => item.status === "received").reduce((sum, item) => sum + itemTotal(item, "actual"), 0);
 
   return (
     <Panel title="To Buy">
       <p className="mb-3 text-xs text-muted">
-        Shopping list for {makerspace.name}. Add what to buy with quantity and a link, mark items bought, and export the list.
+        Shopping list for {makerspace.name}. Track requested, approved, ordered, and received purchases with receipts.
       </p>
 
-      <form
-        className="grid gap-2 sm:grid-cols-2 xl:grid-cols-6"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (form.name.trim()) create.mutate();
-        }}
-      >
+      <form className="grid gap-2 sm:grid-cols-2 xl:grid-cols-8" onSubmit={(event) => { event.preventDefault(); if (form.name.trim()) create.mutate(); }}>
         <input className="desk-input xl:col-span-2" placeholder="Item name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         <input className="desk-input" type="number" min={1} placeholder="Qty" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
         <input className="desk-input" placeholder="Link (optional)" value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} />
         <input className="desk-input" type="number" min={0} step="0.01" placeholder="Est. unit cost" value={form.estimated_unit_cost} onChange={(e) => setForm({ ...form, estimated_unit_cost: e.target.value })} />
-        {canChooseKind ? (
-          <select className="desk-input" value={form.kind} onChange={(e) => setForm({ ...form, kind: e.target.value as Kind })}>
-            <option value="hardware">Hardware</option>
-            <option value="printing">Printing</option>
-          </select>
-        ) : (
-          <button className="desk-button-primary" type="submit" disabled={create.isPending || !form.name.trim()}>
-            Add
-          </button>
-        )}
-        {canChooseKind ? (
-          <button className="desk-button-primary xl:col-span-6" type="submit" disabled={create.isPending || !form.name.trim()}>
-            Add item
-          </button>
-        ) : null}
+        <input className="desk-input" placeholder="Vendor" value={form.vendor_name} onChange={(e) => setForm({ ...form, vendor_name: e.target.value })} />
+        <input className="desk-input" type="number" min={0} step="0.01" placeholder="Actual unit cost" value={form.actual_unit_cost} onChange={(e) => setForm({ ...form, actual_unit_cost: e.target.value })} />
+        {canChooseKind ? <KindSelect value={form.kind} onChange={(kind) => setForm({ ...form, kind })} /> : <AddButton disabled={create.isPending || !form.name.trim()} label="Add" />}
+        {canChooseKind ? <AddButton disabled={create.isPending || !form.name.trim()} label="Add item" className="xl:col-span-8" /> : null}
       </form>
-      {create.error ? <p className="mt-2 text-sm text-danger">{create.error instanceof Error ? create.error.message : "Could not add item."}</p> : null}
-      {exportToBuy.error ? <p className="mt-2 text-sm text-danger">{exportToBuy.error instanceof Error ? exportToBuy.error.message : "Could not export list."}</p> : null}
+      <MutationErrors create={create.error} update={update.error} remove={remove.error} exportError={exportToBuy.error} />
 
       <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
           <Metric label="Visible estimated total" value={formatAmount(visibleEstimatedTotal)} />
-          <Metric label="Pending budget" value={formatAmount(pendingBudget)} />
-          <Metric label="Bought total" value={formatAmount(boughtTotal)} />
+          <Metric label="Open budget" value={formatAmount(openBudget)} />
+          <Metric label="Received actual total" value={formatAmount(receivedTotal)} />
           <label className="grid gap-1 text-xs font-semibold uppercase tracking-wide text-muted">
             Status
             <select className="desk-input" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
               <option value="all">All</option>
-              <option value="pending">Pending</option>
-              <option value="bought">Bought</option>
+              {statusOptions.map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}
             </select>
           </label>
         </div>
         <div className="flex flex-wrap gap-2 justify-self-start lg:justify-self-end">
-          <button className="desk-button" type="button" disabled={exportToBuy.isPending} onClick={() => exportToBuy.mutate("csv")}>
-            Export CSV
-          </button>
-          <button className="desk-button" type="button" disabled={exportToBuy.isPending} onClick={() => exportToBuy.mutate("xlsx")}>
-            Export XLSX
-          </button>
+          <button className="desk-button" type="button" disabled={exportToBuy.isPending} onClick={() => exportToBuy.mutate("csv")}>Export CSV</button>
+          <button className="desk-button" type="button" disabled={exportToBuy.isPending} onClick={() => exportToBuy.mutate("xlsx")}>Export XLSX</button>
         </div>
       </div>
-      {items.isFetching && !items.isLoading ? <p className="mt-2 text-xs text-muted">Refreshing list...</p> : null}
-      {items.isLoading ? (
-        <p className="mt-3 text-sm text-muted">Loading...</p>
-      ) : items.error ? (
-        <p className="mt-3 text-sm text-danger">{items.error instanceof Error ? items.error.message : "Unable to load list."}</p>
-      ) : !rows.length ? (
-        <p className="mt-3 text-sm text-muted">Nothing on the list yet.</p>
-      ) : (
-        <div className="mt-3 max-h-[28rem] overflow-x-auto overflow-y-auto rounded-md border border-line">
-          <table className="min-w-[760px] divide-y divide-line text-left text-sm">
-            <thead className="sticky top-0 bg-surface text-xs uppercase tracking-wide text-muted">
-              <tr>
-                {["kind", "item", "qty", "link", "est. cost", "added by", "status", ""].map((header) => (
-                  <th key={header} className="whitespace-nowrap px-3 py-2 font-semibold">{header}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line bg-bg text-ink">
-              {rows.map((item) => (
-                <tr key={item.id}>
-                  <td className="px-3 py-2 text-xs uppercase text-muted">{item.kind}</td>
-                  <td className="px-3 py-2"><span className="block max-w-56 break-words">{item.name}</span></td>
-                  <td className="px-3 py-2">{item.quantity}</td>
-                  <td className="px-3 py-2">
-                    {safeHref(item.link) ? (
-                      <a className="text-accent-ink underline" href={safeHref(item.link)!} target="_blank" rel="noreferrer">link</a>
-                    ) : item.link ? (
-                      <span className="block max-w-56 break-all text-muted" title={item.link}>{item.link}</span>
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-                  <td className="px-3 py-2">{item.estimated_unit_cost ?? "-"}</td>
-                  <td className="px-3 py-2 text-muted"><span className="block max-w-40 break-words">{item.created_by_username ?? "-"}</span></td>
-                  <td className="px-3 py-2">
-                    <button
-                      type="button"
-                      className={`rounded px-2 py-1 text-xs font-semibold ${item.status === "bought" ? "bg-accent text-on-accent" : "border border-line text-muted"}`}
-                      onClick={() => update.mutate({ id: item.id, status: item.status === "bought" ? "pending" : "bought" })}
-                    >
-                      {item.status === "bought" ? "Bought" : "Pending"}
-                    </button>
-                  </td>
-                  <td className="px-3 py-2 text-right">
-                    <button type="button" className="desk-button" onClick={() => remove.mutate(item.id)}>
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <ProcurementTable rows={rows} items={items} update={update} remove={remove} invalidate={invalidate} />
     </Panel>
   );
 }
 
-function itemTotal(item: ToBuyItem) {
-  const unitCost = Number(item.estimated_unit_cost ?? 0);
-  return Number.isFinite(unitCost) ? unitCost * item.quantity : 0;
+function ProcurementTable({ rows, items, update, remove, invalidate }: { rows: ToBuyItem[]; items: UseQueryResult<ToBuyItem[], Error>; update: UseMutationResult<unknown, Error, UpdateVariables>; remove: UseMutationResult<unknown, Error, number>; invalidate: () => void }) {
+  if (items.isFetching && !items.isLoading) return <p className="mt-2 text-xs text-muted">Refreshing list...</p>;
+  if (items.isLoading) return <p className="mt-3 text-sm text-muted">Loading...</p>;
+  if (items.error) return <p className="mt-3 text-sm text-danger">{items.error instanceof Error ? items.error.message : "Unable to load list."}</p>;
+  if (!rows.length) return <p className="mt-3 text-sm text-muted">Nothing on the list yet.</p>;
+  return (
+    <div className="mt-3 max-h-[32rem] overflow-x-auto overflow-y-auto rounded-md border border-line">
+      <table className="min-w-[1180px] divide-y divide-line text-left text-sm">
+        <thead className="sticky top-0 bg-surface text-xs uppercase tracking-wide text-muted">
+          <tr>{["kind", "item", "qty", "link", "est.", "vendor", "actual", "purchaser", "ordered", "received", "receipts", "status", ""].map((header) => <th key={header} className="whitespace-nowrap px-3 py-2 font-semibold">{header}</th>)}</tr>
+        </thead>
+        <tbody className="divide-y divide-line bg-bg text-ink">
+          {rows.map((item) => <ProcurementRow key={item.id} item={item} updatePending={update.isPending} deletePending={remove.isPending} onSave={(draft) => update.mutate({ id: item.id, payload: { status: draft.status, vendor_name: draft.vendor_name, actual_unit_cost: draft.actual_unit_cost ? Number(draft.actual_unit_cost) : null } })} onDelete={() => remove.mutate(item.id)} onReceiptsChanged={invalidate} />)}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function KindSelect({ value, onChange }: { value: Kind; onChange: (kind: Kind) => void }) {
+  return <select className="desk-input" value={value} onChange={(e) => onChange(e.target.value as Kind)}><option value="hardware">Hardware</option><option value="printing">Printing</option></select>;
+}
+
+function AddButton({ disabled, label, className = "" }: { disabled: boolean; label: string; className?: string }) {
+  return <button className={`desk-button-primary ${className}`} type="submit" disabled={disabled}>{label}</button>;
+}
+
+function MutationErrors({ create, update, remove, exportError }: { create: unknown; update: unknown; remove: unknown; exportError: unknown }) {
+  const errors = [[create, "Could not add item."], [update, "Could not update item."], [remove, "Could not delete item."], [exportError, "Could not export list."]] as const;
+  return <>{errors.map(([error, fallback]) => error ? <p key={fallback} className="mt-2 text-sm text-danger">{error instanceof Error ? error.message : fallback}</p> : null)}</>;
 }
 
 function formatAmount(value: number) {
@@ -212,10 +173,7 @@ function formatAmount(value: number) {
 }
 
 function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border border-line bg-bg px-3 py-2">
-      <p className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-ink">{value}</p>
-    </div>
-  );
+  return <div className="rounded-md border border-line bg-bg px-3 py-2"><p className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</p><p className="mt-1 text-lg font-semibold text-ink">{value}</p></div>;
 }
+
+

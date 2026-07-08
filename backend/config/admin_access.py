@@ -13,6 +13,7 @@ NESTED_MAKERSPACE_LOOKUPS = {
     "hardware_requests.hardwarerequestitemasset": "asset__makerspace_id",
     "printing.printrequest": "bucket__makerspace_id",
     "warranty.warrantydocument": "warranty__makerspace_id",
+    "procurement.tobuyreceipt": "to_buy_item__makerspace_id",
 }
 
 # Registered admin models that are intentionally NOT makerspace-scoped (account/global).
@@ -217,3 +218,4 @@ class SuperuserOnlyModelAdmin:
 
     def has_module_permission(self, request):
         return self._has_superuser_access(request)
+
