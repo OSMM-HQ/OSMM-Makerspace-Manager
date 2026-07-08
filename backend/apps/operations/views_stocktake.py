@@ -16,6 +16,8 @@ from apps.operations.serializers import (
     StocktakeCreateSerializer,
     StocktakeLineInputSerializer,
     StocktakeLineSerializer,
+    StocktakeScanInputSerializer,
+    StocktakeScanResultSerializer,
     StocktakeSerializer,
 )
 
@@ -76,6 +78,19 @@ class StocktakeCountLineView(APIView):
         serializer.is_valid(raise_exception=True)
         line = services.add_stocktake_line(request.user, stocktake, serializer.validated_data)
         return Response(StocktakeLineSerializer(line).data, status=status.HTTP_201_CREATED)
+
+
+class StocktakeResolveScanView(APIView):
+    permission_classes = [IsActiveStaff]
+    serializer_class = StocktakeScanInputSerializer
+
+    @extend_schema(tags=["Stocktake"], summary="Resolve a scanned QR to a stocktake count target", request=StocktakeScanInputSerializer, responses={200: StocktakeScanResultSerializer, **STOCKTAKE_ERROR_RESPONSES})
+    def post(self, request, pk, *args, **kwargs):
+        stocktake = _stocktake_for_action(request.user, pk, rbac.Action.EDIT_INVENTORY)
+        serializer = StocktakeScanInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = services.resolve_scan_target(request.user, stocktake, serializer.validated_data["payload"])
+        return Response(result)
 
 
 class StocktakeCompleteView(APIView):

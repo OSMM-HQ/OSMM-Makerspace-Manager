@@ -17,6 +17,7 @@ urlpatterns = [
     path("admin/makerspace/<int:makerspace_id>/stocktakes", views.StocktakeListCreateView.as_view(), name="stocktakes"),
     path("admin/stocktakes/<int:pk>", views.StocktakeDetailView.as_view(), name="stocktake-detail"),
     path("admin/stocktakes/<int:pk>/count-lines", views.StocktakeCountLineView.as_view(), name="stocktake-count-lines"),
+    path("admin/stocktakes/<int:pk>/resolve-scan", views.StocktakeResolveScanView.as_view(), name="stocktake-resolve-scan"),
     path("admin/stocktakes/<int:pk>/complete", views.StocktakeCompleteView.as_view(), name="stocktake-complete"),
     path("admin/stocktakes/<int:pk>/approve", views.StocktakeApproveView.as_view(), name="stocktake-approve"),
     path("admin/stocktakes/<int:pk>/apply-adjustments", views.StocktakeApplyAdjustmentsView.as_view(), name="stocktake-apply-adjustments"),

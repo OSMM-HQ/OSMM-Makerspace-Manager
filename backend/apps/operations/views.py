@@ -93,6 +93,7 @@ from apps.operations.views_stocktake import (
     StocktakeCountLineView,
     StocktakeDetailView,
     StocktakeListCreateView,
+    StocktakeResolveScanView,
     _stocktake_for_action,
 )
 from apps.operations.views_transfers import StockTransferDetailView, StockTransferListCreateView
