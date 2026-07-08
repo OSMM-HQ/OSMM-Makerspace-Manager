@@ -275,9 +275,9 @@ function detailToDraft(detail: TemplateDetail): Draft {
 
 function editorRef(
   focused: FocusedField,
-  subjectRef: RefObject<HTMLInputElement>,
-  textRef: RefObject<HTMLTextAreaElement>,
-  htmlRef: RefObject<HTMLTextAreaElement>,
+  subjectRef: RefObject<HTMLInputElement | null>,
+  textRef: RefObject<HTMLTextAreaElement | null>,
+  htmlRef: RefObject<HTMLTextAreaElement | null>,
 ) {
   if (focused === "subject") return subjectRef;
   if (focused === "html_body") return htmlRef;
