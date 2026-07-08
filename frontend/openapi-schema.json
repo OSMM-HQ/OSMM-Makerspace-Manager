@@ -6003,6 +6003,48 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/verify-domain": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_verify_domain_create",
+                "summary": "Verify a makerspace custom domain",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin makerspaces"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DomainVerificationResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "description": "Missing makerspace management permission."
+                    },
+                    "404": {
+                        "description": "Makerspace not found."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/warranties": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_warranties_list",
@@ -15990,6 +16032,59 @@
                 "type": "string",
                 "description": "* `needs_fix` - needs_fix\n* `remove` - remove"
             },
+            "DomainVerificationRecord": {
+                "type": "object",
+                "properties": {
+                    "host": {
+                        "type": "string"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "value": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "host",
+                    "type",
+                    "value"
+                ]
+            },
+            "DomainVerificationResponse": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/StatusA39Enum"
+                    },
+                    "token": {
+                        "type": "string"
+                    },
+                    "expected_record": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DomainVerificationRecord"
+                            }
+                        ],
+                        "nullable": true
+                    },
+                    "verified_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "detail": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "detail",
+                    "expected_record",
+                    "status",
+                    "token",
+                    "verified_at"
+                ]
+            },
             "EmailLog": {
                 "type": "object",
                 "properties": {
@@ -16643,6 +16738,15 @@
                 "required": [
                     "email"
                 ]
+            },
+            "FrontendDomainStatusEnum": {
+                "enum": [
+                    "pending",
+                    "verified",
+                    "failed"
+                ],
+                "type": "string",
+                "description": "* `pending` - Pending\n* `verified` - Verified\n* `failed` - Failed"
             },
             "GenericObject": {
                 "type": "object",
@@ -17566,6 +17670,40 @@
                         "nullable": true,
                         "maxLength": 255
                     },
+                    "frontend_domain_status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FrontendDomainStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "domain_verified_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "domain_verification_token": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "domain_verification_record": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                            "host": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "readOnly": true
+                    },
                     "hidden_from_central_directory": {
                         "type": "boolean"
                     },
@@ -17649,6 +17787,10 @@
                     "cover_image_key",
                     "cover_image_url",
                     "created_at",
+                    "domain_verification_record",
+                    "domain_verification_token",
+                    "domain_verified_at",
+                    "frontend_domain_status",
                     "id",
                     "logo_key",
                     "logo_url",
@@ -19655,6 +19797,40 @@
                         "type": "string",
                         "nullable": true,
                         "maxLength": 255
+                    },
+                    "frontend_domain_status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FrontendDomainStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "domain_verified_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "domain_verification_token": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "domain_verification_record": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                            "host": {
+                                "type": "string"
+                            },
+                            "type": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        },
+                        "readOnly": true
                     },
                     "hidden_from_central_directory": {
                         "type": "boolean"
@@ -23350,6 +23526,15 @@
                 ],
                 "type": "string",
                 "description": "* `space_manager` - Space Manager\n* `guest_admin` - Guest Admin\n* `inventory_manager` - Inventory Manager\n* `print_manager` - Print Manager"
+            },
+            "StatusA39Enum": {
+                "enum": [
+                    "pending",
+                    "verified",
+                    "failed"
+                ],
+                "type": "string",
+                "description": "* `pending` - Pending\n* `verified` - Verified\n* `failed` - Failed"
             },
             "StockTransfer": {
                 "type": "object",

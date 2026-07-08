@@ -122,6 +122,7 @@ export const openApiPaths = [
   "/api/v1/admin/makerspace/{makerspace_id}/return-policy",
   "/api/v1/admin/makerspace/{makerspace_id}/stock-transfers",
   "/api/v1/admin/makerspace/{makerspace_id}/stocktakes",
+  "/api/v1/admin/makerspace/{makerspace_id}/verify-domain",
   "/api/v1/admin/makerspace/{makerspace_id}/warranties",
   "/api/v1/admin/makerspaces",
   "/api/v1/admin/makerspaces/{id}",

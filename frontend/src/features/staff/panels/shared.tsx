@@ -12,6 +12,10 @@ export type Makerspace = {
   map_url?: string;
   telegram_group_chat_id: string;
   frontend_domain: string | null;
+  frontend_domain_status?: "pending" | "verified" | "failed";
+  domain_verified_at?: string | null;
+  domain_verification_token?: string;
+  domain_verification_record?: { host: string; type: "TXT"; value: string } | null;
   hidden_from_central_directory: boolean;
   superadmin_access_enabled?: boolean;
   staff_notifications_enabled?: boolean;

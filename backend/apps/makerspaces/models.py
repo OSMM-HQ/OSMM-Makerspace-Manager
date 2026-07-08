@@ -16,6 +16,10 @@ def generate_publishable_key():
     return f"pk_{get_random_string(32)}"
 
 
+def generate_domain_verification_token():
+    return f"dv_{get_random_string(48)}"
+
+
 def generate_public_code():
     return get_random_string(4, allowed_chars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789")
 
@@ -78,6 +82,11 @@ def default_branding_config():
 
 
 class Makerspace(models.Model):
+    class DomainStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        VERIFIED = "verified", "Verified"
+        FAILED = "failed", "Failed"
+
     class PublicPrintStatusLookupPolicy(models.TextChoices):
         TOKEN_ONLY = "token_only", "Token only"
         EMAIL_UNVERIFIED = "email_unverified", "Email unverified"
@@ -124,6 +133,17 @@ class Makerspace(models.Model):
         null=True,
         blank=True,
     )
+    frontend_domain_status = models.CharField(
+        max_length=16,
+        choices=DomainStatus.choices,
+        default=DomainStatus.PENDING,
+    )
+    domain_verification_token = models.CharField(
+        max_length=64,
+        editable=False,
+        default=generate_domain_verification_token,
+    )
+    domain_verified_at = models.DateTimeField(null=True, blank=True)
     hidden_from_central_directory = models.BooleanField(default=False)
     public_api_key = models.CharField(
         max_length=40,

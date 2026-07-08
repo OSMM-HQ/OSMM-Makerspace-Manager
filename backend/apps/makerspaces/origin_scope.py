@@ -162,6 +162,7 @@ _PRINT_ACTIONS = {
     "managed-request-reprint",
 }
 _MODEL_LOOKUPS = {
+    "makerspace-verify-domain": ("makerspaces.Makerspace", "id"),
     "admin-inventory-detail": ("inventory.InventoryProduct", "makerspace_id"),
     "admin-inventory-image": ("inventory.InventoryProduct", "makerspace_id"),
     "admin-printer-image": ("printing.PrintPrinter", "makerspace_id"),
