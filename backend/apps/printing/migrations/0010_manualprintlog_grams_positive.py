@@ -13,7 +13,7 @@ class Migration(migrations.Migration):
         migrations.AddConstraint(
             model_name='manualprintlog',
             constraint=models.CheckConstraint(
-                check=models.Q(grams_used__gt=0),
+                condition=models.Q(grams_used__gt=0),
                 name='manual_print_log_grams_positive',
             ),
         ),

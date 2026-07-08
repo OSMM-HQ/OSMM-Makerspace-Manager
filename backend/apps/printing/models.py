@@ -213,7 +213,7 @@ class ManualPrintLog(models.Model):
     class Meta:
         constraints = [
             models.CheckConstraint(
-                check=Q(grams_used__gt=0),
+                condition=Q(grams_used__gt=0),
                 name="manual_print_log_grams_positive",
             ),
         ]
