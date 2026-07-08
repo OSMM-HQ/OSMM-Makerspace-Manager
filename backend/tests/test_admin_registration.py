@@ -33,6 +33,7 @@ from apps.hardware_requests.models import (
 from apps.integrations.models import EmailTemplate
 from apps.inventory.models import Category, InventoryAsset, InventoryProduct
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.notifications.models import Notification
 from apps.operations.models import (
     InventoryAdjustment,
     QrPrintBatch,

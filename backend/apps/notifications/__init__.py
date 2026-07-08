@@ -1,0 +1,1 @@
+"""Persistent staff notification inbox app."""

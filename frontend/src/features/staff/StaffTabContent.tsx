@@ -4,6 +4,7 @@ import { Skeleton } from "../../components/ui";
 import { Panel, type Makerspace } from "./panels/shared";
 
 const DashboardPanel = lazy(() => import("./panels/DashboardPanel").then((m) => ({ default: m.DashboardPanel })));
+const NotificationInbox = lazy(() => import("./panels/NotificationInbox").then((m) => ({ default: m.NotificationInbox })));
 const DirectLoans = lazy(() => import("./DirectLoans").then((m) => ({ default: m.DirectLoans })));
 const Inventory = lazy(() => import("./panels/Inventory").then((m) => ({ default: m.Inventory })));
 const Ledger = lazy(() => import("./panels/Ledger").then((m) => ({ default: m.Ledger })));
@@ -70,6 +71,9 @@ export function StaffTabContent({
     <Suspense fallback={<div className="p-4"><Skeleton className="h-40 w-full" /></div>}>
       {activeTab === "dashboard" ? (
         <DashboardPanel key={makerspaceKey} makerspace={activeMakerspace} />
+      ) : null}
+      {activeTab === "notifications" ? (
+        <NotificationInbox key={makerspaceKey} makerspace={activeMakerspace} />
       ) : null}
       {activeTab === "requests" ? (
         <RequestsPanel
