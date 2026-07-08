@@ -6,6 +6,7 @@ import { MakerspaceBrandingSettings } from "./MakerspaceBrandingSettings";
 import { MakerspaceCustomDomainSettings } from "./MakerspaceCustomDomainSettings";
 import { MakerspaceEmailSettings } from "./MakerspaceEmailSettings";
 import { MakerspaceFilamentSettings } from "./MakerspaceFilamentSettings";
+import { IntegrationHealthPanel } from "./IntegrationHealthPanel";
 import { MakerspaceLocationSettings } from "./MakerspaceLocationSettings";
 import { NotificationMuteMatrix } from "./NotificationMuteMatrix";
 import { Panel, type Makerspace, useStaffGet } from "./StaffPanels";
@@ -100,6 +101,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
           settings={settings.data}
           loading={settings.isLoading}
         />
+        <IntegrationHealthPanel makerspace={makerspace} />
         <div className="min-w-0 rounded-md border border-line bg-bg p-4">
           <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
             <div className="grid min-w-0 max-w-2xl gap-2">
