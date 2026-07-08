@@ -78,6 +78,8 @@ class PrintRequestActionView(ManagedPrintRequestQuerysetMixin, generics.GenericA
                 updated = workflow.mark_collected(print_request, request.user)
             else:
                 raise AssertionError("Unknown print action.")
+        except workflow.PrintStartValidationError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except workflow.InvalidTransition as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
 
@@ -184,6 +186,8 @@ class PrintRequestReprintView(
         require_module(print_request.bucket.makerspace, "printing")
         try:
             updated = workflow.reprint(print_request, request.user)
+        except workflow.PrintStartValidationError as exc:
+            return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
         except workflow.InvalidTransition as exc:
             return Response({"detail": str(exc)}, status=status.HTTP_409_CONFLICT)
         return Response(
@@ -193,3 +197,4 @@ class PrintRequestReprintView(
             ).data,
             status=status.HTTP_201_CREATED,
         )
+

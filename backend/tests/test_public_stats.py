@@ -721,7 +721,7 @@ def test_public_stats_per_printer_orders_and_strips_internal_keys():
         "name": "Manual Only",
         # Manual-only printer's model must survive the public per_printer fallback.
         "model": "Prusa Mini",
-        "jobs": 0,
+        "jobs": 1,
         "hours": 1.5,
         "grams": 40.0,
         "image_url": None,

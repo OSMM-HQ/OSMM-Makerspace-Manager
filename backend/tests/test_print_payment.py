@@ -81,7 +81,17 @@ def _complete_with_api(client, print_request, *, price=None):
     )
     assert response.status_code == 200
 
-    response = client.post(action_url(print_request, "start"), format="json")
+    printer, spool = _make_printer_and_spool(print_request.bucket.makerspace)
+    response = client.post(
+        action_url(print_request, "start"),
+        {
+            "printer_id": printer.id,
+            "filament_spool_id": spool.id,
+            "estimated_minutes": 60,
+            "estimated_filament_grams": "10.00",
+        },
+        format="json",
+    )
     assert response.status_code == 200
 
     response = client.post(action_url(print_request, "complete"), format="json")
@@ -283,7 +293,15 @@ def test_price_never_leaks_in_email(settings, event, django_capture_on_commit_ca
     print_request = make_request(bucket, requester, title="Bracket")
     workflow.accept(print_request, requester, price=Decimal("10.00"))
     if event == "completed":
-        workflow.start(print_request, requester)
+        printer, spool = _make_printer_and_spool(makerspace)
+        workflow.start(
+            print_request,
+            requester,
+            printer_id=printer.id,
+            filament_spool_id=spool.id,
+            estimated_minutes=60,
+            estimated_filament_grams=Decimal("10.00"),
+        )
         workflow.complete(print_request, requester)
     print_request.refresh_from_db()
 
@@ -318,7 +336,7 @@ def test_report_payments_totals():
         printer_id=printer.id,
         filament_spool_id=spool.id,
         estimated_minutes=60,
-        estimated_filament_grams=Decimal("0.00"),
+        estimated_filament_grams=Decimal("1.00"),
     )
     workflow.complete(paid, manager)
     workflow.mark_collected(paid, manager)
@@ -331,7 +349,7 @@ def test_report_payments_totals():
         printer_id=printer.id,
         filament_spool_id=spool.id,
         estimated_minutes=30,
-        estimated_filament_grams=Decimal("0.00"),
+        estimated_filament_grams=Decimal("1.00"),
     )
     workflow.complete(pending, manager)
 
@@ -404,7 +422,15 @@ def test_reprint_carries_price():
     manager = make_print_manager("payment-reprint-manager", makerspace)
     failed = make_request(bucket, requester, title="Failed bracket")
     workflow.accept(failed, manager, price=Decimal("10.00"))
-    workflow.start(failed, manager)
+    printer, spool = _make_printer_and_spool(makerspace)
+    workflow.start(
+        failed,
+        manager,
+        printer_id=printer.id,
+        filament_spool_id=spool.id,
+        estimated_minutes=60,
+        estimated_filament_grams=Decimal("10.00"),
+    )
     workflow.fail(failed, manager, "warped")
     failed.refresh_from_db()
 
@@ -421,3 +447,4 @@ def test_reprint_carries_price():
     assert clone.payment_status == PrintRequest.PaymentStatus.NONE
     assert response.data["price"] == "10.00"
     assert response.data["payment_status"] == PrintRequest.PaymentStatus.NONE
+

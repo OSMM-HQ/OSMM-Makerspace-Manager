@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -123,7 +125,13 @@ class PrintRequestSerializer(serializers.ModelSerializer):
             "estimated_filament_grams",
             "filament_grams_used",
             "filament_grams_reserved",
-            "reprint_of",
+            "run_printer_name",
+            "run_printer_model",
+            "run_spool_label",
+            "run_spool_material",
+            "run_spool_color",
+            "run_estimated_minutes",
+            "run_planned_filament_grams",            "reprint_of",
             "created_at",
             "accepted_at",
             "started_at",
@@ -210,12 +218,14 @@ class FailPrintSerializer(serializers.Serializer):
 
 
 class PrintStartSerializer(serializers.Serializer):
-    printer_id = serializers.IntegerField(required=False)
-    filament_spool_id = serializers.IntegerField(required=False)
-    estimated_minutes = serializers.IntegerField(required=False, min_value=0)
+    printer_id = serializers.IntegerField(required=True)
+    filament_spool_id = serializers.IntegerField(required=True)
+    estimated_minutes = serializers.IntegerField(required=True, min_value=1)
     estimated_filament_grams = serializers.DecimalField(
-        required=False,
+        required=True,
         max_digits=8,
         decimal_places=2,
-        min_value=0,
+        min_value=Decimal("0.01"),
     )
+
+
