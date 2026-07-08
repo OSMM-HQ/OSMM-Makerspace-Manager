@@ -81,6 +81,13 @@ class ToBuyItem(models.Model):
         on_delete=models.SET_NULL,
         related_name="+",
     )
+    source_spool = models.ForeignKey(
+        "printing.FilamentSpool",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="low_stock_to_buy_items",
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,

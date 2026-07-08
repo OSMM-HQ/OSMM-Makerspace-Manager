@@ -67,6 +67,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "public_inventory_enabled",
             "public_stats_enabled",
             "public_print_status_lookup_policy",
+            "filament_low_stock_threshold_grams",
             "superadmin_access_enabled",
             "staff_notifications_enabled",
             "logo_key",
@@ -137,6 +138,11 @@ class MakerspaceSerializer(serializers.ModelSerializer):
     def validate_default_loan_days(self, value):
         if value < 1:
             raise serializers.ValidationError("Default loan days must be at least 1.")
+        return value
+
+    def validate_filament_low_stock_threshold_grams(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Filament low-stock threshold cannot be negative.")
         return value
 
     def validate(self, attrs):

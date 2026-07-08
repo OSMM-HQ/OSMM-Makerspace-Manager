@@ -17530,6 +17530,11 @@
                     "public_print_status_lookup_policy": {
                         "$ref": "#/components/schemas/PublicPrintStatusLookupPolicyEnum"
                     },
+                    "filament_low_stock_threshold_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$"
+                    },
                     "superadmin_access_enabled": {
                         "type": "boolean"
                     },
@@ -19615,6 +19620,11 @@
                     "public_print_status_lookup_policy": {
                         "$ref": "#/components/schemas/PublicPrintStatusLookupPolicyEnum"
                     },
+                    "filament_low_stock_threshold_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$"
+                    },
                     "superadmin_access_enabled": {
                         "type": "boolean"
                     },
@@ -19965,6 +19975,11 @@
                         "nullable": true
                     },
                     "resulting_printer": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "source_spool": {
                         "type": "integer",
                         "readOnly": true,
                         "nullable": true
@@ -24017,6 +24032,11 @@
                         "readOnly": true,
                         "nullable": true
                     },
+                    "source_spool": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
                     "receipts": {
                         "type": "array",
                         "items": {
@@ -24061,6 +24081,7 @@
                     "resulting_printer",
                     "resulting_product",
                     "resulting_spool",
+                    "source_spool",
                     "updated_at"
                 ]
             },
