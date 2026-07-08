@@ -97,6 +97,12 @@ class PublicToolLoan(models.Model):
         ]
 
 class PublicProblemReport(models.Model):
+    class Outcome(models.TextChoices):
+        NO_ISSUE = "no_issue", "No Issue"
+        DAMAGED = "damaged", "Damaged"
+        MISSING = "missing", "Missing"
+        NEEDS_FIX = "needs_fix", "Needs Fix"
+
     makerspace = models.ForeignKey(
         "makerspaces.Makerspace",
         on_delete=models.PROTECT,
@@ -118,6 +124,14 @@ class PublicProblemReport(models.Model):
         related_name="+",
     )
     note = models.TextField()
+    outcome = models.CharField(
+        max_length=20,
+        choices=Outcome.choices,
+        blank=True,
+        default="",
+        db_index=True,
+    )
+    triage_note = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(auto_now_add=True)
     resolved_at = models.DateTimeField(null=True, blank=True)
     resolved_by = models.ForeignKey(

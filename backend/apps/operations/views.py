@@ -68,9 +68,12 @@ from apps.operations.views_qr_batches import (
     QrPrintBatchItemView,
     QrPrintBatchListCreateView,
 )
+from apps.operations.views_problem_reports import (
+    ProblemReportResolveView,
+    ProblemReportTriageView,
+)
 from apps.operations.views_reports import (
     AccountabilityReportView,
-    ProblemReportResolveView,
     AggregateAnalyticsView,
     AggregateReportExportView,
     AnalyticsView,

@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { staffRequest } from "../../../lib/api";
+import { invalidateInventoryViews } from "../queryInvalidation";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 
 type Offender = {
@@ -22,7 +24,8 @@ type Overdue = {
   days_overdue: number;
 };
 type Restriction = { requester_id: number; username: string; access_status: string; restriction_reason: string };
-type ProblemReport = { id: number; requester_username: string; label: string; note: string; created_at: string };
+type ProblemReportItem = { id: number; product_name: string; issued_quantity: number; tracking_mode: string };
+type ProblemReport = { id: number; requester_username: string; label: string; note: string; created_at: string; items: ProblemReportItem[] };
 type AccountabilityResponse = {
   repeat_offenders: Offender[];
   overdue: Overdue[];
@@ -30,6 +33,14 @@ type AccountabilityResponse = {
   problem_reports: ProblemReport[];
   truncated: { repeat_offenders: boolean; overdue: boolean; problem_reports: boolean };
 };
+type TriageOutcome = "no_issue" | "damaged" | "missing" | "needs_fix";
+
+const OUTCOME_OPTIONS: Array<{ value: TriageOutcome; label: string }> = [
+  { value: "no_issue", label: "No issue" },
+  { value: "damaged", label: "Damaged" },
+  { value: "missing", label: "Missing" },
+  { value: "needs_fix", label: "Needs fix" },
+];
 
 export function AccountabilityPanel({ makerspace, isSuperadmin }: { makerspace: Makerspace; isSuperadmin: boolean }) {
   const queryClient = useQueryClient();
@@ -38,6 +49,11 @@ export function AccountabilityPanel({ makerspace, isSuperadmin }: { makerspace: 
 
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["accountability", makerspace.id] });
+  };
+  const refreshAfterTriage = () => {
+    refresh();
+    invalidateInventoryViews(queryClient, makerspace.id, makerspace.slug);
+    queryClient.invalidateQueries({ queryKey: ["needs-fix-shelf", makerspace.id] });
   };
   const restrict = useMutation({
     mutationFn: ({ userId, reason }: { userId: number; reason: string }) =>
@@ -49,11 +65,6 @@ export function AccountabilityPanel({ makerspace, isSuperadmin }: { makerspace: 
   });
   const restore = useMutation({
     mutationFn: (userId: number) => staffRequest(`/admin/users/${userId}/restore-access`, { method: "POST" }),
-    onSuccess: refresh,
-  });
-  const resolveReport = useMutation({
-    mutationFn: (reportId: number) =>
-      staffRequest(`/admin/makerspace/${makerspace.id}/problem-reports/${reportId}/resolve`, { method: "POST" }),
     onSuccess: refresh,
   });
 
@@ -85,18 +96,9 @@ export function AccountabilityPanel({ makerspace, isSuperadmin }: { makerspace: 
         {!data?.problem_reports.length ? (
           <p className="text-sm text-muted">No open problem reports from public returns.</p>
         ) : (
-          <div className="grid gap-2">
+          <div className="grid gap-3">
             {data.problem_reports.map((row) => (
-              <div key={row.id} className="flex flex-wrap items-start justify-between gap-3 rounded-md border border-line bg-surface p-2 text-sm">
-                <div className="min-w-0">
-                  <p className="font-medium text-ink">{row.label || "(tool)"}</p>
-                  <p className="text-xs text-muted">{row.requester_username} | {new Date(row.created_at).toLocaleString()}</p>
-                  <p className="mt-1 break-words text-ink">{row.note}</p>
-                </div>
-                <button className="desk-button" type="button" disabled={resolveReport.isPending} onClick={() => resolveReport.mutate(row.id)}>
-                  Resolve
-                </button>
-              </div>
+              <ProblemReportCard key={row.id} row={row} makerspace={makerspace} onTriaged={refreshAfterTriage} />
             ))}
             {data.truncated.problem_reports ? <p className="text-xs text-muted">Showing the oldest open reports only.</p> : null}
           </div>
@@ -180,7 +182,68 @@ export function AccountabilityPanel({ makerspace, isSuperadmin }: { makerspace: 
       </Panel>
       {restrict.error ? <p className="text-sm text-danger">{(restrict.error as Error).message}</p> : null}
       {restore.error ? <p className="text-sm text-danger">{(restore.error as Error).message}</p> : null}
-      {resolveReport.error ? <p className="text-sm text-danger">{(resolveReport.error as Error).message}</p> : null}
+    </div>
+  );
+}
+
+function ProblemReportCard({ row, makerspace, onTriaged }: { row: ProblemReport; makerspace: Makerspace; onTriaged: () => void }) {
+  const [outcome, setOutcome] = useState<TriageOutcome>("no_issue");
+  const [quantities, setQuantities] = useState<Record<number, string>>({});
+  const [note, setNote] = useState("");
+  const actionable = outcome !== "no_issue";
+  const resolutions = actionable
+    ? row.items
+        .map((item) => ({ item_id: item.id, quantity: Number(quantities[item.id] || 0) }))
+        .filter((resolution) => resolution.quantity > 0)
+    : [];
+  const triage = useMutation({
+    mutationFn: () => staffRequest(`/admin/makerspace/${makerspace.id}/problem-reports/${row.id}/triage`, {
+      method: "POST",
+      body: JSON.stringify({ outcome, resolutions, note }),
+    }),
+    onSuccess: onTriaged,
+  });
+
+  return (
+    <div className="grid gap-3 rounded-md border border-line bg-surface p-3 text-sm">
+      <div className="min-w-0">
+        <p className="font-medium text-ink">{row.label || "(tool)"}</p>
+        <p className="text-xs text-muted">{row.requester_username} | {new Date(row.created_at).toLocaleString()}</p>
+        <p className="mt-1 break-words text-ink">{row.note}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {OUTCOME_OPTIONS.map((option) => (
+          <label key={option.value} className="flex items-center gap-2 rounded-md border border-line bg-bg px-2 py-1 text-xs text-ink">
+            <input type="radio" name={`problem-outcome-${row.id}`} value={option.value} checked={outcome === option.value} onChange={() => setOutcome(option.value)} />
+            {option.label}
+          </label>
+        ))}
+      </div>
+      {actionable ? (
+        <div className="grid gap-2 sm:grid-cols-2">
+          {row.items.map((item) => (
+            <label key={item.id} className="grid gap-1 text-xs text-muted">
+              <span>{item.product_name} ({item.issued_quantity})</span>
+              <input
+                className="desk-input"
+                type="number"
+                min={0}
+                max={item.issued_quantity}
+                value={quantities[item.id] ?? ""}
+                onChange={(event) => setQuantities((current) => ({ ...current, [item.id]: event.target.value }))}
+                placeholder="0"
+              />
+            </label>
+          ))}
+        </div>
+      ) : null}
+      <textarea className="desk-input min-h-20" value={note} onChange={(event) => setNote(event.target.value)} placeholder="Triage note" />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {triage.error ? <p className="text-sm text-danger">{(triage.error as Error).message}</p> : <span />}
+        <button className="desk-button" type="button" disabled={triage.isPending || (actionable && resolutions.length === 0)} onClick={() => triage.mutate()}>
+          Save triage
+        </button>
+      </div>
     </div>
   );
 }

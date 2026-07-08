@@ -5315,6 +5315,70 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/problem-reports/{id}/triage": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_problem_reports_triage_create",
+                "summary": "Triage a public problem report",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Analytics"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProblemReportTriage"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProblemReportTriage"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProblemReportTriage"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProblemReportTriageResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/qr-print-batches": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_qr_print_batches_list",
@@ -20074,6 +20138,76 @@
                     "printing",
                     "rejected",
                     "total_requests"
+                ]
+            },
+            "ProblemReportTriage": {
+                "type": "object",
+                "properties": {
+                    "outcome": {
+                        "$ref": "#/components/schemas/ProblemReportTriageOutcomeEnum"
+                    },
+                    "resolutions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ProblemReportTriageResolution"
+                        }
+                    },
+                    "note": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "evidence_id": {
+                        "type": "integer",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "outcome"
+                ]
+            },
+            "ProblemReportTriageOutcomeEnum": {
+                "enum": [
+                    "no_issue",
+                    "damaged",
+                    "missing",
+                    "needs_fix"
+                ],
+                "type": "string",
+                "description": "* `no_issue` - no_issue\n* `damaged` - damaged\n* `missing` - missing\n* `needs_fix` - needs_fix"
+            },
+            "ProblemReportTriageResolution": {
+                "type": "object",
+                "properties": {
+                    "item_id": {
+                        "type": "integer"
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "minimum": 1
+                    }
+                },
+                "required": [
+                    "item_id",
+                    "quantity"
+                ]
+            },
+            "ProblemReportTriageResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "outcome": {
+                        "type": "string"
+                    },
+                    "resolved": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "id",
+                    "outcome",
+                    "resolved"
                 ]
             },
             "ProductQrHistory": {

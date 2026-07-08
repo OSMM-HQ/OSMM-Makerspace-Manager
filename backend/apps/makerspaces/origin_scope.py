@@ -195,6 +195,7 @@ _MODEL_LOOKUPS = {
     "qr-print-batch-items": ("operations.QrPrintBatch", "makerspace_id"),
     "qr-print-batch-download": ("operations.QrPrintBatch", "makerspace_id"),
     "direct-loan-return": ("hardware_requests.PublicToolLoan", "makerspace_id"),
+    "problem-report-triage": ("hardware_requests.PublicProblemReport", "makerspace_id"),
     "managed-printer-detail": ("printing.PrintPrinter", "makerspace_id"),
     "managed-spool-detail": ("printing.FilamentSpool", "makerspace_id"),
     "managed-file-url": ("printing.PrintRequestFile", "makerspace_id"),

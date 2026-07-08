@@ -33,7 +33,7 @@ def _problem_reports(makerspace_id, limit):
         PublicProblemReport.objects.filter(
             makerspace_id=makerspace_id, resolved_at__isnull=True
         )
-        .select_related("requester", "loan")
+        .select_related("requester", "loan", "request").prefetch_related("request__items__product")
         .order_by("created_at")[: limit + 1]
     )
     return [
@@ -43,6 +43,15 @@ def _problem_reports(makerspace_id, limit):
             "label": report.loan.target_label,
             "note": report.note,
             "created_at": report.created_at.isoformat(),
+            "items": [
+                {
+                    "id": item.id,
+                    "product_name": item.product.name,
+                    "issued_quantity": item.issued_quantity,
+                    "tracking_mode": item.product.tracking_mode,
+                }
+                for item in report.request.items.all()
+            ],
         }
         for report in rows[:limit]
     ], len(rows) > limit

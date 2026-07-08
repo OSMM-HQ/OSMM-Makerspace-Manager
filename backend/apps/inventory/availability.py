@@ -147,6 +147,92 @@ def adjust_quantities(
     return locked
 
 
+def move_available_to_triage_bucket(product, quantity, *, outcome, reason, actor):
+    """Move returned public-report stock out of available after staff triage.
+
+    Public self-checkout returns place stock back into AVAILABLE before a public
+    problem report is reviewed. Triage is a later correction from available into
+    the staff-confirmed unavailable bucket.
+    """
+    quantity = int(quantity)
+    if quantity <= 0:
+        raise InsufficientStock("Triage quantity must be positive.")
+    if outcome == "damaged":
+        return adjust_quantities(
+            product,
+            delta_available=-quantity,
+            delta_damaged=quantity,
+            delta_lost=0,
+            reason=reason,
+            actor=actor,
+        )
+    if outcome == "missing":
+        return adjust_quantities(
+            product,
+            delta_available=-quantity,
+            delta_damaged=0,
+            delta_lost=quantity,
+            reason=reason,
+            actor=actor,
+        )
+    if outcome != "needs_fix":
+        raise InsufficientStock("Unsupported triage inventory outcome.")
+
+    if not connection.in_atomic_block:
+        raise RuntimeError(
+            "move_available_to_triage_bucket must be called inside transaction.atomic()."
+        )
+    locked = InventoryProduct.objects.select_for_update().get(pk=product.pk)
+    if locked.available_quantity < quantity:
+        raise InsufficientStock(
+            f"Cannot move {quantity}: only {locked.available_quantity} available."
+        )
+    locked.available_quantity -= quantity
+    locked.needs_fix_quantity += quantity
+    locked.total_quantity = (
+        locked.available_quantity
+        + locked.reserved_quantity
+        + locked.issued_quantity
+        + locked.damaged_quantity
+        + locked.lost_quantity
+        + locked.needs_fix_quantity
+    )
+    locked.save(
+        update_fields=[
+            "available_quantity",
+            "needs_fix_quantity",
+            "total_quantity",
+            "updated_at",
+        ]
+    )
+
+    from apps.audit import services as audit
+    from apps.operations.models import InventoryAdjustment
+
+    InventoryAdjustment.objects.create(
+        makerspace=locked.makerspace,
+        product=locked,
+        delta_available=-quantity,
+        delta_damaged=0,
+        delta_lost=0,
+        reason=reason,
+        created_by=actor,
+    )
+    audit.record(
+        actor,
+        "inventory.quantity_adjusted",
+        makerspace=locked.makerspace,
+        target=locked,
+        meta={
+            "delta_available": -quantity,
+            "delta_damaged": 0,
+            "delta_lost": 0,
+            "target_bucket": "needs_fix",
+            "reason": reason,
+        },
+    )
+    return locked
+
 def issue_available(product, quantity):
     """Move `quantity` of a single product straight from available -> issued.
 
