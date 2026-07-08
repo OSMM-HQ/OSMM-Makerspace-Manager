@@ -106,6 +106,13 @@ class Makerspace(models.Model):
         choices=PublicPrintStatusLookupPolicy.choices,
         default=PublicPrintStatusLookupPolicy.EMAIL_UNVERIFIED,
     )
+    # 0 = off. When > 0, active filament spools at/below this remaining weight
+    # can auto-create a printing procurement item.
+    filament_low_stock_threshold_grams = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+    )
     superadmin_access_enabled = models.BooleanField(default=True)
     staff_notifications_enabled = models.BooleanField(default=True)
     logo_key = models.CharField(max_length=300, blank=True, default="")

@@ -5,6 +5,7 @@ import { Badge } from "../../components/ui";
 import { staffRequest } from "../../lib/api";
 import { ImageUploader } from "./ImageUploader";
 import { MakerspaceEmailSettings } from "./MakerspaceEmailSettings";
+import { MakerspaceFilamentSettings } from "./MakerspaceFilamentSettings";
 import { MakerspaceLocationSettings } from "./MakerspaceLocationSettings";
 import { NotificationMuteMatrix } from "./NotificationMuteMatrix";
 import { Panel, type Makerspace, useStaffGet } from "./StaffPanels";
@@ -97,6 +98,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
   useEffect(() => {
     setDisplayNameInput(currentDisplayName);
   }, [currentDisplayName, makerspace.id]);
+
 
   const updateDisplayName = useMutation({
     mutationFn: (value: string) =>
@@ -347,6 +349,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
             </select>
           </div>
         </div>
+        <MakerspaceFilamentSettings makerspace={makerspace} settings={settings.data} loading={settings.isLoading} />
         <MakerspaceEmailSettings makerspace={makerspace} />
         <div className="min-w-0 rounded-md border border-line bg-bg p-4">
           <form

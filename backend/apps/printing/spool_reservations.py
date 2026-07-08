@@ -49,6 +49,10 @@ def reserve_filament(actor, print_request):
         },
     )
 
+    from apps.printing.low_stock import maybe_flag_low_stock
+
+    maybe_flag_low_stock(actor, spool)
+
 
 def reconcile_filament(actor, print_request, grams_used, *, reason):
     if not print_request.filament_spool_id:
@@ -77,6 +81,7 @@ def reconcile_filament(actor, print_request, grams_used, *, reason):
             spool.initial_weight_grams,
             spool.remaining_weight_grams - adjustment,
         )
+    remaining_decreased = spool.remaining_weight_grams < remaining_before
     spool.save(update_fields=["remaining_weight_grams", "updated_at"])
     record_adjustment(
         actor=actor,
@@ -107,6 +112,10 @@ def reconcile_filament(actor, print_request, grams_used, *, reason):
             "reason": reason,
         },
     )
+    if remaining_decreased:
+        from apps.printing.low_stock import maybe_flag_low_stock
+
+        maybe_flag_low_stock(actor, spool)
 
 
 def _decimal(value):

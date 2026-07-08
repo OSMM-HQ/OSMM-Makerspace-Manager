@@ -109,4 +109,7 @@ def log_manual_print(
                 "remaining_after": str(spool.remaining_weight_grams),
             },
         )
+        from apps.printing.low_stock import maybe_flag_low_stock
+
+        maybe_flag_low_stock(actor, spool)
         return log

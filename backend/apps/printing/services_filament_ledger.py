@@ -52,6 +52,7 @@ def apply_staff_adjustment(actor, spool_id, *, kind, grams, reason):
         if remaining_after > spool.initial_weight_grams:
             raise InvalidFilamentAdjustment("Adjustment would exceed the spool initial weight.")
 
+        remaining_decreased = remaining_after < remaining_before
         spool.remaining_weight_grams = remaining_after
         update_fields = ["remaining_weight_grams", "updated_at"]
         if kind == FilamentAdjustment.Kind.RETIRE and remaining_after == 0 and spool.is_active:
@@ -81,6 +82,10 @@ def apply_staff_adjustment(actor, spool_id, *, kind, grams, reason):
                 "reason": reason,
             },
         )
+        if remaining_decreased:
+            from apps.printing.low_stock import maybe_flag_low_stock
+
+            maybe_flag_low_stock(actor, spool)
         return spool, adjustment
 
 
