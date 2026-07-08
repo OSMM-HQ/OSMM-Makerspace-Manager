@@ -3638,6 +3638,48 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/dashboard": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_dashboard_retrieve",
+                "summary": "Staff operations dashboard counts",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Dashboard"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Dashboard"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Makerspace not found."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/direct-loans": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_direct_loans_list",
@@ -15885,6 +15927,55 @@
                     "missing_quantity",
                     "product"
                 ]
+            },
+            "Dashboard": {
+                "type": "object",
+                "properties": {
+                    "overdue_loans": {
+                        "type": "integer",
+                        "default": 0
+                    },
+                    "pending_requests": {
+                        "type": "integer",
+                        "default": 0
+                    },
+                    "awaiting_issue": {
+                        "type": "integer",
+                        "default": 0
+                    },
+                    "open_problem_reports": {
+                        "type": "integer",
+                        "default": 0
+                    },
+                    "low_stock": {
+                        "type": "integer",
+                        "default": 0
+                    },
+                    "pending_prints": {
+                        "type": "integer",
+                        "default": 0
+                    },
+                    "active_prints": {
+                        "type": "integer",
+                        "default": 0
+                    },
+                    "prints_awaiting_collection": {
+                        "type": "integer",
+                        "default": 0
+                    },
+                    "failed_emails": {
+                        "type": "integer",
+                        "default": 0
+                    },
+                    "stocktakes_awaiting_approval": {
+                        "type": "integer",
+                        "default": 0
+                    },
+                    "warranty_expiring": {
+                        "type": "integer",
+                        "default": 0
+                    }
+                }
             },
             "DirectLoan": {
                 "type": "object",

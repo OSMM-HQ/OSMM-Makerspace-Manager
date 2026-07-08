@@ -45,6 +45,7 @@ from apps.operations.serializers import (
     StocktakeLineSerializer,
     StocktakeSerializer,
 )
+from apps.operations.views_dashboard import DashboardView
 from apps.operations.views_containers import (
     ContainerContentsView,
     ContainerDetailView,

@@ -1,5 +1,5 @@
 const ALL_TABS = [
-  "requests", "direct", "inventory", "needsfix", "categories", "printing", "tobuy", "transfers",
+  "dashboard", "requests", "direct", "inventory", "needsfix", "categories", "printing", "tobuy", "transfers",
   "stocktake", "containers", "ledger", "reports", "accountability", "warranty", "bulk", "qr", "scanner", "api", "settings", "emailtemplates", "users", "platform", "audit",
   "email-logs",
 ] as const;
@@ -7,10 +7,11 @@ const ALL_TABS = [
 export const STAFF_TAB_KEYS: readonly string[] = ALL_TABS;
 
 const FULL_ACCESS_ROLES = ["space_manager", "inventory_manager"];
-const PRINTING_TABS = ["requests", "printing", "tobuy", "reports", "warranty", "api", "emailtemplates"];
+const PRINTING_TABS = ["dashboard", "requests", "printing", "tobuy", "reports", "warranty", "api", "emailtemplates"];
 const GUEST_ADMIN_TABS = ["requests", "direct"];
 
 export const TAB_LABELS: Record<string, string> = {
+  dashboard: "Dashboard",
   requests: "Requests",
   direct: "Direct handout",
   ledger: "Ledger",
@@ -38,7 +39,7 @@ export const TAB_LABELS: Record<string, string> = {
 };
 
 export const TAB_GROUPS: { label: string; tabs: string[] }[] = [
-  { label: "Operate", tabs: ["requests", "direct", "ledger", "transfers", "stocktake", "tobuy"] },
+  { label: "Operate", tabs: ["dashboard", "requests", "direct", "ledger", "transfers", "stocktake", "tobuy"] },
   { label: "Inventory", tabs: ["inventory", "categories", "needsfix", "containers", "bulk", "qr", "scanner"] },
   { label: "3D Printing", tabs: ["printing"] },
   { label: "Insights", tabs: ["reports", "accountability", "warranty", "audit"] },
@@ -60,6 +61,7 @@ export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boo
   const canChooseToBuyKind = isSuperadmin || activeRole === "space_manager";
   const baseTabs = handoutOnly ? GUEST_ADMIN_TABS : fullAccess ? ALL_TABS : PRINTING_TABS;
   const allowedTabs: readonly string[] = baseTabs.filter((tabName) => {
+    if (tabName === "dashboard") return !handoutOnly;
     if (tabName === "tobuy") return canUseToBuy;
     if (tabName === "needsfix") return canEditInventory;
     if (tabName === "categories") return canEditInventory;
@@ -98,6 +100,6 @@ export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boo
     canManageMakerspace,
     canChooseToBuyKind,
     allowedTabs,
-    defaultTab: printingOnly ? "printing" : "requests",
+    defaultTab: handoutOnly ? "requests" : "dashboard",
   };
 }
