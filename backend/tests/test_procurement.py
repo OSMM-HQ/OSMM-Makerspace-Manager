@@ -117,7 +117,7 @@ def test_inventory_manager_sees_hardware_only_and_cannot_touch_printing():
     assert {row["name"] for row in listed.data} == {"Calipers"}
     # Printing item is not viewable -> 404 (not 403) on detail.
     assert client.get(detail_url(printing_item)).status_code == 404
-    assert client.patch(detail_url(printing_item), {"status": "bought"}, format="json").status_code == 404
+    assert client.patch(detail_url(printing_item), {"status": "received"}, format="json").status_code == 404
 
 
 def test_print_manager_cannot_edit_hardware_item():
@@ -125,7 +125,7 @@ def test_print_manager_cannot_edit_hardware_item():
     manager = make_print_manager("proc-pm-edit-mgr", space)
     hardware_item = ToBuyItem.objects.create(makerspace=space, kind=ToBuyItem.Kind.HARDWARE, name="Wrench")
     client = authenticated_client(manager)
-    assert client.patch(detail_url(hardware_item), {"status": "bought"}, format="json").status_code == 404
+    assert client.patch(detail_url(hardware_item), {"status": "received"}, format="json").status_code == 404
     assert client.delete(detail_url(hardware_item)).status_code == 404
 
 
@@ -154,23 +154,23 @@ def test_cross_tenant_items_are_not_visible():
 def test_list_and_export_filter_by_status():
     space = make_space("proc-status-filter")
     admin = make_space_manager("proc-status-filter-mgr", space)
-    ToBuyItem.objects.create(makerspace=space, kind=ToBuyItem.Kind.HARDWARE, name="Pending item")
+    ToBuyItem.objects.create(makerspace=space, kind=ToBuyItem.Kind.HARDWARE, name="Requested item")
     ToBuyItem.objects.create(
         makerspace=space,
         kind=ToBuyItem.Kind.HARDWARE,
-        name="Bought item",
-        status=ToBuyItem.Status.BOUGHT,
+        name="Received item",
+        status=ToBuyItem.Status.RECEIVED,
     )
 
     client = authenticated_client(admin)
-    listed = client.get(f"{list_url(space)}?status=pending")
-    exported = client.get(f"{export_url(space)}?status=pending")
+    listed = client.get(f"{list_url(space)}?status=requested")
+    exported = client.get(f"{export_url(space)}?status=requested")
 
     assert listed.status_code == 200
-    assert [row["name"] for row in listed.data] == ["Pending item"]
+    assert [row["name"] for row in listed.data] == ["Requested item"]
     body = exported.content.decode()
-    assert "Pending item" in body
-    assert "Bought item" not in body
+    assert "Requested item" in body
+    assert "Received item" not in body
 def test_export_csv_scoped_to_viewable_kinds():
     space = make_space("proc-csv")
     manager = make_print_manager("proc-csv-mgr", space)
@@ -253,7 +253,7 @@ def test_superadmin_sees_both_and_can_target_either_kind():
     assert create.data["kind"] == ToBuyItem.Kind.PRINTING
 
 
-def test_bought_toggle_delete_and_export_all_succeed():
+def test_received_status_delete_and_export_all_succeed():
     space = make_space("proc-regression")
     admin = make_space_manager("proc-regression-mgr", space)
     client = authenticated_client(admin)
@@ -266,12 +266,71 @@ def test_bought_toggle_delete_and_export_all_succeed():
     assert created.status_code == 201
     item = ToBuyItem.objects.get(id=created.data["id"])
 
-    bought = client.patch(detail_url(item), {"status": ToBuyItem.Status.BOUGHT}, format="json")
+    received = client.patch(detail_url(item), {"status": ToBuyItem.Status.RECEIVED}, format="json")
     csv_export = client.get(export_url(space))
     xlsx_export = client.get(f"{export_url(space)}?format=xlsx")
     deleted = client.delete(detail_url(item))
 
-    assert bought.status_code == 200
+    assert received.status_code == 200
     assert csv_export.status_code == 200
     assert xlsx_export.status_code == 200
     assert deleted.status_code == 204
+
+
+
+def test_lifecycle_status_mapping_migration_functions():
+    import importlib
+    from django.apps import apps
+
+    migration = importlib.import_module("apps.procurement.migrations.0003_tobuy_lifecycle_receipts")
+    space = make_space("proc-migration-map")
+    pending = ToBuyItem.objects.create(makerspace=space, kind=ToBuyItem.Kind.HARDWARE, name="Old pending", status="pending")
+    bought = ToBuyItem.objects.create(makerspace=space, kind=ToBuyItem.Kind.HARDWARE, name="Old bought", status="bought")
+
+    migration.forward_statuses(apps, None)
+    pending.refresh_from_db()
+    bought.refresh_from_db()
+    assert pending.status == ToBuyItem.Status.REQUESTED
+    assert bought.status == ToBuyItem.Status.RECEIVED
+
+    approved = ToBuyItem.objects.create(makerspace=space, kind=ToBuyItem.Kind.HARDWARE, name="Approved", status=ToBuyItem.Status.APPROVED)
+    migration.reverse_statuses(apps, None)
+    pending.refresh_from_db()
+    bought.refresh_from_db()
+    approved.refresh_from_db()
+    assert bought.status == "bought"
+    assert pending.status == "pending"
+    assert approved.status == "pending"
+
+
+def test_lifecycle_stamps_ordered_and_received_and_persists_purchase_fields():
+    space = make_space("proc-lifecycle")
+    manager = make_inventory_manager("proc-lifecycle-manager", space)
+    item = ToBuyItem.objects.create(makerspace=space, kind=ToBuyItem.Kind.HARDWARE, name="Router")
+    client = authenticated_client(manager)
+
+    ordered = client.patch(
+        detail_url(item),
+        {
+            "status": ToBuyItem.Status.ORDERED,
+            "vendor_name": "Tool Vendor",
+            "actual_unit_cost": "42.50",
+        },
+        format="json",
+    )
+    received = client.patch(detail_url(item), {"status": ToBuyItem.Status.RECEIVED}, format="json")
+    item.refresh_from_db()
+
+    assert ordered.status_code == 200
+    assert ordered.data["ordered_at"] is not None
+    assert ordered.data["purchaser"] == manager.id
+    assert ordered.data["purchaser_username"] == manager.username
+    assert ordered.data["vendor_name"] == "Tool Vendor"
+    assert ordered.data["actual_unit_cost"] == "42.50"
+    assert received.status_code == 200
+    assert received.data["received_at"] is not None
+    assert item.ordered_at is not None
+    assert item.received_at is not None
+    assert item.purchaser == manager
+    assert item.vendor_name == "Tool Vendor"
+    assert str(item.actual_unit_cost) == "42.50"

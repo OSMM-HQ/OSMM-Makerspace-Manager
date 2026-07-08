@@ -80,6 +80,7 @@ def _audit_meta(makerspace):
 def _collect_storage_keys(makerspace):
     from apps.evidence.models import EvidencePhoto
     from apps.printing.models import PrintRequest, PrintRequestFile
+    from apps.procurement.models import ToBuyReceipt
     from apps.warranty.models import WarrantyDocument
 
     keys = []
@@ -98,6 +99,11 @@ def _collect_storage_keys(makerspace):
 
     for key in WarrantyDocument.objects.filter(
         warranty__makerspace=makerspace
+    ).values_list("object_key", flat=True):
+        add(key)
+
+    for key in ToBuyReceipt.objects.filter(
+        to_buy_item__makerspace=makerspace
     ).values_list("object_key", flat=True):
         add(key)
 

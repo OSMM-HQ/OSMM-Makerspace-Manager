@@ -1,4 +1,4 @@
-﻿from urllib.parse import urlsplit
+from urllib.parse import urlsplit
 
 from apps.makerspaces.models import Makerspace
 from apps.makerspaces.platform import makerspace_staff_origins
@@ -201,8 +201,13 @@ _MODEL_LOOKUPS = {
     "managed-spool-adjustment": ("printing.FilamentSpool", "makerspace_id"),
     "managed-file-url": ("printing.PrintRequestFile", "makerspace_id"),
     "to-buy-detail": ("procurement.ToBuyItem", "makerspace_id"),
+    "to-buy-receipt-presign": ("procurement.ToBuyItem", "makerspace_id"),
+    "to-buy-receipt-list": ("procurement.ToBuyItem", "makerspace_id"),
+    "to-buy-receipt-url": ("procurement.ToBuyReceipt", "to_buy_item__makerspace_id"),
+    "to-buy-receipt-detail": ("procurement.ToBuyReceipt", "to_buy_item__makerspace_id"),
     **{name: ("hardware_requests.HardwareRequest", "makerspace_id") for name in _REQUEST_ACTIONS},
     **{name: ("printing.PrintRequest", "makerspace_id") for name in _PRINT_ACTIONS},
 }
+
 
 

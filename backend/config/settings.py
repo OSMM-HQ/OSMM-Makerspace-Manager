@@ -170,6 +170,11 @@ WARRANTY_DOC_ALLOWED_MIME = env.list(
     "WARRANTY_DOC_ALLOWED_MIME",
     default=["application/pdf", "image/jpeg", "image/png", "image/webp"],
 )
+PROCUREMENT_RECEIPT_MAX_BYTES = env.int("PROCUREMENT_RECEIPT_MAX_BYTES", default=10485760)
+PROCUREMENT_RECEIPT_ALLOWED_MIME = env.list(
+    "PROCUREMENT_RECEIPT_ALLOWED_MIME",
+    default=["application/pdf", "image/jpeg", "image/png", "image/webp"],
+)
 PUBLIC_IMAGE_BUCKET = env("PUBLIC_IMAGE_BUCKET", default="public-images")
 PUBLIC_IMAGE_BASE_URL = env("PUBLIC_IMAGE_BASE_URL", default="")
 PUBLIC_IMAGE_MAX_BYTES = env.int("PUBLIC_IMAGE_MAX_BYTES", default=10485760)
@@ -481,3 +486,4 @@ SPECTACULAR_SETTINGS = {
         {"name": "Health", "description": "Health and readiness probes."},
     ],
 }
+

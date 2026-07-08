@@ -17,8 +17,11 @@ class ToBuyItem(models.Model):
         PRINTING = "printing", "Printing"
 
     class Status(models.TextChoices):
-        PENDING = "pending", "Pending"
-        BOUGHT = "bought", "Bought"
+        REQUESTED = "requested", "Requested"
+        APPROVED = "approved", "Approved"
+        ORDERED = "ordered", "Ordered"
+        RECEIVED = "received", "Received"
+        CANCELLED = "cancelled", "Cancelled"
 
     makerspace = models.ForeignKey(
         "makerspaces.Makerspace",
@@ -32,7 +35,7 @@ class ToBuyItem(models.Model):
     status = models.CharField(
         max_length=16,
         choices=Status.choices,
-        default=Status.PENDING,
+        default=Status.REQUESTED,
     )
     estimated_unit_cost = models.DecimalField(
         max_digits=10,
@@ -40,6 +43,22 @@ class ToBuyItem(models.Model):
         null=True,
         blank=True,
     )
+    vendor_name = models.CharField(max_length=200, blank=True)
+    actual_unit_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    purchaser = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    ordered_at = models.DateTimeField(null=True, blank=True)
+    received_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -61,3 +80,23 @@ class ToBuyItem(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.kind})"
+
+
+class ToBuyReceipt(models.Model):
+    to_buy_item = models.ForeignKey(
+        ToBuyItem,
+        on_delete=models.CASCADE,
+        related_name="receipts",
+    )
+    object_key = models.CharField(max_length=512, unique=True)
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Receipt for {self.to_buy_item}"

@@ -12315,8 +12315,11 @@
                         "schema": {
                             "type": "string",
                             "enum": [
-                                "bought",
-                                "pending"
+                                "approved",
+                                "cancelled",
+                                "ordered",
+                                "received",
+                                "requested"
                             ]
                         },
                         "description": "Filter by procurement item status."
@@ -12481,8 +12484,11 @@
                         "schema": {
                             "type": "string",
                             "enum": [
-                                "bought",
-                                "pending"
+                                "approved",
+                                "cancelled",
+                                "ordered",
+                                "received",
+                                "requested"
                             ]
                         },
                         "description": "Filter by procurement item status."
@@ -12685,6 +12691,324 @@
                 "responses": {
                     "204": {
                         "description": "No response body"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/procurement/to-buy/{id}/receipts": {
+            "get": {
+                "operationId": "api_v1_procurement_to_buy_receipts_list",
+                "summary": "List procurement receipts for a to-buy item",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Procurement"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ToBuyReceipt"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_procurement_to_buy_receipts_create",
+                "summary": "Finalize an uploaded procurement receipt",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Procurement"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ToBuyReceiptFinalize"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ToBuyReceiptFinalize"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ToBuyReceiptFinalize"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ToBuyReceipt"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "503": {
+                        "description": "Receipt storage is unavailable."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/procurement/to-buy/{id}/receipts/presign": {
+            "post": {
+                "operationId": "api_v1_procurement_to_buy_receipts_presign_create",
+                "summary": "Create a procurement receipt upload URL",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Procurement"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ToBuyReceiptPresign"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ToBuyReceiptPresign"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ToBuyReceiptPresign"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ToBuyReceiptUploadResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "503": {
+                        "description": "Receipt storage is unavailable."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/procurement/to-buy/receipts/{id}": {
+            "delete": {
+                "operationId": "api_v1_procurement_to_buy_receipts_destroy",
+                "summary": "Delete a procurement receipt",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Procurement"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/procurement/to-buy/receipts/{id}/url": {
+            "get": {
+                "operationId": "api_v1_procurement_to_buy_receipts_url_retrieve",
+                "summary": "Create a signed procurement receipt view URL",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Procurement"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ToBuyReceiptUrl"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "description": "Receipt storage is unavailable."
                     },
                     "400": {
                         "content": {
@@ -19283,6 +19607,43 @@
                         "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$",
                         "nullable": true
                     },
+                    "vendor_name": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "actual_unit_cost": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$",
+                        "nullable": true
+                    },
+                    "purchaser": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "purchaser_username": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "ordered_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "received_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "receipts": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ToBuyReceipt"
+                        },
+                        "readOnly": true
+                    },
                     "created_by": {
                         "type": "integer",
                         "readOnly": true,
@@ -23265,6 +23626,43 @@
                         "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$",
                         "nullable": true
                     },
+                    "vendor_name": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "actual_unit_cost": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$",
+                        "nullable": true
+                    },
+                    "purchaser": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "purchaser_username": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "ordered_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "received_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "receipts": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ToBuyReceipt"
+                        },
+                        "readOnly": true
+                    },
                     "created_by": {
                         "type": "integer",
                         "readOnly": true,
@@ -23293,6 +23691,11 @@
                     "kind",
                     "makerspace",
                     "name",
+                    "ordered_at",
+                    "purchaser",
+                    "purchaser_username",
+                    "receipts",
+                    "received_at",
                     "updated_at"
                 ]
             },
@@ -23306,11 +23709,100 @@
             },
             "ToBuyItemStatusEnum": {
                 "enum": [
-                    "pending",
-                    "bought"
+                    "requested",
+                    "approved",
+                    "ordered",
+                    "received",
+                    "cancelled"
                 ],
                 "type": "string",
-                "description": "* `pending` - Pending\n* `bought` - Bought"
+                "description": "* `requested` - Requested\n* `approved` - Approved\n* `ordered` - Ordered\n* `received` - Received\n* `cancelled` - Cancelled"
+            },
+            "ToBuyReceipt": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "uploaded_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "uploaded_by_username": {
+                        "type": "string",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "id",
+                    "uploaded_by",
+                    "uploaded_by_username"
+                ]
+            },
+            "ToBuyReceiptFinalize": {
+                "type": "object",
+                "properties": {
+                    "object_key": {
+                        "type": "string",
+                        "maxLength": 512
+                    }
+                },
+                "required": [
+                    "object_key"
+                ]
+            },
+            "ToBuyReceiptPresign": {
+                "type": "object",
+                "properties": {
+                    "filename": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "content_type": {
+                        "type": "string",
+                        "maxLength": 100
+                    }
+                },
+                "required": [
+                    "content_type",
+                    "filename"
+                ]
+            },
+            "ToBuyReceiptUploadResponse": {
+                "type": "object",
+                "properties": {
+                    "object_key": {
+                        "type": "string"
+                    },
+                    "upload": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                },
+                "required": [
+                    "object_key",
+                    "upload"
+                ]
+            },
+            "ToBuyReceiptUrl": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "format": "uri"
+                    }
+                },
+                "required": [
+                    "url"
+                ]
             },
             "TopBorrowersReport": {
                 "type": "object",
