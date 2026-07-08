@@ -5,6 +5,7 @@ from apps.operations import views
 urlpatterns = [
     path("health/", views.HealthView.as_view(), name="health"),
     path("health/readiness/", views.ReadinessView.as_view(), name="readiness"),
+    path("admin/makerspace/<int:makerspace_id>/dashboard", views.DashboardView.as_view(), name="operations-dashboard"),
     path("admin/makerspace/<int:makerspace_id>/containers", views.ContainerListCreateView.as_view(), name="containers"),
     path("admin/containers/<int:pk>", views.ContainerDetailView.as_view(), name="container-detail"),
     path("admin/containers/<int:pk>/move", views.ContainerMoveView.as_view(), name="container-move"),
