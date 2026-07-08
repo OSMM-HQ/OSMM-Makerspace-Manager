@@ -4212,6 +4212,48 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/integration-health": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_integration_health_retrieve",
+                "summary": "Get makerspace integration health",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Integration health"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/IntegrationHealth"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "description": "Not allowed to manage this makerspace."
+                    },
+                    "404": {
+                        "description": "Makerspace not found."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/inventory": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_inventory_list",
@@ -16782,6 +16824,164 @@
                     "status"
                 ]
             },
+            "IntegrationConfiguredHealth": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/Status83eEnum"
+                    },
+                    "detail": {
+                        "type": "string"
+                    },
+                    "configured": {
+                        "type": "boolean"
+                    }
+                }
+            },
+            "IntegrationDeliveriesByStream": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/Status83eEnum"
+                    },
+                    "detail": {
+                        "type": "string"
+                    },
+                    "hardware": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "printing": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                }
+            },
+            "IntegrationEmailHealth": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/Status83eEnum"
+                    },
+                    "detail": {
+                        "type": "string"
+                    },
+                    "total": {
+                        "type": "integer"
+                    },
+                    "pending": {
+                        "type": "integer"
+                    },
+                    "sent": {
+                        "type": "integer"
+                    },
+                    "failed": {
+                        "type": "integer"
+                    },
+                    "stalled": {
+                        "type": "integer"
+                    },
+                    "last_failure": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/IntegrationLastFailure"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                }
+            },
+            "IntegrationHealth": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/IntegrationHealthStatusEnum"
+                    },
+                    "email": {
+                        "$ref": "#/components/schemas/IntegrationEmailHealth"
+                    },
+                    "deliveries_by_stream": {
+                        "$ref": "#/components/schemas/IntegrationDeliveriesByStream"
+                    },
+                    "smtp": {
+                        "$ref": "#/components/schemas/IntegrationConfiguredHealth"
+                    },
+                    "telegram": {
+                        "$ref": "#/components/schemas/IntegrationConfiguredHealth"
+                    },
+                    "worker": {
+                        "$ref": "#/components/schemas/IntegrationWorkerHealth"
+                    }
+                },
+                "required": [
+                    "deliveries_by_stream",
+                    "email",
+                    "smtp",
+                    "status",
+                    "telegram",
+                    "worker"
+                ]
+            },
+            "IntegrationHealthStatusEnum": {
+                "enum": [
+                    "ok",
+                    "warn",
+                    "error"
+                ],
+                "type": "string",
+                "description": "* `ok` - ok\n* `warn` - warn\n* `error` - error"
+            },
+            "IntegrationLastFailure": {
+                "type": "object",
+                "properties": {
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "subject": {
+                        "type": "string"
+                    },
+                    "error": {
+                        "type": "string"
+                    },
+                    "stream": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "error",
+                    "stream",
+                    "subject"
+                ]
+            },
+            "IntegrationWorkerHealth": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "$ref": "#/components/schemas/Status83eEnum"
+                    },
+                    "detail": {
+                        "type": "string"
+                    },
+                    "broker_configured": {
+                        "type": "boolean"
+                    },
+                    "eager": {
+                        "type": "boolean"
+                    },
+                    "last_seen": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "stale": {
+                        "type": "boolean"
+                    }
+                }
+            },
             "InventoryAssetAdmin": {
                 "type": "object",
                 "properties": {
@@ -23526,6 +23726,16 @@
                 ],
                 "type": "string",
                 "description": "* `space_manager` - Space Manager\n* `guest_admin` - Guest Admin\n* `inventory_manager` - Inventory Manager\n* `print_manager` - Print Manager"
+            },
+            "Status83eEnum": {
+                "enum": [
+                    "ok",
+                    "warn",
+                    "error",
+                    "unknown"
+                ],
+                "type": "string",
+                "description": "* `ok` - ok\n* `warn` - warn\n* `error` - error\n* `unknown` - unknown"
             },
             "StatusA39Enum": {
                 "enum": [

@@ -4,12 +4,14 @@ from celery import shared_task
 from django.db import transaction
 
 from apps.integrations.dispatch import _deliver
+from apps.integrations.health import record_worker_heartbeat
 from apps.integrations.models import EmailLog
 from apps.integrations.smtp_validation import (
     email_task_hard_limit,
     email_task_soft_limit,
     sending_claim_is_stale,
 )
+
 
 @shared_task(
     bind=True,
@@ -18,6 +20,7 @@ from apps.integrations.smtp_validation import (
     time_limit=email_task_hard_limit(),
 )
 def deliver_email_task(self, log_id):
+    record_worker_heartbeat()
     log = _claim_log(log_id)
     if log is None:
         return
@@ -29,12 +32,14 @@ def deliver_email_task(self, log_id):
         except self.MaxRetriesExceededError:
             return
 
+
 def _retry_countdown(retries):
     # Celery remains at-least-once: a worker crash after SMTP accepts the message but
     # before SENT is committed can still resend. The SENDING claim narrows duplicate
     # delivery and stale claims are reclaimed after the hard task limit.
     base = min(60 * (2**retries), 15 * 60)
     return base + random.randint(0, min(base, 30))
+
 
 def _claim_log(log_id):
     with transaction.atomic():

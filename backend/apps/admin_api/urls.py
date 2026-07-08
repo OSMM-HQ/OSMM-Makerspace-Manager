@@ -8,6 +8,7 @@ from apps.admin_api.views_email_templates import (
     EmailTemplateResetView,
 )
 from apps.admin_api.views_email_logs import EmailLogListView, EmailLogRetryView
+from apps.admin_api.views_integration_health import IntegrationHealthView
 from apps.admin_api.views_notification_recipients import NotificationRecipientsView
 from apps.admin_api.views_notification_rules import NotificationRulesView
 from apps.admin_api.views_platform import PlatformEmailSettingsView
@@ -184,6 +185,11 @@ urlpatterns = [
         "makerspace/<int:makerspace_id>/email-templates",
         EmailTemplateListView.as_view(),
         name="admin-email-templates",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/integration-health",
+        IntegrationHealthView.as_view(),
+        name="makerspace-integration-health",
     ),
     path(
         "makerspace/<int:makerspace_id>/email-logs",
