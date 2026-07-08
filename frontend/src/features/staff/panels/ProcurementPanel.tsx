@@ -12,6 +12,7 @@ import {
   type ToBuyItem,
   type ToBuyStatus,
 } from "./ProcurementPanelRows";
+import { ProcurementMoveModal } from "./ProcurementMoveModal";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 
 type StatusFilter = "all" | ToBuyStatus;
@@ -41,6 +42,7 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
   const queryClient = useQueryClient();
   const [form, setForm] = useState<Form>(emptyForm);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("requested");
+  const [moveTarget, setMoveTarget] = useState<ToBuyItem | null>(null);
   const base = `/procurement/makerspace/${makerspace.id}/to-buy`;
   const statusParam = statusFilter === "all" ? "" : `&status=${statusFilter}`;
   const queryKey = ["procurement", makerspace.id, statusFilter];
@@ -131,12 +133,13 @@ export function ProcurementPanel({ makerspace, canChooseKind = false }: { makers
           <button className="desk-button" type="button" disabled={exportToBuy.isPending} onClick={() => exportToBuy.mutate("xlsx")}>Export XLSX</button>
         </div>
       </div>
-      <ProcurementTable rows={rows} items={items} update={update} remove={remove} invalidate={invalidate} />
+      <ProcurementTable rows={rows} items={items} update={update} remove={remove} invalidate={invalidate} makerspaceSlug={makerspace.slug} onMove={setMoveTarget} />
+      <ProcurementMoveModal item={moveTarget} makerspace={makerspace} onClose={() => setMoveTarget(null)} onMoved={invalidate} />
     </Panel>
   );
 }
 
-function ProcurementTable({ rows, items, update, remove, invalidate }: { rows: ToBuyItem[]; items: UseQueryResult<ToBuyItem[], Error>; update: UseMutationResult<unknown, Error, UpdateVariables>; remove: UseMutationResult<unknown, Error, number>; invalidate: () => void }) {
+function ProcurementTable({ rows, items, update, remove, invalidate, makerspaceSlug, onMove }: { rows: ToBuyItem[]; items: UseQueryResult<ToBuyItem[], Error>; update: UseMutationResult<unknown, Error, UpdateVariables>; remove: UseMutationResult<unknown, Error, number>; invalidate: () => void; makerspaceSlug: string; onMove: (item: ToBuyItem) => void }) {
   if (items.isFetching && !items.isLoading) return <p className="mt-2 text-xs text-muted">Refreshing list...</p>;
   if (items.isLoading) return <p className="mt-3 text-sm text-muted">Loading...</p>;
   if (items.error) return <p className="mt-3 text-sm text-danger">{items.error instanceof Error ? items.error.message : "Unable to load list."}</p>;
@@ -145,10 +148,10 @@ function ProcurementTable({ rows, items, update, remove, invalidate }: { rows: T
     <div className="mt-3 max-h-[32rem] overflow-x-auto overflow-y-auto rounded-md border border-line">
       <table className="min-w-[1180px] divide-y divide-line text-left text-sm">
         <thead className="sticky top-0 bg-surface text-xs uppercase tracking-wide text-muted">
-          <tr>{["kind", "item", "qty", "link", "est.", "vendor", "actual", "purchaser", "ordered", "received", "receipts", "status", ""].map((header) => <th key={header} className="whitespace-nowrap px-3 py-2 font-semibold">{header}</th>)}</tr>
+          <tr>{["kind", "item", "qty", "link", "est.", "vendor", "actual", "purchaser", "ordered", "received", "receipts", "status", "moved", ""].map((header) => <th key={header} className="whitespace-nowrap px-3 py-2 font-semibold">{header}</th>)}</tr>
         </thead>
         <tbody className="divide-y divide-line bg-bg text-ink">
-          {rows.map((item) => <ProcurementRow key={item.id} item={item} updatePending={update.isPending} deletePending={remove.isPending} onSave={(draft) => update.mutate({ id: item.id, payload: { status: draft.status, vendor_name: draft.vendor_name, actual_unit_cost: draft.actual_unit_cost ? Number(draft.actual_unit_cost) : null } })} onDelete={() => remove.mutate(item.id)} onReceiptsChanged={invalidate} />)}
+          {rows.map((item) => <ProcurementRow key={item.id} item={item} makerspaceSlug={makerspaceSlug} updatePending={update.isPending} deletePending={remove.isPending} onSave={(draft) => update.mutate({ id: item.id, payload: { status: draft.status, vendor_name: draft.vendor_name, actual_unit_cost: draft.actual_unit_cost ? Number(draft.actual_unit_cost) : null } })} onDelete={() => remove.mutate(item.id)} onMove={() => onMove(item)} onReceiptsChanged={invalidate} />)}
         </tbody>
       </table>
     </div>
@@ -175,5 +178,6 @@ function formatAmount(value: number) {
 function Metric({ label, value }: { label: string; value: string }) {
   return <div className="rounded-md border border-line bg-bg px-3 py-2"><p className="text-xs font-semibold uppercase tracking-wide text-muted">{label}</p><p className="mt-1 text-lg font-semibold text-ink">{value}</p></div>;
 }
+
 
 

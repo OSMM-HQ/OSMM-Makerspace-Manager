@@ -12714,6 +12714,156 @@
                 }
             }
         },
+        "/api/v1/procurement/to-buy/{id}/move-to-inventory": {
+            "post": {
+                "operationId": "api_v1_procurement_to_buy_move_to_inventory_create",
+                "summary": "Move a received hardware to-buy item into inventory",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Procurement"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MoveToInventoryRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MoveToInventoryRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MoveToInventoryRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ToBuyItem"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/procurement/to-buy/{id}/move-to-printing": {
+            "post": {
+                "operationId": "api_v1_procurement_to_buy_move_to_printing_create",
+                "summary": "Move a received printing to-buy item into printing assets",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Procurement"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MoveToPrintingRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MoveToPrintingRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MoveToPrintingRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ToBuyItem"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
         "/api/v1/procurement/to-buy/{id}/receipts": {
             "get": {
                 "operationId": "api_v1_procurement_to_buy_receipts_list",
@@ -15030,7 +15180,7 @@
                     "mode": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/ModeEnum"
+                                "$ref": "#/components/schemas/Mode087Enum"
                             }
                         ],
                         "readOnly": true
@@ -15112,7 +15262,7 @@
                 "type": "object",
                 "properties": {
                     "mode": {
-                        "$ref": "#/components/schemas/ModeEnum"
+                        "$ref": "#/components/schemas/Mode087Enum"
                     },
                     "file": {
                         "type": "string",
@@ -16733,7 +16883,7 @@
                         "readOnly": true
                     },
                     "tracking_mode": {
-                        "$ref": "#/components/schemas/TrackingModeEnum"
+                        "$ref": "#/components/schemas/TrackingModeB86Enum"
                     },
                     "total_quantity": {
                         "type": "integer",
@@ -16779,7 +16929,7 @@
                         "type": "boolean"
                     },
                     "public_availability_mode": {
-                        "$ref": "#/components/schemas/PublicAvailabilityModeEnum"
+                        "$ref": "#/components/schemas/PublicAvailabilityModeFc2Enum"
                     },
                     "storage_location": {
                         "type": "string",
@@ -16847,7 +16997,7 @@
                         "readOnly": true
                     },
                     "tracking_mode": {
-                        "$ref": "#/components/schemas/TrackingModeEnum"
+                        "$ref": "#/components/schemas/TrackingModeB86Enum"
                     },
                     "total_quantity": {
                         "type": "integer",
@@ -16889,7 +17039,7 @@
                         "type": "boolean"
                     },
                     "public_availability_mode": {
-                        "$ref": "#/components/schemas/PublicAvailabilityModeEnum"
+                        "$ref": "#/components/schemas/PublicAvailabilityModeFc2Enum"
                     },
                     "storage_location": {
                         "type": "string",
@@ -16961,7 +17111,7 @@
                         "readOnly": true
                     },
                     "tracking_mode": {
-                        "$ref": "#/components/schemas/TrackingModeEnum"
+                        "$ref": "#/components/schemas/TrackingModeB86Enum"
                     },
                     "total_quantity": {
                         "type": "integer",
@@ -17001,7 +17151,7 @@
                         "type": "boolean"
                     },
                     "public_availability_mode": {
-                        "$ref": "#/components/schemas/PublicAvailabilityModeEnum"
+                        "$ref": "#/components/schemas/PublicAvailabilityModeFc2Enum"
                     },
                     "storage_location": {
                         "type": "string",
@@ -17937,7 +18087,7 @@
                 "type": "string",
                 "description": "* `success` - Success\n* `failed` - Failed"
             },
-            "ModeEnum": {
+            "Mode087Enum": {
                 "enum": [
                     "preview",
                     "apply"
@@ -17988,6 +18138,167 @@
                     "times_lent",
                     "total_quantity_lent"
                 ]
+            },
+            "MoveToInventoryRequest": {
+                "type": "object",
+                "properties": {
+                    "mode": {
+                        "$ref": "#/components/schemas/MoveToInventoryRequestModeEnum"
+                    },
+                    "product_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "box": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "category": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "tracking_mode": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MoveToInventoryRequestTrackingModeEnum"
+                            }
+                        ],
+                        "default": "quantity"
+                    },
+                    "is_public": {
+                        "type": "boolean",
+                        "default": true
+                    },
+                    "public_availability_mode": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MoveToInventoryRequestPublicAvailabilityModeEnum"
+                            }
+                        ],
+                        "default": "status_only"
+                    },
+                    "show_public_count": {
+                        "type": "boolean",
+                        "default": false
+                    },
+                    "public_self_checkout_enabled": {
+                        "type": "boolean",
+                        "default": false
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "description": {
+                        "type": "string",
+                        "default": ""
+                    }
+                },
+                "required": [
+                    "mode",
+                    "quantity"
+                ]
+            },
+            "MoveToInventoryRequestModeEnum": {
+                "enum": [
+                    "create",
+                    "topup"
+                ],
+                "type": "string",
+                "description": "* `create` - create\n* `topup` - topup"
+            },
+            "MoveToInventoryRequestPublicAvailabilityModeEnum": {
+                "enum": [
+                    "exact_count",
+                    "status_only",
+                    "hidden"
+                ],
+                "type": "string",
+                "description": "* `exact_count` - exact_count\n* `status_only` - status_only\n* `hidden` - hidden"
+            },
+            "MoveToInventoryRequestTrackingModeEnum": {
+                "enum": [
+                    "quantity",
+                    "individual"
+                ],
+                "type": "string",
+                "description": "* `quantity` - quantity\n* `individual` - individual"
+            },
+            "MoveToPrintingRequest": {
+                "type": "object",
+                "properties": {
+                    "target": {
+                        "$ref": "#/components/schemas/TargetEnum"
+                    },
+                    "printer": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "material": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "color": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "brand": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "lot_code": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "initial_weight_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$"
+                    },
+                    "remaining_weight_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$"
+                    },
+                    "is_active": {
+                        "type": "boolean"
+                    },
+                    "opened_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "model": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/MoveToPrintingRequestStatusEnum"
+                    },
+                    "notes": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "target"
+                ]
+            },
+            "MoveToPrintingRequestStatusEnum": {
+                "enum": [
+                    "active",
+                    "maintenance",
+                    "offline"
+                ],
+                "type": "string",
+                "description": "* `active` - active\n* `maintenance` - maintenance\n* `offline` - offline"
             },
             "NeedsFixAction": {
                 "type": "object",
@@ -19204,7 +19515,7 @@
                         "readOnly": true
                     },
                     "tracking_mode": {
-                        "$ref": "#/components/schemas/TrackingModeEnum"
+                        "$ref": "#/components/schemas/TrackingModeB86Enum"
                     },
                     "total_quantity": {
                         "type": "integer",
@@ -19244,7 +19555,7 @@
                         "type": "boolean"
                     },
                     "public_availability_mode": {
-                        "$ref": "#/components/schemas/PublicAvailabilityModeEnum"
+                        "$ref": "#/components/schemas/PublicAvailabilityModeFc2Enum"
                     },
                     "storage_location": {
                         "type": "string",
@@ -19634,6 +19945,27 @@
                     "received_at": {
                         "type": "string",
                         "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "moved_to_inventory_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "resulting_product": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "resulting_spool": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "resulting_printer": {
+                        "type": "integer",
                         "readOnly": true,
                         "nullable": true
                     },
@@ -20919,7 +21251,7 @@
                     "scans"
                 ]
             },
-            "PublicAvailabilityModeEnum": {
+            "PublicAvailabilityModeFc2Enum": {
                 "enum": [
                     "exact_count",
                     "status_only",
@@ -23379,6 +23711,14 @@
                     "product"
                 ]
             },
+            "TargetEnum": {
+                "enum": [
+                    "spool",
+                    "printer"
+                ],
+                "type": "string",
+                "description": "* `spool` - spool\n* `printer` - printer"
+            },
             "TelegramTestAlert": {
                 "type": "object",
                 "properties": {
@@ -23656,6 +23996,27 @@
                         "readOnly": true,
                         "nullable": true
                     },
+                    "moved_to_inventory_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "resulting_product": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "resulting_spool": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "resulting_printer": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
                     "receipts": {
                         "type": "array",
                         "items": {
@@ -23690,12 +24051,16 @@
                     "id",
                     "kind",
                     "makerspace",
+                    "moved_to_inventory_at",
                     "name",
                     "ordered_at",
                     "purchaser",
                     "purchaser_username",
                     "receipts",
                     "received_at",
+                    "resulting_printer",
+                    "resulting_product",
+                    "resulting_spool",
                     "updated_at"
                 ]
             },
@@ -23848,7 +24213,7 @@
                     "requests"
                 ]
             },
-            "TrackingModeEnum": {
+            "TrackingModeB86Enum": {
                 "enum": [
                     "quantity",
                     "individual"

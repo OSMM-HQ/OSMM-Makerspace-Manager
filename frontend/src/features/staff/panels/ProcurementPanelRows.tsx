@@ -18,6 +18,10 @@ export type ToBuyItem = {
   purchaser_username: string | null;
   ordered_at: string | null;
   received_at: string | null;
+  moved_to_inventory_at: string | null;
+  resulting_product: number | null;
+  resulting_spool: number | null;
+  resulting_printer: number | null;
   created_by_username: string | null;
   receipts: ToBuyReceipt[];
 };
@@ -30,12 +34,14 @@ export type RowDraft = {
 
 export const statusOptions: ToBuyStatus[] = ["requested", "approved", "ordered", "received", "cancelled"];
 
-export function ProcurementRow({ item, updatePending, deletePending, onSave, onDelete, onReceiptsChanged }: {
+export function ProcurementRow({ item, makerspaceSlug, updatePending, deletePending, onSave, onDelete, onMove, onReceiptsChanged }: {
   item: ToBuyItem;
+  makerspaceSlug: string;
   updatePending: boolean;
   deletePending: boolean;
   onSave: (draft: RowDraft) => void;
   onDelete: () => void;
+  onMove: () => void;
   onReceiptsChanged: () => void;
 }) {
   const [draft, setDraft] = useState<RowDraft>(() => draftFromItem(item));
@@ -60,14 +66,26 @@ export function ProcurementRow({ item, updatePending, deletePending, onSave, onD
           {statusOptions.map((status) => <option key={status} value={status}>{labelStatus(status)}</option>)}
         </select>
       </td>
+      <td className="px-3 py-2 text-xs text-muted"><MoveState item={item} makerspaceSlug={makerspaceSlug} /></td>
       <td className="px-3 py-2 text-right">
         <div className="flex flex-col gap-2">
+          {item.status === "received" && !item.moved_to_inventory_at ? <button type="button" className="desk-button bg-tone-mint text-tone-mint-ink" onClick={onMove}>Move</button> : null}
           <button type="button" className="desk-button" disabled={updatePending || !isDraftChanged(item, draft)} onClick={() => onSave(draft)}>Save</button>
           <button type="button" className="desk-button" disabled={deletePending} onClick={onDelete}>Delete</button>
         </div>
       </td>
     </tr>
   );
+}
+
+function MoveState({ item, makerspaceSlug }: { item: ToBuyItem; makerspaceSlug: string }) {
+  if (!item.moved_to_inventory_at) return <>-</>;
+  if (item.resulting_product) {
+    return <a className="text-accent-ink underline" href={`/m/${makerspaceSlug}/admin/inventory`}>Inventory #{item.resulting_product}</a>;
+  }
+  if (item.resulting_spool) return <>Spool #{item.resulting_spool}</>;
+  if (item.resulting_printer) return <>Printer #{item.resulting_printer}</>;
+  return <>Moved</>;
 }
 
 function ItemLink({ link }: { link: string }) {

@@ -216,6 +216,8 @@ export const openApiPaths = [
   "/api/v1/procurement/to-buy/receipts/{id}",
   "/api/v1/procurement/to-buy/receipts/{id}/url",
   "/api/v1/procurement/to-buy/{id}",
+  "/api/v1/procurement/to-buy/{id}/move-to-inventory",
+  "/api/v1/procurement/to-buy/{id}/move-to-printing",
   "/api/v1/procurement/to-buy/{id}/receipts",
   "/api/v1/procurement/to-buy/{id}/receipts/presign",
   "/api/v1/public/makerspaces/",

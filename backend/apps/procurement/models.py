@@ -59,6 +59,28 @@ class ToBuyItem(models.Model):
     )
     ordered_at = models.DateTimeField(null=True, blank=True)
     received_at = models.DateTimeField(null=True, blank=True)
+    moved_to_inventory_at = models.DateTimeField(null=True, blank=True)
+    resulting_product = models.ForeignKey(
+        "inventory.InventoryProduct",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    resulting_spool = models.ForeignKey(
+        "printing.FilamentSpool",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    resulting_printer = models.ForeignKey(
+        "printing.PrintPrinter",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -100,3 +122,4 @@ class ToBuyReceipt(models.Model):
 
     def __str__(self):
         return f"Receipt for {self.to_buy_item}"
+
