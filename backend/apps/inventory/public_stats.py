@@ -180,16 +180,15 @@ def _public_printer_row(row):
 
 def _printing_hours_this_month(makerspace_id):
     start, end = _current_month_window()
-    request_minutes = (
-        PrintRequest.objects.filter(
+    request_minutes = sum(
+        request.run_estimated_minutes or request.estimated_minutes or 0
+        for request in PrintRequest.objects.filter(
             bucket__makerspace_id=makerspace_id,
             status__in=COMPLETED_PRINT_STATUSES,
             completed_at__gte=start,
             completed_at__lt=end,
-        ).aggregate(total=Sum("estimated_minutes"))["total"]
-        or 0
-    )
-    # Weight manual minutes by completion to match the all-time report: a success
+        ).only("run_estimated_minutes", "estimated_minutes")
+    )    # Weight manual minutes by completion to match the all-time report: a success
     # is 100% (full duration), a failed log counts duration * percent_complete / 100.
     manual_weighted = (
         ManualPrintLog.objects.filter(
@@ -202,16 +201,17 @@ def _printing_hours_this_month(makerspace_id):
     manual_minutes = manual_weighted / 100
     # Failed prints this month contribute partial run-time (minutes x percent/100),
     # date-windowed on failed_at since they have no completed_at.
-    failed_weighted = (
-        PrintRequest.objects.filter(
+    failed_minutes = sum(
+        (request.run_estimated_minutes or request.estimated_minutes or 0)
+        * (request.fail_percent_complete or 0)
+        / 100
+        for request in PrintRequest.objects.filter(
             bucket__makerspace_id=makerspace_id,
             status=PrintRequest.Status.FAILED,
             failed_at__gte=start,
             failed_at__lt=end,
-        ).aggregate(total=Sum(F("estimated_minutes") * F("fail_percent_complete")))["total"]
-        or 0
+        ).only("run_estimated_minutes", "estimated_minutes", "fail_percent_complete")
     )
-    failed_minutes = failed_weighted / 100
     return _float((request_minutes + manual_minutes + failed_minutes) / 60)
 
 
@@ -384,3 +384,5 @@ def _is_internal_checkin_label(value):
 
 def _float(value):
     return round(float(value or 0), 2)
+
+

@@ -131,8 +131,19 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
     (spool) => spool.is_active && (!selectedPrinter || spool.printer === Number(selectedPrinter) || spool.printer === null),
   );
   const selectedSpoolRow = compatibleSpools.find((spool) => String(spool.id) === selectedSpool);
-  const canStartPrint = Boolean(selectedPrinter && selectedSpoolRow);
-
+  const parsedEstimatedMinutes = Number(estimatedMinutes);
+  const hasPositiveEstimatedMinutes = Number.isFinite(parsedEstimatedMinutes) && parsedEstimatedMinutes > 0;
+  const plannedGramsFor = (request: PrintRequest) => Number(estimatedGrams.trim() ? estimatedGrams : request.estimated_filament_grams ?? 0);
+  const canStartPrint = (request: PrintRequest) => {
+    const plannedGrams = plannedGramsFor(request);
+    return Boolean(
+      selectedPrinter &&
+      selectedSpoolRow &&
+      hasPositiveEstimatedMinutes &&
+      Number.isFinite(plannedGrams) &&
+      plannedGrams > 0
+    );
+  };
   return (
     <Panel title="Print requests">
       <div className="mb-3">
@@ -172,21 +183,23 @@ export function PrintQueueSection({ makerspace }: { makerspace: Makerspace }) {
         </label>
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Print time (min)</span>
-          <input className="desk-input w-full" type="number" min="0" value={estimatedMinutes} onChange={(event) => setEstimatedMinutes(event.target.value)} />
+          <input className="desk-input w-full" type="number" min="1" value={estimatedMinutes} onChange={(event) => setEstimatedMinutes(event.target.value)} />
         </label>
         <label className="block">
           <span className="mb-1 block text-xs font-semibold uppercase tracking-wide text-muted">Filament (g)</span>
-          <input className="desk-input w-full" type="number" min="0" value={estimatedGrams} onChange={(event) => setEstimatedGrams(event.target.value)} />
+          <input className="desk-input w-full" type="number" min="0.01" step="0.01" value={estimatedGrams} onChange={(event) => setEstimatedGrams(event.target.value)} />
         </label>
       </div>
       {selectedSpool && !selectedSpoolRow ? <p className="mb-3 text-xs text-danger">Choose a spool assigned to the selected printer, or an unassigned active spool.</p> : null}
+      {!hasPositiveEstimatedMinutes ? <p className="mb-3 text-xs text-danger">Print time must be greater than 0 minutes.</p> : null}
+      {!estimatedGrams.trim() && accepted.results.some((row) => Number(row.estimated_filament_grams ?? 0) <= 0) ? <p className="mb-3 text-xs text-danger">Enter planned filament grams before starting requests without an accepted gram estimate.</p> : null}
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="grid gap-2">
           {accepted.isLoading ? (
             <PrintRowsSkeleton title="Accepted" />
           ) : (
             <PrintRows title="Accepted" rows={accepted.results} action={(row) => (
-              <button disabled={!canStartPrint || action.isPending} onClick={() => action.mutate({ request: row, name: "start" })}>
+              <button disabled={!canStartPrint(row) || action.isPending} onClick={() => action.mutate({ request: row, name: "start" })}>
                 {action.isPending ? "Starting..." : "Start on printer"}
               </button>
             )} />
@@ -318,3 +331,5 @@ function PrintRowsSkeleton({ title, rows = 3 }: { title: string; rows?: number }
     </div>
   );
 }
+
+

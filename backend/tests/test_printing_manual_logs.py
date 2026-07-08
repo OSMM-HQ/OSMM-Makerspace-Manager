@@ -406,7 +406,7 @@ def test_printing_report_merges_manual_logs_and_includes_manual_only_printers():
             "printer_name": "A printer",
             "printer_model": "",
             "image_url": None,
-            "completed": 1,
+            "completed": 2,
             "failed": 0,
             "grams_used": 80.0,
             "manual_logs": 1,
@@ -417,7 +417,7 @@ def test_printing_report_merges_manual_logs_and_includes_manual_only_printers():
             # Manual-only fallback row must carry the model through _add_manual_outcomes.
             "printer_model": "Voron 2.4",
             "image_url": None,
-            "completed": 0,
+            "completed": 1,
             "failed": 0,
             "grams_used": 25.0,
             "manual_logs": 1,

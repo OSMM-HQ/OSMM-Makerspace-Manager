@@ -11089,7 +11089,8 @@
                                 "$ref": "#/components/schemas/PrintStart"
                             }
                         }
-                    }
+                    },
+                    "required": true
                 },
                 "security": [
                     {
@@ -17119,6 +17120,38 @@
                         "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$",
                         "readOnly": true
                     },
+                    "run_printer_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "run_printer_model": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "run_spool_label": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "run_spool_material": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "run_spool_color": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "run_estimated_minutes": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "run_planned_filament_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$",
+                        "readOnly": true,
+                        "nullable": true
+                    },
                     "reprint_of": {
                         "type": "integer",
                         "readOnly": true
@@ -17235,6 +17268,13 @@
                     "requester_email",
                     "requester_name",
                     "requester_username",
+                    "run_estimated_minutes",
+                    "run_planned_filament_grams",
+                    "run_printer_model",
+                    "run_printer_name",
+                    "run_spool_color",
+                    "run_spool_label",
+                    "run_spool_material",
                     "source_link",
                     "started_at",
                     "status",
@@ -19499,6 +19539,38 @@
                         "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$",
                         "readOnly": true
                     },
+                    "run_printer_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "run_printer_model": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "run_spool_label": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "run_spool_material": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "run_spool_color": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "run_estimated_minutes": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "run_planned_filament_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$",
+                        "readOnly": true,
+                        "nullable": true
+                    },
                     "reprint_of": {
                         "type": "integer",
                         "readOnly": true
@@ -19565,6 +19637,13 @@
                     "requester_email",
                     "requester_name",
                     "requester_username",
+                    "run_estimated_minutes",
+                    "run_planned_filament_grams",
+                    "run_printer_model",
+                    "run_printer_name",
+                    "run_spool_color",
+                    "run_spool_label",
+                    "run_spool_material",
                     "source_link",
                     "started_at",
                     "status",
@@ -19789,14 +19868,20 @@
                     },
                     "estimated_minutes": {
                         "type": "integer",
-                        "minimum": 0
+                        "minimum": 1
                     },
                     "estimated_filament_grams": {
                         "type": "string",
                         "format": "decimal",
                         "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$"
                     }
-                }
+                },
+                "required": [
+                    "estimated_filament_grams",
+                    "estimated_minutes",
+                    "filament_spool_id",
+                    "printer_id"
+                ]
             },
             "PrintingReport": {
                 "type": "object",

@@ -1,6 +1,6 @@
 from decimal import Decimal
 
-from django.db.models import Count, Max, Q, Sum
+from django.db.models import Count, DecimalField, Max, Q, Sum
 from django.db.models.functions import Coalesce, Lower, TruncDay, TruncHour, TruncMonth
 
 from apps.accounts import rbac
@@ -110,7 +110,17 @@ def _top_requesters(requests, include_makerspace):
     # a single leaderboard line. It does not change auth/identity anywhere. Rows
     # without a contact email fall back to the original requester-id grouping/label.
     grams_filter = Q(status__in=COMPLETED_STATUSES)
-    grams = Coalesce(Sum("estimated_filament_grams", filter=grams_filter), Decimal("0"))
+    grams = Coalesce(
+        Sum(
+            Coalesce(
+                "run_planned_filament_grams",
+                "estimated_filament_grams",
+                output_field=DecimalField(max_digits=8, decimal_places=2),
+            ),
+            filter=grams_filter,
+        ),
+        Decimal("0"),
+    )
 
     email_keys = ["email_key"]
     if include_makerspace:
@@ -199,3 +209,4 @@ def _payment_summary(requests, payment_status):
         status__in=COMPLETED_STATUSES,
     ).aggregate(amount=Sum("price"), count=Count("id"))
     return {"amount": row["amount"] or Decimal("0.00"), "count": row["count"] or 0}
+

@@ -267,7 +267,7 @@ def test_printing_report_keeps_estimate_based_request_grams_separate_from_spool_
             "printer_name": "Estimate rig",
             "printer_model": "",
             "image_url": None,
-            "completed": 1,
+            "completed": 2,
             "failed": 0,
             "grams_used": 150.0,
             "manual_logs": 1,

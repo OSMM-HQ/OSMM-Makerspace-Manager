@@ -14,7 +14,7 @@ from apps.hardware_requests.models import HardwareRequest
 from apps.integrations.staff_notifications import staff_emails_for_stream
 from apps.makerspaces.models import MakerspaceMembership
 from apps.printing import workflow as print_workflow
-from apps.printing.models import PrintRequest
+from apps.printing.models import FilamentSpool, PrintPrinter, PrintRequest
 from tests.return_helpers import (
     authenticated_client as hardware_authenticated_client,
     make_issued_request,
@@ -565,6 +565,23 @@ def test_printing_transition_events_email_printing_staff_once(
         title=f"{event} bracket",
         status=initial_status,
     )
+    if event == "started":
+        printer = PrintPrinter.objects.create(makerspace=makerspace, name="Prusa MK4")
+        spool = FilamentSpool.objects.create(
+            makerspace=makerspace,
+            printer=printer,
+            material="PLA",
+            initial_weight_grams=1000,
+            remaining_weight_grams=900,
+        )
+        call = lambda req, actor: print_workflow.start(
+            req,
+            actor,
+            printer_id=printer.id,
+            filament_spool_id=spool.id,
+            estimated_minutes=90,
+            estimated_filament_grams="120.00",
+        )
 
     with django_capture_on_commit_callbacks(execute=True):
         call(print_request, staff)

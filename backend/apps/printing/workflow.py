@@ -18,6 +18,10 @@ class InvalidTransition(Exception):
     pass
 
 
+class PrintStartValidationError(InvalidTransition):
+    pass
+
+
 _ALLOWED = {
     PrintRequest.Status.PENDING: {PrintRequest.Status.ACCEPTED, PrintRequest.Status.REJECTED},
     PrintRequest.Status.ACCEPTED: {PrintRequest.Status.PRINTING},
@@ -61,7 +65,10 @@ def _transition(
             extra_update_fields.extend(
                 ["printer", "filament_spool", "estimated_minutes",
                  "estimated_filament_grams", "filament_grams_reserved",
-                 "filament_grams_used", "started_at"]
+                 "filament_grams_used", "started_at", "run_printer_name",
+                 "run_printer_model", "run_spool_label", "run_spool_material",
+                 "run_spool_color", "run_estimated_minutes",
+                 "run_planned_filament_grams"]
             )
 
         locked.status = status
@@ -158,6 +165,22 @@ def _coerce_filament_grams(grams):
     return value.quantize(Decimal("0.01"))
 
 
+
+def _coerce_positive_filament_grams(grams):
+    value = _coerce_filament_grams(grams)
+    if value <= 0:
+        raise PrintStartValidationError("Planned filament grams must be greater than 0.")
+    return value
+
+
+def _coerce_estimated_minutes(minutes):
+    try:
+        value = int(minutes)
+    except (TypeError, ValueError) as exc:
+        raise PrintStartValidationError("Estimated minutes must be a whole number.") from exc
+    if value <= 0:
+        raise PrintStartValidationError("Estimated minutes must be greater than 0.")
+    return value
 def _coerce_price(price):
     try:
         value = Decimal(str(price if price is not None else 0))
@@ -172,52 +195,63 @@ def _assign_print_job(
     print_request, *, actor, printer_id, filament_spool_id,
     estimated_minutes, estimated_filament_grams,
 ):
-    if printer_id is not None:
-        try:
-            printer = PrintPrinter.objects.select_for_update().get(pk=printer_id)
-        except ObjectDoesNotExist as exc:
-            raise InvalidTransition("Printer was not found.") from exc
-        if printer.makerspace_id != print_request.bucket.makerspace_id:
-            raise InvalidTransition("Printer must belong to the request makerspace.")
-        if not printer.is_active or printer.status != PrintPrinter.Status.ACTIVE:
-            raise InvalidTransition("Printer is not available for printing.")
-        if printer.print_requests.filter(status=PrintRequest.Status.PRINTING).exists():
-            raise InvalidTransition("Printer already has an active print job.")
-        print_request.printer = printer
+    if printer_id is None:
+        raise PrintStartValidationError("Printer is required to start a print.")
+    if filament_spool_id is None:
+        raise PrintStartValidationError("Filament spool is required to start a print.")
+    if estimated_minutes is None:
+        raise PrintStartValidationError("Estimated minutes are required to start a print.")
+    if estimated_filament_grams is None:
+        raise PrintStartValidationError("Planned filament grams are required to start a print.")
 
-    if filament_spool_id is not None:
-        try:
-            spool = FilamentSpool.objects.select_for_update().get(pk=filament_spool_id)
-        except ObjectDoesNotExist as exc:
-            raise InvalidTransition("Filament spool was not found.") from exc
-        if spool.makerspace_id != print_request.bucket.makerspace_id:
-            raise InvalidTransition("Filament spool must belong to the request makerspace.")
-        if (
-            print_request.printer_id
-            and spool.printer_id not in (None, print_request.printer_id)
-        ):
-            raise InvalidTransition("Filament spool is assigned to a different printer.")
-        if not spool.is_active:
-            raise InvalidTransition("Filament spool is not active.")
-        print_request.filament_spool = spool
+    estimated_minutes = _coerce_estimated_minutes(estimated_minutes)
+    estimated_filament_grams = _coerce_positive_filament_grams(estimated_filament_grams)
 
-    if estimated_minutes is not None:
-        print_request.estimated_minutes = estimated_minutes
-    if estimated_filament_grams is not None:
-        print_request.estimated_filament_grams = estimated_filament_grams
+    try:
+        printer = PrintPrinter.objects.select_for_update().get(pk=printer_id)
+    except ObjectDoesNotExist as exc:
+        raise PrintStartValidationError("Printer was not found.") from exc
+    if printer.makerspace_id != print_request.bucket.makerspace_id:
+        raise PrintStartValidationError("Printer must belong to the request makerspace.")
+    if not printer.is_active or printer.status != PrintPrinter.Status.ACTIVE:
+        raise PrintStartValidationError("Printer is not available for printing.")
+    if printer.print_requests.filter(status=PrintRequest.Status.PRINTING).exists():
+        raise InvalidTransition("Printer already has an active print job.")
 
-    if (
-        print_request.filament_spool_id
-        and print_request.estimated_filament_grams
-        and print_request.estimated_filament_grams
-        > print_request.filament_spool.remaining_weight_grams
-    ):
-        raise InvalidTransition("Estimated filament exceeds remaining spool weight.")
+    try:
+        spool = FilamentSpool.objects.select_for_update().get(pk=filament_spool_id)
+    except ObjectDoesNotExist as exc:
+        raise PrintStartValidationError("Filament spool was not found.") from exc
+    if spool.makerspace_id != print_request.bucket.makerspace_id:
+        raise PrintStartValidationError("Filament spool must belong to the request makerspace.")
+    if spool.printer_id not in (None, printer.id):
+        raise PrintStartValidationError("Filament spool is assigned to a different printer.")
+    if not spool.is_active:
+        raise PrintStartValidationError("Filament spool is not active.")
+
+    print_request.printer = printer
+    print_request.filament_spool = spool
+    print_request.estimated_minutes = estimated_minutes
+    print_request.estimated_filament_grams = estimated_filament_grams
+    print_request.run_printer_name = printer.name
+    print_request.run_printer_model = printer.model
+    print_request.run_spool_label = _spool_label(spool)
+    print_request.run_spool_material = spool.material
+    print_request.run_spool_color = spool.color
+    print_request.run_estimated_minutes = estimated_minutes
+    print_request.run_planned_filament_grams = estimated_filament_grams
+
+    if estimated_filament_grams > spool.remaining_weight_grams:
+        raise PrintStartValidationError("Estimated filament exceeds remaining spool weight.")
     try:
         reserve_filament(actor, print_request)
     except SpoolReservationError as exc:
-        raise InvalidTransition(str(exc)) from exc
+        raise PrintStartValidationError(str(exc)) from exc
 
+
+def _spool_label(spool):
+    parts = [spool.brand, spool.material, spool.color]
+    return " ".join(part.strip() for part in parts if part and part.strip()) or spool.material
 
 def accept(print_request, actor, *, price=0, estimated_filament_grams=None):
     return _transition(
@@ -341,3 +375,7 @@ def reprint(failed_request, actor):
         )
         queue_staff_print_email("reprinted", clone.pk)
         return clone
+
+
+
+

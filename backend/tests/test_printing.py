@@ -334,6 +334,14 @@ def test_print_manager_accepts_starts_and_completes_with_audit_and_emails(
     bucket = make_bucket(makerspace)
     requester = make_user("lifecycle-requester", access_status=User.AccessStatus.ACTIVE)
     manager = make_print_manager("lifecycle-manager", makerspace)
+    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Prusa MK4")
+    spool = FilamentSpool.objects.create(
+        makerspace=makerspace,
+        printer=printer,
+        material="PLA",
+        initial_weight_grams=1000,
+        remaining_weight_grams=900,
+    )
     print_request = make_request(bucket, requester)
     client = authenticated_client(manager)
 
@@ -355,7 +363,16 @@ def test_print_manager_accepts_starts_and_completes_with_audit_and_emails(
     assert audit.target_id == str(print_request.id)
 
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
-        response = client.post(action_url(print_request, "start"), format="json")
+        response = client.post(
+            action_url(print_request, "start"),
+            {
+                "printer_id": printer.id,
+                "filament_spool_id": spool.id,
+                "estimated_minutes": 90,
+                "estimated_filament_grams": "120.00",
+            },
+            format="json",
+        )
         assert response.status_code == 200
     # 4 = 2 sends (requester + staff) x async double-on_commit (queue hook -> dispatch enqueue hook).
     assert len(callbacks) == 4
@@ -980,9 +997,17 @@ def test_start_rejects_busy_printer_and_cross_space_spool():
     requester = make_user("busy-requester", access_status=User.AccessStatus.ACTIVE)
     manager = make_print_manager("busy-manager", makerspace)
     printer = PrintPrinter.objects.create(makerspace=makerspace, name="Busy")
+    free_printer = PrintPrinter.objects.create(makerspace=makerspace, name="Free")
     spool = FilamentSpool.objects.create(
         makerspace=makerspace,
         printer=printer,
+        material="PLA",
+        initial_weight_grams=1000,
+        remaining_weight_grams=100,
+    )
+    other_spool = FilamentSpool.objects.create(
+        makerspace=other_space,
+        printer=other_printer,
         material="PLA",
         initial_weight_grams=1000,
         remaining_weight_grams=100,
@@ -995,17 +1020,27 @@ def test_start_rejects_busy_printer_and_cross_space_spool():
 
     response = authenticated_client(manager).post(
         action_url(next_request, "start"),
-        {"printer_id": printer.id},
+        {
+            "printer_id": printer.id,
+            "filament_spool_id": spool.id,
+            "estimated_minutes": 60,
+            "estimated_filament_grams": "25.00",
+        },
         format="json",
     )
     assert response.status_code == 409
 
     response = authenticated_client(manager).post(
         action_url(next_request, "start"),
-        {"printer_id": other_printer.id},
+        {
+            "printer_id": free_printer.id,
+            "filament_spool_id": other_spool.id,
+            "estimated_minutes": 60,
+            "estimated_filament_grams": "25.00",
+        },
         format="json",
     )
-    assert response.status_code == 409
+    assert response.status_code == 400
 
 
 def test_print_manager_rejects_pending_request_with_reason_audit_and_email(

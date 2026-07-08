@@ -274,7 +274,19 @@ class PrintRequest(models.Model):
         default=0,
         validators=[MinValueValidator(0)],
     )
-    # How far a failed print got (0-100). Persisted at fail() so failed jobs can
+    run_printer_name = models.CharField(max_length=200, blank=True, default="")
+    run_printer_model = models.CharField(max_length=200, blank=True, default="")
+    run_spool_label = models.CharField(max_length=300, blank=True, default="")
+    run_spool_material = models.CharField(max_length=100, blank=True, default="")
+    run_spool_color = models.CharField(max_length=100, blank=True, default="")
+    run_estimated_minutes = models.PositiveIntegerField(null=True, blank=True)
+    run_planned_filament_grams = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+    )    # How far a failed print got (0-100). Persisted at fail() so failed jobs can
     # contribute partial time to per-printer hours; failed_at lets those partials
     # be date-window filtered in reports (failed rows have no completed_at).
     fail_percent_complete = models.PositiveSmallIntegerField(
@@ -360,3 +372,4 @@ class PrintRequestFile(models.Model):
 
     def __str__(self):
         return f"{self.kind}:{self.object_key}"
+

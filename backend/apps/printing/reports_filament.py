@@ -1,7 +1,5 @@
 from decimal import Decimal
 
-from django.db.models import Sum
-
 from apps.printing.models import PrintRequest
 
 COMPLETED_STATUSES = [PrintRequest.Status.COMPLETED, PrintRequest.Status.COLLECTED]
@@ -54,21 +52,26 @@ def estimated_filament_by_period(requests, trunc, period_format):
         requests.filter(
             status__in=COMPLETED_STATUSES,
             completed_at__isnull=False,
-            estimated_filament_grams__isnull=False,
         )
         .annotate(period=trunc("completed_at"))
-        .values("period")
-        .annotate(grams=Sum("estimated_filament_grams"))
+        .values("period", "run_planned_filament_grams", "estimated_filament_grams")
         .order_by("period")
     )
+    totals = {}
+    for row in rows:
+        grams = row["run_planned_filament_grams"]
+        if grams is None:
+            grams = row["estimated_filament_grams"] or Decimal("0")
+        totals[row["period"]] = totals.get(row["period"], Decimal("0")) + grams
     return [
         {
-            "period": row["period"].strftime(period_format),
-            "grams": decimal_to_float(row["grams"] or Decimal("0")),
+            "period": period.strftime(period_format),
+            "grams": decimal_to_float(grams),
         }
-        for row in rows
+        for period, grams in sorted(totals.items())
     ]
-
 
 def decimal_to_float(value):
     return round(float(value), 2)
+
+
