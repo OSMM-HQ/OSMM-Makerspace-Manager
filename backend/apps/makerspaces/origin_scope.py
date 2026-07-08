@@ -189,6 +189,7 @@ _MODEL_LOOKUPS = {
     "stock-transfer-detail": ("operations.StockTransfer", "makerspace_id"),
     "stocktake-detail": ("operations.StocktakeSession", "makerspace_id"),
     "stocktake-count-lines": ("operations.StocktakeSession", "makerspace_id"),
+    "stocktake-resolve-scan": ("operations.StocktakeSession", "makerspace_id"),
     "stocktake-complete": ("operations.StocktakeSession", "makerspace_id"),
     "stocktake-approve": ("operations.StocktakeSession", "makerspace_id"),
     "stocktake-apply-adjustments": ("operations.StocktakeSession", "makerspace_id"),

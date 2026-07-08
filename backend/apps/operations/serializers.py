@@ -193,6 +193,23 @@ class StocktakeLineInputSerializer(serializers.Serializer):
         return attrs
 
 
+class StocktakeScanInputSerializer(serializers.Serializer):
+    payload = serializers.CharField(max_length=64)
+
+
+class StocktakeScanResultSerializer(serializers.Serializer):
+    type = serializers.ChoiceField(choices=["box", "asset", "product"])
+    container_id = serializers.IntegerField(required=False)
+    asset_id = serializers.IntegerField(required=False)
+    product_id = serializers.IntegerField(required=False)
+    label = serializers.CharField(required=False)
+    code = serializers.CharField(required=False)
+    asset_tag = serializers.CharField(required=False)
+    product = serializers.CharField(required=False)
+    name = serializers.CharField(required=False)
+    status = serializers.CharField(required=False)
+
+
 class StocktakeLineSerializer(serializers.ModelSerializer):
     class Meta:
         model = StocktakeLine

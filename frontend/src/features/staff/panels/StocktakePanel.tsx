@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { staffRequest } from "../../../lib/api";
 import { Pagination } from "../../../components/ui/Pagination";
+import QrScanner from "../../../components/ui/QrScanner";
 import { usePaginatedQuery } from "../../../lib/usePaginatedQuery";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 import { invalidateInventoryViews } from "../queryInvalidation";
@@ -23,6 +24,15 @@ type StocktakeDetail = StocktakeRow & { lines: StocktakeLine[] };
 type ProductOption = { id: number; name: string; tracking_mode: string };
 type ContainerOption = { id: number; label: string; location?: string };
 type AssetOption = { id: number; asset_tag: string; serial_number: string; status: string };
+type StocktakeScanResult = {
+  type: "box" | "asset" | "product";
+  container_id?: number;
+  asset_id?: number;
+  product_id?: number;
+  label?: string;
+  asset_tag?: string;
+  name?: string;
+};
 
 const CONDITIONS = ["available", "damaged", "lost", "unknown"];
 
@@ -122,6 +132,8 @@ function CountSection({ makerspace, stocktakeId }: { makerspace: Makerspace; sto
   const [counted, setCounted] = useState("0");
   const [condition, setCondition] = useState("available");
   const [notes, setNotes] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const [scanNote, setScanNote] = useState("");
   const detail = useStaffGet<StocktakeDetail>(["stocktake-detail", stocktakeId], `/admin/stocktakes/${stocktakeId}`);
   const products = useStaffGet<{ results: ProductOption[] }>(["inventory-all", makerspace.id], `/admin/makerspace/${makerspace.id}/inventory?page_size=1000`);
   const containers = useStaffGet<{ results: ContainerOption[] }>(["stocktake-containers", makerspace.id], `/admin/makerspace/${makerspace.id}/containers?page_size=1000`);
@@ -154,6 +166,30 @@ function CountSection({ makerspace, stocktakeId }: { makerspace: Makerspace; sto
       queryClient.invalidateQueries({ queryKey: ["stocktakes", makerspace.id] });
     },
   });
+  const handleScan = async (payload: string) => {
+    try {
+      const result = await staffRequest<StocktakeScanResult>(`/admin/stocktakes/${stocktakeId}/resolve-scan`, {
+        method: "POST",
+        body: JSON.stringify({ payload }),
+      });
+      if (result.type === "asset" && result.asset_id && result.product_id) {
+        setMode("asset");
+        setProductId(String(result.product_id));
+        setAssetId(String(result.asset_id));
+      } else if (result.type === "product" && result.product_id) {
+        setMode("product");
+        setProductId(String(result.product_id));
+        setAssetId("");
+      } else if (result.type === "box" && result.container_id) {
+        setContainerId(String(result.container_id));
+      }
+      setScanNote(`Scanned ${result.asset_tag || result.name || result.label || payload}`);
+      setScanning(false);
+    } catch (error) {
+      setScanNote(error instanceof Error ? error.message : "Unable to resolve scanned QR");
+      setScanning(false);
+    }
+  };
   const recordError = record.error instanceof Error ? record.error.message : undefined;
   const lines = detail.data?.lines ?? [];
   const canSave = mode === "asset" ? Boolean(assetId) : Boolean(productId);
@@ -216,10 +252,13 @@ function CountSection({ makerspace, stocktakeId }: { makerspace: Makerspace; sto
         <span>Line notes</span>
         <input className="desk-input" value={notes} onChange={(event) => setNotes(event.target.value)} />
       </label>
-      <div className="desk-actions mt-2 flex justify-end">
+      <div className="desk-actions mt-2 flex justify-between gap-2">
+        <button type="button" onClick={() => setScanning(true)}>Scan QR</button>
         <button disabled={!canSave || record.isPending} onClick={() => record.mutate()}>{record.isPending ? "Saving..." : "Record count"}</button>
       </div>
+      {scanNote ? <p className={`mt-2 text-sm ${scanNote.startsWith("Scanned ") ? "text-muted" : "text-danger"}`}>{scanNote}</p> : null}
       {recordError ? <p className="mt-2 text-sm text-danger">{recordError}</p> : null}
+      {scanning ? <QrScanner onClose={() => setScanning(false)} onScan={handleScan} /> : null}
       <div className="mt-3 grid min-w-0 gap-1">
         {lines.length ? (
           <div className="overflow-x-auto">

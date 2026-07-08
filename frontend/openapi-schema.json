@@ -8438,6 +8438,81 @@
                 }
             }
         },
+        "/api/v1/admin/stocktakes/{id}/resolve-scan": {
+            "post": {
+                "operationId": "api_v1_admin_stocktakes_resolve_scan_create",
+                "summary": "Resolve a scanned QR to a stocktake count target",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Stocktake"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StocktakeScanInput"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StocktakeScanInput"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StocktakeScanInput"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StocktakeScanResult"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/GenericObject"
+                                }
+                            }
+                        },
+                        "description": "Invalid request or stocktake state."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/users/{id}/reset-password": {
             "post": {
                 "operationId": "api_v1_admin_users_reset_password_create",
@@ -24069,6 +24144,56 @@
                     "counted_quantity"
                 ]
             },
+            "StocktakeScanInput": {
+                "type": "object",
+                "properties": {
+                    "payload": {
+                        "type": "string",
+                        "maxLength": 64
+                    }
+                },
+                "required": [
+                    "payload"
+                ]
+            },
+            "StocktakeScanResult": {
+                "type": "object",
+                "properties": {
+                    "type": {
+                        "$ref": "#/components/schemas/TypeEnum"
+                    },
+                    "container_id": {
+                        "type": "integer"
+                    },
+                    "asset_id": {
+                        "type": "integer"
+                    },
+                    "product_id": {
+                        "type": "integer"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "code": {
+                        "type": "string"
+                    },
+                    "asset_tag": {
+                        "type": "string"
+                    },
+                    "product": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "type"
+                ]
+            },
             "StocktakeStatusEnum": {
                 "enum": [
                     "draft",
@@ -24636,6 +24761,15 @@
                 ],
                 "type": "string",
                 "description": "* `quantity` - Quantity\n* `individual` - Individual"
+            },
+            "TypeEnum": {
+                "enum": [
+                    "box",
+                    "asset",
+                    "product"
+                ],
+                "type": "string",
+                "description": "* `box` - box\n* `asset` - asset\n* `product` - product"
             },
             "User": {
                 "type": "object",

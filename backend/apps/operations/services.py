@@ -27,6 +27,7 @@ from apps.operations.services_stocktake import (
     approve_stocktake,
     complete_stocktake,
     create_stocktake,
+    resolve_scan_target,
 )
 from apps.operations.services_transfers import (
     _apply_cross_makerspace_line,

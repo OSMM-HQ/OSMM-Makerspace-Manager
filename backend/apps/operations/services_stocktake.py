@@ -26,6 +26,31 @@ def create_stocktake(actor, makerspace, data):
     return stocktake
 
 
+def resolve_scan_target(actor, stocktake, payload):
+    from apps.accounts import rbac
+    from apps.boxes.access import qr_for_action
+    from apps.boxes.models import Box, QrCode
+
+    qr = qr_for_action(actor, rbac.Action.VIEW_INVENTORY, payload=payload, status=QrCode.Status.ACTIVE)
+    if qr.makerspace_id != stocktake.makerspace_id:
+        raise ValidationError("QR belongs to a different makerspace.")
+    if qr.target_type == QrCode.TargetType.BOX:
+        box = Box.objects.get(pk=qr.target_id)
+        return {"type": "box", "container_id": box.id, "label": box.label, "code": box.code}
+    if qr.target_type == QrCode.TargetType.ASSET:
+        asset = InventoryAsset.objects.select_related("product").get(pk=qr.target_id)
+        return {
+            "type": "asset",
+            "asset_id": asset.id,
+            "product_id": asset.product_id,
+            "asset_tag": asset.asset_tag,
+            "product": asset.product.name,
+            "status": asset.status,
+        }
+    product = InventoryProduct.objects.get(pk=qr.target_id)
+    return {"type": "product", "product_id": product.id, "name": product.name}
+
+
 def add_stocktake_line(actor, stocktake, data):
     with transaction.atomic():
         locked = StocktakeSession.objects.select_for_update().get(pk=stocktake.pk)
