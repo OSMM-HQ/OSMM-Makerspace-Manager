@@ -79,8 +79,13 @@ Operational evidence rules are also enforced in the workflows:
 - QR scanner actions are advisory only: the backend advertises checkout/direct actions only when
   the matching workflow can actually accept the scanned box, product, or asset.
 
-**Stack:** Django 5 + DRF backend · React 18 + Vite + TypeScript frontend (TanStack Query) ·
-PostgreSQL 16 · django-unfold admin · drf-spectacular / OpenAPI.
+**Stack:** Django 6 + DRF backend · React 19 + Vite 8 + Tailwind CSS 4 + TypeScript frontend
+(TanStack Query v5) · PostgreSQL 16 · Celery + Redis async email · django-unfold admin ·
+drf-spectacular / OpenAPI.
+
+**Toolchain prerequisites (local, non-Docker dev):** Python 3.12+ and Node 20.19+ (or 22.12+, for
+Vite 8). The Docker path bundles everything, so these only matter if you run the backend/frontend
+directly.
 
 ---
 

@@ -2,6 +2,39 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — audit fixes + features + dependency upgrade (P1–P17; 2026-07-08)
+
+20-phase batch from a 4-agent Codex codebase audit, merged to `main` (fast-forward). **1167 backend
+tests pass** on the final stack. Highlights of the later phases + the dependency upgrade:
+
+- **P13 — integration health center.** `apps/integrations/health.py` `build_integration_health()`
+  (fully fail-safe): per-makerspace email counts/stalled/last-failure, deliveries-by-stream, SMTP/
+  Telegram `configured` booleans, and a **cached Celery worker heartbeat** (`record_worker_heartbeat()`
+  called at the top of `deliver_email_task`; NO SMTP/Telegram test on read). `GET /admin/makerspace/
+  <id>/integration-health` (MANAGE_MAKERSPACE); panel embedded in `MakerspaceSettingsPanel`.
+- **P14 — scan-first stocktake.** Read-only `resolve_scan_target()` + `POST /admin/stocktakes/<pk>/
+  resolve-scan` (stocktake-module gated, cross-makerspace rejected) resolves a scanned QR to a count
+  target; `StocktakePanel` scan-to-prefill. Reuses `add_stocktake_line` — no new mutation path.
+- **P15a — ops dashboard.** `apps/operations/views_dashboard.py` `build_dashboard()` (11 fail-safe
+  COUNT sections: overdue loans, pending/awaiting requests, open problem reports, low stock, print
+  queue states, failed emails, stocktakes awaiting approval, warranty expiring). `GET /admin/
+  makerspace/<id>/dashboard`; new **Dashboard** landing tab (default for non-guest roles).
+- **P15b — notifications app + inbox.** New `apps/notifications/` (`Notification` model, migration
+  `0001`; list/unread-count/read/read-all views nested under `makerspace_id`). **Gated behind an
+  opt-in `notifications` module** (NOT in `DEFAULT_ENABLED_MODULES`). `NotificationInbox` panel +
+  sidebar unread badge; `getStaffAccess` gained an `enabledModules` param to gate the tab.
+- **P15c — fail-safe emit hooks.** `apps/notifications/emit.py` `emit_notification()` (module-gated,
+  `transaction.on_commit`, never raises). Hooks: `request.submitted`, `problem_report.filed`,
+  `print.failed`, `stocktake.completed`, `loan.overdue` (return-reminder), `email.failed` (dispatch
+  first-attempt only). A notification write can never break the underlying workflow/dispatch.
+- **P16/P17 — force-latest dependency upgrade.** Backend → **Django 6.0**, drf-spectacular 0.30,
+  django-unfold 0.100, django-axes 8, redis 6.4 (celery caps <7), cryptography 49, pytest 9, Pillow
+  12 (only code change: `CheckConstraint(check=)` → `condition=` in `printing/models.py` + migration
+  `0010`). Frontend → **React 19, Vite 8, Tailwind CSS 4, TypeScript 6, react-router 7, zxing-wasm 3**
+  (Tailwind 4 via the `@import "tailwindcss"` + `@config` compat path — the v3 token config file is
+  kept unchanged; PostCSS switched to `@tailwindcss/postcss`, autoprefixer dropped; one React-19
+  `useRef` ref-type fix). Frontend Docker image bumped to `node:22-alpine`.
+
 ## Recent batch — manager fixes + features (P5–P10; branch feat/manager-fixes-and-features, 2026-06-30)
 
 Continuation of the 9-phase manager batch (P1/P2/P4 landed earlier; **P3 public-stats privacy DROPPED per
@@ -1199,12 +1232,14 @@ Implemented (open-source ops and reporting):
 
 Stack (in use):
 
-- **Backend:** Django 5 + Django REST Framework (`backend/`)
-- **Frontend:** React 18 + Vite 5 + TypeScript (`frontend/`)
+- **Backend:** Django 6 + Django REST Framework (`backend/`). Requires Python 3.12+.
+- **Frontend:** React 19 + Vite 8 + TypeScript (`frontend/`). Requires Node 20.19+ / 22.12+.
 - **Server-state management:** TanStack Query v5
 - **Database:** PostgreSQL 16 (via `docker-compose.yml`)
-- **Styling:** Tailwind CSS 3 with CSS-variable light/dark theme tokens. Light
-  is the default; the frontend persists the user's dark-theme toggle locally.
+- **Styling:** Tailwind CSS 4 (CSS-first; `src/index.css` uses `@import "tailwindcss"` + `@config
+  "../tailwind.config.ts"` to keep the v3-style token config; PostCSS via `@tailwindcss/postcss`)
+  with CSS-variable light/dark theme tokens. Light is the default; the frontend persists the user's
+  dark-theme toggle locally.
 - **API documentation:** drf-spectacular / OpenAPI
 - **Admin theme:** Django admin themed with django-unfold (dark + purple, forced dark); site name configurable via `ADMIN_SITE_NAME` (default "OSMM")
 - **Telegram integration:** implemented for request alerts, test alerts, and
