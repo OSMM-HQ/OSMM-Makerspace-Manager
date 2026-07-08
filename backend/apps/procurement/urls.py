@@ -4,6 +4,8 @@ from apps.procurement.views import (
     ToBuyDetailView,
     ToBuyExportView,
     ToBuyListCreateView,
+    ToBuyMoveToInventoryView,
+    ToBuyMoveToPrintingView,
     ToBuyReceiptDeleteView,
     ToBuyReceiptListCreateView,
     ToBuyReceiptPresignView,
@@ -43,5 +45,16 @@ urlpatterns = [
         ToBuyReceiptDeleteView.as_view(),
         name="to-buy-receipt-detail",
     ),
+    path(
+        "to-buy/<int:pk>/move-to-inventory",
+        ToBuyMoveToInventoryView.as_view(),
+        name="to-buy-move-to-inventory",
+    ),
+    path(
+        "to-buy/<int:pk>/move-to-printing",
+        ToBuyMoveToPrintingView.as_view(),
+        name="to-buy-move-to-printing",
+    ),
     path("to-buy/<int:pk>", ToBuyDetailView.as_view(), name="to-buy-detail"),
 ]
+

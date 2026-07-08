@@ -7,6 +7,10 @@ from apps.procurement.views_items import (
     ToBuyExportView,
     ToBuyListCreateView,
 )
+from apps.procurement.views_move import (
+    ToBuyMoveToInventoryView,
+    ToBuyMoveToPrintingView,
+)
 from apps.procurement.views_receipts import (
     ToBuyReceiptDeleteView,
     ToBuyReceiptListCreateView,
@@ -22,8 +26,11 @@ __all__ = [
     "ToBuyDetailView",
     "ToBuyExportView",
     "ToBuyListCreateView",
+    "ToBuyMoveToInventoryView",
+    "ToBuyMoveToPrintingView",
     "ToBuyReceiptDeleteView",
     "ToBuyReceiptListCreateView",
     "ToBuyReceiptPresignView",
     "ToBuyReceiptUrlView",
 ]
+
