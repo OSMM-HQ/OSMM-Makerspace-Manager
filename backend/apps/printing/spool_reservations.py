@@ -1,7 +1,8 @@
 from decimal import Decimal
 
 from apps.audit import services as audit
-from apps.printing.models import FilamentSpool
+from apps.printing.models import FilamentAdjustment, FilamentSpool
+from apps.printing.services_filament_ledger import record_adjustment
 
 
 class SpoolReservationError(Exception):
@@ -24,6 +25,14 @@ def reserve_filament(actor, print_request):
     remaining_before = spool.remaining_weight_grams
     spool.remaining_weight_grams -= grams
     spool.save(update_fields=["remaining_weight_grams", "updated_at"])
+    record_adjustment(
+        actor=actor,
+        spool=spool,
+        kind=FilamentAdjustment.Kind.RESERVE,
+        grams=-grams,
+        reason="Print start reservation",
+        print_request=print_request,
+    )
     print_request.filament_grams_reserved = grams
     print_request.filament_grams_used = Decimal("0.00")
     audit.record(
@@ -69,6 +78,14 @@ def reconcile_filament(actor, print_request, grams_used, *, reason):
             spool.remaining_weight_grams - adjustment,
         )
     spool.save(update_fields=["remaining_weight_grams", "updated_at"])
+    record_adjustment(
+        actor=actor,
+        spool=spool,
+        kind=FilamentAdjustment.Kind.RECONCILE,
+        grams=-adjustment,
+        reason=reason,
+        print_request=print_request,
+    )
 
     print_request.filament_grams_used = used
     print_request.filament_grams_reserved = Decimal("0.00")

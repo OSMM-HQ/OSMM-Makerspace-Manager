@@ -15,7 +15,7 @@ import {
   type SpoolPayload,
 } from "./PrintingPanelParts";
 import { PrinterCard, SpoolRow } from "./PrintingPanelCards";
-import { PrinterEditDialog, SpoolEditDialog } from "./PrintingPanelDialogs";
+import { PrinterEditDialog, SpoolCorrectionDialog, SpoolEditDialog } from "./PrintingPanelDialogs";
 import { invalidatePrintingViews } from "../queryInvalidation";
 
 type DeactivateTarget =
@@ -44,6 +44,7 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
   const [spoolWeight, setSpoolWeight] = useState("1000");
   const [editingPrinter, setEditingPrinter] = useState<PrintPrinter | null>(null);
   const [editingSpool, setEditingSpool] = useState<FilamentSpool | null>(null);
+  const [correctingSpool, setCorrectingSpool] = useState<FilamentSpool | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<DeactivateTarget | null>(null);
   const [deletePrinterTarget, setDeletePrinterTarget] = useState<{ id: number; label: string } | null>(null);
   const [deleteSpoolTarget, setDeleteSpoolTarget] = useState<{ id: number; label: string } | null>(null);
@@ -123,6 +124,18 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
       }),
     onSuccess: () => {
       setEditingSpool(null);
+      invalidatePrinting();
+    },
+  });
+
+  const correctSpool = useMutation({
+    mutationFn: ({ id, payload }: { id: number; payload: { kind: "correction" | "retire"; grams: string; reason: string } }) =>
+      printingRequest(`/printing/manage/spools/${id}/adjustments`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    onSuccess: () => {
+      setCorrectingSpool(null);
       invalidatePrinting();
     },
   });
@@ -233,6 +246,7 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
               onActivate={() => activateSpool.mutate(spool.id)}
               onDeactivate={() => setDeactivateTarget({ kind: "spool", id: spool.id, label: `${spool.material} ${spool.color}`.trim() })}
               onDelete={() => setDeleteSpoolTarget({ id: spool.id, label: `${spool.material} ${spool.color}`.trim() })}
+              onCorrect={() => setCorrectingSpool(spool)}
             />
           ))}
         </div>
@@ -264,6 +278,13 @@ export function PrintingPanel({ makerspace }: { makerspace: Makerspace }) {
         error={updateSpool.error instanceof Error ? updateSpool.error.message : undefined}
         onClose={() => setEditingSpool(null)}
         onSubmit={(payload) => editingSpool && updateSpool.mutate({ id: editingSpool.id, payload })}
+      />
+      <SpoolCorrectionDialog
+        spool={correctingSpool}
+        pending={correctSpool.isPending}
+        error={correctSpool.error instanceof Error ? correctSpool.error.message : undefined}
+        onClose={() => setCorrectingSpool(null)}
+        onSubmit={(payload) => correctingSpool && correctSpool.mutate({ id: correctingSpool.id, payload })}
       />
       <ConfirmDialog open={Boolean(deactivateTarget)} title="Deactivate item" message={deactivateTarget ? `Deactivate ${deactivateTarget.label}? It will stay in history but no longer be available for new print work.` : ""} confirmLabel="Deactivate" tone="danger" pending={deactivate.isPending} onCancel={() => setDeactivateTarget(null)} onConfirm={() => deactivateTarget && deactivate.mutate(deactivateTarget)} />
       <ConfirmDialog open={Boolean(deletePrinterTarget)} title="Delete printer" message={deletePrinterTarget ? `Permanently delete ${deletePrinterTarget.label}? Past print requests and spools keep their history but will no longer show this printer. This cannot be undone.` : ""} confirmLabel="Delete" tone="danger" pending={deletePrinter.isPending} onCancel={() => setDeletePrinterTarget(null)} onConfirm={() => deletePrinterTarget && deletePrinter.mutate(deletePrinterTarget.id)} />

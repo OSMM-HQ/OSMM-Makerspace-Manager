@@ -15,6 +15,10 @@ export type FilamentSpool = {
   brand: string;
   initial_weight_grams: string;
   remaining_weight_grams: string;
+  ledger_adjustment_count?: number;
+  ledger_balance_grams?: string;
+  ledger_used_grams?: string;
+  ledger_remaining_weight_grams?: string;
   is_active: boolean;
 };
 

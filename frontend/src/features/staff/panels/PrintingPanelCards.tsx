@@ -59,18 +59,20 @@ export function SpoolRow({
   onActivate,
   onDeactivate,
   onDelete,
+  onCorrect,
 }: {
   spool: FilamentSpool;
   onEdit: () => void;
   onActivate: () => void;
   onDeactivate: () => void;
   onDelete: () => void;
+  onCorrect: () => void;
 }) {
-  const usedGrams = Math.max(
-    0,
-    Number(spool.initial_weight_grams) - Number(spool.remaining_weight_grams),
-  );
-  const usedLabel = Number.isFinite(usedGrams) ? `${usedGrams}g used` : "-";
+  const usedGrams = Number(spool.ledger_used_grams ?? (Number(spool.initial_weight_grams) - Number(spool.remaining_weight_grams)));
+  const remainingGrams = spool.ledger_remaining_weight_grams ?? spool.remaining_weight_grams;
+  const balance = spool.ledger_balance_grams ?? "0.00";
+  const count = spool.ledger_adjustment_count ?? 0;
+  const usedLabel = Number.isFinite(usedGrams) ? `${usedGrams.toFixed(2)}g ledger used` : "-";
   return (
     <div className="min-w-0 rounded-md border border-line bg-surface px-3 py-2">
       <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
@@ -78,7 +80,8 @@ export function SpoolRow({
           {[spool.brand, spool.material, spool.color].filter(Boolean).join(" ") || spool.material}
         </span>
         <span className="min-w-0 break-words text-muted">{spool.printer_name ?? "Unassigned"}</span>
-        <span className="min-w-0 break-words text-muted">{usedLabel} - {spool.remaining_weight_grams}g left of {spool.initial_weight_grams}g</span>
+        <span className="min-w-0 break-words text-muted">{usedLabel} - {remainingGrams}g ledger left of {spool.initial_weight_grams}g</span>
+        <span className="min-w-0 break-words text-muted">Balance {balance}g across {count} rows</span>
         <span
           className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
             spool.is_active ? "bg-success/15 text-success-ink" : "bg-warn/15 text-warn-ink"
@@ -90,6 +93,7 @@ export function SpoolRow({
       </div>
       <div className="desk-actions mt-2 flex flex-wrap gap-2">
         <button type="button" onClick={onEdit}>Edit</button>
+        <button type="button" onClick={onCorrect}>Correct</button>
         {spool.is_active ? (
           <button type="button" onClick={onDeactivate}>Deactivate</button>
         ) : (

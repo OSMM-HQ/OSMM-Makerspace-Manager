@@ -198,6 +198,7 @@ _MODEL_LOOKUPS = {
     "problem-report-triage": ("hardware_requests.PublicProblemReport", "makerspace_id"),
     "managed-printer-detail": ("printing.PrintPrinter", "makerspace_id"),
     "managed-spool-detail": ("printing.FilamentSpool", "makerspace_id"),
+    "managed-spool-adjustment": ("printing.FilamentSpool", "makerspace_id"),
     "managed-file-url": ("printing.PrintRequestFile", "makerspace_id"),
     "to-buy-detail": ("procurement.ToBuyItem", "makerspace_id"),
     **{name: ("hardware_requests.HardwareRequest", "makerspace_id") for name in _REQUEST_ACTIONS},

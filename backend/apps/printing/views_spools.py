@@ -1,11 +1,18 @@
 from django.db.models import Q
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics, status
+from rest_framework.exceptions import ValidationError
+from rest_framework.views import APIView
 from rest_framework.response import Response
 
 from apps.audit import services as audit
+from apps.printing import services_filament_ledger
 from apps.printing.models import FilamentSpool, PrintRequest
 from apps.printing.serializers import FilamentSpoolSerializer
+from apps.printing.serializers_spools import (
+    FilamentAdjustmentRequestSerializer,
+    FilamentAdjustmentResponseSerializer,
+)
 from apps.printing.views_common import ERROR_RESPONSES, _int_query_param
 from apps.printing.views_printers import ManagedPrinterMixin
 
@@ -95,6 +102,16 @@ class ManagedFilamentSpoolDetailView(
                 },
                 status=status.HTTP_409_CONFLICT,
             )
+        if spool.adjustments.exists():
+            return Response(
+                {
+                    "detail": (
+                        "This spool has filament ledger history; deactivate it instead "
+                        "to preserve the append-only adjustment trail."
+                    )
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
         audit.record(
             request.user,
             "print.spool_deleted",
@@ -124,3 +141,34 @@ class ManagedFilamentSpoolDetailView(
     )
     def delete(self, request, *args, **kwargs):
         return super().delete(request, *args, **kwargs)
+
+
+@extend_schema(tags=["Printing"], summary="Record a managed filament spool adjustment")
+class ManagedFilamentSpoolAdjustmentView(ManagedPrinterMixin, APIView):
+    @extend_schema(
+        request=FilamentAdjustmentRequestSerializer,
+        responses={200: FilamentAdjustmentResponseSerializer, **ERROR_RESPONSES},
+    )
+    def post(self, request, pk, *args, **kwargs):
+        spool = self.scope_queryset(
+            FilamentSpool.objects.select_related("makerspace", "printer")
+        ).filter(pk=pk).first()
+        if spool is None:
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
+        self.assert_can_manage_makerspace(spool.makerspace_id)
+
+        serializer = FilamentAdjustmentRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        try:
+            spool, adjustment = services_filament_ledger.apply_staff_adjustment(
+                request.user,
+                spool.id,
+                kind=serializer.validated_data["kind"],
+                grams=serializer.validated_data["grams"],
+                reason=serializer.validated_data["reason"],
+            )
+        except services_filament_ledger.InvalidFilamentAdjustment as exc:
+            raise ValidationError({"detail": str(exc)}) from exc
+
+        response = {"spool": spool, "adjustment": adjustment}
+        return Response(FilamentAdjustmentResponseSerializer(response).data)

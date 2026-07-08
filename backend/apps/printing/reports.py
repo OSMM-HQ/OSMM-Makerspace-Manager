@@ -49,10 +49,10 @@ def build_printing_report(makerspace_id=None, *, include_makerspace=False, date_
         "totals": _totals(request_period),
         "printer_hours": printer_hour_rows,
         "printer_outcomes": printer_outcome_rows,
-        "filament_used": filament_used(spools, include_makerspace),
-        "filament_by_brand": filament_by_brand(spools),
+        "filament_used": filament_used(spools, include_makerspace, date_range=date_range),
+        "filament_by_brand": filament_by_brand(spools, date_range=date_range),
         "top_requesters": _top_requesters(completed_period, include_makerspace),
-        "total_grams_used": total_spool_grams_used(spools),
+        "total_grams_used": total_spool_grams_used(spools, date_range=date_range),
         "payments": _payments(completed_period),
         "filament_estimated_by_period": {
             "by_month": estimated_filament_by_period(completed_period, TruncMonth, "%Y-%m"),

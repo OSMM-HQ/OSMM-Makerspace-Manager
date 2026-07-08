@@ -46,8 +46,8 @@ class PrintingReportFilamentUsedSerializer(serializers.Serializer):
     color = serializers.CharField(allow_blank=True)
     grams_used = serializers.FloatField(
         help_text=(
-            "Per-spool inventory delta: initial weight minus remaining weight. "
-            "Manual print logs already affect this total when they decrement a spool."
+            "Per-spool ledger movement total. Spools with no ledger rows fall back "
+            "to initial weight minus remaining weight for pre-ledger compatibility."
         )
     )
     remaining_grams = serializers.FloatField()
@@ -71,7 +71,7 @@ class PrintingReportBrandSerializer(serializers.Serializer):
     brand = serializers.CharField()
     grams_used = serializers.FloatField(
         help_text=(
-            "Brand-level spool inventory delta: initial weight minus remaining weight."
+            "Brand-level filament ledger movement total with pre-ledger fallback."
         )
     )
     spools = serializers.IntegerField()
@@ -106,16 +106,16 @@ class PrintingReportSerializer(serializers.Serializer):
     filament_used = PrintingReportFilamentUsedSerializer(
         many=True,
         help_text=(
-            "Per-spool inventory-delta axis. These values are independent of the "
-            "per-printer request-outcome aggregation."
+            "Per-spool ledger axis. These values are independent of the per-printer "
+            "request-outcome aggregation."
         ),
     )
     filament_by_brand = PrintingReportBrandSerializer(many=True)
     top_requesters = PrintingReportTopRequesterSerializer(many=True)
     total_grams_used = serializers.FloatField(
         help_text=(
-            "Total spool inventory delta across included spools, not a sum of "
-            "completed-request estimates."
+            "Total filament ledger movement across included spools, with pre-ledger "
+            "fallback where a spool has no adjustment rows."
         )
     )
     payments = PrintingReportPaymentsSerializer()
