@@ -102,6 +102,68 @@ class FilamentSpool(models.Model):
         return f"{self.material}{color} ({self.remaining_weight_grams}g left)"
 
 
+class FilamentAdjustment(models.Model):
+    class Kind(models.TextChoices):
+        RESERVE = "reserve", "Reserve"
+        RECONCILE = "reconcile", "Reconcile"
+        MANUAL = "manual", "Manual"
+        CORRECTION = "correction", "Correction"
+        RETIRE = "retire", "Retire"
+
+    filament_spool = models.ForeignKey(
+        FilamentSpool,
+        on_delete=models.PROTECT,
+        related_name="adjustments",
+    )
+    makerspace = models.ForeignKey(
+        "makerspaces.Makerspace",
+        on_delete=models.CASCADE,
+        related_name="filament_adjustments",
+    )
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    grams = models.DecimalField(max_digits=10, decimal_places=2)
+    print_request = models.ForeignKey(
+        "printing.PrintRequest",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="filament_adjustments",
+    )
+    manual_log = models.ForeignKey(
+        "printing.ManualPrintLog",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="filament_adjustments",
+    )
+    reason = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["filament_spool", "created_at"]),
+        ]
+        ordering = ["-created_at", "-id"]
+
+    def save(self, *args, **kwargs):
+        if self.pk is not None:
+            raise RuntimeError("FilamentAdjustment rows are append-only.")
+        return super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        raise RuntimeError("FilamentAdjustment rows are append-only.")
+
+    def __str__(self):
+        return f"{self.kind} {self.grams}g on spool {self.filament_spool_id}"
+
+
 class ManualPrintLog(models.Model):
     makerspace = models.ForeignKey("makerspaces.Makerspace", on_delete=models.CASCADE, related_name="manual_print_logs")
     printer = models.ForeignKey(

@@ -11503,6 +11503,81 @@
                 }
             }
         },
+        "/api/v1/printing/manage/spools/{id}/adjustments": {
+            "post": {
+                "operationId": "api_v1_printing_manage_spools_adjustments_create",
+                "summary": "Record a managed filament spool adjustment",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Printing"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FilamentAdjustmentRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FilamentAdjustmentRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/FilamentAdjustmentRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/FilamentAdjustmentResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
         "/api/v1/printing/public/{makerspace_slug}/buckets": {
             "get": {
                 "operationId": "api_v1_printing_public_buckets_list",
@@ -15798,6 +15873,128 @@
                     "reason"
                 ]
             },
+            "FilamentAdjustment": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "filament_spool": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "makerspace": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "kind": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/FilamentAdjustmentKindEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "print_request": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "manual_log": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "reason": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_by": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "created_by",
+                    "filament_spool",
+                    "grams",
+                    "id",
+                    "kind",
+                    "makerspace",
+                    "manual_log",
+                    "print_request",
+                    "reason"
+                ]
+            },
+            "FilamentAdjustmentKindEnum": {
+                "enum": [
+                    "reserve",
+                    "reconcile",
+                    "manual",
+                    "correction",
+                    "retire"
+                ],
+                "type": "string",
+                "description": "* `reserve` - Reserve\n* `reconcile` - Reconcile\n* `manual` - Manual\n* `correction` - Correction\n* `retire` - Retire"
+            },
+            "FilamentAdjustmentRequest": {
+                "type": "object",
+                "properties": {
+                    "kind": {
+                        "$ref": "#/components/schemas/FilamentAdjustmentRequestKindEnum"
+                    },
+                    "grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$"
+                    },
+                    "reason": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "grams",
+                    "kind",
+                    "reason"
+                ]
+            },
+            "FilamentAdjustmentRequestKindEnum": {
+                "enum": [
+                    "correction",
+                    "retire"
+                ],
+                "type": "string",
+                "description": "* `correction` - Correction\n* `retire` - Retire"
+            },
+            "FilamentAdjustmentResponse": {
+                "type": "object",
+                "properties": {
+                    "spool": {
+                        "$ref": "#/components/schemas/FilamentSpool"
+                    },
+                    "adjustment": {
+                        "$ref": "#/components/schemas/FilamentAdjustment"
+                    }
+                },
+                "required": [
+                    "adjustment",
+                    "spool"
+                ]
+            },
             "FilamentSpool": {
                 "type": "object",
                 "properties": {
@@ -15842,6 +16039,28 @@
                         "format": "decimal",
                         "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$"
                     },
+                    "ledger_adjustment_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "ledger_balance_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "ledger_used_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "ledger_remaining_weight_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
                     "is_active": {
                         "type": "boolean"
                     },
@@ -15865,6 +16084,10 @@
                     "created_at",
                     "id",
                     "initial_weight_grams",
+                    "ledger_adjustment_count",
+                    "ledger_balance_grams",
+                    "ledger_remaining_weight_grams",
+                    "ledger_used_grams",
                     "makerspace",
                     "material",
                     "printer_name",
@@ -18555,6 +18778,28 @@
                         "format": "decimal",
                         "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$"
                     },
+                    "ledger_adjustment_count": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "ledger_balance_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "ledger_used_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "ledger_remaining_weight_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
                     "is_active": {
                         "type": "boolean"
                     },
@@ -19907,7 +20152,7 @@
                         "items": {
                             "$ref": "#/components/schemas/PrintingReportFilamentUsed"
                         },
-                        "description": "Per-spool inventory-delta axis. These values are independent of the per-printer request-outcome aggregation."
+                        "description": "Per-spool ledger axis. These values are independent of the per-printer request-outcome aggregation."
                     },
                     "filament_by_brand": {
                         "type": "array",
@@ -19924,7 +20169,7 @@
                     "total_grams_used": {
                         "type": "number",
                         "format": "double",
-                        "description": "Total spool inventory delta across included spools, not a sum of completed-request estimates."
+                        "description": "Total filament ledger movement across included spools, with pre-ledger fallback where a spool has no adjustment rows."
                     },
                     "payments": {
                         "$ref": "#/components/schemas/PrintingReportPayments"
@@ -19959,7 +20204,7 @@
                     "grams_used": {
                         "type": "number",
                         "format": "double",
-                        "description": "Brand-level spool inventory delta: initial weight minus remaining weight."
+                        "description": "Brand-level filament ledger movement total with pre-ledger fallback."
                     },
                     "spools": {
                         "type": "integer"
@@ -19986,7 +20231,7 @@
                     "grams_used": {
                         "type": "number",
                         "format": "double",
-                        "description": "Per-spool inventory delta: initial weight minus remaining weight. Manual print logs already affect this total when they decrement a spool."
+                        "description": "Per-spool ledger movement total. Spools with no ledger rows fall back to initial weight minus remaining weight for pre-ledger compatibility."
                     },
                     "remaining_grams": {
                         "type": "number",

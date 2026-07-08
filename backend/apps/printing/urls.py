@@ -18,6 +18,7 @@ from apps.printing.views import (
     ManualPrintLogListCreateView,
     ManagedPrintRequestDetailView,
     ManagedPrintRequestListView,
+    ManagedFilamentSpoolAdjustmentView,
     ManagedFilamentSpoolDetailView,
     ManagedFilamentSpoolListCreateView,
     ManagedPrinterDetailView,
@@ -110,6 +111,11 @@ urlpatterns = [
         "manage/spools/<int:pk>/",
         ManagedFilamentSpoolDetailView.as_view(),
         name="managed-spool-detail",
+    ),
+    path(
+        "manage/spools/<int:pk>/adjustments",
+        ManagedFilamentSpoolAdjustmentView.as_view(),
+        name="managed-spool-adjustment",
     ),
     path(
         "manage/manual-logs/",

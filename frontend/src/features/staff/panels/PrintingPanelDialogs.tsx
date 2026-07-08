@@ -69,6 +69,47 @@ export function SpoolEditDialog({ spool, printers, pending, error, onClose, onSu
   );
 }
 
+export function SpoolCorrectionDialog({ spool, pending, error, onClose, onSubmit }: {
+  spool: FilamentSpool | null;
+  pending: boolean;
+  error?: string;
+  onClose: () => void;
+  onSubmit: (payload: { kind: "correction" | "retire"; grams: string; reason: string }) => void;
+}) {
+  const [kind, setKind] = useState<"correction" | "retire">("correction");
+  const [grams, setGrams] = useState("");
+  const [reason, setReason] = useState("");
+  useEffect(() => {
+    if (spool) {
+      setKind("correction");
+      setGrams("");
+      setReason("");
+    }
+  }, [spool]);
+  const remaining = spool?.ledger_remaining_weight_grams ?? spool?.remaining_weight_grams ?? "0.00";
+  const numericValue = Number(grams);
+  const disabled = !grams.trim() || !Number.isFinite(numericValue) || numericValue === 0 || !reason.trim();
+  return (
+    <Modal open={Boolean(spool)} onClose={onClose} title="Correct spool ledger" footer={<DialogActions pending={pending} disabled={disabled} submitLabel="Record adjustment" onCancel={onClose} onSubmit={() => onSubmit({ kind, grams: grams.trim(), reason: reason.trim() })} />}>
+      <div className="grid gap-3">
+        <p className="text-sm text-muted">
+          {[spool?.brand, spool?.material, spool?.color].filter(Boolean).join(" ") || spool?.material || "Spool"} - {remaining}g left
+        </p>
+        <select className="desk-input" value={kind} onChange={(event) => setKind(event.target.value as "correction" | "retire")}>
+          <option value="correction">Correction</option>
+          <option value="retire">Retire</option>
+        </select>
+        <input className="desk-input" type="number" step="0.01" placeholder="Signed grams (+ adds, - removes)" value={grams} onChange={(event) => setGrams(event.target.value)} />
+        {kind === "retire" ? (
+          <button type="button" className="desk-button text-sm" onClick={() => setGrams(`-${remaining}`)}>Use full remaining weight</button>
+        ) : null}
+        <textarea className="desk-input min-h-24" placeholder="Reason" value={reason} onChange={(event) => setReason(event.target.value)} />
+      </div>
+      <ErrorText message={error} />
+    </Modal>
+  );
+}
+
 // A free-text "reason" dialog shared by Fail print (default copy) and Reject request
 // (pass title/submitLabel/placeholder). Both backends require a non-blank reason
 // (RejectFailSerializer), so the submit stays disabled until text is entered. When

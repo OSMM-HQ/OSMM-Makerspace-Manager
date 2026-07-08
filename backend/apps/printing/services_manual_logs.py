@@ -4,7 +4,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import transaction
 
 from apps.audit import services as audit
-from apps.printing.models import FilamentSpool, ManualPrintLog, PrintPrinter
+from apps.printing.models import FilamentAdjustment, FilamentSpool, ManualPrintLog, PrintPrinter
+from apps.printing.services_filament_ledger import record_adjustment
 from apps.printing.workflow import InvalidTransition
 
 
@@ -86,6 +87,14 @@ def log_manual_print(
             contact_phone=contact_phone,
             note=note,
             logged_by=actor,
+        )
+        record_adjustment(
+            actor=actor,
+            spool=spool,
+            kind=FilamentAdjustment.Kind.MANUAL,
+            grams=-grams_used,
+            reason="Manual print log",
+            manual_log=log,
         )
         audit.record(
             actor,

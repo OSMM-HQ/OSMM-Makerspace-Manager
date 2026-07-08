@@ -22,6 +22,9 @@ from apps.printing.serializers_requests import (
     RejectFailSerializer,
 )
 from apps.printing.serializers_spools import (
+    FilamentAdjustmentRequestSerializer,
+    FilamentAdjustmentResponseSerializer,
+    FilamentAdjustmentSerializer,
     FilamentSpoolSerializer,
     FilamentSpoolSummarySerializer,
 )
@@ -31,6 +34,9 @@ __all__ = [
     "ErrorSerializer",
     "FilamentSpool",
     "FailPrintSerializer",
+    "FilamentAdjustmentRequestSerializer",
+    "FilamentAdjustmentResponseSerializer",
+    "FilamentAdjustmentSerializer",
     "FilamentSpoolSerializer",
     "FilamentSpoolSummarySerializer",
     "ManualPrintLog",

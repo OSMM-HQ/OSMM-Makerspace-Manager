@@ -54,6 +54,7 @@ from apps.printing.views_request_actions import (
     PrintRequestStartView,
 )
 from apps.printing.views_spools import (
+    ManagedFilamentSpoolAdjustmentView,
     ManagedFilamentSpoolDetailView,
     ManagedFilamentSpoolListCreateView,
 )
@@ -70,6 +71,7 @@ __all__ = [
     "ManualPrintLog",
     "ManualPrintLogListCreateView",
     "ManualPrintLogSerializer",
+    "ManagedFilamentSpoolAdjustmentView",
     "ManagedFilamentSpoolDetailView",
     "ManagedFilamentSpoolListCreateView",
     "ManagedPrintFileUrlView",

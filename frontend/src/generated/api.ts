@@ -201,6 +201,7 @@ export const openApiPaths = [
   "/api/v1/printing/manage/requests/{id}/start",
   "/api/v1/printing/manage/spools/",
   "/api/v1/printing/manage/spools/{id}/",
+  "/api/v1/printing/manage/spools/{id}/adjustments",
   "/api/v1/printing/public/requests/{public_token}/status",
   "/api/v1/printing/public/{makerspace_slug}/buckets",
   "/api/v1/printing/public/{makerspace_slug}/checkin/verify",
