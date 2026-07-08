@@ -9893,6 +9893,209 @@
                 }
             }
         },
+        "/api/v1/notifications/makerspace/{makerspace_id}": {
+            "get": {
+                "operationId": "api_v1_notifications_makerspace_list",
+                "summary": "List makerspace notifications",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "page",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "unread",
+                        "schema": {
+                            "type": "boolean"
+                        },
+                        "description": "When true, return only unread notifications."
+                    }
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedNotificationList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Notifications module is disabled."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/makerspace/{makerspace_id}/{id}/read": {
+            "post": {
+                "operationId": "api_v1_notifications_makerspace_read_create",
+                "summary": "Mark a makerspace notification read",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Notification"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Notifications module is disabled."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/makerspace/{makerspace_id}/read-all": {
+            "post": {
+                "operationId": "api_v1_notifications_makerspace_read_all_create",
+                "summary": "Mark all makerspace notifications read",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotificationMarkAllRead"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Notifications module is disabled."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/notifications/makerspace/{makerspace_id}/unread-count": {
+            "get": {
+                "operationId": "api_v1_notifications_makerspace_unread_count_retrieve",
+                "summary": "Get unread makerspace notification count",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Notifications"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/NotificationUnreadCount"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Notifications module is disabled."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
         "/api/v1/printing/admin/makerspace/{makerspace_id}/printing/reports": {
             "get": {
                 "operationId": "api_v1_printing_admin_makerspace_printing_reports_retrieve",
@@ -17919,6 +18122,15 @@
                     "recent"
                 ]
             },
+            "LevelEnum": {
+                "enum": [
+                    "info",
+                    "warning",
+                    "critical"
+                ],
+                "type": "string",
+                "description": "* `info` - Info\n* `warning` - Warning\n* `critical` - Critical"
+            },
             "LoginRequest": {
                 "type": "object",
                 "properties": {
@@ -18838,6 +19050,71 @@
                 "type": "string",
                 "description": "* `repair` - repair\n* `scrap` - scrap\n* `shelve` - shelve"
             },
+            "Notification": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "level": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LevelEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "event": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "body": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "url_path": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "read_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "body",
+                    "created_at",
+                    "event",
+                    "id",
+                    "level",
+                    "read_at",
+                    "title",
+                    "url_path"
+                ]
+            },
+            "NotificationMarkAllRead": {
+                "type": "object",
+                "properties": {
+                    "updated": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "updated"
+                ]
+            },
             "NotificationRecipient": {
                 "type": "object",
                 "properties": {
@@ -18983,6 +19260,17 @@
                 "required": [
                     "catalog",
                     "mutes"
+                ]
+            },
+            "NotificationUnreadCount": {
+                "type": "object",
+                "properties": {
+                    "count": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "count"
                 ]
             },
             "PaginatedAdminRequestList": {
@@ -19384,6 +19672,37 @@
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/ManualPrintLog"
+                        }
+                    }
+                }
+            },
+            "PaginatedNotificationList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Notification"
                         }
                     }
                 }
@@ -25289,6 +25608,10 @@
         {
             "name": "Health",
             "description": "Health and readiness probes."
+        },
+        {
+            "name": "Notifications",
+            "description": "Persistent staff inbox notifications."
         }
     ]
 }

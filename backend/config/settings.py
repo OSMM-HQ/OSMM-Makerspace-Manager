@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     "apps.integrations",
     "apps.operations",
     "apps.procurement",
+    "apps.notifications",
 ]
 
 MIDDLEWARE = [
@@ -484,6 +485,7 @@ SPECTACULAR_SETTINGS = {
         {"name": "QR print batches", "description": "QR label batch creation, item management, and print HTML."},
         {"name": "Asset units", "description": "Individual asset unit generation and QR assignment."},
         {"name": "Health", "description": "Health and readiness probes."},
+        {"name": "Notifications", "description": "Persistent staff inbox notifications."},
     ],
 }
 

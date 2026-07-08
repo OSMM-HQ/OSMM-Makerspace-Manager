@@ -1,8 +1,26 @@
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { OsmmBadge } from "../../components/OsmmLogo";
+import { staffRequest } from "../../lib/api";
 import type { Makerspace } from "./panels/shared";
 import { TAB_GROUPS, TAB_LABELS } from "./staffAccess";
 import { staffTabPath } from "./staffTabs";
+
+function NotificationUnreadBadge({ makerspaceId }: { makerspaceId: number }) {
+  const query = useQuery({
+    queryKey: ["notifications-unread", makerspaceId],
+    queryFn: () => staffRequest<{ count: number }>(`/notifications/makerspace/${makerspaceId}/unread-count`),
+    refetchInterval: 60_000,
+    retry: false,
+  });
+  const count = query.data?.count ?? 0;
+  if (query.isError || count <= 0) return null;
+  return (
+    <span className="ml-auto shrink-0 rounded-full bg-danger px-1.5 text-xs font-semibold text-bg">
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
 
 export function StaffSidebar({
   activeMakerspace,
@@ -87,6 +105,9 @@ export function StaffSidebar({
                         onClick={() => setTab(item)}
                       >
                         <span className="min-w-0 truncate">{TAB_LABELS[item] ?? item}</span>
+                        {item === "notifications" && activeMakerspace ? (
+                          <NotificationUnreadBadge makerspaceId={activeMakerspace.id} />
+                        ) : null}
                       </Link>
                     ))}
                   </div>
