@@ -34,6 +34,11 @@ urlpatterns = [
     path("makerspaces", views.MakerspaceListCreateView.as_view(), name="admin-makerspaces"),
     path("makerspaces/<int:pk>", views.MakerspaceDetailView.as_view(), name="admin-makerspace"),
     path(
+        "makerspace/<int:makerspace_id>/verify-domain",
+        views.MakerspaceVerifyDomainView.as_view(),
+        name="makerspace-verify-domain",
+    ),
+    path(
         "makerspace/<int:makerspace_id>/return-policy",
         views.ReturnPolicyView.as_view(),
         name="admin-return-policy",

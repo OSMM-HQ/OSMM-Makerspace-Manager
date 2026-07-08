@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Badge } from "../../components/ui";
 import { staffRequest } from "../../lib/api";
-import { ImageUploader } from "./ImageUploader";
+import { MakerspaceBrandingSettings } from "./MakerspaceBrandingSettings";
+import { MakerspaceCustomDomainSettings } from "./MakerspaceCustomDomainSettings";
 import { MakerspaceEmailSettings } from "./MakerspaceEmailSettings";
 import { MakerspaceFilamentSettings } from "./MakerspaceFilamentSettings";
 import { MakerspaceLocationSettings } from "./MakerspaceLocationSettings";
@@ -17,9 +17,6 @@ type Props = {
 
 export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
   const queryClient = useQueryClient();
-  const [domainInput, setDomainInput] = useState("");
-  const [hideFromDirectory, setHideFromDirectory] = useState(false);
-  const [displayNameInput, setDisplayNameInput] = useState("");
   const settings = useStaffGet<Makerspace>(
     ["makerspace-settings", makerspace.id],
     `/admin/makerspaces/${makerspace.id}`,
@@ -85,146 +82,19 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
     },
   });
 
-  const currentDomain = settings.data?.frontend_domain ?? makerspace.frontend_domain ?? null;
-  const currentHidden =
-    settings.data?.hidden_from_central_directory ?? makerspace.hidden_from_central_directory ?? false;
-  const currentDisplayName = settings.data?.branding_config?.display_name ?? "";
 
-  useEffect(() => {
-    setDomainInput(currentDomain ?? "");
-    setHideFromDirectory(Boolean(currentDomain) && currentHidden);
-  }, [currentDomain, currentHidden, makerspace.id]);
-
-  useEffect(() => {
-    setDisplayNameInput(currentDisplayName);
-  }, [currentDisplayName, makerspace.id]);
-
-
-  const updateDisplayName = useMutation({
-    mutationFn: (value: string) =>
-      staffRequest<Makerspace>(`/admin/makerspaces/${makerspace.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({ public_display_name: value }),
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["makerspace-settings", makerspace.id] });
-      queryClient.invalidateQueries({ queryKey: ["makerspaces"] });
-      queryClient.invalidateQueries({ queryKey: ["staff", "makerspaces"] });
-    },
-  });
-
-  const trimmedDisplayName = displayNameInput.trim();
-  const displayNameChanged = trimmedDisplayName !== currentDisplayName.trim();
-  const displayNameSaveDisabled =
-    settings.isLoading || updateDisplayName.isPending || !displayNameChanged;
-
-  const trimmedDomain = domainInput.trim();
-  const hasDomain = trimmedDomain.length > 0;
-  const effectiveHidden = hasDomain ? hideFromDirectory : false;
-  const domainChanged = trimmedDomain !== (currentDomain ?? "");
-  const hiddenChanged = effectiveHidden !== currentHidden;
-  const customDomainUrls = useMemo(
-    () => [`https://${trimmedDomain}/`, `https://${trimmedDomain}/admin`],
-    [trimmedDomain],
-  );
-
-  const updateCustomDomain = useMutation({
-    mutationFn: () =>
-      staffRequest<Makerspace>(`/admin/makerspaces/${makerspace.id}`, {
-        method: "PATCH",
-        body: JSON.stringify({
-          frontend_domain: trimmedDomain,
-          hidden_from_central_directory: effectiveHidden,
-        }),
-      }),
-    onSuccess: (updated) => {
-      setDomainInput(updated.frontend_domain ?? "");
-      setHideFromDirectory(
-        Boolean(updated.frontend_domain) && updated.hidden_from_central_directory,
-      );
-      queryClient.invalidateQueries({ queryKey: ["makerspace-settings", makerspace.id] });
-      queryClient.invalidateQueries({ queryKey: ["makerspaces"] });
-      queryClient.invalidateQueries({ queryKey: ["staff", "makerspaces"] });
-    },
-  });
 
   const nextValue = !superadminAccessEnabled;
   const disabled = settings.isLoading || updateAccess.isPending || reEnableBlocked;
   const notificationsDisabled = settings.isLoading || updateStaffNotifications.isPending;
-  const domainSaveDisabled =
-    settings.isLoading ||
-    updateCustomDomain.isPending ||
-    (!domainChanged && !hiddenChanged);
-
-  const refreshBranding = () => {
-    queryClient.invalidateQueries({ queryKey: ["makerspace-settings", makerspace.id] });
-    queryClient.invalidateQueries({ queryKey: ["makerspaces"] });
-    queryClient.invalidateQueries({ queryKey: ["staff", "makerspaces"] });
-  };
-
   return (
     <Panel title="Makerspace settings">
       <div className="grid min-w-0 gap-4">
-        <div className="min-w-0 rounded-md border border-line bg-bg p-4">
-          <h3 className="text-base font-semibold text-ink">Branding</h3>
-          <p className="mt-1 text-sm text-muted">
-            Logo and cover image shown on this makerspace&apos;s public pages. When no
-            logo is set, the makerspace name is shown as the wordmark.
-          </p>
-          <div className="mt-4 grid min-w-0 gap-4 lg:grid-cols-2">
-            <ImageUploader
-              endpoint={`/admin/makerspace/${makerspace.id}/logo`}
-              currentUrl={settings.data?.logo_url}
-              label="Logo"
-              fit="contain"
-              onChanged={refreshBranding}
-            />
-            <ImageUploader
-              endpoint={`/admin/makerspace/${makerspace.id}/cover`}
-              currentUrl={settings.data?.cover_image_url}
-              label="Cover image (wide banner)"
-              shape="wide"
-              onChanged={refreshBranding}
-            />
-          </div>
-          <form
-            className="mt-4 grid min-w-0 max-w-xl gap-2"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!displayNameSaveDisabled) {
-                updateDisplayName.mutate(trimmedDisplayName);
-              }
-            }}
-          >
-            <label className="text-sm font-semibold text-ink" htmlFor="public-display-name">
-              Public display name
-            </label>
-            <input
-              id="public-display-name"
-              className="desk-input"
-              placeholder={makerspace.name}
-              value={displayNameInput}
-              disabled={settings.isLoading}
-              onChange={(event) => setDisplayNameInput(event.target.value)}
-            />
-            <p className="text-xs text-muted">
-              Shown on this makerspace&apos;s public pages. Leave blank to use the registered
-              name (<span className="font-semibold text-ink">{makerspace.name}</span>).
-            </p>
-            <div>
-              <button
-                className="desk-button-primary w-full max-w-full sm:w-auto"
-                type="submit"
-                disabled={displayNameSaveDisabled}
-              >
-                {updateDisplayName.isPending ? "Saving..." : "Save display name"}
-              </button>
-            </div>
-            {updateDisplayName.error ? (
-              <p className="text-sm text-danger">{updateDisplayName.error.message}</p>
-            ) : null}
-          </form>
-        </div>
+        <MakerspaceBrandingSettings
+          makerspace={makerspace}
+          settings={settings.data}
+          loading={settings.isLoading}
+        />
         <MakerspaceLocationSettings
           makerspace={makerspace}
           settings={settings.data}
@@ -351,87 +221,11 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
         </div>
         <MakerspaceFilamentSettings makerspace={makerspace} settings={settings.data} loading={settings.isLoading} />
         <MakerspaceEmailSettings makerspace={makerspace} />
-        <div className="min-w-0 rounded-md border border-line bg-bg p-4">
-          <form
-            className="grid min-w-0 gap-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!domainSaveDisabled) {
-                updateCustomDomain.mutate();
-              }
-            }}
-          >
-            <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
-              <div className="grid min-w-0 max-w-2xl gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <h3 className="text-base font-semibold text-ink">Custom domain</h3>
-                  <Badge tone={hasDomain ? "success" : "neutral"}>
-                    {hasDomain ? "Set" : "Not set"}
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted">
-                  Route this makerspace's public and staff surfaces through a dedicated domain.
-                </p>
-              </div>
-              <button
-                className="desk-button-primary w-full max-w-full justify-self-start sm:w-auto md:justify-self-end"
-                type="submit"
-                disabled={domainSaveDisabled}
-              >
-                {updateCustomDomain.isPending ? "Saving..." : "Save domain"}
-              </button>
-            </div>
-
-            <div className="grid min-w-0 max-w-xl gap-2">
-              <label className="text-sm font-semibold text-ink" htmlFor="custom-domain">
-                Domain
-              </label>
-              <input
-                id="custom-domain"
-                className="desk-input"
-                placeholder="alphamakerspace.com"
-                value={domainInput}
-                onChange={(event) => {
-                  const next = event.target.value;
-                  setDomainInput(next);
-                  if (!next.trim()) {
-                    setHideFromDirectory(false);
-                  }
-                }}
-              />
-            </div>
-
-            <label className="flex min-w-0 max-w-xl items-start gap-3 text-sm text-ink">
-              <input
-                className="mt-1 h-4 w-4"
-                type="checkbox"
-                checked={effectiveHidden}
-                disabled={!hasDomain}
-                onChange={(event) => setHideFromDirectory(event.target.checked)}
-              />
-              <span>
-                <span className="font-semibold">Hide from central directory</span>
-                <span className="block text-muted">
-                  Available only after a custom domain is set.
-                </span>
-              </span>
-            </label>
-
-            {hasDomain ? (
-              <div className="min-w-0 overflow-x-auto rounded-md border border-line bg-surface p-3 text-sm text-muted">
-                <p className="font-semibold text-ink">Resulting URLs</p>
-                <ul className="mt-2 grid gap-1">
-                  {customDomainUrls.map((url) => (
-                    <li className="break-all" key={url}>{url}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-            {updateCustomDomain.error ? (
-              <p className="text-sm text-danger">{updateCustomDomain.error.message}</p>
-            ) : null}
-          </form>
-        </div>
+        <MakerspaceCustomDomainSettings
+          makerspace={makerspace}
+          settings={settings.data}
+          loading={settings.isLoading}
+        />
         <div className="min-w-0 rounded-md border border-line bg-bg p-4">
           <h3 className="text-base font-semibold text-ink">Email notifications: mute matrix</h3>
           <NotificationMuteMatrix makerspaceId={makerspace.id} />

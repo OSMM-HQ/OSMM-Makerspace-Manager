@@ -8,12 +8,18 @@ from apps.accounts.models import User
 from apps.inventory import public_image_storage
 from apps.integrations.email import platform_email_configured
 from apps.integrations.smtp_validation import validate_smtp_settings
+from apps.makerspaces.domain_verification import expected_record
 from apps.makerspaces.models import (
     Makerspace,
     default_branding_config,
     normalize_frontend_domain,
 )
 from apps.makerspaces.validators import validate_google_maps_url
+from apps.admin_api.serializers_makerspace_aux import (
+    MakerspaceDisabledRowSerializer,
+    MakerspaceSwitcherSerializer,
+    ReturnPolicySerializer,
+)
 
 # Bare hostname (DNS labels); allows "localhost" and "alpha-lab.example.com",
 # rejects schemes, paths, ports, spaces, and empty labels.
@@ -43,6 +49,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
     smtp_password_set = serializers.SerializerMethodField()
     logo_url = serializers.SerializerMethodField()
     cover_image_url = serializers.SerializerMethodField()
+    domain_verification_record = serializers.SerializerMethodField()
     # Optional public-name override stored under branding_config["display_name"].
     # Blank => public pages fall back to the registered makerspace name. Written
     # through this dedicated, validated field (not the whole branding_config blob)
@@ -75,6 +82,10 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "cover_image_key",
             "cover_image_url",
             "frontend_domain",
+            "frontend_domain_status",
+            "domain_verified_at",
+            "domain_verification_token",
+            "domain_verification_record",
             "hidden_from_central_directory",
             "public_api_key",
             "cors_allowed_origins",
@@ -104,6 +115,10 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "logo_url",
             "cover_image_key",
             "cover_image_url",
+            "frontend_domain_status",
+            "domain_verified_at",
+            "domain_verification_token",
+            "domain_verification_record",
             "telegram_bot_token_set",
             "smtp_password_set",
             # branding_config is returned (so the settings form can seed the
@@ -127,6 +142,20 @@ class MakerspaceSerializer(serializers.ModelSerializer):
     @extend_schema_field({"type": "string", "format": "uri", "nullable": True})
     def get_cover_image_url(self, obj):
         return public_image_storage.public_url(obj.cover_image_key) or None
+
+    @extend_schema_field(
+        {
+            "type": "object",
+            "nullable": True,
+            "properties": {
+                "host": {"type": "string"},
+                "type": {"type": "string"},
+                "value": {"type": "string"},
+            },
+        }
+    )
+    def get_domain_verification_record(self, obj):
+        return expected_record(obj)
 
     def validate_public_code(self, value):
         return value.upper()
@@ -213,6 +242,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
         new_flag = validated_data.pop("superadmin_access_enabled", None)
         with transaction.atomic():
             locked = Makerspace.objects.select_for_update().get(pk=instance.pk)
+            old_domain = locked.frontend_domain
             actor = self.context["request"].user
             is_superadmin = actor.is_superuser or actor.role == User.Role.SUPERADMIN
             if new_flag is not None and new_flag != locked.superadmin_access_enabled:
@@ -236,6 +266,9 @@ class MakerspaceSerializer(serializers.ModelSerializer):
                 locked.superadmin_access_enabled = new_flag
             for field, value in validated_data.items():
                 setattr(locked, field, value)
+            if "frontend_domain" in validated_data and validated_data["frontend_domain"] != old_domain:
+                locked.frontend_domain_status = Makerspace.DomainStatus.PENDING
+                locked.domain_verified_at = None
             if public_display_name is not missing:
                 # Merge into the FRESH locked row's branding_config so we never
                 # overwrite support_email/support_url from a stale client copy.
@@ -248,50 +281,3 @@ class MakerspaceSerializer(serializers.ModelSerializer):
                 locked.set_smtp_password(smtp_password)
             locked.save()
             return locked
-
-
-class MakerspaceSwitcherSerializer(serializers.ModelSerializer):
-    """Minimal makerspace row for the staff console switcher.
-
-    Print managers (MANAGE_PRINTING only, no VIEW_INVENTORY) need to pick their
-    makerspace but must NOT see the full config the integration/settings views
-    expose (public_api_key, CORS origins, SMTP host/username, module/theme
-    config). This exposes only what the React console reads to render the
-    switcher + header. telegram_group_chat_id is configuration, not a secret."""
-
-    class Meta:
-        model = Makerspace
-        fields = [
-            "id",
-            "name",
-            "public_code",
-            "slug",
-            "telegram_group_chat_id",
-        ]
-        read_only_fields = fields
-
-
-class MakerspaceDisabledRowSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Makerspace
-        fields = [
-            "id",
-            "name",
-            "slug",
-            "public_code",
-            "location",
-            "superadmin_access_enabled",
-        ]
-        read_only_fields = fields
-
-
-class ReturnPolicySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Makerspace
-        fields = ["id", "default_loan_days"]
-        read_only_fields = ["id"]
-
-    def validate_default_loan_days(self, value):
-        if value < 1:
-            raise serializers.ValidationError("Default loan days must be at least 1.")
-        return value
