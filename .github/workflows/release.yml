@@ -9,8 +9,8 @@ name: Release
 #   ghcr.io/<owner>/osmm-backend  :X.Y.Z  :X.Y  :latest
 #   ghcr.io/<owner>/osmm-frontend :X.Y.Z  :X.Y  :latest
 #
-# Every push to `main` also publishes rolling :edge / :sha-<commit> images
-# (docker-images.yml) regardless of VERSION.
+# This is the ONLY workflow that publishes images. An ordinary push to `main`
+# (no VERSION change) builds nothing.
 
 on:
   push:

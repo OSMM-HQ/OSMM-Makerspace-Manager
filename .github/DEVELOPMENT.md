@@ -74,9 +74,8 @@ Releases are driven straight from `main` — **Docker images only, no GitHub Rel
 2. Commit and push to `main`.
 
 Changing `VERSION` on `main` triggers `.github/workflows/release.yml`, which validates the version
-and publishes `:X.Y.Z`, `:X.Y`, and `:latest` for both `osmm-backend` and `osmm-frontend`. Every push
-to `main` also publishes rolling `:edge` / `:sha-<commit>` images (`docker-images.yml`) regardless of
-`VERSION`.
+and publishes `:X.Y.Z`, `:X.Y`, and `:latest` for both `osmm-backend` and `osmm-frontend`. That is the
+**only** thing that publishes images — an ordinary push to `main` (no `VERSION` change) builds nothing.
 
 > One-time org setup: the `osmm-backend` and `osmm-frontend` GHCR packages must be set to **Public**
 > (org → Packages → each package → visibility) so anyone can `docker compose pull` without logging in.
