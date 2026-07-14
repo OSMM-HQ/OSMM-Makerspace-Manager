@@ -22,5 +22,6 @@ public license and infringes OSMM-HQ's copyright.
 
 ## Contact
 
-To request a commercial license, email **shaanshoukath4522@gmail.com** with a
-short description of your intended use.
+To request a commercial license, contact the **OSMM-HQ** organization via
+<https://github.com/OSMM-HQ> with a short description of your intended use. A
+dedicated commercial-licensing contact will be published here later.
