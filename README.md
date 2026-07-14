@@ -39,7 +39,7 @@ whole **community transparent access** to what's available to borrow — without
 guesswork. It's built to be run by the community, for the community. If you care
 about makerspaces and want to help, **volunteers and contributors are very welcome** — whether
 you write code, docs, translations, or just run it at your space and report what's rough. See
-[CONTRIBUTING.md](CONTRIBUTING.md).
+[CONTRIBUTING.md](.github/CONTRIBUTING.md).
 
 ---
 
@@ -302,8 +302,8 @@ See [docs/self-hosting.md](docs/self-hosting.md) for the full environment refere
 ## Contributing
 
 Contributions are welcome — OSMM is a collaborative project for the makerspace community. See
-**[CONTRIBUTING.md](CONTRIBUTING.md)** (pull requests require signing the
-**[CLA](CLA.md)**).
+**[CONTRIBUTING.md](.github/CONTRIBUTING.md)** (pull requests require signing the
+**[CLA](.github/CLA.md)**).
 
 ---
 

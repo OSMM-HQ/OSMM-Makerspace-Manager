@@ -6,7 +6,7 @@ to get a change merged.
 ## Getting started
 
 1. Fork and clone the repo.
-2. Follow **[README.md → Development](README.md#development)** to run Postgres, the Django backend,
+2. Follow **[README.md → Development](../README.md#development)** to run Postgres, the Django backend,
    and the React frontend locally.
 3. Confirm the backend test suite is green before you start:
 
@@ -71,8 +71,8 @@ filing a public issue with exploit details — flag it privately to the maintain
 
 ## Licensing & the CLA
 
-OSMM is source-available under the [AGPL-3.0-or-later](LICENSE.md), and **all
-commercial rights are reserved to OSMM-HQ** (see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)).
+OSMM is source-available under the [AGPL-3.0-or-later](../LICENSE.md), and **all
+commercial rights are reserved to OSMM-HQ** (see [COMMERCIAL-LICENSE.md](../COMMERCIAL-LICENSE.md)).
 You are free to self-host, fork, and modify OSMM for noncommercial use under those terms.
 
 OSMM is a collaborative project — contributions from the community are welcome. Before your pull
