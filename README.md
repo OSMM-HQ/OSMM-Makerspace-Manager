@@ -18,10 +18,10 @@
 
 ---
 
-OSMM started inside the **TinkerSpace Kochi** community, from a simple need: make it easy for a
+OSMM was born inside the **TinkerSpace Kochi** community from a simple need: to make it easy for a
 makerspace to know **what tools exist, who borrowed what, what's available, and how 3D-print jobs move
 from request to done** — with enough traceability that accountability for shared gear is never a
-guessing game. It's built by makers, for makers: run it at your space, fork it, remix it, or use it as
+guessing game. It is built by makers, for makers: run it at your space, fork it, remix it, or use it as
 a starting point. If your community works differently, make it your own.
 
 One deployment can host **many makerspaces** (tenants). Each owns its inventory, public URL, staff,
