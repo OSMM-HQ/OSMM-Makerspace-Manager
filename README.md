@@ -301,12 +301,9 @@ See [docs/self-hosting.md](docs/self-hosting.md) for the full environment refere
 
 ## Contributing
 
-Contributions are welcome — OSMM is built to be a collaborative project for the whole makerspace
-community. Please read **[CONTRIBUTING.md](CONTRIBUTING.md)** for the development workflow and
-conventions. Pull requests require signing the **[Contributor License Agreement](CLA.md)**; in
-return, contributors are recognized and rewarded on a tiered basis (credit & mention, free access to
-any premium/hosted edition, contributor listing, and — for significant work — discretionary revenue
-share or other recognition) — see **[CONTRIBUTOR-BENEFITS.md](CONTRIBUTOR-BENEFITS.md)**.
+Contributions are welcome — OSMM is a collaborative project for the makerspace community. See
+**[CONTRIBUTING.md](CONTRIBUTING.md)** (pull requests require signing the
+**[CLA](CLA.md)**).
 
 ---
 
