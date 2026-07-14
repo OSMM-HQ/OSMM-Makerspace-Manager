@@ -79,5 +79,6 @@ OSMM is a collaborative project — contributions from the community are welcome
 request can be merged you must sign the **[Contributor License Agreement](CLA.md)** (an automated
 CLA check on each PR walks you through it). The CLA lets OSMM-HQ keep the sole right to sell
 commercial licenses; in return, contributors are recognized and rewarded on a tiered basis — see
-**[CONTRIBUTOR-BENEFITS.md](CONTRIBUTOR-BENEFITS.md)** (credit, free commercial use for your own
-makerspace, and more for significant work).
+**[CONTRIBUTOR-BENEFITS.md](CONTRIBUTOR-BENEFITS.md)** (credit & mention, free access to any premium/
+hosted edition, contributor listing, and — for significant work — discretionary revenue share or
+other recognition). Commercial rights are not granted to contributors.
