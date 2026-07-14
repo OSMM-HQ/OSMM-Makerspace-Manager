@@ -2,12 +2,15 @@ name: Release
 
 # Versioned releases are driven straight from `main` — no separate release branch.
 #
-# How to cut a release (Docker images only — no GitHub Release, no source zip):
+# How to cut a release:
 #   1. Edit the VERSION file to the new version, e.g. 1.0.0  (semantic version X.Y.Z).
 #   2. Commit and push to `main`.
-# Changing VERSION on `main` triggers this workflow, which builds and pushes:
-#   ghcr.io/<owner>/osmm-backend  :X.Y.Z  :X.Y  :latest
-#   ghcr.io/<owner>/osmm-frontend :X.Y.Z  :X.Y  :latest
+# Changing VERSION on `main` triggers this workflow, which:
+#   - builds and pushes the Docker images:
+#       ghcr.io/<owner>/osmm-backend  :X.Y.Z  :X.Y  :latest
+#       ghcr.io/<owner>/osmm-frontend :X.Y.Z  :X.Y  :latest
+#   - creates the `vX.Y.Z` git tag and a matching GitHub Release (auto-generated
+#     notes from the commits since the previous tag).
 #
 # This is the ONLY workflow that publishes images. An ordinary push to `main`
 # (no VERSION change) builds nothing.
@@ -21,7 +24,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
@@ -70,3 +73,26 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  # Runs once after both images are published: tags the release commit and
+  # creates the matching GitHub Release so the Releases page reflects each version.
+  github-release:
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read VERSION
+        id: ver
+        run: echo "full=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+      - name: Create tag & GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.ver.outputs.full }}
+          name: v${{ steps.ver.outputs.full }}
+          generate_release_notes: true
+          make_latest: true
+          body: |
+            Docker images published to GHCR:
+
+            - `ghcr.io/${{ github.repository_owner }}/osmm-backend:${{ steps.ver.outputs.full }}`
+            - `ghcr.io/${{ github.repository_owner }}/osmm-frontend:${{ steps.ver.outputs.full }}`
