@@ -120,6 +120,19 @@ admin + makerspace. When it finishes it prints your URL and login.
 docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
 ```
 
+**Or run the prebuilt images** — published to GHCR on every release, no local build needed.
+After creating your `.env` (copy `.env.example`; see **[docs/self-hosting.md](docs/self-hosting.md)**):
+
+```bash
+export MAKERSPACE_IMAGE_TAG=latest   # or pin a version, e.g. 0.1.0
+docker compose -f docker-compose.prod.yml up -d
+```
+
+This pulls **`ghcr.io/osmm-hq/osmm-backend`** and **`ghcr.io/osmm-hq/osmm-frontend`**. The Celery
+`worker`, `beat`, and one-shot `migrate` services all **reuse the backend image** (just a different
+start command); Postgres, Redis, and MinIO come from their official public images. Rolling
+`:edge` and `:sha-<commit>` images are also published on every push to `main`.
+
 | Surface | URL |
 |---|---|
 | Public frontend | `http://localhost` |
@@ -153,7 +166,8 @@ docker compose exec backend python manage.py setup_instance \
 For production from published images (env vars, TLS, reverse proxy), see
 **[docs/self-hosting.md](docs/self-hosting.md)**.
 
-> 📦 **One-command hosting guide: _link coming soon_** (will point to the published image + compose bundle).
+> 📦 Prebuilt images live at **`ghcr.io/osmm-hq/osmm-backend`** and **`…/osmm-frontend`** (tags:
+> `latest`, pinned `X.Y.Z`, rolling `edge`). Pin `MAKERSPACE_IMAGE_TAG` in production.
 
 Set `ENABLE_HTTPS=true` only when a reverse proxy terminates real TLS and forwards
 `X-Forwarded-Proto: https`; otherwise the default HTTP-behind-nginx setup is correct.
@@ -224,7 +238,7 @@ the prepared statements migrations need), then point the app at the transaction 
 ### 0. Get the code
 
 ```bash
-git clone https://github.com/Shaan-Shoukath/OSMM-Makerspace-Manager.git
+git clone https://github.com/OSMM-HQ/OSMM-Makerspace-Manager.git
 cd OSMM-Makerspace-Manager
 ```
 

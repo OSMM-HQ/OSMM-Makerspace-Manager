@@ -86,10 +86,11 @@ The command is idempotent. It only sends reminders for issued or partially retur
 
 ## Upgrades
 
-Pin a release tag for stable deployments:
+Pin a release tag for stable deployments (image tags have **no** `v` prefix — the git tag is
+`v0.2.0`, the image tag is `0.2.0`):
 
 ```env
-MAKERSPACE_IMAGE_TAG=v0.2.0
+MAKERSPACE_IMAGE_TAG=0.2.0
 ```
 
 Then run:
