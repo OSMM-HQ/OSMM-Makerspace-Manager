@@ -69,11 +69,9 @@ Open a GitHub issue with: what you expected, what happened, steps to reproduce, 
 environment (local Docker vs. Supabase, OS, browser). For security-sensitive reports, please avoid
 filing a public issue with exploit details — flag it privately to the maintainers first.
 
-## Licensing of contributions
+## Ownership & licensing
 
-OSMM is source-available under the [PolyForm Noncommercial License 1.0.0](LICENSE.md), with
-commercial rights reserved to OSMM-HQ (see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)).
-
-By contributing you agree to the **[Contributor License Agreement](CLA.md)**: you grant OSMM-HQ the
-right to relicense your contribution under both the public noncommercial license and OSMM-HQ's
-commercial licenses. A CLA check on each pull request must be signed before it can be merged.
+OSMM is authored and owned by OSMM-HQ. It is source-available under the
+[PolyForm Noncommercial License 1.0.0](LICENSE.md), and **all commercial rights are reserved to
+OSMM-HQ** (see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)). You are free to self-host, fork, and
+modify OSMM for noncommercial use under those terms.
