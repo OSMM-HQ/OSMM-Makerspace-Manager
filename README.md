@@ -303,3 +303,26 @@ See [docs/self-hosting.md](docs/self-hosting.md) for the full environment refere
 
 Contributions are welcome. Please read **[CONTRIBUTING.md](CONTRIBUTING.md)** for the development
 workflow, branch/commit conventions, testing expectations, and how to open a pull request.
+
+Contributions are accepted under the **[Contributor License Agreement](CLA.md)** — the CLA check on
+each pull request must be signed before it can be merged. It lets OSMM-HQ include your contribution
+in both the public noncommercial license and OSMM-HQ's commercial licenses.
+
+---
+
+## License
+
+OSMM is **source-available**, not OSI "open source" — it is free for noncommercial use, and
+commercial rights are reserved to OSMM-HQ.
+
+- **Governing license:** [PolyForm Noncommercial License 1.0.0](LICENSE.md)
+  (`SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0`).
+- **Free, no approval needed** — see [LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md):
+  - **Any makerspace** may self-host OSMM to run its **own** space — including for-profit /
+    membership-funded makerspaces.
+  - **Nonprofits**, schools, clubs, and individuals may use OSMM for their internal purposes.
+  - Anyone may fork, study, and modify OSMM for noncommercial use.
+- **Reserved to OSMM-HQ (needs a commercial license)** — see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md):
+  reselling OSMM, hosting it as a paid service for others, or bundling it into a commercial product.
+
+To request a commercial license, email **shaanshoukath4522@gmail.com**.
