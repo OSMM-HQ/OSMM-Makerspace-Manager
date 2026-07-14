@@ -69,9 +69,15 @@ Open a GitHub issue with: what you expected, what happened, steps to reproduce, 
 environment (local Docker vs. Supabase, OS, browser). For security-sensitive reports, please avoid
 filing a public issue with exploit details — flag it privately to the maintainers first.
 
-## Ownership & licensing
+## Licensing & the CLA
 
-OSMM is authored and owned by OSMM-HQ. It is source-available under the
-[AGPL-3.0-or-later](LICENSE.md), and **all commercial rights are reserved to
-OSMM-HQ** (see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)). You are free to self-host, fork, and
-modify OSMM for noncommercial use under those terms.
+OSMM is source-available under the [AGPL-3.0-or-later](LICENSE.md), and **all
+commercial rights are reserved to OSMM-HQ** (see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)).
+You are free to self-host, fork, and modify OSMM for noncommercial use under those terms.
+
+OSMM is a collaborative project — contributions from the community are welcome. Before your pull
+request can be merged you must sign the **[Contributor License Agreement](CLA.md)** (an automated
+CLA check on each PR walks you through it). The CLA lets OSMM-HQ keep the sole right to sell
+commercial licenses; in return, contributors are recognized and rewarded on a tiered basis — see
+**[CONTRIBUTOR-BENEFITS.md](CONTRIBUTOR-BENEFITS.md)** (credit, free commercial use for your own
+makerspace, and more for significant work).
