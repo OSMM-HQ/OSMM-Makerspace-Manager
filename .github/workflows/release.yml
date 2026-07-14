@@ -1,21 +1,23 @@
 name: Release
 
-# Cut a versioned release by pushing to the `release` branch.
+# Versioned releases are driven straight from `main` — no separate release branch.
 #
-# How to release (no git tags, no GitHub Release, no source zip):
-#   1. Edit the VERSION file to the new version, e.g. 1.0.0  (semantic version X.Y.Z)
-#   2. Commit it and push the `release` branch.
-# This builds and pushes versioned Docker images to GHCR:
+# How to cut a release (Docker images only — no GitHub Release, no source zip):
+#   1. Edit the VERSION file to the new version, e.g. 1.0.0  (semantic version X.Y.Z).
+#   2. Commit and push to `main`.
+# Changing VERSION on `main` triggers this workflow, which builds and pushes:
 #   ghcr.io/<owner>/osmm-backend  :X.Y.Z  :X.Y  :latest
 #   ghcr.io/<owner>/osmm-frontend :X.Y.Z  :X.Y  :latest
 #
-# Rolling :edge / :sha-<commit> images are published separately on every push
-# to `main` by docker-images.yml.
+# Every push to `main` also publishes rolling :edge / :sha-<commit> images
+# (docker-images.yml) regardless of VERSION.
 
 on:
   push:
     branches:
-      - release
+      - main
+    paths:
+      - VERSION
   workflow_dispatch:
 
 permissions:
