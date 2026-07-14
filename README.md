@@ -325,4 +325,5 @@ commercial rights are reserved to OSMM-HQ.
 - **Reserved to OSMM-HQ (needs a commercial license)** — see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md):
   reselling OSMM, hosting it as a paid service for others, or bundling it into a commercial product.
 
-To request a commercial license, email **shaanshoukath4522@gmail.com**.
+To request a commercial license, contact the **OSMM-HQ** organization via
+[github.com/OSMM-HQ](https://github.com/OSMM-HQ).
