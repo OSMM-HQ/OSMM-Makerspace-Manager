@@ -32,6 +32,8 @@ docs/PLAN-prd-*.md
 docs/superpowers/
 docs/design/
 docs/plans/
+docs/*-plan.md
+docs/plan-*.md
 docs/HANDOVER.md
 docs/roadmap.md
 

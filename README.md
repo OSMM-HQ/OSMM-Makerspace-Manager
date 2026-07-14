@@ -36,32 +36,37 @@ staff, Telegram group, QR namespace, and audit scope.
 
 ## Quick start (run it)
 
-You **don't build anything**. You pull two prebuilt images and Docker Compose wires up everything
-else — **PostgreSQL, Redis, MinIO storage, the Celery worker/beat, and database migrations** — and
-networks them together for you. The images don't need any of those addresses baked in; the compose
-file passes them in.
+OSMM runs entirely through Docker Compose — it brings up **PostgreSQL, Redis, MinIO storage, the
+Celery worker/beat, and database migrations** and networks them to the app for you (the images don't
+bake in any of those addresses; the compose file passes them in). Pick one path:
 
-1. Install **[Docker Desktop](https://www.docker.com/products/docker-desktop/)**.
-2. Get the code:
+### Path 1 — Guided setup (easiest — builds from source)
+
+Best for a first install. One script generates all secrets, writes `.env`, builds the images, starts
+everything, and creates your first admin + makerspace.
+
+1. Install **[Docker Desktop](https://www.docker.com/products/docker-desktop/)** and get the code:
    ```bash
    git clone https://github.com/OSMM-HQ/OSMM-Makerspace-Manager.git
    cd OSMM-Makerspace-Manager
    ```
-3. Run the setup wizard — it generates secrets, writes `.env`, starts the stack, and creates your
-   first admin + makerspace:
+2. Run the wizard — when it finishes it prints your URL and login:
    ```bash
    bash setup.sh                                          # macOS / Linux
    powershell -ExecutionPolicy Bypass -File setup.ps1     # Windows
    ```
-   When it finishes it prints your URL and login. **That's the whole install.**
 
-**Prefer to drive Docker yourself?** After `cp .env.example .env` (fill in the few values it asks for):
+### Path 2 — Prebuilt images (no local build)
+
+Skip building — pull the two published images and start the stack. After `cp .env.example .env`
+(fill in the few values it asks for):
 ```bash
 export MAKERSPACE_IMAGE_TAG=latest        # or pin a version, e.g. 0.2.0
 docker compose -f docker-compose.prod.yml up -d
 ```
 This pulls **`ghcr.io/osmm-hq/osmm-backend`** + **`ghcr.io/osmm-hq/osmm-frontend`** and brings up the
-full stack (DB, Redis, MinIO, Celery, migrations) automatically.
+full stack (DB, Redis, MinIO, Celery, migrations) automatically. Requires the images to be published
+and public (see below).
 
 | I want… | Go to |
 |---|---|
