@@ -4,7 +4,7 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-COMPOSE=(docker compose -f docker-compose.prod.yml -f docker-compose.build.yml)
+COMPOSE=(docker compose -f docker-compose.prod.yml -f docker/compose.build.yml)
 
 say()  { printf '\n\033[1;36m%s\033[0m\n' "$*"; }
 warn() { printf '\033[1;33m%s\033[0m\n' "$*"; }
