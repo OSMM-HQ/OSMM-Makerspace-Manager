@@ -134,3 +134,23 @@ software under these terms.
 
 **Use** means anything you do with the software requiring one
 of your licenses.
+
+---
+
+## Commercial use — reserved to OSMM-HQ
+
+The PolyForm Noncommercial License above permits **noncommercial use only**. It
+grants **no commercial rights to anyone**.
+
+**All commercial rights in OSMM are reserved exclusively to OSMM-HQ** — including
+the right to resell OSMM, host it as a paid service for others, or bundle it into
+a commercial product. This reservation holds for **everyone, including
+contributors**: a contributor keeps copyright in their own contribution but, under
+the [Contributor License Agreement](.github/CLA.md), grants OSMM-HQ the right to
+relicense it commercially, so OSMM-HQ remains the single party able to grant
+commercial licenses.
+
+- Additional **free** permissions (any makerspace may self-host to run its own
+  space; nonprofit/internal use) — see **[PERMISSIONS.md](PERMISSIONS.md)**.
+- To use OSMM commercially, you need a commercial license from OSMM-HQ — see
+  **[COMMERCIAL.md](COMMERCIAL.md)**.
