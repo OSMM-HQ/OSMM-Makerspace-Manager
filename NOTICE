@@ -24,10 +24,10 @@ OSMM is source-available under the AGPL-3.0-or-later.
         into a commercial product.
 
 Full terms:
-  - LICENSE.md               — AGPL-3.0-or-later (governing)
-  - LICENSE-EXCEPTIONS.md    — additional free grants (makerspaces, nonprofits)
-  - COMMERCIAL-LICENSE.md    — how to obtain a commercial license
-  - .github/CLA.md               — contributor license agreement
+  - LICENSE.md                      — AGPL-3.0-or-later (governing)
+  - PERMISSIONS.md                  — additional free grants (makerspaces, nonprofits)
+  - COMMERCIAL.md                   — how to obtain a commercial license
+  - .github/CLA.md                  — contributor license agreement
   - .github/CONTRIBUTOR-BENEFITS.md — what contributors receive in return
 
 This is a source-available license, NOT an OSI "open source" license: it permits
