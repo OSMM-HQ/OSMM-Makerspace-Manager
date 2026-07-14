@@ -1202,8 +1202,8 @@ Implemented (open operations and reporting):
   compact operations navigation, saved local inventory views, inline details,
   and bulk public QR enable/disable actions.
 - Light theme is now default with a persistent dark theme toggle.
-- Docker image publishing workflow for GHCR
-  (`.github/workflows/docker-images.yml`).
+- Docker image publishing workflow for GHCR — release-only, driven by the root `VERSION` file
+  (`.github/workflows/release.yml`); publishes `:X.Y.Z`/`:X.Y`/`:latest`. Ordinary pushes build nothing.
 - Public item detail pages backed by a safe public detail API.
 - Serialized handout enforcement in BOTH handout paths: individual-mode
   (`tracking_mode == INDIVIDUAL`) products require scanned asset QR payloads.

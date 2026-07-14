@@ -11,7 +11,7 @@
 
 <p align="center">
   <a href="LICENSE.md"><img alt="License: PolyForm Noncommercial 1.0.0" src="https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue.svg"></a>
-  <a href="https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/actions/workflows/docker-images.yml"><img alt="Docker images" src="https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/actions/workflows/docker-images.yml/badge.svg"></a>
+  <a href="https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/actions/workflows/release.yml"><img alt="Release" src="https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/actions/workflows/release.yml/badge.svg"></a>
   <img alt="Stack" src="https://img.shields.io/badge/stack-Django%206%20%C2%B7%20React%2019-0b7285.svg">
   <a href=".github/CONTRIBUTING.md"><img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg"></a>
 </p>

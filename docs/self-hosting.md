@@ -106,15 +106,14 @@ Manual dependency audit: `pip install pip-audit && pip-audit -r backend/requirem
 
 ## Publishing new images (maintainers)
 
-Two GHCR publish flows, both Docker-image-only (no GitHub Release, no source zip):
+Images are published **only when you cut a release** — Docker-image-only (no GitHub Release, no source
+zip). It's driven straight from `main` by the root **`VERSION`** file (`release.yml`):
 
-- **Rolling `:edge`** — every push to `main` publishes `:edge` and `:sha-<commit>` (`docker-images.yml`).
-- **Versioned release** — driven straight from `main` by the root **`VERSION`** file (`release.yml`):
+1. Edit `VERSION` to the new semantic version, e.g. `1.0.0`.
+2. Commit and push to `main`.
 
-  1. Edit `VERSION` to the new semantic version, e.g. `1.0.0`.
-  2. Commit and push to `main`.
-
-  Changing `VERSION` on `main` builds and pushes `:X.Y.Z`, `:X.Y`, and `:latest` for both images.
+Changing `VERSION` on `main` builds and pushes `:X.Y.Z`, `:X.Y`, and `:latest` for both images. Ordinary
+pushes to `main` publish nothing.
 
 The `osmm-backend` / `osmm-frontend` GHCR packages must be set to **Public** (org → Packages)
 so operators can `docker compose pull` without authenticating.
