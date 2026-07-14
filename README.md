@@ -149,11 +149,11 @@ OSMM is **source-available** (not OSI "open source") — free for noncommercial 
 rights reserved to OSMM-HQ.
 
 - **Governing license:** [AGPL-3.0-or-later](LICENSE.md) (`AGPL-3.0-or-later-Noncommercial-1.0.0`).
-- **Free, no approval needed** ([PERMISSIONS.md](PERMISSIONS.md)): **any makerspace** may
-  self-host OSMM to run its **own** space (including for-profit / membership-funded ones); nonprofits,
-  schools, clubs, and individuals may use it internally; anyone may fork, study, and modify it for
-  noncommercial use.
-- **Needs a commercial license** ([COMMERCIAL.md](COMMERCIAL.md)): reselling OSMM,
-  hosting it as a paid service for others, or bundling it into a commercial product.
+- **Free, no approval needed** ([PERMISSIONS.md](PERMISSIONS.md)): a **noncommercial makerspace**
+  (nonprofit, community group, club, or school — not operated for profit) may self-host OSMM to run its
+  **own** space; nonprofits, schools, clubs, and individuals may use it internally; anyone may fork,
+  study, and modify it for noncommercial use.
+- **Needs a commercial license** ([COMMERCIAL.md](COMMERCIAL.md)): operating a **for-profit makerspace**
+  on OSMM, reselling OSMM, hosting it as a paid service for others, or bundling it into a commercial product.
 
 To request a commercial license, contact **OSMM-HQ** via [github.com/OSMM-HQ](https://github.com/OSMM-HQ).
