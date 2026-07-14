@@ -13,6 +13,14 @@ export function SiteFooter() {
           <Link className="hover:text-ink" to="/about">
             About
           </Link>
+          <a
+            className="hover:text-ink"
+            href="https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/blob/main/LICENSE.md"
+            target="_blank"
+            rel="noreferrer"
+          >
+            License
+          </a>
         </nav>
       </div>
     </footer>
