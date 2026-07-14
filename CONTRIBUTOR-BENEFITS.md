@@ -38,5 +38,5 @@ is not itself a promise of payment.
 
 ## Questions
 
-Reach out at **shaanshoukath4522@gmail.com** — especially before starting a large piece of work, so
-we can agree up front on how it will be recognized.
+Reach out to the **OSMM-HQ** organization via <https://github.com/OSMM-HQ> — especially before
+starting a large piece of work, so we can agree up front on how it will be recognized.
