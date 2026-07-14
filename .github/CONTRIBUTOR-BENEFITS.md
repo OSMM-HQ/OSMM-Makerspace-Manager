@@ -29,11 +29,11 @@ is not itself a promise of payment.
 
 - **Commercial rights are not granted to contributors.** Contributing does not give you the right to
   sell, resell, host-for-others, or otherwise commercialize OSMM. Like everyone else, you may use
-  OSMM under the public [PolyForm Noncommercial License](LICENSE.md) and the free grants in
-  [LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md) (which, separately, already let any makerspace —
+  OSMM under the public [PolyForm Noncommercial License](../LICENSE.md) and the free grants in
+  [LICENSE-EXCEPTIONS.md](../LICENSE-EXCEPTIONS.md) (which, separately, already let any makerspace —
   including yours — self-host OSMM to run its own space).
 - The right to **commercialize** OSMM is reserved exclusively to OSMM-HQ (see
-  [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)). Contributors are rewarded through the benefits
+  [COMMERCIAL-LICENSE.md](../COMMERCIAL-LICENSE.md)). Contributors are rewarded through the benefits
   above rather than by gaining the right to sell OSMM.
 
 ## Questions
