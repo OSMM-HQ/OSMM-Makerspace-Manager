@@ -27,9 +27,9 @@ jobs:
           PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         with:
           path-to-signatures: 'signatures/version1/cla.json'
-          path-to-document: 'https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/blob/main/CLA.md'
+          path-to-document: 'https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/blob/main/.github/CLA.md'
           branch: 'main'
           allowlist: 'Shaan-Shoukath,dependabot[bot]'
-          custom-notsigned-prcomment: 'Thanks for your pull request! Before we can merge it, please read our [Contributor License Agreement](https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/blob/main/CLA.md) and [Contributor Benefits](https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/blob/main/CONTRIBUTOR-BENEFITS.md), then sign below.'
+          custom-notsigned-prcomment: 'Thanks for your pull request! Before we can merge it, please read our [Contributor License Agreement](https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/blob/main/.github/CLA.md) and [Contributor Benefits](https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/blob/main/.github/CONTRIBUTOR-BENEFITS.md), then sign below.'
           custom-pr-sign-comment: 'I have read the CLA Document and I hereby sign the CLA'
           custom-allsigned-prcomment: 'All contributors have signed the CLA. ✅'
