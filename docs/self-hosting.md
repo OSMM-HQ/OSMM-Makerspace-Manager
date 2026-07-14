@@ -86,8 +86,8 @@ The command is idempotent. It only sends reminders for issued or partially retur
 
 ## Upgrades
 
-Pin a release tag for stable deployments (image tags have **no** `v` prefix — the git tag is
-`v0.2.0`, the image tag is `0.2.0`):
+Pin a release tag for stable deployments. Published image tags are the plain semantic version
+(e.g. `0.2.0`), the matching minor (`0.2`), and `latest`:
 
 ```env
 MAKERSPACE_IMAGE_TAG=0.2.0
@@ -103,6 +103,22 @@ docker compose -f docker-compose.prod.yml up -d
 The backend container runs migrations on startup. Keep a database backup before changing versions.
 
 Manual dependency audit: `pip install pip-audit && pip-audit -r backend/requirements.txt`.
+
+## Publishing new images (maintainers)
+
+Two GHCR publish flows, both Docker-image-only (no GitHub Release, no source zip):
+
+- **Rolling `:edge`** — every push to `main` publishes `:edge` and `:sha-<commit>` (`docker-images.yml`).
+- **Versioned release** — publishing `:X.Y.Z`, `:X.Y`, and `:latest` is driven by the **`VERSION`**
+  file and the **`release`** branch (`release.yml`):
+
+  1. Edit `VERSION` to the new semantic version, e.g. `1.0.0`.
+  2. Commit, then push the `release` branch:
+     ```bash
+     git checkout release && git merge main   # bring in the code + VERSION bump
+     git push origin release
+     ```
+  The workflow validates `VERSION`, then builds and pushes the versioned backend and frontend images.
 
 ## HTTPS & security hardening
 
