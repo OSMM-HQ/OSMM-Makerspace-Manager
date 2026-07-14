@@ -160,9 +160,11 @@ To request a commercial license, contact **OSMM-HQ** via [github.com/OSMM-HQ](ht
 
 ## Contributors
 
-Thanks to everyone building OSMM. The avatars below are pulled live from this repository's
-[GitHub contributor graph](https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/graphs/contributors):
+Thanks to **everyone** who has contributed to OSMM — code, docs, bug reports, or running it at their
+space. The wall below is pulled live from this repository's
+[GitHub contributor graph](https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/graphs/contributors) and
+shows **all** contributors — bots and automation included, no filtering:
 
-[![Contributors](https://contrib.rocks/image?repo=OSMM-HQ/OSMM-Makerspace-Manager)](https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=OSMM-HQ/OSMM-Makerspace-Manager&max=100)](https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/graphs/contributors)
 
 <sub>Contributor image by [contrib.rocks](https://contrib.rocks).</sub>
