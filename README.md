@@ -32,6 +32,44 @@ staff, Telegram group, QR namespace, and audit scope.
   **Django control plane** at `/control/` is an operator-only backend surface.
 - **All other staff** → the **React staff console** (JWT login). They have **no Django admin access**.
 
+---
+
+## Quick start (run it)
+
+You **don't build anything**. You pull two prebuilt images and Docker Compose wires up everything
+else — **PostgreSQL, Redis, MinIO storage, the Celery worker/beat, and database migrations** — and
+networks them together for you. The images don't need any of those addresses baked in; the compose
+file passes them in.
+
+1. Install **[Docker Desktop](https://www.docker.com/products/docker-desktop/)**.
+2. Get the code:
+   ```bash
+   git clone https://github.com/OSMM-HQ/OSMM-Makerspace-Manager.git
+   cd OSMM-Makerspace-Manager
+   ```
+3. Run the setup wizard — it generates secrets, writes `.env`, starts the stack, and creates your
+   first admin + makerspace:
+   ```bash
+   bash setup.sh                                          # macOS / Linux
+   powershell -ExecutionPolicy Bypass -File setup.ps1     # Windows
+   ```
+   When it finishes it prints your URL and login. **That's the whole install.**
+
+**Prefer to drive Docker yourself?** After `cp .env.example .env` (fill in the few values it asks for):
+```bash
+export MAKERSPACE_IMAGE_TAG=latest        # or pin a version, e.g. 0.2.0
+docker compose -f docker-compose.prod.yml up -d
+```
+This pulls **`ghcr.io/osmm-hq/osmm-backend`** + **`ghcr.io/osmm-hq/osmm-frontend`** and brings up the
+full stack (DB, Redis, MinIO, Celery, migrations) automatically.
+
+| I want… | Go to |
+|---|---|
+| A **plain-language, non-technical** walkthrough | **[docs/setup-for-makerspaces.md](docs/setup-for-makerspaces.md)** |
+| **Production** reference (env vars, TLS, upgrades) | **[docs/self-hosting.md](docs/self-hosting.md)** |
+| **Advanced** config (Telegram, HMAC, Supabase, cron) | **[.github/ADVANCED.md](.github/ADVANCED.md)** |
+| **Develop / contribute** (run from source, tests, releases) | **[.github/DEVELOPMENT.md](.github/DEVELOPMENT.md)** |
+
 ## Why this exists
 
 The goal is to make it **easy for makerspaces to log and track their stuff**, and to give the
@@ -97,41 +135,24 @@ Postgres (Supabase) instead and host the app anywhere.
 
 ### Option A — Self-host locally (recommended)
 
-**Not a developer?** Follow the plain-language, step-by-step guide:
-**[docs/setup-for-makerspaces.md](docs/setup-for-makerspaces.md)**. After installing Docker
-Desktop and downloading this project, you run **one** setup script that asks a few questions and
-does the rest:
+The fastest path is the **[Quick start](#quick-start-run-it)** above — the setup wizard, or the
+prebuilt images via `docker-compose.prod.yml`. A few extra details:
 
-```bash
-# macOS / Linux
-bash setup.sh
-```
-```powershell
-# Windows (right-click setup.ps1 → Run with PowerShell, or:)
-powershell -ExecutionPolicy Bypass -File setup.ps1
-```
-
-It generates all secrets, writes your `.env`, builds and starts everything, and creates your first
-admin + makerspace. When it finishes it prints your URL and login.
-
-**Prefer to drive Docker yourself?** The same production stack, built from source:
+**Build from source** instead of pulling images:
 
 ```bash
 docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
 ```
 
-**Or run the prebuilt images** — published to GHCR on every release, no local build needed.
-After creating your `.env` (copy `.env.example`; see **[docs/self-hosting.md](docs/self-hosting.md)**):
+**How images map to services (the "routing" is in the compose file, not the images):** the Celery
+`worker`, `beat`, and one-shot `migrate` services all **reuse the backend image** (same image, just
+a different start command); Postgres, Redis, and MinIO come from their official public images. So
+OSMM ships just **two** images — `osmm-backend` and `osmm-frontend` — and `docker-compose.prod.yml`
+provides all the wiring (database URL, Redis, MinIO, network) between them and the datastores.
 
-```bash
-export MAKERSPACE_IMAGE_TAG=latest   # or pin a version, e.g. 0.1.0
-docker compose -f docker-compose.prod.yml up -d
-```
-
-This pulls **`ghcr.io/osmm-hq/osmm-backend`** and **`ghcr.io/osmm-hq/osmm-frontend`**. The Celery
-`worker`, `beat`, and one-shot `migrate` services all **reuse the backend image** (just a different
-start command); Postgres, Redis, and MinIO come from their official public images. Rolling
-`:edge` and `:sha-<commit>` images are also published on every push to `main`.
+**Image tags:** `:latest` and pinned `:X.Y.Z` / `:X.Y` are published when the root `VERSION` file is
+bumped on `main`; rolling `:edge` and `:sha-<commit>` are published on every push to `main`. Pin
+`MAKERSPACE_IMAGE_TAG` in production.
 
 | Surface | URL |
 |---|---|
@@ -165,9 +186,6 @@ docker compose exec backend python manage.py setup_instance \
 
 For production from published images (env vars, TLS, reverse proxy), see
 **[docs/self-hosting.md](docs/self-hosting.md)**.
-
-> 📦 Prebuilt images live at **`ghcr.io/osmm-hq/osmm-backend`** and **`…/osmm-frontend`** (tags:
-> `latest`, pinned `X.Y.Z`, rolling `edge`). Pin `MAKERSPACE_IMAGE_TAG` in production.
 
 Set `ENABLE_HTTPS=true` only when a reverse proxy terminates real TLS and forwards
 `X-Forwarded-Proto: https`; otherwise the default HTTP-behind-nginx setup is correct.
@@ -233,83 +251,15 @@ the prepared statements migrations need), then point the app at the transaction 
 
 ---
 
-## Development
+## Development & advanced configuration
 
-### 0. Get the code
+Running OSMM **from source**, the test suite, and how releases are cut live in
+**[.github/DEVELOPMENT.md](.github/DEVELOPMENT.md)**.
 
-```bash
-git clone https://github.com/OSMM-HQ/OSMM-Makerspace-Manager.git
-cd OSMM-Makerspace-Manager
-```
-
-### 1. Database
-
-```bash
-docker compose up -d db
-```
-
-### 2. Backend (`backend/`)
-
-```bash
-cd backend
-python -m venv .venv
-# Windows: .\.venv\Scripts\Activate.ps1   |   *nix: source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env            # set SECRET_KEY, DATABASE_URL, CORS_ALLOWED_ORIGINS
-python manage.py migrate
-python manage.py seed_demo
-python manage.py runserver      # http://localhost:8000
-```
-
-Minimum `backend/.env` for local dev:
-
-```env
-SECRET_KEY=replace-with-a-long-random-secret
-DEBUG=True
-ALLOWED_HOSTS=localhost,127.0.0.1
-DATABASE_URL=postgres://makerspace:makerspace@localhost:5432/makerspace_manager
-CORS_ALLOWED_ORIGINS=http://localhost:5000,http://localhost:5173
-```
-
-### 3. Frontend (`frontend/`)
-
-```bash
-cd frontend
-cp .env.example .env            # VITE_API_URL=http://localhost:8000/api
-npm install
-npm run dev                     # http://localhost:5000
-```
-
-- Public catalog: `http://localhost:5000` → pick a makerspace, or go straight to `/m/<slug>`
-  (the demo seed creates `/m/makerspace`).
-- API docs (Swagger): `http://localhost:8000/docs/` · schema at `/schema/`.
-
-### Tests
-
-```bash
-cd backend && pytest
-```
-
----
-
-## Advanced configuration
-
-- **Telegram alerts & accept/reject callbacks** — set the group chat ID + bot token in the staff
-  `API clients → Integration settings` panel; set `TELEGRAM_WEBHOOK_SECRET` for webhook callbacks.
-  The bot token is encrypted at rest with `API_CLIENT_ENC_KEY` (a Fernet key).
-- **Server-to-server HMAC clients** — optional signed API access for backend integrations
-  (disabled unless `HMAC_CLIENT_ID` + `HMAC_SECRET` are set). Browser frontends must use
-  publishable keys + `/api/v1/bootstrap`, never HMAC secrets.
-- **Security hardening** — django-axes admin-login lockout, login + public-submit throttles,
-  honeypot, and TLS headers (`ENABLE_HTTPS`). A `pip-audit` CI job guards dependencies.
-- **Managed-Postgres / Supabase mode** — `MANAGED_POSTGRES`, `STORAGE_PRESIGN_METHOD`,
-  `CONN_MAX_AGE`, `DISABLE_SERVER_SIDE_CURSORS`, `CRON_SECRET` (all default to self-hosted
-  behavior). See [docs/supabase-deployment.md](docs/supabase-deployment.md).
-- **Scheduled return reminders** — run `manage.py send_return_reminders` from cron, or (when you
-  can't schedule a command, e.g. on Supabase) `POST /api/v1/internal/cron/return-reminders` with
-  an `X-Cron-Secret` header; the endpoint 404s until `CRON_SECRET` is set.
-
-See [docs/self-hosting.md](docs/self-hosting.md) for the full environment reference.
+**Optional/advanced operator config** — Telegram alerts, server-to-server HMAC clients, security
+hardening, managed-Postgres/Supabase mode, and scheduled return reminders — lives in
+**[.github/ADVANCED.md](.github/ADVANCED.md)**. The full environment reference is in
+**[docs/self-hosting.md](docs/self-hosting.md)**.
 
 ---
 

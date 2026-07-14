@@ -6,8 +6,8 @@ to get a change merged.
 ## Getting started
 
 1. Fork and clone the repo.
-2. Follow **[README.md → Development](../README.md#development)** to run Postgres, the Django backend,
-   and the React frontend locally.
+2. Follow **[DEVELOPMENT.md](DEVELOPMENT.md)** to run Postgres, the Django backend, and the React
+   frontend locally.
 3. Confirm the backend test suite is green before you start:
 
    ```bash
@@ -16,9 +16,9 @@ to get a change merged.
 
 ## Project layout
 
-- `backend/` — Django 5 + DRF API. Apps live under `backend/apps/` (accounts, makerspaces,
+- `backend/` — Django 6 + DRF API. Apps live under `backend/apps/` (accounts, makerspaces,
   inventory, hardware_requests, printing, operations, integrations, audit, evidence, …).
-- `frontend/` — React 18 + Vite + TypeScript (public catalog + staff console).
+- `frontend/` — React 19 + Vite + TypeScript (public catalog + staff console).
 - `docs/` — self-hosting guide, handover notes, and design specs.
 
 ## Architecture rules (please don't regress these)
