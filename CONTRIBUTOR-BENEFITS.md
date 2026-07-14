@@ -9,21 +9,12 @@ contribution falls into, in good faith.
 
 ## What every contributor gets
 
-- **Credit.** Every merged contribution is credited in `CONTRIBUTORS.md` and in the release notes
-  for the version it ships in.
-- **Free commercial use for your own makerspace.** As a contributor, you get a free, perpetual
-  license to run OSMM commercially at **your own** makerspace — even if it charges membership or
-  fees. The noncommercial limit in the public license never blocks a contributor's own space.
-
-## Significant contributions (a feature, a major fix, sustained work)
-
-In addition to the above:
-
+- **Credit & mention.** Every merged contribution is credited in `CONTRIBUTORS.md` and in the
+  release notes for the version it ships in.
+- **Listed as a project contributor** in the OSMM-HQ project.
 - **Free access to any premium or hosted edition** of OSMM, if and when one exists.
-- **Listed as a project contributor** (and, for sustained work, invited to a maintainer role in the
-  OSMM-HQ organization).
 
-## Major or ongoing contributions
+## Significant or ongoing contributions
 
 In addition to the above, and **at OSMM-HQ's discretion under a separate written agreement**, you
 may be eligible for:
@@ -34,11 +25,16 @@ may be eligible for:
 Revenue sharing is discretionary and always subject to a separate signed agreement — this document
 is not itself a promise of payment.
 
-## What stays with OSMM-HQ
+## What contributors do NOT receive
 
-The right to **commercialize** OSMM — to sell commercial licenses, offer a paid product or hosted
-service, or bundle it commercially — is reserved exclusively to OSMM-HQ. Contributors are rewarded
-through the benefits above rather than by gaining the right to sell OSMM themselves.
+- **Commercial rights are not granted to contributors.** Contributing does not give you the right to
+  sell, resell, host-for-others, or otherwise commercialize OSMM. Like everyone else, you may use
+  OSMM under the public [PolyForm Noncommercial License](LICENSE.md) and the free grants in
+  [LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md) (which, separately, already let any makerspace —
+  including yours — self-host OSMM to run its own space).
+- The right to **commercialize** OSMM is reserved exclusively to OSMM-HQ (see
+  [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)). Contributors are rewarded through the benefits
+  above rather than by gaining the right to sell OSMM.
 
 ## Questions
 
