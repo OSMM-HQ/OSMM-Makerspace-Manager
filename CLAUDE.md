@@ -1066,8 +1066,8 @@ backend port is unpublished, so publish it to localhost or use a tunnel / `docke
 The React staff console at `/admin` (port 80) is where Space/Inventory/Guest/Print managers and the
 Super Admin do day-to-day work. Non-technical install path: `setup.sh` / `setup.ps1` (first-run wizard:
 Docker check → generate secrets incl. a Fernet `API_CLIENT_ENC_KEY` → write root `.env` → build via
-`docker-compose.prod.yml` + `docker-compose.build.yml` → wait for readiness → `setup_instance` →
-print URL/creds), `docker-compose.build.yml` (build-from-source overlay; GHCR images are not yet
+`docker-compose.prod.yml` + `docker/compose.build.yml` → wait for readiness → `setup_instance` →
+print URL/creds), `docker/compose.build.yml` (build-from-source overlay; GHCR images are not yet
 public), and `docs/setup-for-makerspaces.md`. TLS settings are env-gated (`ENABLE_HTTPS`, default
 off) so the default HTTP-behind-nginx stack works; `CSRF_TRUSTED_ORIGINS` is env-driven for HTTPS.
 

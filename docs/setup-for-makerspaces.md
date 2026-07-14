@@ -98,7 +98,7 @@ By default it's at `localhost` (only that computer). To let others at your space
    hostname).
 2. Re-run the setup once and enter that address when asked for the "web address", **or** edit the
    `ALLOWED_HOSTS` and `CORS_ALLOWED_ORIGINS` lines in the `.env` file to include it, then run
-   `docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d`.
+   `docker compose -f docker-compose.prod.yml -f docker/compose.build.yml up -d`.
 3. People then visit `http://<that-address>/` in their browser.
 
 > For a public website with a real domain and HTTPS, you'll want someone technical to put a
@@ -123,7 +123,7 @@ You have two good options before giving up:
 
 - **Start it / after a reboot:** Docker Desktop can auto-start the app, or run the same
   `docker compose … up -d` command.
-- **Stop it:** `docker compose -f docker-compose.prod.yml -f docker-compose.build.yml down`
+- **Stop it:** `docker compose -f docker-compose.prod.yml -f docker/compose.build.yml down`
   (your data is safe — it's kept in a database volume).
 - **Update to a newer version:** download the new ZIP over the folder and run the setup script
   again; your `.env` and data are preserved.
@@ -133,5 +133,5 @@ You have two good options before giving up:
 - **"Docker is not running"** — open Docker Desktop and wait for it to start, then try again.
 - **The page won't load** — give it another minute on first run; the build takes time.
 - **See what's happening:** run
-  `docker compose -f docker-compose.prod.yml -f docker-compose.build.yml logs backend`.
+  `docker compose -f docker-compose.prod.yml -f docker/compose.build.yml logs backend`.
 - Still stuck? Open an issue on GitHub describing what you did and what you saw.

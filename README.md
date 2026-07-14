@@ -61,7 +61,7 @@ everything, and creates your first admin + makerspace.
 Skip building — pull the two published images and start the stack. After `cp .env.example .env`
 (fill in the few values it asks for):
 ```bash
-export MAKERSPACE_IMAGE_TAG=latest        # or pin a version, e.g. 0.2.0
+export MAKERSPACE_IMAGE_TAG=latest        # or pin a version, e.g. 0.25.0
 docker compose -f docker-compose.prod.yml up -d
 ```
 This pulls **`ghcr.io/osmm-hq/osmm-backend`** + **`ghcr.io/osmm-hq/osmm-frontend`** and brings up the
@@ -146,7 +146,7 @@ prebuilt images via `docker-compose.prod.yml`. A few extra details:
 **Build from source** instead of pulling images:
 
 ```bash
-docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
+docker compose -f docker-compose.prod.yml -f docker/compose.build.yml up -d --build
 ```
 
 **How images map to services (the "routing" is in the compose file, not the images):** the Celery

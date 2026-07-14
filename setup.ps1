@@ -5,7 +5,7 @@
 $ErrorActionPreference = "Stop"
 Set-Location -Path $PSScriptRoot
 
-$compose = @("compose", "-f", "docker-compose.prod.yml", "-f", "docker-compose.build.yml")
+$compose = @("compose", "-f", "docker-compose.prod.yml", "-f", "docker/compose.build.yml")
 
 function Say  ($m) { Write-Host "`n$m" -ForegroundColor Cyan }
 function Warn ($m) { Write-Host $m -ForegroundColor Yellow }

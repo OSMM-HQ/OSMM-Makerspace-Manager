@@ -35,6 +35,10 @@ docs/plans/
 docs/*-plan.md
 docs/plan-*.md
 docs/HANDOVER.md
+
+# Docker Compose local override — machine-specific dev config (ports, bind mounts).
+# Each developer keeps their own; it is auto-merged by `docker compose` and must not be committed.
+docker-compose.override.yml
 docs/roadmap.md
 
 # OS / editor

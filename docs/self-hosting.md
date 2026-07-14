@@ -37,7 +37,7 @@ MAKERSPACE_FRONTEND_IMAGE=ghcr.io/osmm-hq/osmm-frontend
 Until the GHCR images are published publicly, build locally with the build overlay:
 
 ```bash
-docker compose -f docker-compose.prod.yml -f docker-compose.build.yml up -d --build
+docker compose -f docker-compose.prod.yml -f docker/compose.build.yml up -d --build
 ```
 
 For a guided first run that generates secrets and `.env` for you, use the `setup.sh` / `setup.ps1`
@@ -87,10 +87,10 @@ The command is idempotent. It only sends reminders for issued or partially retur
 ## Upgrades
 
 Pin a release tag for stable deployments. Published image tags are the plain semantic version
-(e.g. `0.2.0`), the matching minor (`0.2`), and `latest`:
+(e.g. `0.25.0`), the matching minor (`0.25`), and `latest`:
 
 ```env
-MAKERSPACE_IMAGE_TAG=0.2.0
+MAKERSPACE_IMAGE_TAG=0.25.0
 ```
 
 Then run:
@@ -135,7 +135,7 @@ MINIO_CORS_ALLOWED_ORIGINS_JSON=["https://inventory.example.org"]
 ```
 
 ```bash
-docker compose -f docker-compose.prod.yml -f docker-compose.tls.yml --profile tls up -d
+docker compose -f docker-compose.prod.yml -f docker/compose.tls.yml --profile tls up -d
 ```
 
 The overlay enables `ENABLE_HTTPS=true` and `TRUST_X_FORWARDED_PROTO=true` for the backend. Caddy is
