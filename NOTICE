@@ -1,0 +1,35 @@
+OSMM — Open Systems Makerspace Manager
+Copyright © 2026 OSMM-HQ and OSMM contributors.
+
+Required Notice: Copyright OSMM-HQ (https://github.com/OSMM-HQ)
+
+OSMM is a self-hostable, multi-tenant inventory and 3D-printing manager built for
+makerspace communities — so a community can see what tools exist, who borrowed
+what, what is available, and how 3D-printing work moves from request to
+completion, without spreadsheets or guesswork.
+
+LICENSING (plain language)
+--------------------------
+OSMM is source-available under the AGPL-3.0-or-later.
+
+  - FREE, no approval needed:
+      * Any makerspace may self-host OSMM to run its OWN space — including
+        for-profit / membership-funded makerspaces.
+      * Nonprofits, schools, clubs, and individuals may use OSMM for their
+        internal purposes.
+      * Anyone may fork, study, and modify OSMM for noncommercial use.
+
+  - RESERVED TO OSMM-HQ (requires a commercial license):
+      * Reselling OSMM, hosting it as a paid service for others, or bundling it
+        into a commercial product.
+
+Full terms:
+  - LICENSE.md              — AGPL-3.0-or-later (governing)
+  - LICENSE-EXCEPTIONS.md   — additional free grants (makerspaces, nonprofits)
+  - COMMERCIAL-LICENSE.md   — how to obtain a commercial license
+  - CLA.md                  — contributor license agreement
+
+This is a source-available license, NOT an OSI "open source" license: it permits
+noncommercial use only.
+
+Commercial license inquiries: shaanshoukath4522@gmail.com

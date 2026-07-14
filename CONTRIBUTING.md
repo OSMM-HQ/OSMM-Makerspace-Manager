@@ -68,3 +68,12 @@ to get a change merged.
 Open a GitHub issue with: what you expected, what happened, steps to reproduce, and your
 environment (local Docker vs. Supabase, OS, browser). For security-sensitive reports, please avoid
 filing a public issue with exploit details — flag it privately to the maintainers first.
+
+## Licensing of contributions
+
+OSMM is source-available under the [AGPL-3.0-or-later](LICENSE.md), with
+commercial rights reserved to OSMM-HQ (see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)).
+
+By contributing you agree to the **[Contributor License Agreement](CLA.md)**: you grant OSMM-HQ the
+right to relicense your contribution under both the public noncommercial license and OSMM-HQ's
+commercial licenses. A CLA check on each pull request must be signed before it can be merged.

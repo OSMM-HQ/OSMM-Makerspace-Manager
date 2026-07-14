@@ -1136,7 +1136,7 @@ Hardware request emails are template-backed through Django admin
 emails use those templates with safe defaults, and return reminders are sent by
 the `send_return_reminders` management command for overdue active loans.
 
-The multi-frontend platform and open-source operations/reporting PRDs now have
+The multi-frontend platform and open operations/reporting PRDs now have
 their in-scope requirements implemented end-to-end. Items the PRDs explicitly
 exclude or defer, such as procurement, maintenance, direct Google Sheets OAuth
 publishing, native apps, and physical label-printer control, remain future work
@@ -1179,7 +1179,7 @@ Implemented (multi-frontend platform):
 - Scanner QR resolve endpoint with immutable scan events and allowed-action
   responses for box/product/asset/request QR payloads.
 
-Implemented (open-source ops and reporting):
+Implemented (open operations and reporting):
 
 - `GET /api/v1/health/` and `GET /api/v1/health/readiness/`.
 - `setup_instance` management command for first superadmin and first makerspace.
@@ -1303,7 +1303,7 @@ cd backend && pytest
   (`users/space-managers`, `users/inventory-managers`, `users/guest-admins`,
   `users/print-managers`), tenant frontend registry management, user
   restrict/restore, scoped API-client issuance, and audit-log reads.
-- `backend/apps/operations/` - open-source ops/reporting slice: health checks,
+- `backend/apps/operations/` - open operations/reporting slice: health checks,
   stock transfers (intra + true cross-makerspace movement), stocktake, inventory
   adjustments, analytics, ledger, CSV/XLSX report exports, container/location
   APIs, QR print batches with bulk ZIP download (`qr_zip.py`), and serialized

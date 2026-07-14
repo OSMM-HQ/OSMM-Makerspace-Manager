@@ -41,6 +41,19 @@ export function AboutPage() {
             notifications. Visitors browse catalogs and request equipment; staff
             handle approvals, issue and return with evidence, and reporting.
           </p>
+          <p className="text-xs text-muted">
+            OSMM is source-available under the{" "}
+            <a
+              className="underline hover:text-ink"
+              href="https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/blob/main/LICENSE.md"
+              target="_blank"
+              rel="noreferrer"
+            >
+              AGPL-3.0-or-later
+            </a>
+            . Free for makerspaces and nonprofits; commercial rights reserved to
+            OSMM-HQ.
+          </p>
         </div>
 
         <div className="mt-8 grid gap-3 sm:grid-cols-2">
