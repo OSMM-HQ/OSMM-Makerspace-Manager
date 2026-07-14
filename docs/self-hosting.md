@@ -28,8 +28,8 @@ MAKERSPACE_IMAGE_TAG=latest
 Optional image overrides:
 
 ```env
-MAKERSPACE_BACKEND_IMAGE=ghcr.io/shaan-shoukath/osmm-backend
-MAKERSPACE_FRONTEND_IMAGE=ghcr.io/shaan-shoukath/osmm-frontend
+MAKERSPACE_BACKEND_IMAGE=ghcr.io/osmm-hq/osmm-backend
+MAKERSPACE_FRONTEND_IMAGE=ghcr.io/osmm-hq/osmm-frontend
 ```
 
 ### Build from source (no published images)
