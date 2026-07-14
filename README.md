@@ -304,10 +304,6 @@ See [docs/self-hosting.md](docs/self-hosting.md) for the full environment refere
 Contributions are welcome. Please read **[CONTRIBUTING.md](CONTRIBUTING.md)** for the development
 workflow, branch/commit conventions, testing expectations, and how to open a pull request.
 
-Contributions are accepted under the **[Contributor License Agreement](CLA.md)** — the CLA check on
-each pull request must be signed before it can be merged. It lets OSMM-HQ include your contribution
-in both the public noncommercial license and OSMM-HQ's commercial licenses.
-
 ---
 
 ## License
