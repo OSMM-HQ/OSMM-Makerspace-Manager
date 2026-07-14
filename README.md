@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/banner.svg" alt="OSMM — Open Source Makerspace Manager" width="100%">
+  <img src="docs/banner.svg" alt="OSMM — Open Systems Makerspace Manager" width="100%">
 </p>
 
-# OSMM — Open Source Makerspace Manager
+# OSMM — Open Systems Makerspace Manager
 
 Self-hostable, multi-tenant makerspace hardware-loan & 3D-print manager.
 
@@ -21,7 +21,7 @@ This repo is open for people to explore in a fun way. Read through it, break it 
 improve flows, remix the features, or use it as a starting point for your own space. If your
 community works differently, fork it, edit it, and host your own version.
 
-Open-source, multi-tenant **inventory and 3D printing manager for makerspaces**. The public can browse a makerspace's inventory, request to borrow tools, and use QR-based self-checkout when a space enables it. Staff can manage hardware, direct handouts, returns, 3D printing work, evidence, QR scans, remarks, and audit logs so accountability stays clear.
+A multi-tenant **inventory and 3D printing manager for makerspaces**. The public can browse a makerspace's inventory, request to borrow tools, and use QR-based self-checkout when a space enables it. Staff can manage hardware, direct handouts, returns, 3D printing work, evidence, QR scans, remarks, and audit logs so accountability stays clear.
 
 One deployment can host many makerspaces (tenants). Each owns its inventory, public URL,
 staff, Telegram group, QR namespace, and audit scope.
@@ -36,7 +36,7 @@ staff, Telegram group, QR namespace, and audit scope.
 
 The goal is to make it **easy for makerspaces to log and track their stuff**, and to give the
 whole **community transparent access** to what's available to borrow — without spreadsheets or
-guesswork. It's open source and built to be run by the community, for the community. If you care
+guesswork. It's built to be run by the community, for the community. If you care
 about makerspaces and want to help, **volunteers and contributors are very welcome** — whether
 you write code, docs, translations, or just run it at your space and report what's rough. See
 [CONTRIBUTING.md](CONTRIBUTING.md).
