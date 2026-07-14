@@ -13,13 +13,14 @@ LICENSING (plain language)
 OSMM is source-available under the PolyForm Noncommercial License 1.0.0.
 
   - FREE, no approval needed:
-      * Any makerspace may self-host OSMM to run its OWN space — including
-        for-profit / membership-funded makerspaces.
+      * A noncommercial makerspace (nonprofit, community group, club, or school —
+        not operated for profit) may self-host OSMM to run its OWN space.
       * Nonprofits, schools, clubs, and individuals may use OSMM for their
         internal purposes.
       * Anyone may fork, study, and modify OSMM for noncommercial use.
 
   - RESERVED TO OSMM-HQ (requires a commercial license):
+      * Operating a for-profit makerspace on OSMM.
       * Reselling OSMM, hosting it as a paid service for others, or bundling it
         into a commercial product.
 

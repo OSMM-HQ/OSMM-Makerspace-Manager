@@ -150,7 +150,7 @@ the [Contributor License Agreement](.github/CLA.md), grants OSMM-HQ the right to
 relicense it commercially, so OSMM-HQ remains the single party able to grant
 commercial licenses.
 
-- Additional **free** permissions (any makerspace may self-host to run its own
-  space; nonprofit/internal use) — see **[PERMISSIONS.md](PERMISSIONS.md)**.
+- Additional **free** permissions (a **noncommercial** makerspace may self-host to
+  run its own space; nonprofit/internal use) — see **[PERMISSIONS.md](PERMISSIONS.md)**.
 - To use OSMM commercially, you need a commercial license from OSMM-HQ — see
   **[COMMERCIAL.md](COMMERCIAL.md)**.
