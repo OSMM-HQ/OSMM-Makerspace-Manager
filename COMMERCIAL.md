@@ -3,7 +3,7 @@
 OSMM ("Open Systems Makerspace Manager") is available to the public under the
 **PolyForm Noncommercial License 1.0.0** ([LICENSE.md](LICENSE.md)), which permits
 noncommercial use only, plus the free grants in
-[LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md) (notably: any makerspace may
+[PERMISSIONS.md](PERMISSIONS.md) (notably: any makerspace may
 self-host to run its own space, and nonprofits may use it internally).
 
 **All commercial rights in OSMM are reserved to OSMM-HQ.**

@@ -72,7 +72,7 @@ filing a public issue with exploit details — flag it privately to the maintain
 ## Licensing & the CLA
 
 OSMM is source-available under the [PolyForm Noncommercial License 1.0.0](../LICENSE.md), and **all
-commercial rights are reserved to OSMM-HQ** (see [COMMERCIAL-LICENSE.md](../COMMERCIAL-LICENSE.md)).
+commercial rights are reserved to OSMM-HQ** (see [COMMERCIAL.md](../COMMERCIAL.md)).
 You are free to self-host, fork, and modify OSMM for noncommercial use under those terms.
 
 OSMM is a collaborative project — contributions from the community are welcome. Before your pull

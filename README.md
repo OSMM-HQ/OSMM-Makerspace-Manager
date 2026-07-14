@@ -149,11 +149,11 @@ OSMM is **source-available** (not OSI "open source") — free for noncommercial 
 rights reserved to OSMM-HQ.
 
 - **Governing license:** [PolyForm Noncommercial License 1.0.0](LICENSE.md) (`PolyForm-Noncommercial-1.0.0`).
-- **Free, no approval needed** ([LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md)): **any makerspace** may
+- **Free, no approval needed** ([PERMISSIONS.md](PERMISSIONS.md)): **any makerspace** may
   self-host OSMM to run its **own** space (including for-profit / membership-funded ones); nonprofits,
   schools, clubs, and individuals may use it internally; anyone may fork, study, and modify it for
   noncommercial use.
-- **Needs a commercial license** ([COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)): reselling OSMM,
+- **Needs a commercial license** ([COMMERCIAL.md](COMMERCIAL.md)): reselling OSMM,
   hosting it as a paid service for others, or bundling it into a commercial product.
 
 To request a commercial license, contact **OSMM-HQ** via [github.com/OSMM-HQ](https://github.com/OSMM-HQ).

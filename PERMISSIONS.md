@@ -17,7 +17,7 @@ Running your own space on your own deployment is always free. This grant covers 
 makerspace using OSMM for its *own* internal operations. It does **not** permit
 offering OSMM itself to third parties as a paid product or hosted service — that
 is commercial use of the software and is covered by
-[COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).
+[COMMERCIAL.md](COMMERCIAL.md).
 
 ## 2. Nonprofit and community use (clarification)
 
@@ -33,7 +33,7 @@ charge and without seeking approval**.
 Everything that falls outside noncommercial use and the grants above — for
 example, reselling OSMM, hosting it as a paid SaaS for other organizations, or
 bundling it into a commercial offering — requires a **commercial license from
-OSMM-HQ**. See [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).
+OSMM-HQ**. See [COMMERCIAL.md](COMMERCIAL.md).
 
 These additional permissions may be updated by OSMM-HQ over time; a copy you have
 already received under a given version remains valid for that version.

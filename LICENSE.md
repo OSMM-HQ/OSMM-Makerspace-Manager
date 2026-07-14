@@ -1,24 +1,7 @@
 Copyright © 2026 OSMM-HQ and OSMM contributors.
-
 Required Notice: Copyright OSMM-HQ (https://github.com/OSMM-HQ)
 
-OSMM ("Open Systems Makerspace Manager") is licensed to the public under the
-**PolyForm Noncommercial License 1.0.0**, reproduced verbatim below.
-
-- This is a **source-available** license, not an OSI "open source" license: it
-  permits noncommercial use only.
-- **Additional free permissions** — including a grant that lets any makerspace
-  self-host OSMM to run its own space, and confirmation that nonprofits may use
-  it for their internal operations — are described in
-  **[LICENSE-EXCEPTIONS.md](LICENSE-EXCEPTIONS.md)**.
-- **Commercial use is reserved to OSMM-HQ.** Anyone else who wants to use OSMM
-  commercially (resell it, host it as a paid service, or bundle it into a
-  commercial product) must obtain a commercial license — see
-  **[COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md)**.
-
 SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-
----
 
 # PolyForm Noncommercial License 1.0.0
 

@@ -28,10 +28,10 @@ You grant OSMM-HQ a perpetual, worldwide, non-exclusive, royalty-free, irrevocab
 license to reproduce, modify, distribute, and create derivative works of your Contribution, **and
 to sublicense and relicense your Contribution under any terms** — including the PolyForm
 Noncommercial License, the additional grants in
-[LICENSE-EXCEPTIONS.md](../LICENSE-EXCEPTIONS.md), and OSMM-HQ's separate **commercial** licenses.
+[PERMISSIONS.md](../PERMISSIONS.md), and OSMM-HQ's separate **commercial** licenses.
 
 This is what allows OSMM-HQ to remain the single party able to grant commercial licenses (see
-[COMMERCIAL-LICENSE.md](../COMMERCIAL-LICENSE.md)) even though the code is written by many people.
+[COMMERCIAL.md](../COMMERCIAL.md)) even though the code is written by many people.
 
 ## 4. Patent license
 
