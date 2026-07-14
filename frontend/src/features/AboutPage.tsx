@@ -28,11 +28,11 @@ export function AboutPage() {
       <section className="mx-auto w-full max-w-3xl flex-1 px-5 py-10">
         <p className="text-xs font-semibold tracking-wide text-accent-ink">About</p>
         <h1 className="mt-3 text-3xl font-bold text-ink">
-          Open Source Makerspace Manager
+          Open Systems Makerspace Manager
         </h1>
         <div className="mt-5 space-y-4 text-sm leading-6 text-muted">
           <p>
-            OSMM is an open-source platform for running community makerspaces &mdash;
+            OSMM is a platform for running community makerspaces &mdash;
             public equipment catalogs, hardware lending with traceable handovers,
             3D-print request queues, and multi-makerspace operations in one place.
           </p>
