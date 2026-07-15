@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { EmptyState, Skeleton, StatusBadge } from "../../../components/ui";
 import { collectionResults, createMachine, getMachines, getMachineTypes, machineKeys, type MachineStatus } from "../machinesApi";
-import { MachineDetailDrawer } from "./MachineDetailDrawer";
+import { MachineDrawer } from "./machine/MachineDrawer";
 import { Panel } from "./shared";
 
 type StatusFilter = "all" | MachineStatus;
@@ -33,8 +33,6 @@ export function MachinesPanel({ makerspaceId, canManage }: { makerspaceId: numbe
     },
   });
   const filtersActive = typeFilter !== "all" || statusFilter !== "all";
-  const selectedName = machines.data?.results.find((machine) => machine.id === selectedId)?.name ?? "Machine details";
-
   return (
     <Panel title="Machines">
       <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
@@ -106,8 +104,8 @@ export function MachinesPanel({ makerspaceId, canManage }: { makerspaceId: numbe
         </div>
       ) : null}
       {selectedId !== null ? (
-        <MachineDetailDrawer key={selectedId} machineId={selectedId} makerspaceId={makerspaceId}
-          machineName={selectedName} canManage={canManage} onClose={() => setSelectedId(null)} />
+        <MachineDrawer key={selectedId} machineId={selectedId} makerspaceId={makerspaceId}
+          onClose={() => setSelectedId(null)} />
       ) : null}
     </Panel>
   );

@@ -26,6 +26,12 @@ export type Machine = {
   is_active: boolean;
   linked_print_printer: number | null;
   usage_hours: string;
+  can_operate: boolean;
+  can_edit: boolean;
+  can_delegate: boolean;
+  can_retire: boolean;
+  can_unretire: boolean;
+  can_manage: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -37,6 +43,12 @@ export type MachineOperator = {
   access_level: MachineAccessLevel;
   assigned_by_username: string | null;
   assigned_at: string;
+};
+
+export type MachineOperatorCandidate = {
+  user_id: number;
+  username: string;
+  display_name: string;
 };
 
 export type MachineUsageEntry = {
@@ -80,6 +92,7 @@ export const machineKeys = {
   detail: (machineId: number) => ["machine", machineId] as const,
   usage: (machineId: number) => ["machine-usage", machineId] as const,
   operators: (machineId: number) => ["machine-operators", machineId] as const,
+  operatorCandidates: (machineId: number) => ["machine-operator-candidates", machineId] as const,
   documents: (machineId: number) => ["machine-documents", machineId] as const,
   errors: (machineId: number) => ["machine-errors", machineId] as const,
 };
@@ -159,6 +172,10 @@ export function addMachineUsage(machineId: number, payload: { hours: string; not
 
 export function getMachineOperators(machineId: number) {
   return staffRequest<MachineCollection<MachineOperator>>(`/admin/machines/${machineId}/operators`);
+}
+
+export function getOperatorCandidates(machineId: number) {
+  return staffRequest<MachineOperatorCandidate[]>(`/admin/machines/${machineId}/operator-candidates`);
 }
 
 export function addMachineOperator(machineId: number, payload: { user_id: number; access_level: MachineAccessLevel }) {
