@@ -16,6 +16,7 @@ export type Makerspace = {
   domain_verified_at?: string | null;
   domain_verification_token?: string;
   domain_verification_record?: { host: string; type: "TXT"; value: string } | null;
+  platform_hosting?: boolean;
   hidden_from_central_directory: boolean;
   superadmin_access_enabled?: boolean;
   staff_notifications_enabled?: boolean;
@@ -25,6 +26,7 @@ export type Makerspace = {
   logo_url?: string | null;
   cover_image_url?: string | null;
   enabled_modules?: string[];
+  resource_limit_overrides?: Record<string, unknown>;
   branding_config?: {
     display_name?: string;
     support_email?: string;

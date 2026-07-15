@@ -54,6 +54,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
     logo_url = serializers.SerializerMethodField()
     cover_image_url = serializers.SerializerMethodField()
     domain_verification_record = serializers.SerializerMethodField()
+    platform_hosting = serializers.SerializerMethodField()
     # Optional public-name override stored under branding_config["display_name"].
     # Blank => public pages fall back to the registered makerspace name. Written
     # through this dedicated, validated field (not the whole branding_config blob)
@@ -90,6 +91,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "domain_verified_at",
             "domain_verification_token",
             "domain_verification_record",
+            "platform_hosting",
             "hidden_from_central_directory",
             "public_api_key",
             "cors_allowed_origins",
@@ -124,6 +126,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "domain_verified_at",
             "domain_verification_token",
             "domain_verification_record",
+            "platform_hosting",
             "telegram_bot_token_set",
             "smtp_password_set",
             # branding_config is returned (so the settings form can seed the
@@ -161,6 +164,10 @@ class MakerspaceSerializer(serializers.ModelSerializer):
     )
     def get_domain_verification_record(self, obj):
         return domain_verification.expected_record(obj)
+
+    @extend_schema_field({"type": "boolean"})
+    def get_platform_hosting(self, obj) -> bool:
+        return not domain_verification.is_self_host()
 
     def validate_public_code(self, value):
         return value.upper()
@@ -258,6 +265,23 @@ class MakerspaceSerializer(serializers.ModelSerializer):
                         )
                     }
                 )
+
+            # Managed free tier: a custom (non-platform) domain requires a superadmin, or a
+            # superadmin-granted per-space override (resource_limit_overrides["custom_domain"]).
+            # Self-host is unaffected (is_self_host() short-circuits the whole managed program).
+            if platform_suffix and domain_is_changing and not domain_verification.is_self_host():
+                actor = self.context["request"].user
+                is_superadmin = actor.is_superuser or actor.role == User.Role.SUPERADMIN
+                override_ok = self.instance is not None and limits.custom_domain_allowed(self.instance)
+                if not (is_superadmin or override_ok):
+                    raise serializers.ValidationError(
+                        {
+                            "frontend_domain": (
+                                "Custom domains aren't available on free managed hosting; "
+                                "self-host to use your own domain."
+                            )
+                        }
+                    )
 
             queryset = Makerspace.objects.filter(frontend_domain__iexact=normalized_domain)
             if self.instance is not None:

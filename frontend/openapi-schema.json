@@ -7942,6 +7942,155 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/subdomain-request": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_subdomain_request_list",
+                "summary": "List platform subdomain requests for a makerspace",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "Admin hosting"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedSubdomainRequestList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SubdomainRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SubdomainRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_admin_makerspace_subdomain_request_create",
+                "summary": "Request a platform subdomain for a makerspace",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin hosting"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SubdomainRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SubdomainRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SubdomainRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SubdomainRequest"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SubdomainRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SubdomainRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SubdomainRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/verify-domain": {
             "post": {
                 "operationId": "api_v1_admin_makerspace_verify_domain_create",
@@ -17247,7 +17396,7 @@
                     "status": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/ApiKeyRequestStatusEnum"
+                                "$ref": "#/components/schemas/StatusE94Enum"
                             }
                         ],
                         "readOnly": true
@@ -17278,15 +17427,6 @@
                     "resolved_at",
                     "status"
                 ]
-            },
-            "ApiKeyRequestStatusEnum": {
-                "enum": [
-                    "pending",
-                    "approved",
-                    "rejected"
-                ],
-                "type": "string",
-                "description": "* `pending` - Pending\n* `approved` - Approved\n* `rejected` - Rejected"
             },
             "AssetChainGroup": {
                 "type": "object",
@@ -20925,6 +21065,10 @@
                         },
                         "readOnly": true
                     },
+                    "platform_hosting": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
                     "hidden_from_central_directory": {
                         "type": "boolean"
                     },
@@ -20934,6 +21078,7 @@
                     },
                     "cors_allowed_origins": {},
                     "enabled_modules": {},
+                    "resource_limit_overrides": {},
                     "theme_config": {},
                     "branding_config": {
                         "readOnly": true
@@ -21016,6 +21161,7 @@
                     "logo_key",
                     "logo_url",
                     "name",
+                    "platform_hosting",
                     "public_api_key",
                     "slug",
                     "smtp_password_set",
@@ -22628,6 +22774,37 @@
                     }
                 }
             },
+            "PaginatedSubdomainRequestList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/SubdomainRequest"
+                        }
+                    }
+                }
+            },
             "PaginatedWarrantyReportRowList": {
                 "type": "object",
                 "required": [
@@ -23367,6 +23544,10 @@
                         },
                         "readOnly": true
                     },
+                    "platform_hosting": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
                     "hidden_from_central_directory": {
                         "type": "boolean"
                     },
@@ -23376,6 +23557,7 @@
                     },
                     "cors_allowed_origins": {},
                     "enabled_modules": {},
+                    "resource_limit_overrides": {},
                     "theme_config": {},
                     "branding_config": {
                         "readOnly": true
@@ -27201,6 +27383,15 @@
                 "type": "string",
                 "description": "* `pending` - Pending\n* `verified` - Verified\n* `failed` - Failed"
             },
+            "StatusE94Enum": {
+                "enum": [
+                    "pending",
+                    "approved",
+                    "rejected"
+                ],
+                "type": "string",
+                "description": "* `pending` - Pending\n* `approved` - Approved\n* `rejected` - Rejected"
+            },
             "StockTransfer": {
                 "type": "object",
                 "properties": {
@@ -27585,6 +27776,61 @@
                 ],
                 "type": "string",
                 "description": "* `draft` - Draft\n* `counting` - Counting\n* `completed` - Completed\n* `approved` - Approved\n* `applied` - Applied\n* `cancelled` - Cancelled"
+            },
+            "SubdomainRequest": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "requested_label": {
+                        "type": "string",
+                        "maxLength": 63
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/StatusE94Enum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "note": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "decided_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "decided_at",
+                    "id",
+                    "note",
+                    "requested_label",
+                    "status"
+                ]
+            },
+            "SubdomainRequestError": {
+                "type": "object",
+                "properties": {
+                    "detail": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "detail"
+                ]
             },
             "TakenItemsReport": {
                 "type": "object",

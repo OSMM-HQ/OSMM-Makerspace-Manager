@@ -125,6 +125,8 @@ def test_verify_endpoint_manage_makerspace_gating():
 def test_frontend_domain_change_resets_status_and_keeps_token_stable():
     # Managed mode: changing a custom domain re-enters the TXT flow => PENDING.
     makerspace = set_domain(make_space("domain-reset"), "old-reset.example")
+    makerspace.resource_limit_overrides = {"custom_domain": True}
+    makerspace.save(update_fields=["resource_limit_overrides"])
     old_token = makerspace.domain_verification_token
     makerspace.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
     makerspace.domain_verified_at = timezone.now()

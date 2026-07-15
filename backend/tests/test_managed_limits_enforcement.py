@@ -288,3 +288,64 @@ def test_recompute_storage_sums_authoritative_evidence_sizes():
 
     makerspace.refresh_from_db()
     assert makerspace.storage_bytes_used == 100
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+def test_managed_tenant_custom_domain_blocked_without_grant():
+    makerspace = make_space("limits-custom-domain-blocked")
+    manager = make_member("limits-custom-domain-blocked-manager", makerspace)
+    original_domain = makerspace.frontend_domain
+
+    response = authenticated_client(manager).patch(
+        reverse("admin-makerspace", kwargs={"pk": makerspace.id}),
+        {"frontend_domain": "alphamakerspace.com"},
+        format="json",
+        HTTP_HOST="testserver",
+    )
+
+    assert response.status_code == 400
+    assert "Custom domains" in str(response.data)
+    makerspace.refresh_from_db()
+    assert makerspace.frontend_domain == original_domain
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+def test_managed_tenant_custom_domain_allowed_with_override():
+    makerspace = make_space("limits-custom-domain-allowed")
+    makerspace.resource_limit_overrides = {"custom_domain": True}
+    makerspace.save(update_fields=["resource_limit_overrides"])
+    manager = make_member("limits-custom-domain-allowed-manager", makerspace)
+
+    response = authenticated_client(manager).patch(
+        reverse("admin-makerspace", kwargs={"pk": makerspace.id}),
+        {"frontend_domain": "alphamakerspace.com"},
+        format="json",
+        HTTP_HOST="testserver",
+    )
+
+    assert response.status_code == 200
+    makerspace.refresh_from_db()
+    assert makerspace.frontend_domain == "alphamakerspace.com"
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX="")
+def test_self_host_custom_domain_still_works_for_superadmin():
+    makerspace = make_space("limits-custom-domain-self-host")
+    superadmin = make_user(
+        "limits-custom-domain-self-host-superadmin",
+        role="superadmin",
+        access_status="active",
+        is_staff=True,
+        is_superuser=True,
+    )
+
+    response = authenticated_client(superadmin).patch(
+        reverse("admin-makerspace", kwargs={"pk": makerspace.id}),
+        {"frontend_domain": "betamakerspace.com"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    makerspace.refresh_from_db()
+    assert makerspace.frontend_domain == "betamakerspace.com"
+    assert makerspace.frontend_domain_status == Makerspace.DomainStatus.VERIFIED
