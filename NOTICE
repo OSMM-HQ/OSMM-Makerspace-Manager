@@ -1,37 +1,28 @@
-OSMM — Open Systems Makerspace Manager
-Copyright © 2026 OSMM-HQ and OSMM contributors.
+OSMM — Open Source Makerspace Manager
+Copyright (C) 2026 OSMM contributors.
 
-Required Notice: Copyright OSMM-HQ (https://github.com/OSMM-HQ)
-
-OSMM is a self-hostable, multi-tenant inventory and 3D-printing manager built for
-makerspace communities — so a community can see what tools exist, who borrowed
-what, what is available, and how 3D-printing work moves from request to
+OSMM is a self-hostable, multi-tenant management platform built for makerspace
+communities — covering inventory, tool and equipment lending, and 3D printing in
+one place — so a community can see what tools and equipment exist, who borrowed
+what, what is available, and how every loan and print job moves from request to
 completion, without spreadsheets or guesswork.
 
-LICENSING (plain language)
---------------------------
-OSMM is source-available under the AGPL-3.0-or-later.
+LICENSING
+---------
+OSMM is free and open source software, licensed under the
+GNU Affero General Public License, version 3 or (at your option) any later
+version (AGPL-3.0-or-later).
 
-  - FREE, no approval needed:
-      * A noncommercial makerspace (nonprofit, community group, club, or school —
-        not operated for profit) may self-host OSMM to run its OWN space.
-      * Nonprofits, schools, clubs, and individuals may use OSMM for their
-        internal purposes.
-      * Anyone may fork, study, and modify OSMM for noncommercial use.
-
-  - RESERVED TO OSMM-HQ (requires a commercial license):
-      * Operating a for-profit makerspace on OSMM.
-      * Reselling OSMM, hosting it as a paid service for others, or bundling it
-        into a commercial product.
+You may use, study, share, and modify OSMM freely — for any purpose, commercial
+or noncommercial — subject to the terms of the AGPL. In particular, because the
+AGPL is a "network" copyleft license: if you run a modified version of OSMM and
+let users interact with it over a network, you must offer those users the
+corresponding source code of your modified version under the same license.
 
 Full terms:
-  - LICENSE.md                      — AGPL-3.0-or-later (governing)
-  - PERMISSIONS.md                  — additional free grants (makerspaces, nonprofits)
-  - COMMERCIAL.md                   — how to obtain a commercial license
-  - .github/CLA.md                  — contributor license agreement
-  - .github/CONTRIBUTOR-BENEFITS.md — what contributors receive in return
+  - LICENSE.md              — GNU Affero General Public License v3 (governing)
+  - .github/CONTRIBUTING.md — how to contribute
 
-This is a source-available license, NOT an OSI "open source" license: it permits
-noncommercial use only.
-
-Commercial license inquiries: contact the OSMM-HQ organization (https://github.com/OSMM-HQ)
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU Affero General Public License for more details.

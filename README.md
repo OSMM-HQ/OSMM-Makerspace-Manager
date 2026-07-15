@@ -1,16 +1,17 @@
 <p align="center">
-  <img src="docs/banner.svg" alt="OSMM — Open Systems Makerspace Manager" width="100%">
+  <img src="docs/banner.svg" alt="OSMM — Open Source Makerspace Manager" width="100%">
 </p>
 
-<h1 align="center">OSMM — Open Systems Makerspace Manager</h1>
+<h1 align="center">OSMM — Open Source Makerspace Manager</h1>
 
 <p align="center">
-  Self-hostable, multi-tenant <strong>inventory &amp; 3D-printing manager</strong> for makerspaces —
-  browse, borrow, track, and stay accountable, without spreadsheets.
+  Self-hostable, multi-tenant <strong>management platform for makerspaces</strong> — run your
+  inventory, tool &amp; equipment lending, and 3D printing in one place. Browse, borrow, track, and
+  stay accountable, without spreadsheets.
 </p>
 
 <p align="center">
-  <a href="LICENSE.md"><img alt="License: AGPL-3.0-or-later" src="https://img.shields.io/badge/license-AGPL-3.0-or-later%20Noncommercial%201.0.0-blue.svg"></a>
+  <a href="LICENSE.md"><img alt="License: AGPL-3.0-or-later" src="https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg"></a>
   <a href="https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/actions/workflows/release.yml"><img alt="Release" src="https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/actions/workflows/release.yml/badge.svg"></a>
   <img alt="Stack" src="https://img.shields.io/badge/stack-Django%206%20%C2%B7%20React%2019-0b7285.svg">
   <a href=".github/CONTRIBUTING.md"><img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg"></a>
@@ -19,9 +20,9 @@
 ---
 
 OSMM started inside the **TinkerSpace Kochi** community, from a simple need: make it easy for a
-makerspace to know **what tools exist, who borrowed what, what's available, and how 3D-print jobs move
-from request to done** — with enough traceability that accountability for shared gear is never a
-guessing game. It's built by makers, for makers: run it at your space, fork it, remix it, or use it as
+makerspace to know **what tools and equipment exist, who borrowed what, what's available, and how
+every loan and print job moves from request to done** — with enough traceability that accountability
+for shared gear is never a guessing game. It's built by makers, for makers: run it at your space, fork it, remix it, or use it as
 a starting point. If your community works differently, make it your own.
 
 One deployment can host **many makerspaces** (tenants). Each owns its inventory, public URL, staff,
@@ -139,24 +140,20 @@ two Docker images (`osmm-backend`, `osmm-frontend`); everything else is official
 
 OSMM is a collaborative project for the makerspace community, and **contributors are very welcome** —
 code, docs, translations, or just running it at your space and reporting what's rough. See
-**[.github/CONTRIBUTING.md](.github/CONTRIBUTING.md)**; pull requests require signing the
-**[CLA](.github/CLA.md)** (an automated check walks you through it), and contributors get
-[recognition and benefits](.github/CONTRIBUTOR-BENEFITS.md).
+**[.github/CONTRIBUTING.md](.github/CONTRIBUTING.md)**. **No CLA is required** — by opening a pull
+request you agree your contribution is offered under the project's AGPL-3.0-or-later license
+(inbound = outbound); merged contributors are credited in
+[.github/CONTRIBUTORS.md](.github/CONTRIBUTORS.md).
 
 ## License
 
-OSMM is **source-available** (not OSI "open source") — free for noncommercial use, with commercial
-rights reserved to OSMM-HQ.
+OSMM is **free and open source software**, licensed under the
+**[GNU Affero General Public License v3](LICENSE.md)** (`AGPL-3.0-or-later`).
 
-- **Governing license:** [AGPL-3.0-or-later](LICENSE.md) (`AGPL-3.0-or-later-Noncommercial-1.0.0`).
-- **Free, no approval needed** ([PERMISSIONS.md](PERMISSIONS.md)): a **noncommercial makerspace**
-  (nonprofit, community group, club, or school — not operated for profit) may self-host OSMM to run its
-  **own** space; nonprofits, schools, clubs, and individuals may use it internally; anyone may fork,
-  study, and modify it for noncommercial use.
-- **Needs a commercial license** ([COMMERCIAL.md](COMMERCIAL.md)): operating a **for-profit makerspace**
-  on OSMM, reselling OSMM, hosting it as a paid service for others, or bundling it into a commercial product.
-
-To request a commercial license, contact **OSMM-HQ** via [github.com/OSMM-HQ](https://github.com/OSMM-HQ).
+You are free to use, study, share, and modify OSMM — for **any** purpose, commercial or
+noncommercial — subject to the AGPL. Because the AGPL is a **network copyleft** license: if you run
+a modified version and let users interact with it over a network, you must offer those users the
+corresponding source code of your modified version under the same license.
 
 ## Contributors
 

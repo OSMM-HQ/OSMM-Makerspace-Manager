@@ -28,7 +28,7 @@ export function AboutPage() {
       <section className="mx-auto w-full max-w-3xl flex-1 px-5 py-10">
         <p className="text-xs font-semibold tracking-wide text-accent-ink">About</p>
         <h1 className="mt-3 text-3xl font-bold text-ink">
-          Open Systems Makerspace Manager
+          Open Source Makerspace Manager
         </h1>
         <div className="mt-5 space-y-4 text-sm leading-6 text-muted">
           <p>
@@ -42,17 +42,16 @@ export function AboutPage() {
             handle approvals, issue and return with evidence, and reporting.
           </p>
           <p className="text-xs text-muted">
-            OSMM is source-available under the{" "}
+            OSMM is free and open source software, licensed under the{" "}
             <a
               className="underline hover:text-ink"
               href="https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/blob/main/LICENSE.md"
               target="_blank"
               rel="noreferrer"
             >
-              AGPL-3.0-or-later
+              GNU Affero General Public License v3
             </a>
-            . Free for makerspaces and nonprofits; commercial rights reserved to
-            OSMM-HQ.
+            . Free to use, study, share, and modify under the terms of the AGPL.
           </p>
         </div>
 

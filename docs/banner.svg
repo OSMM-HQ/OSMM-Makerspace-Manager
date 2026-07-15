@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360" role="img" aria-label="OSMM — Open Systems Makerspace Manager">
-  <title>OSMM — Open Systems Makerspace Manager</title>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" width="1200" height="360" role="img" aria-label="OSMM — Open Source Makerspace Manager">
+  <title>OSMM — Open Source Makerspace Manager</title>
   <defs>
     <style>
       .word { font-family: 'Space Grotesk', 'Segoe UI', system-ui, -apple-system, sans-serif; font-weight: 700; fill: #ffffff; }
@@ -25,9 +25,9 @@
   <text class="word" x="222" y="142" font-size="82" letter-spacing="4">OSMM</text>
 
   <!-- eyebrow + headline + sub -->
-  <text class="eyebrow" x="78" y="228" font-size="15">OPEN SYSTEMS MAKERSPACE MANAGER</text>
+  <text class="eyebrow" x="78" y="228" font-size="15">OPEN SOURCE MAKERSPACE MANAGER</text>
   <text class="headline" x="76" y="278" font-size="36">Every part, tool and project — on one shelf.</text>
-  <text class="sub" x="78" y="316" font-size="18">Self-hostable inventory &amp; 3D-printing manager for makerspaces — no spreadsheets.</text>
+  <text class="sub" x="78" y="316" font-size="18">Self-hostable platform to run your whole makerspace — inventory, lending, equipment &amp; 3D printing.</text>
 
   <!-- decorative parts-bin cluster (echoes the four brand colours) -->
   <g transform="translate(1004,128)">

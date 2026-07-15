@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# OSMM - Open Systems Makerspace Manager first-run setup for self-hosting (macOS / Linux).
+# OSMM - Open Source Makerspace Manager first-run setup for self-hosting (macOS / Linux).
 # Run it from the project folder:  bash setup.sh
 set -euo pipefail
 cd "$(dirname "$0")"

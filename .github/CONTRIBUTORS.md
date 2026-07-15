@@ -1,15 +1,14 @@
 # Contributors
 
-OSMM ("Open Systems Makerspace Manager") is a collaborative project for the makerspace community.
+OSMM ("Open Source Makerspace Manager") is a collaborative project for the makerspace community.
 Everyone whose contribution is merged is credited here, in the order they first contributed.
 
-Contributions are made under the [Contributor License Agreement](CLA.md); contributors are
-recognized and rewarded per [CONTRIBUTOR-BENEFITS.md](CONTRIBUTOR-BENEFITS.md).
+Contributions are offered under the project's [AGPL-3.0-or-later license](../LICENSE.md)
+(inbound = outbound); no CLA is required.
 
 ## Maintainer
 
-- **Shaan Shoukath** ([@Shaan-Shoukath](https://github.com/Shaan-Shoukath)) — OSMM-HQ; creator &
-  maintainer
+- **Shaan Shoukath** ([@Shaan-Shoukath](https://github.com/Shaan-Shoukath)) — creator & maintainer
 
 ## Contributors
 

@@ -69,16 +69,13 @@ Open a GitHub issue with: what you expected, what happened, steps to reproduce, 
 environment (local Docker vs. Supabase, OS, browser). For security-sensitive reports, please avoid
 filing a public issue with exploit details — flag it privately to the maintainers first.
 
-## Licensing & the CLA
+## Licensing
 
-OSMM is source-available under the [AGPL-3.0-or-later](../LICENSE.md), and **all
-commercial rights are reserved to OSMM-HQ** (see [COMMERCIAL.md](../COMMERCIAL.md)).
-You are free to self-host, fork, and modify OSMM for noncommercial use under those terms.
+OSMM is free and open source software, licensed under the
+[GNU Affero General Public License v3](../LICENSE.md) (AGPL-3.0-or-later). You are free to use,
+study, share, and modify OSMM under those terms — for any purpose.
 
-OSMM is a collaborative project — contributions from the community are welcome. Before your pull
-request can be merged you must sign the **[Contributor License Agreement](CLA.md)** (an automated
-CLA check on each PR walks you through it). The CLA lets OSMM-HQ keep the sole right to sell
-commercial licenses; in return, contributors are recognized and rewarded on a tiered basis — see
-**[CONTRIBUTOR-BENEFITS.md](CONTRIBUTOR-BENEFITS.md)** (credit & mention, free access to any premium/
-hosted edition, contributor listing, and — for significant work — discretionary revenue share or
-other recognition). Commercial rights are not granted to contributors.
+**No CLA is required.** By submitting a pull request you agree that your contribution is offered
+under the same AGPL-3.0-or-later license as the project (inbound = outbound). You retain copyright
+in your contribution; merged contributors are credited in
+[CONTRIBUTORS.md](CONTRIBUTORS.md).

@@ -7,7 +7,7 @@ export function SiteFooter() {
     <footer className="mt-auto border-t border-line bg-panel">
       <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-5 text-xs text-muted">
         <p>
-          &copy; {year} OSMM &mdash; Open Systems Makerspace Manager
+          &copy; {year} OSMM &mdash; Open Source Makerspace Manager
         </p>
         <nav className="flex items-center gap-4">
           <Link className="hover:text-ink" to="/about">
