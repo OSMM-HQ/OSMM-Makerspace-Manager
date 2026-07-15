@@ -45,7 +45,7 @@ export function AboutPage() {
             OSMM is free and open source software, licensed under the{" "}
             <a
               className="underline hover:text-ink"
-              href="https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/blob/main/LICENSE.md"
+              href="https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/blob/main/LICENSE"
               target="_blank"
               rel="noreferrer"
             >

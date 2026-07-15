@@ -15,7 +15,7 @@ export function SiteFooter() {
           </Link>
           <a
             className="hover:text-ink"
-            href="https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/blob/main/LICENSE.md"
+            href="https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/blob/main/LICENSE"
             target="_blank"
             rel="noreferrer"
           >

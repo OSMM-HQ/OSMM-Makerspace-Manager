@@ -2,6 +2,67 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — osmm.me multi-tenant SaaS hosting (2026-07-15)
+
+Serve many makerspaces from ONE shared instance at superadmin-provisioned `<slug>.osmm.me` **and** tenant
+self-serve custom domains, on a single VPS + Caddy origin behind Cloudflare. Reuses
+`Makerspace.frontend_domain` + `platform.resolve_frontend(origin=...)` + `domain_verification.py`; **no
+per-tenant DB/instance**. Codex Stage-1 APPROVED (3 rounds); built phase-per-commit, each pushed to `main`.
+Plan/specs gitignored (`docs/superpowers/plans/2026-07-15-osmm-me-saas-hosting.md`). Commits `c642992`(P1)·
+`c5a4aa7`(P2)·`59e88f0`(P3)·`b5ea1c5`(P4)·`674adab`(P5)·`7aa73c3`(P6). **Dormant by default:** blank
+`PLATFORM_DOMAIN_SUFFIX` ⇒ every feature here is inert and existing single-domain behavior is byte-for-byte
+unchanged (self-hosters unaffected). **VERIFIED is the trust gate** — a `frontend_domain` grants CORS /
+staff-origin / bootstrap / Host / TLS trust only when `frontend_domain_status=VERIFIED` and non-archived.
+
+- **P1 — host-trust foundation + VERIFIED origin gating.** `apps/makerspaces/hosting.py` (`canonical_host`
+  normalize/reject-IP-and-port, `is_infra_host`, cached `verified_frontend_domains()` + `invalidate()`,
+  `host_is_allowed` **fail-closed**); `middleware.py` `TenantHostValidationMiddleware` (FIRST in `MIDDLEWARE`,
+  reads raw `HTTP_HOST`, 400 before URL resolution, dormant when suffix blank); settings envs
+  `PLATFORM_DOMAIN_SUFFIX`/`INFRA_HOSTS`/`PLATFORM_STAFF_ORIGINS`/`BEHIND_TRUSTED_PROXY` (→`ALLOWED_HOSTS=['*']`,
+  real allowlist is Caddy + the middleware). VERIFIED-gating threaded through `cors.py`
+  (`origin_is_registered`/`staff_origin_is_registered`) + `platform.py`
+  (`makerspace_staff_origins`/`makerspace_public_origins`, + `PLATFORM_STAFF_ORIGINS`); `post_save`/`post_delete`
+  cache-invalidation signal in `apps.py`.
+- **P2 — superadmin subdomain provisioning + tenant self-claim guard.** `provisioning.provision_subdomain`
+  (14 `RESERVED_LABELS`, single-DNS-label regex, atomic `select_for_update`, auto-VERIFIED, audited
+  `makerspace.subdomain_provisioned`); `POST /api/v1/admin/makerspace/<id>/provision-subdomain`
+  (`IsActiveSuperAdmin`) in `views_hosting.py`. The normal `frontend_domain` serializer path **rejects** any
+  value whose canonical host ends with the platform suffix (tenants can't self-claim `*.osmm.me`).
+- **P3 — internal fail-closed TLS-ask + custom-domain issuance guards.** `TlsCheckView`
+  `GET /api/v1/internal/tls-check?domain=` (`AllowAny`, `authentication_classes=[]`): **200 only** for a
+  canonical VERIFIED non-archived **non-platform** custom domain; **identical `HttpResponseForbidden`** for
+  every other case (unknown/pending/platform/IP/port/missing) — non-enumerable; whole body `try/except → 403`
+  (fail closed). `domain_verification.resolves_to_origin()` (CNAME-target OR A-record intersection vs
+  `PLATFORM_ORIGIN_HOST`; exception → False; **True when origin blank** so legacy TXT-only verify is unchanged)
+  now gates `verify_domain` (TXT **and** resolution before VERIFIED). `Makerspace.frontend_domain_changed_at`
+  (migration `makerspaces/0028`) + `DOMAIN_CHANGE_COOLDOWN_SECONDS` cooldown enforced in the serializer +
+  stamped in both serializer `.update()` and `provision_subdomain` (dormant at 0). Route mounted in
+  `config/urls.py` (no trailing slash).
+- **P4 — origin-based frontend bootstrap (flag-gated) + deny internal path.** `lib/tenant.tsx`: when
+  `config.js` sets `originBootstrap: true` and no `tenantToken`, it resolves the makerspace by request
+  Origin/Host via `GET /bootstrap` (one branded site per domain); unresolved → central fallback. **Gated by the
+  explicit flag** (not a hostname heuristic) so central/dev/self-host stay byte-for-byte unchanged.
+  `frontend/nginx.conf` denies `/api/v1/internal/` (defense-in-depth).
+- **P5 — SaaS Caddy overlay + runbook.** `deploy/Caddyfile.saas` (global `on_demand_tls { ask …/tls-check }`;
+  `(backend_paths)` snippet 403s `/api/v1/internal/*`, routes api/static/docs→`backend:8000` with
+  `X-Forwarded-Proto https`, else→`frontend:80`; `files.osmm.me`→`minio:9000` on the static Origin CA cert;
+  `*.osmm.me, osmm.me` static cert; `https://` catch-all `on_demand` for custom domains). `docker/compose.saas.yml`
+  (Caddy is the ONLY published service — `!reset []` drops frontend+minio ports; backend
+  `BEHIND_TRUSTED_PROXY`/`PLATFORM_*`/`ENABLE_HTTPS`/`TRUST_X_FORWARDED_PROTO`/`CSRF_TRUSTED_ORIGINS`/
+  `files.osmm.me` storage URLs; frontend `TENANT_API_URL=/api` + `TENANT_ORIGIN_BOOTSTRAP=true`).
+  `frontend/docker-entrypoint.d/30-write-config.sh` emits the unquoted `originBootstrap` boolean.
+  `docs/deploy-saas.md` runbook (VPS/Cloudflare/deploy/provisioning/custom-domain/CORS-inventory/ops).
+- **P6 — repo professionalization + AGPL correctness.** Canonical plain `LICENSE` (full GNU AGPLv3 verbatim,
+  for a clean GitHub Licensee `AGPL-3.0` chip); the redundant `LICENSE.md` was removed (two root license
+  files made GitHub report "Unknown licenses found"); README badge/link + all refs → `LICENSE`.
+  `.github/` community health: `SECURITY.md` (private disclosure → ryyan@lascade.com), `CODE_OF_CONDUCT.md`
+  (Contributor Covenant 2.1), issue forms (`bug_report.yml`/`feature_request.yml`/`config.yml`), PR template.
+  GitHub About metadata (description/homepage/topics) is a manual `gh`/web step (gh not installed in shell).
+- **Deferred — Phase 7 (destructive, post-QA):** `git filter-repo` history rewrite to purge pre-AGPL
+  AGPL-3.0-or-later-Noncommercial license files/text + force-push. Working tree is already AGPL-clean; only git HISTORY
+  carries AGPL-3.0-or-later. CAVEAT: cannot scrub GitHub's cached unreachable objects / existing forks / old PR refs —
+  requires a GitHub Support GC request.
+
 ## Recent batch — Machines M1.5: modular UI + types + photo + warranty + consumables + public (2026-07-15)
 
 Follow-up to M1 bringing generic machines to **printer-level feature parity** (machines = the equipment

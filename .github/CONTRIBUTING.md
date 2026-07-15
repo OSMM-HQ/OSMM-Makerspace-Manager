@@ -72,7 +72,7 @@ filing a public issue with exploit details — flag it privately to the maintain
 ## Licensing
 
 OSMM is free and open source software, licensed under the
-[GNU Affero General Public License v3](../LICENSE.md) (AGPL-3.0-or-later). You are free to use,
+[GNU Affero General Public License v3](../LICENSE) (AGPL-3.0-or-later). You are free to use,
 study, share, and modify OSMM under those terms — for any purpose.
 
 **No CLA is required.** By submitting a pull request you agree that your contribution is offered

@@ -20,7 +20,7 @@ let users interact with it over a network, you must offer those users the
 corresponding source code of your modified version under the same license.
 
 Full terms:
-  - LICENSE.md              — GNU Affero General Public License v3 (governing)
+  - LICENSE                 — GNU Affero General Public License v3 (governing)
   - .github/CONTRIBUTING.md — how to contribute
 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY
