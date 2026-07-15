@@ -131,6 +131,7 @@ export const openApiPaths = [
   "/api/v1/admin/makerspace/{makerspace_id}/ledger/export",
   "/api/v1/admin/makerspace/{makerspace_id}/logo",
   "/api/v1/admin/makerspace/{makerspace_id}/machine-types",
+  "/api/v1/admin/makerspace/{makerspace_id}/machine-types/{id}",
   "/api/v1/admin/makerspace/{makerspace_id}/machines",
   "/api/v1/admin/makerspace/{makerspace_id}/notification-recipients",
   "/api/v1/admin/makerspace/{makerspace_id}/notification-rules",

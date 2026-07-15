@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { EmptyState, Skeleton, StatusBadge } from "../../../components/ui";
 import { collectionResults, createMachine, getMachines, getMachineTypes, machineKeys, type MachineStatus } from "../machinesApi";
 import { MachineDrawer } from "./machine/MachineDrawer";
+import { MachineTypesPanel } from "./MachineTypesPanel";
 import { Panel } from "./shared";
 
 type StatusFilter = "all" | MachineStatus;
@@ -58,6 +59,7 @@ export function MachinesPanel({ makerspaceId, canManage }: { makerspaceId: numbe
           </label>
         </div>
       </div>
+      <MachineTypesPanel makerspaceId={makerspaceId} canManageMachines={canManage} />
       {canManage ? (
         <form className="mb-4 grid gap-3 rounded-xl border border-line bg-bg p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end"
           onSubmit={(event) => { event.preventDefault(); create.mutate(); }}>

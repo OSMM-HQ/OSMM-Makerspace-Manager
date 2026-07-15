@@ -6,6 +6,10 @@ from apps.makerspaces.platform import makerspace_staff_origins
 
 NO_STAFF_ORIGIN_SCOPE = object()
 AMBIGUOUS_STAFF_ORIGIN_SCOPE = object()
+_MAKERSPACE_KWARG_ROUTES = {
+    "admin-machine-types": "makerspace_id",
+    "admin-machine-type-detail": "makerspace_id",
+}
 
 
 def _origin_candidate(request):
@@ -73,10 +77,13 @@ def _global_endpoint_allowed(request):
 
 def _target_makerspace_id(request, view=None):
     kwargs = getattr(view, "kwargs", {}) if view is not None else {}
+    match = getattr(request, 'resolver_match', None)
+    url_name = getattr(match, 'url_name', '')
+    registered_kwarg = _MAKERSPACE_KWARG_ROUTES.get(url_name)
+    if registered_kwarg in kwargs:
+        return int(kwargs[registered_kwarg])
     if "makerspace_id" in kwargs:
         return int(kwargs["makerspace_id"])
-    match = getattr(request, "resolver_match", None)
-    url_name = getattr(match, "url_name", "")
     if url_name == "admin-makerspace" and "pk" in kwargs:
         return int(kwargs["pk"])
     query_value = getattr(request, "query_params", {}).get("makerspace")

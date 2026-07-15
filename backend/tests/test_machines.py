@@ -552,6 +552,138 @@ def test_machine_types_custom_create_scope_permissions_and_global_uniqueness():
             is_builtin=True,
         )
 
+
+def test_custom_machine_type_can_be_renamed_without_changing_server_fields():
+    makerspace = enable_machines(make_space('machines-type-rename'))
+    manager = make_member('machines-type-rename-manager', makerspace)
+    machine_type = MachineType.objects.create(
+        makerspace=makerspace,
+        slug='laser-cutter',
+        name='Laser Cutter',
+        icon='laser',
+        managing_action='',
+    )
+    url = reverse(
+        'admin-machine-type-detail',
+        kwargs={'makerspace_id': makerspace.id, 'pk': machine_type.id},
+    )
+
+    response = authenticated_client(manager).patch(
+        url,
+        {
+            'name': 'Large Laser Cutter',
+            'icon': 'spark',
+            'slug': 'changed-slug',
+            'managing_action': 'manage_printing',
+        },
+        format='json',
+    )
+
+    assert response.status_code == 200
+    machine_type.refresh_from_db()
+    assert machine_type.name == 'Large Laser Cutter'
+    assert machine_type.icon == 'spark'
+    assert machine_type.slug == 'laser-cutter'
+    assert machine_type.managing_action == ''
+    assert machine_type.makerspace == makerspace
+    assert machine_type.is_builtin is False
+    assert AuditLog.objects.filter(
+        action='machine_type.updated',
+        makerspace=makerspace,
+        target_id=str(machine_type.id),
+    ).exists()
+
+
+def test_builtin_machine_type_rename_is_rejected():
+    makerspace = enable_machines(make_space('machines-type-builtin'))
+    manager = make_member('machines-type-builtin-manager', makerspace)
+    machine_type = global_machine_type()
+
+    response = authenticated_client(manager).patch(
+        reverse(
+            'admin-machine-type-detail',
+            kwargs={'makerspace_id': makerspace.id, 'pk': machine_type.id},
+        ),
+        {'name': 'Renamed Printer'},
+        format='json',
+    )
+
+    assert response.status_code == 400
+    machine_type.refresh_from_db()
+    assert machine_type.name != 'Renamed Printer'
+
+
+def test_machine_type_rename_is_404_across_tenants():
+    makerspace_a = enable_machines(make_space('machines-type-tenant-a'))
+    makerspace_b = enable_machines(make_space('machines-type-tenant-b'))
+    manager_a = make_member('machines-type-tenant-manager', makerspace_a)
+    machine_type_b = MachineType.objects.create(
+        makerspace=makerspace_b,
+        slug='tenant-b-kiln',
+        name='Tenant B Kiln',
+    )
+
+    response = authenticated_client(manager_a).patch(
+        reverse(
+            'admin-machine-type-detail',
+            kwargs={'makerspace_id': makerspace_a.id, 'pk': machine_type_b.id},
+        ),
+        {'name': 'Leaked rename'},
+        format='json',
+    )
+
+    assert response.status_code == 404
+
+
+def test_machine_type_rename_requires_manage_machines_before_validation():
+    makerspace = enable_machines(make_space('machines-type-forbidden'))
+    actor = make_member(
+        'machines-type-forbidden-actor',
+        makerspace,
+        membership_role=MakerspaceMembership.Role.GUEST_ADMIN,
+        role=User.Role.GUEST_ADMIN,
+    )
+
+    response = authenticated_client(actor).patch(
+        reverse(
+            'admin-machine-type-detail',
+            kwargs={'makerspace_id': makerspace.id, 'pk': global_machine_type().id},
+        ),
+        {'name': ''},
+        format='json',
+    )
+
+    assert response.status_code == 403
+
+
+def test_machine_type_rename_name_collision_returns_400():
+    makerspace = enable_machines(make_space('machines-type-collision'))
+    manager = make_member('machines-type-collision-manager', makerspace)
+    MachineType.objects.create(
+        makerspace=makerspace,
+        slug='cnc-router',
+        name='CNC Router',
+    )
+    machine_type = MachineType.objects.create(
+        makerspace=makerspace,
+        slug='workshop-kiln',
+        name='Workshop Kiln',
+    )
+
+    response = authenticated_client(manager).patch(
+        reverse(
+            'admin-machine-type-detail',
+            kwargs={'makerspace_id': makerspace.id, 'pk': machine_type.id},
+        ),
+        {'name': 'cnc router'},
+        format='json',
+    )
+
+    assert response.status_code == 400
+    machine_type.refresh_from_db()
+    assert machine_type.name == 'Workshop Kiln'
+
+
 def test_set_status_validates_status_and_writes_audit_log():
     makerspace = enable_machines(make_space("machines-status"))
     manager = make_member("machines-status-manager", makerspace)

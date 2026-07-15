@@ -20,7 +20,10 @@ from apps.admin_api.views_machine_operators import (
     MachineOperatorDetailView,
     MachineOperatorsView,
 )
-from apps.admin_api.views_machine_types import MachineTypeListCreateView
+from apps.admin_api.views_machine_types import (
+    MachineTypeDetailView,
+    MachineTypeListCreateView,
+)
 from apps.admin_api.views_machines import MachineDetailView, MachineListCreateView
 from apps.admin_api.views_machines_actions import (
     MachineErrorLogView,
@@ -56,6 +59,11 @@ urlpatterns = [
         'makerspace/<int:makerspace_id>/machine-types',
         MachineTypeListCreateView.as_view(),
         name='admin-machine-types',
+    ),
+    path(
+        'makerspace/<int:makerspace_id>/machine-types/<int:pk>',
+        MachineTypeDetailView.as_view(),
+        name='admin-machine-type-detail',
     ),
     path(
         'machines/<int:pk>',

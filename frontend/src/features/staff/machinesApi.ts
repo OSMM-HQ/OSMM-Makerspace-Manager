@@ -10,7 +10,7 @@ export type MachineType = {
   icon: string;
   is_builtin: boolean;
   managing_action: string;
-  makerspace: number;
+  makerspace: number | null;
 };
 
 export type Machine = {
@@ -129,6 +129,16 @@ export function getMachineTypes(makerspaceId: number) {
 export function createMachineType(makerspaceId: number, payload: Pick<MachineType, "slug" | "name" | "icon">) {
   return staffRequest<MachineType>(`/admin/makerspace/${makerspaceId}/machine-types`, {
     method: "POST", body: JSON.stringify(payload),
+  });
+}
+
+export function updateMachineType(
+  makerspaceId: number,
+  typeId: number,
+  payload: Pick<MachineType, 'name' | 'icon'>,
+) {
+  return staffRequest<MachineType>(`/admin/makerspace/${makerspaceId}/machine-types/${typeId}`, {
+    method: 'PATCH', body: JSON.stringify(payload),
   });
 }
 

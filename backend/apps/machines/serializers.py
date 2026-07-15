@@ -34,6 +34,27 @@ class MachineTypeCreateSerializer(serializers.ModelSerializer):
         fields = ['slug', 'name', 'icon']
 
 
+class MachineTypeUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MachineType
+        fields = ['name', 'icon']
+
+    def validate_name(self, value):
+        duplicate = (
+            MachineType.objects.filter(
+                makerspace_id=self.instance.makerspace_id,
+                name__iexact=value,
+            )
+            .exclude(pk=self.instance.pk)
+            .exists()
+        )
+        if duplicate:
+            raise serializers.ValidationError(
+                'A machine type with this name already exists in this makerspace.'
+            )
+        return value
+
+
 class MachineOperatorSerializer(serializers.ModelSerializer):
     user = serializers.IntegerField(source='user_id', read_only=True)
     username = serializers.CharField(source='user.username', read_only=True)
