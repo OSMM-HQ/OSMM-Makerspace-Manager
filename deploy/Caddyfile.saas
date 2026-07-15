@@ -1,0 +1,46 @@
+{
+    # Permit certificates only for custom domains approved by the backend.
+    on_demand_tls {
+        ask http://backend:8000/api/v1/internal/tls-check
+    }
+}
+
+# Shared application routing for platform and custom-domain hosts.
+(backend_paths) {
+    # The TLS ask endpoint is internal-only, even though it also fails closed.
+    handle /api/v1/internal/* {
+        respond 403
+    }
+
+    @backend path /api/* /static/* /docs/* /redoc/* /schema/*
+    reverse_proxy @backend backend:8000 {
+        header_up X-Forwarded-Proto https
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+    }
+
+    reverse_proxy frontend:80
+}
+
+# Expose the S3-compatible API through its dedicated storage hostname.
+# files.osmm.me is a *.osmm.me subdomain, so it is served by the same static
+# Cloudflare Origin CA cert (each site block manages its own TLS — without this
+# Caddy would try public ACME for this host, which fails behind Cloudflare).
+files.osmm.me {
+    tls /etc/caddy/certs/osmm.crt /etc/caddy/certs/osmm.key
+    reverse_proxy minio:9000
+}
+
+# Platform apex and makerspace subdomains use the Cloudflare Origin CA cert.
+*.osmm.me, osmm.me {
+    tls /etc/caddy/certs/osmm.crt /etc/caddy/certs/osmm.key
+    import backend_paths
+}
+
+# Verified tenant custom domains receive public certificates on demand.
+https:// {
+    tls {
+        on_demand
+    }
+    import backend_paths
+}

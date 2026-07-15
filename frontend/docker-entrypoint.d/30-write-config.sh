@@ -41,6 +41,10 @@ validate_tenant_token() {
 
 api_url="${TENANT_API_URL:-${VITE_API_URL:-/api}}"
 tenant_token="${TENANT_TOKEN:-${VITE_TENANT_TOKEN:-}}"
+case "${TENANT_ORIGIN_BOOTSTRAP:-}" in
+  true|1) origin_bootstrap=true ;;
+  *) origin_bootstrap=false ;;
+esac
 config_path="${TENANT_CONFIG_PATH:-/usr/share/nginx/html/config.js}"
 
 validate_api_url "$api_url"
@@ -49,6 +53,7 @@ validate_tenant_token "$tenant_token"
 cat > "$config_path" <<EOF
 window.__TENANT__ = {
   apiUrl: "$(json_escape "$api_url")",
-  tenantToken: "$(json_escape "$tenant_token")"
+  tenantToken: "$(json_escape "$tenant_token")",
+  originBootstrap: $origin_bootstrap
 };
 EOF

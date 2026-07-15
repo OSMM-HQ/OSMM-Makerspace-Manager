@@ -1,0 +1,47 @@
+services:
+  # The SaaS edge is the only service that publishes host ports.
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./deploy/Caddyfile.saas:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - ${CADDY_CERTS_DIR:-./deploy/certs}:/etc/caddy/certs:ro
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+
+  # Keep the S3 API and console on the private Compose network.
+  minio:
+    ports: !reset []
+
+  backend:
+    environment:
+      PLATFORM_DOMAIN_SUFFIX: ${PLATFORM_DOMAIN_SUFFIX:-.osmm.me}
+      BEHIND_TRUSTED_PROXY: "true"
+      PLATFORM_ORIGIN_HOST: ${PLATFORM_ORIGIN_HOST:-origin.osmm.me}
+      INFRA_HOSTS: ${INFRA_HOSTS:-localhost,127.0.0.1,backend,backend:8000,origin.osmm.me,files.osmm.me,osmm.me}
+      PLATFORM_STAFF_ORIGINS: ${PLATFORM_STAFF_ORIGINS:-https://osmm.me}
+      DOMAIN_CHANGE_COOLDOWN_SECONDS: ${DOMAIN_CHANGE_COOLDOWN_SECONDS:-86400}
+      ENABLE_HTTPS: "true"
+      TRUST_X_FORWARDED_PROTO: "true"
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-https://*.osmm.me,https://osmm.me}
+      AWS_S3_PUBLIC_ENDPOINT_URL: https://files.osmm.me
+      PUBLIC_IMAGE_BASE_URL: https://files.osmm.me/public-images
+
+  frontend:
+    ports: !reset []
+    environment:
+      TENANT_API_URL: /api
+      TENANT_ORIGIN_BOOTSTRAP: "true"
+
+volumes:
+  caddy_data:
+  caddy_config:
