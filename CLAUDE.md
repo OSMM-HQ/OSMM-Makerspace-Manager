@@ -58,10 +58,10 @@ staff-origin / bootstrap / Host / TLS trust only when `frontend_domain_status=VE
   `.github/` community health: `SECURITY.md` (private disclosure → ryyan@lascade.com), `CODE_OF_CONDUCT.md`
   (Contributor Covenant 2.1), issue forms (`bug_report.yml`/`feature_request.yml`/`config.yml`), PR template.
   GitHub About metadata (description/homepage/topics) is a manual `gh`/web step (gh not installed in shell).
-- **Deferred — Phase 7 (destructive, post-QA):** `git filter-repo` history rewrite to purge pre-AGPL
-  AGPL-3.0-or-later-Noncommercial license files/text + force-push. Working tree is already AGPL-clean; only git HISTORY
-  carries AGPL-3.0-or-later. CAVEAT: cannot scrub GitHub's cached unreachable objects / existing forks / old PR refs —
-  requires a GitHub Support GC request.
+- **Phase 7 (destructive):** `git filter-repo` history rewrite that purges the pre-AGPL noncommercial
+  license files/text + force-push, so the repo history carries only the AGPL-3.0 license. Working tree was
+  already AGPL-clean; the rewrite scrubbed the old license text from all prior commits. CAVEAT: cannot scrub
+  GitHub's cached unreachable objects / existing forks / old PR refs — requires a GitHub Support GC request.
 
 ## Recent batch — Machines M1.5: modular UI + types + photo + warranty + consumables + public (2026-07-15)
 
