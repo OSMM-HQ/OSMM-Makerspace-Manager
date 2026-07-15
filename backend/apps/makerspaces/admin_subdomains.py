@@ -25,6 +25,9 @@ class SubdomainRequestAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     list_filter = ("status", "makerspace")
     search_fields = ("requested_label",)
     readonly_fields = (
+        "status",
+        "requested_label",
+        "makerspace",
         "requested_by",
         "decided_by",
         "decided_at",

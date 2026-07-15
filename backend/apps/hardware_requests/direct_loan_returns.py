@@ -244,6 +244,8 @@ def validate_evidence_upload(evidence, *, label):
             raise ReturnValidationError(
                 f"{label} evidence is invalid or exceeds the size limit."
             )
+        # Charge managed storage with the size finalize already computed (no extra HEAD);
+        # recompute_storage reconciles POST-mode + other object types.
         add_storage(evidence.makerspace, size)
     try:
         storage.validate_evidence_object(evidence.object_key)

@@ -56,6 +56,8 @@ def return_items(actor, request, evidence_id, remark, box_code, resolutions):
                 raise ReturnValidationError(
                     "Return evidence is invalid or exceeds the size limit."
                 )
+            # Charge managed storage with the size finalize already computed (no extra
+            # HEAD); recompute_storage reconciles POST-mode + other object types.
             add_storage(locked.makerspace, size)
         try:
             storage.validate_evidence_object(evidence.object_key)

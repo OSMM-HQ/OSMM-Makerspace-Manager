@@ -1,6 +1,7 @@
 ﻿from io import StringIO
 
 import pytest
+from django.contrib import admin as djadmin
 from django.core.management import call_command
 from django.test import override_settings
 from django.urls import reverse
@@ -12,10 +13,12 @@ from apps.evidence.models import EvidencePhoto
 from apps.integrations.dispatch import dispatch_email
 from apps.integrations.models import DailyEmailCounter, EmailLog
 from apps.inventory.models import InventoryProduct
+from apps.machines import services as machine_services
 from apps.machines.models import Machine, MachineType
 from apps.makerspaces import limits
-from apps.makerspaces.models import Makerspace, MakerspaceMembership
-from apps.printing.models import PrintBucket, PrintRequest
+from apps.makerspaces.admin_subdomains import SubdomainRequestAdmin
+from apps.makerspaces.models import Makerspace, MakerspaceMembership, SubdomainRequest
+from apps.printing.models import PrintBucket, PrintPrinter, PrintRequest
 from tests.return_helpers import authenticated_client, make_member, make_space, make_user
 
 pytestmark = pytest.mark.django_db
@@ -349,3 +352,139 @@ def test_self_host_custom_domain_still_works_for_superadmin():
     makerspace.refresh_from_db()
     assert makerspace.frontend_domain == "betamakerspace.com"
     assert makerspace.frontend_domain_status == Makerspace.DomainStatus.VERIFIED
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+def test_managed_printer_create_counts_against_machines_cap():
+    makerspace = make_space("limits-printer-machine-cap")
+    makerspace.resource_limit_overrides = {"machines": 1}
+    makerspace.save(update_fields=["resource_limit_overrides"])
+    manager = make_member("limits-printer-machine-cap-manager", makerspace)
+    machine_type = MachineType.objects.create(
+        makerspace=makerspace, slug="printer-cap-tool", name="Printer Cap Tool"
+    )
+    Machine.objects.create(
+        makerspace=makerspace,
+        machine_type=machine_type,
+        name="Existing machine",
+        created_by=manager,
+    )
+    client = authenticated_client(manager)
+    payload = {"makerspace": makerspace.id, "name": "Bambu A1", "status": "active"}
+
+    response = client.post(
+        reverse("printing:managed-printer-list"),
+        payload,
+        format="json",
+        HTTP_HOST="testserver",
+    )
+
+    assert response.status_code == 400
+    assert not PrintPrinter.objects.filter(makerspace=makerspace).exists()
+
+    with override_settings(PLATFORM_DOMAIN_SUFFIX=""):
+        response = client.post(
+            reverse("printing:managed-printer-list"),
+            payload,
+            format="json",
+            HTTP_HOST="testserver",
+        )
+
+    assert response.status_code == 201
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+def test_managed_unretire_machine_respects_cap():
+    makerspace = make_space("limits-machine-unretire-cap")
+    makerspace.resource_limit_overrides = {"machines": 1}
+    makerspace.save(update_fields=["resource_limit_overrides"])
+    manager = make_member("limits-machine-unretire-cap-manager", makerspace)
+    machine_type = MachineType.objects.create(
+        makerspace=makerspace, slug="unretire-cap-tool", name="Unretire Cap Tool"
+    )
+    Machine.objects.create(
+        makerspace=makerspace,
+        machine_type=machine_type,
+        name="Active machine",
+        created_by=manager,
+    )
+    retired = Machine.objects.create(
+        makerspace=makerspace,
+        machine_type=machine_type,
+        name="Retired machine",
+        created_by=manager,
+        is_active=False,
+    )
+
+    with pytest.raises(ValidationError):
+        machine_services.unretire_machine(retired, manager)
+
+    retired.refresh_from_db()
+    assert retired.is_active is False
+
+    with override_settings(PLATFORM_DOMAIN_SUFFIX=""):
+        machine_services.unretire_machine(retired, manager)
+
+    retired.refresh_from_db()
+    assert retired.is_active is True
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+def test_managed_api_client_reactivate_respects_cap():
+    makerspace = make_space("limits-api-client-reactivate-cap")
+    makerspace.resource_limit_overrides = {"api_clients": 1}
+    makerspace.save(update_fields=["resource_limit_overrides"])
+    manager = make_member("limits-api-client-reactivate-cap-manager", makerspace)
+    active, _ = ApiClient.issue(
+        label="Active client",
+        makerspace=makerspace,
+        allowed_origins=["https://active.example"],
+    )
+    inactive, _ = ApiClient.issue(
+        label="Inactive client",
+        makerspace=makerspace,
+        allowed_origins=["https://inactive.example"],
+    )
+    inactive.is_active = False
+    inactive.save(update_fields=["is_active", "updated_at"])
+    client = authenticated_client(manager)
+
+    response = client.patch(
+        reverse("admin-api-client", kwargs={"pk": inactive.id}),
+        {"is_active": True},
+        format="json",
+        HTTP_HOST="testserver",
+    )
+    assert response.status_code == 400
+    inactive.refresh_from_db()
+    assert inactive.is_active is False
+
+    response = client.patch(
+        reverse("admin-api-client", kwargs={"pk": active.id}),
+        {"is_active": False},
+        format="json",
+        HTTP_HOST="testserver",
+    )
+    assert response.status_code == 200
+    active.refresh_from_db()
+    assert active.is_active is False
+
+    with override_settings(PLATFORM_DOMAIN_SUFFIX=""):
+        response = client.patch(
+            reverse("admin-api-client", kwargs={"pk": inactive.id}),
+            {"is_active": True},
+            format="json",
+            HTTP_HOST="testserver",
+        )
+
+    assert response.status_code == 200
+    inactive.refresh_from_db()
+    assert inactive.is_active is True
+
+
+def test_subdomain_request_status_is_readonly_in_admin():
+    model_admin = SubdomainRequestAdmin(SubdomainRequest, djadmin.site)
+
+    assert {"status", "requested_label", "makerspace"} <= set(
+        model_admin.get_readonly_fields(None)
+    )

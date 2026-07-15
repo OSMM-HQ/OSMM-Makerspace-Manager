@@ -120,7 +120,9 @@ class MachineImageView(APIView):
             public_image_storage.delete_object(object_key)
             public_image_storage.delete_object(public_image_storage.staging_key(object_key))
             raise ValidationError({"object_key": "Uploaded file is not a valid image."})
-        add_storage(machine.makerspace, public_image_storage.object_size(object_key))
+        old_key = machine.image_key
+        if object_key != old_key:
+            add_storage(machine.makerspace, public_image_storage.object_size(object_key))
         machine = services.update_image(machine, request.user, object_key)
         return self._response(request, machine)
 

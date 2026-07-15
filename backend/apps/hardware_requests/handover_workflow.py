@@ -119,6 +119,9 @@ def issue_request(actor, request, evidence_id, remark="", asset_qr_payloads=None
                 raise RequestValidationError(
                     "Issue evidence is invalid or exceeds the size limit."
                 )
+            # Charge managed storage using the size finalize already computed (no extra
+            # HEAD). POST-mode and every other object type are reconciled by the
+            # authoritative recompute_storage command (see deploy-saas.md).
             add_storage(locked.makerspace, size)
         try:
             storage.validate_evidence_object(evidence.object_key)

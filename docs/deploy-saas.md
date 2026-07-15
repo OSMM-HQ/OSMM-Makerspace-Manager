@@ -67,6 +67,24 @@ docker compose -f docker-compose.prod.yml -f docker/compose.saas.yml exec backen
 
 The command is idempotent. Confirm container health before provisioning domains.
 
+### Fair-use limits and the storage counter
+
+Managed fair-use caps (products/assets/machines/events/staff/storage/print/email/API-clients) activate
+automatically once `PLATFORM_DOMAIN_SUFFIX` is set; they stay dormant on self-host. They are protective,
+not a paywall — a superadmin can raise any cap per space via `resource_limit_overrides` in the Django
+`/control/` admin (a numeric key, `-1`/`null` = unlimited; the `custom_domain` boolean grants a managed
+space its own custom domain).
+
+The per-space object-storage counter (`Makerspace.storage_bytes_used`) is maintained incrementally on
+upload/delete, but the authoritative figure is computed by the management command. **When enabling managed
+mode on a database that already holds evidence/print/image/document objects, run it once so pre-existing
+usage is counted, and re-run it periodically to repair any drift:**
+
+```bash
+docker compose -f docker-compose.prod.yml -f docker/compose.saas.yml exec backend \
+  python manage.py recompute_storage        # all spaces; pass a slug/id to scope to one
+```
+
 ## 4. Provision a platform subdomain
 
 As an authenticated active superadmin, call the provisioning endpoint for a makerspace:

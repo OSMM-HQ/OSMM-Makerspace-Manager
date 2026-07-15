@@ -102,7 +102,15 @@ class ApiClientDetailView(generics.RetrieveUpdateDestroyAPIView):
         )
 
     def perform_update(self, serializer):
-        instance = serializer.save()
+        makerspace = serializer.instance.makerspace
+        reactivating = (
+            not serializer.instance.is_active
+            and serializer.validated_data.get("is_active") is True
+        )
+        with transaction.atomic():
+            if reactivating:
+                limits.check_quota(makerspace, "api_clients", adding=1)
+            instance = serializer.save()
         sync_makerspace_origins(instance.makerspace)
         audit.record(
             self.request.user,

@@ -123,8 +123,9 @@ class PrinterImageView(APIView):
             raise ValidationError(
                 {"object_key": "Uploaded file is not a valid image."}
             )
-        add_storage(printer.makerspace, public_image_storage.object_size(object_key))
         old_key = printer.image_key
+        if object_key != old_key:
+            add_storage(printer.makerspace, public_image_storage.object_size(object_key))
         if old_key and old_key != object_key:
             free_storage(printer.makerspace, public_image_storage.object_size(old_key))
             public_image_storage.delete_object(old_key)

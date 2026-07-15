@@ -259,8 +259,9 @@ class MakerspaceImageView(APIView):
             raise ValidationError(
                 {"object_key": "Uploaded file is not a valid image."}
             )
-        add_storage(makerspace, public_image_storage.object_size(object_key))
         old_key = getattr(makerspace, self.image_field)
+        if object_key != old_key:
+            add_storage(makerspace, public_image_storage.object_size(object_key))
         if old_key and old_key != object_key:
             free_storage(makerspace, public_image_storage.object_size(old_key))
             public_image_storage.delete_object(old_key)
