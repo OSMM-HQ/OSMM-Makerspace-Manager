@@ -7232,6 +7232,92 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/provision-subdomain": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_provision_subdomain_create",
+                "summary": "Provision a platform subdomain for a makerspace",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin makerspaces"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProvisionSubdomainRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProvisionSubdomainRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProvisionSubdomainRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Makerspace"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ProvisionSubdomainValidationError"
+                                }
+                            }
+                        },
+                        "description": "Invalid or unavailable platform subdomain label."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HostingError"
+                                }
+                            }
+                        },
+                        "description": "Active superadmin access is required."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HostingError"
+                                }
+                            }
+                        },
+                        "description": "Makerspace not found."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/qr-print-batches": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_qr_print_batches_list",
@@ -19149,6 +19235,17 @@
                     "status"
                 ]
             },
+            "HostingError": {
+                "type": "object",
+                "properties": {
+                    "detail": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "detail"
+                ]
+            },
             "IntegrationConfiguredHealth": {
                 "type": "object",
                 "properties": {
@@ -24850,6 +24947,32 @@
                 "required": [
                     "product",
                     "scans"
+                ]
+            },
+            "ProvisionSubdomainRequest": {
+                "type": "object",
+                "properties": {
+                    "label": {
+                        "type": "string",
+                        "maxLength": 63
+                    }
+                },
+                "required": [
+                    "label"
+                ]
+            },
+            "ProvisionSubdomainValidationError": {
+                "type": "object",
+                "properties": {
+                    "label": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "label"
                 ]
             },
             "PublicAvailabilityModeFc2Enum": {

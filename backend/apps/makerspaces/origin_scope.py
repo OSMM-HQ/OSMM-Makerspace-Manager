@@ -11,6 +11,7 @@ AMBIGUOUS_STAFF_ORIGIN_SCOPE = object()
 _MAKERSPACE_KWARG_ROUTES = {
     "admin-machine-types": "makerspace_id",
     "admin-machine-type-detail": "makerspace_id",
+    "admin-makerspace-provision-subdomain": "makerspace_id",
 }
 
 

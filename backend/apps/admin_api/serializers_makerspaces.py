@@ -1,5 +1,6 @@
 import re
 
+from django.conf import settings
 from django.db import transaction
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -9,6 +10,7 @@ from apps.inventory import public_image_storage
 from apps.integrations.email import platform_email_configured
 from apps.integrations.smtp_validation import validate_smtp_settings
 from apps.makerspaces.domain_verification import expected_record
+from apps.makerspaces.hosting import canonical_host
 from apps.makerspaces.models import (
     Makerspace,
     default_branding_config,
@@ -190,6 +192,17 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             if not _HOSTNAME_RE.match(normalized_domain):
                 raise serializers.ValidationError(
                     {"frontend_domain": "Enter a valid domain, e.g. alphamakerspace.com."}
+                )
+
+            platform_suffix = str(settings.PLATFORM_DOMAIN_SUFFIX or "").strip().lower()
+            canonical = canonical_host(normalized_domain)
+            if platform_suffix and canonical and canonical.endswith(platform_suffix):
+                raise serializers.ValidationError(
+                    {
+                        "frontend_domain": (
+                            "Platform subdomains are provisioned by staff, not set directly."
+                        )
+                    }
                 )
 
             queryset = Makerspace.objects.filter(frontend_domain__iexact=normalized_domain)

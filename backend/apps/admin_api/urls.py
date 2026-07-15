@@ -9,6 +9,7 @@ from apps.admin_api.views_email_templates import (
 )
 from apps.admin_api.views_email_logs import EmailLogListView, EmailLogRetryView
 from apps.admin_api.views_integration_health import IntegrationHealthView
+from apps.admin_api.views_hosting import MakerspaceProvisionSubdomainView
 from apps.admin_api.views_machine_documents import (
     MachineDocumentDeleteView,
     MachineDocumentPresignView,
@@ -181,6 +182,11 @@ urlpatterns = [
     ),
     path("makerspaces", views.MakerspaceListCreateView.as_view(), name="admin-makerspaces"),
     path("makerspaces/<int:pk>", views.MakerspaceDetailView.as_view(), name="admin-makerspace"),
+    path(
+        "makerspace/<int:makerspace_id>/provision-subdomain",
+        MakerspaceProvisionSubdomainView.as_view(),
+        name="admin-makerspace-provision-subdomain",
+    ),
     path(
         "makerspace/<int:makerspace_id>/verify-domain",
         views.MakerspaceVerifyDomainView.as_view(),
