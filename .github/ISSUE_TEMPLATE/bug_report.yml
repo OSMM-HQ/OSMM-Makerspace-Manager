@@ -1,0 +1,61 @@
+name: Bug report
+description: Report a reproducible problem with OSMM
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve OSMM. Do not include secrets or sensitive data. Report security vulnerabilities privately using our security policy.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the problem and any relevant context.
+      placeholder: Tell us what you observed.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Provide the smallest reliable sequence that reproduces the problem.
+      placeholder: |
+        1. Go to ...
+        2. Select ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+    validations:
+      required: true
+  - type: dropdown
+    id: deployment-mode
+    attributes:
+      label: Deployment mode
+      description: Where did the problem occur?
+      options:
+        - Central multi-tenant
+        - Single-tenant custom domain
+        - SaaS *.osmm.me
+        - Local dev
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      description: Provide the OSMM release, tag, or commit SHA.
+      placeholder: v1.2.3 or abc1234
+    validations:
+      required: true
+  - type: textarea
+    id: backend-logs
+    attributes:
+      label: Backend logs
+      description: Optional. Paste relevant, redacted backend logs.
+      render: shell

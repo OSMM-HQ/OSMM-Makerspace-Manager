@@ -1,0 +1,44 @@
+name: Feature request
+description: Suggest an improvement or new capability for OSMM
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for proposing an improvement. Please focus on the user problem and desired outcome.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What problem would this feature solve, and for whom?
+    validations:
+      required: true
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior or outcome you would like.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe any workarounds or alternative approaches you considered.
+    validations:
+      required: true
+  - type: dropdown
+    id: affected-area
+    attributes:
+      label: Affected area
+      options:
+        - Inventory
+        - Hardware requests
+        - 3D printing
+        - Machines
+        - Hosting/multi-tenancy
+        - Admin/RBAC
+        - Other
+    validations:
+      required: true

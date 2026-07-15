@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="LICENSE.md"><img alt="License: AGPL-3.0-or-later" src="https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg"></a>
+  <a href="LICENSE"><img alt="License: AGPL-3.0-or-later" src="https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg"></a>
   <a href="https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/actions/workflows/release.yml"><img alt="Release" src="https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/actions/workflows/release.yml/badge.svg"></a>
   <img alt="Stack" src="https://img.shields.io/badge/stack-Django%206%20%C2%B7%20React%2019-0b7285.svg">
   <a href=".github/CONTRIBUTING.md"><img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg"></a>
@@ -148,7 +148,7 @@ request you agree your contribution is offered under the project's AGPL-3.0-or-l
 ## License
 
 OSMM is **free and open source software**, licensed under the
-**[GNU Affero General Public License v3](LICENSE.md)** (`AGPL-3.0-or-later`).
+**[GNU Affero General Public License v3](LICENSE)** (`AGPL-3.0-or-later`).
 
 You are free to use, study, share, and modify OSMM — for **any** purpose, commercial or
 noncommercial — subject to the AGPL. Because the AGPL is a **network copyleft** license: if you run
