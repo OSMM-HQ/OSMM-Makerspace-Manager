@@ -45,7 +45,7 @@ def _public_client():
 
 
 def build_object_key(kind, makerspace_id, ext):
-    if kind not in {"items", "makerspace", "printers"}:
+    if kind not in {"items", "machine", "makerspace", "printers"}:
         raise ValueError("Invalid public image kind.")
     return f"{kind}/{makerspace_id}/{uuid.uuid4().hex}{ext}"
 
@@ -183,12 +183,14 @@ def public_image_key_in_use(
     object_key,
     *,
     product_id=None,
+    machine_id=None,
     printer_id=None,
     makerspace_field="",
 ):
     from django.db.models import Q
 
     from apps.inventory.models import InventoryProduct
+    from apps.machines.models import Machine
     from apps.makerspaces.models import Makerspace
     from apps.printing.models import PrintPrinter
 
@@ -199,6 +201,15 @@ def public_image_key_in_use(
     if product_id is not None:
         products = products.exclude(pk=product_id)
     if products.exists():
+        return True
+
+    machines = Machine.objects.filter(
+        makerspace_id=makerspace_id,
+        image_key=object_key,
+    )
+    if machine_id is not None:
+        machines = machines.exclude(pk=machine_id)
+    if machines.exists():
         return True
 
     printers = PrintPrinter.objects.filter(

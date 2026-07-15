@@ -41,6 +41,7 @@ class MachineAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         "status",
         "is_active",
         "linked_print_printer",
+        "image_key",
         "created_by",
         "created_at",
         "updated_at",

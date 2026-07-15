@@ -2558,6 +2558,180 @@
                 }
             }
         },
+        "/api/v1/admin/machines/{id}/image": {
+            "post": {
+                "operationId": "api_v1_admin_machines_image_create",
+                "summary": "Create a machine image upload URL",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageUploadRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageUploadRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageUploadRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PublicImageUploadResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid image upload request."
+                    },
+                    "403": {
+                        "description": "Machine management access is required."
+                    },
+                    "404": {
+                        "description": "Machine not found."
+                    },
+                    "503": {
+                        "description": "Public image storage is unavailable."
+                    }
+                }
+            },
+            "put": {
+                "operationId": "api_v1_admin_machines_image_update",
+                "summary": "Attach an uploaded image to a machine",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageAttachRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageAttachRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicImageAttachRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Machine"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid image object key or size."
+                    },
+                    "403": {
+                        "description": "Machine management access is required."
+                    },
+                    "404": {
+                        "description": "Machine not found."
+                    },
+                    "503": {
+                        "description": "Public image storage is unavailable."
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "api_v1_admin_machines_image_destroy",
+                "summary": "Clear a machine image",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Machine"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "description": "Machine management access is required."
+                    },
+                    "404": {
+                        "description": "Machine not found."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/machines/{id}/operator-candidates": {
             "get": {
                 "operationId": "api_v1_admin_machines_operator_candidates_list",
@@ -19471,6 +19645,11 @@
                         "format": "uri",
                         "maxLength": 200
                     },
+                    "image_url": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
                     "is_active": {
                         "type": "boolean",
                         "readOnly": true
@@ -19528,6 +19707,7 @@
                     "can_unretire",
                     "created_at",
                     "id",
+                    "image_url",
                     "is_active",
                     "linked_print_printer",
                     "machine_type",
@@ -22125,6 +22305,11 @@
                         "type": "string",
                         "format": "uri",
                         "maxLength": 200
+                    },
+                    "image_url": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
                     },
                     "is_active": {
                         "type": "boolean",

@@ -74,6 +74,7 @@ class Machine(models.Model):
     )
     firmware_version = models.CharField(max_length=100, blank=True)
     camera_feed_url = models.URLField(blank=True)
+    image_key = models.CharField(max_length=300, blank=True, default="")
     is_active = models.BooleanField(default=True)
     # Set only by the linking service; read-only over REST/admin.
     linked_print_printer = models.OneToOneField(

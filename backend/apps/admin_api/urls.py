@@ -16,6 +16,7 @@ from apps.admin_api.views_machine_documents import (
     MachineDocumentUrlView,
 )
 from apps.admin_api.views_machine_candidates import MachineOperatorCandidatesView
+from apps.admin_api.views_machine_image import MachineImageView
 from apps.admin_api.views_machine_operators import (
     MachineOperatorDetailView,
     MachineOperatorsView,
@@ -69,6 +70,11 @@ urlpatterns = [
         'machines/<int:pk>',
         MachineDetailView.as_view(),
         name='admin-machine-detail',
+    ),
+    path(
+        'machines/<int:pk>/image',
+        MachineImageView.as_view(),
+        name='admin-machine-image',
     ),
     path(
         'machines/<int:pk>/set-status',

@@ -1,4 +1,5 @@
 import { staffRequest } from "../../lib/api";
+import { uploadPublicImage } from "./ImageUploader";
 
 export type MachineStatus = "idle" | "running" | "reserved" | "maintenance" | "offline";
 export type MachineAccessLevel = "operate" | "manage" | "full";
@@ -23,6 +24,7 @@ export type Machine = {
   status: MachineStatus;
   firmware_version: string;
   camera_feed_url: string;
+  image_url: string | null;
   is_active: boolean;
   linked_print_printer: number | null;
   usage_hours: string;
@@ -150,6 +152,18 @@ export function updateMachine(machineId: number, payload: MachinePatch) {
   return staffRequest<Machine>(`/admin/machines/${machineId}`, {
     method: "PATCH", body: JSON.stringify(payload),
   });
+}
+
+export function machineImageEndpoint(machineId: number) {
+  return `/admin/machines/${machineId}/image`;
+}
+
+export function uploadMachineImage(machineId: number, file: File) {
+  return uploadPublicImage(machineImageEndpoint(machineId), file);
+}
+
+export function deleteMachineImage(machineId: number) {
+  return staffRequest<Machine>(machineImageEndpoint(machineId), { method: "DELETE" });
 }
 
 export function setMachineStatus(machineId: number, status: MachineStatus) {

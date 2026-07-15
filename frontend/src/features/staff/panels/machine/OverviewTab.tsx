@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
   machineKeys,
+  machineImageEndpoint,
   retireMachine,
   setMachineStatus,
   unretireMachine,
@@ -10,6 +11,7 @@ import {
   type Machine,
   type MachineStatus,
 } from "../../machinesApi";
+import { ImageUploader } from "../../ImageUploader";
 
 const MACHINE_STATUSES: MachineStatus[] = ["idle", "running", "reserved", "maintenance", "offline"];
 type MachineForm = Pick<Machine, "name" | "location" | "notes" | "firmware_version" | "camera_feed_url">;
@@ -70,6 +72,17 @@ export function OverviewTab({ machine, makerspaceId, canEdit, canOperate, canRet
 
   return (
     <div className="grid gap-5">
+      {canEdit ? (
+        <section className="grid gap-3">
+          <h3 className="text-sm font-semibold text-ink">Machine photo</h3>
+          <ImageUploader
+            endpoint={machineImageEndpoint(machine.id)}
+            currentUrl={machine.image_url}
+            label="Machine photo"
+            onChanged={() => { void refreshMachine(); }}
+          />
+        </section>
+      ) : null}
       <section className="grid gap-3">
         <h3 className="text-sm font-semibold text-ink">Machine details</h3>
         <label className="grid gap-1 text-xs font-semibold text-muted">Name

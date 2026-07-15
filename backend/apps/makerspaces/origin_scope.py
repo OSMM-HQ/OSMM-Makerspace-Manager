@@ -220,6 +220,7 @@ _MODEL_LOOKUPS = {
     "to-buy-receipt-url": ("procurement.ToBuyReceipt", "to_buy_item__makerspace_id"),
     "to-buy-receipt-detail": ("procurement.ToBuyReceipt", "to_buy_item__makerspace_id"),
     "admin-machine-detail": ("machines.Machine", "makerspace_id"),
+    "admin-machine-image": ("machines.Machine", "makerspace_id"),
     "admin-machine-set-status": ("machines.Machine", "makerspace_id"),
     "admin-machine-retire": ("machines.Machine", "makerspace_id"),
     "admin-machine-unretire": ("machines.Machine", "makerspace_id"),

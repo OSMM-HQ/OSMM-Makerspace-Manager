@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
+from apps.inventory import public_image_storage
 from apps.machines import services
 from apps.machines.models import (
     Machine,
@@ -138,6 +139,7 @@ class MachineSerializer(serializers.ModelSerializer):
         write_only=True,
     )
     usage_hours = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
     can_operate = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
     can_delegate = serializers.SerializerMethodField()
@@ -159,6 +161,7 @@ class MachineSerializer(serializers.ModelSerializer):
             'status',
             'firmware_version',
             'camera_feed_url',
+            'image_url',
             'is_active',
             'linked_print_printer',
             'usage_hours',
@@ -184,6 +187,9 @@ class MachineSerializer(serializers.ModelSerializer):
         if hasattr(obj, 'usage_total'):
             return obj.usage_total
         return services.machine_usage_total(obj)
+
+    def get_image_url(self, obj) -> str | None:
+        return public_image_storage.public_url(obj.image_key) or None
 
     def _capabilities(self, obj):
         from apps.machines import access

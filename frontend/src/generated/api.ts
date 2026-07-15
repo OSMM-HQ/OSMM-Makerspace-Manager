@@ -86,6 +86,7 @@ export const openApiPaths = [
   "/api/v1/admin/machines/{id}/documents",
   "/api/v1/admin/machines/{id}/documents/presign",
   "/api/v1/admin/machines/{id}/error-logs",
+  "/api/v1/admin/machines/{id}/image",
   "/api/v1/admin/machines/{id}/operator-candidates",
   "/api/v1/admin/machines/{id}/operators",
   "/api/v1/admin/machines/{id}/operators/{user_pk}",

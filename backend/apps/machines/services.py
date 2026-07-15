@@ -6,6 +6,7 @@ from django.db.models import Sum
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.audit.services import record
+from apps.inventory import public_image_storage
 from apps.machines import access, storage
 from apps.machines.models import (
     Machine, MachineDocument, MachineErrorLog, MachineOperator, MachineUsageEntry,
@@ -58,6 +59,33 @@ def log_usage(machine, actor, hours, note=""):
 
 def machine_usage_total(machine):
     return machine.usage_entries.aggregate(total=Sum("hours"))["total"] or Decimal("0")
+
+
+@transaction.atomic
+def update_image(machine, actor, object_key):
+    machine = Machine.objects.select_for_update().select_related("makerspace").get(
+        pk=machine.pk
+    )
+    old_key = machine.image_key
+    if old_key and old_key != object_key:
+        public_image_storage.delete_object(old_key)
+    machine.image_key = object_key
+    machine.save(update_fields=["image_key", "updated_at"])
+    _audit(machine, actor, "machine.image_updated")
+    return machine
+
+
+@transaction.atomic
+def remove_image(machine, actor):
+    machine = Machine.objects.select_for_update().select_related("makerspace").get(
+        pk=machine.pk
+    )
+    if machine.image_key:
+        public_image_storage.delete_object(machine.image_key)
+    machine.image_key = ""
+    machine.save(update_fields=["image_key", "updated_at"])
+    _audit(machine, actor, "machine.image_removed")
+    return machine
 
 
 @transaction.atomic

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { EmptyState, Skeleton, StatusBadge } from "../../../components/ui";
+import { ImageThumbnail } from "../../../components/ui/ImageThumbnail";
 import { collectionResults, createMachine, getMachines, getMachineTypes, machineKeys, type MachineStatus } from "../machinesApi";
 import { MachineDrawer } from "./machine/MachineDrawer";
 import { MachineTypesPanel } from "./MachineTypesPanel";
@@ -97,7 +98,10 @@ export function MachinesPanel({ makerspaceId, canManage }: { makerspaceId: numbe
           {rows.map((machine) => (
             <button key={machine.id} type="button" onClick={() => setSelectedId(machine.id)}
               className="grid w-full gap-2 border-b border-line px-3 py-3 text-left last:border-b-0 hover:bg-surface sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto_auto] sm:items-center sm:gap-3">
-              <span className="min-w-0"><strong className="block truncate text-sm text-ink">{machine.name}</strong><span className="text-xs text-muted">{machine.location || "No location"}</span></span>
+              <span className="flex min-w-0 items-center gap-3">
+                {machine.image_url ? <ImageThumbnail src={machine.image_url} alt={machine.name} className="h-10 w-10" /> : null}
+                <span className="min-w-0"><strong className="block truncate text-sm text-ink">{machine.name}</strong><span className="text-xs text-muted">{machine.location || "No location"}</span></span>
+              </span>
               <span className="text-sm text-muted">{machine.machine_type.name}</span>
               <span><StatusBadge status={machine.status} /></span>
               <span className="text-sm text-muted sm:text-right">{machine.usage_hours} h</span>

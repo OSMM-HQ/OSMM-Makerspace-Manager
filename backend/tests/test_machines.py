@@ -1,5 +1,6 @@
 from decimal import Decimal
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 from django.db import IntegrityError, connection, transaction
@@ -8,6 +9,8 @@ from django.urls import reverse
 
 from apps.accounts.models import User
 from apps.audit.models import AuditLog
+from apps.evidence.storage import StorageUnavailable
+from apps.inventory.models import InventoryProduct
 from apps.machines import access
 from apps.machines.models import (
     Machine,
@@ -16,6 +19,7 @@ from apps.machines.models import (
     MachineType,
     MachineUsageEntry,
 )
+from apps.makerspaces import lifecycle as makerspace_lifecycle
 from apps.makerspaces.models import MakerspaceMembership
 from apps.printing.models import PrintPrinter
 from tests.return_helpers import authenticated_client, make_member, make_space, make_user
@@ -320,6 +324,32 @@ def assign_operator(client, machine, user, access_level):
         {"user_id": user.id, "access_level": access_level},
         format="json",
     )
+
+
+def machine_image_url(machine):
+    return reverse("admin-machine-image", kwargs={"pk": machine.id})
+
+
+def mock_machine_image_storage(monkeypatch, *, size=123):
+    from apps.inventory import public_image_storage
+
+    monkeypatch.setattr(
+        public_image_storage,
+        "presigned_upload",
+        lambda object_key, content_type: {
+            "url": "http://minio/public-upload",
+            "fields": {"key": object_key, "Content-Type": content_type},
+        },
+    )
+    monkeypatch.setattr(
+        public_image_storage,
+        "finalize_upload",
+        lambda object_key: public_image_storage._finalize_result(object_key, size),
+    )
+    monkeypatch.setattr(public_image_storage, "sniff_is_valid_image", lambda key: True)
+    delete = Mock()
+    monkeypatch.setattr(public_image_storage, "delete_object", delete)
+    return delete
 
 
 def test_space_manager_can_create_machine_with_global_type_and_created_by():
@@ -1023,3 +1053,175 @@ def test_machine_serializer_exposes_can_manage_capability():
     )
     assert response.status_code == 200
     assert response.data["can_manage"] is True
+
+
+def test_machine_image_presign_finalize_delete_and_audit(monkeypatch, settings):
+    settings.PUBLIC_IMAGE_BASE_URL = "http://cdn.test/public-images"
+    delete_object = mock_machine_image_storage(monkeypatch)
+    makerspace = enable_machines(make_space("machines-image-flow"))
+    manager = make_member("machines-image-flow-manager", makerspace)
+    machine = make_machine(makerspace)
+    client = authenticated_client(manager)
+    url = machine_image_url(machine)
+
+    presigned = client.post(
+        url,
+        {"content_type": "image/png", "filename": "machine.png"},
+        format="json",
+    )
+    object_key = presigned.data["object_key"]
+    finalized = client.put(url, {"object_key": object_key}, format="json")
+
+    assert presigned.status_code == 201
+    assert object_key.startswith(f"machine/{makerspace.id}/")
+    assert finalized.status_code == 200
+    assert "image_key" not in finalized.data
+    assert finalized.data["image_url"] == f"http://cdn.test/public-images/{object_key}"
+    machine.refresh_from_db()
+    assert machine.image_key == object_key
+    assert AuditLog.objects.filter(action="machine.image_updated").exists()
+
+    removed = client.delete(url)
+
+    assert removed.status_code == 200
+    assert "image_key" not in removed.data
+    assert removed.data["image_url"] is None
+    machine.refresh_from_db()
+    assert machine.image_key == ""
+    delete_object.assert_called_once_with(object_key)
+    assert AuditLog.objects.filter(action="machine.image_removed").exists()
+
+
+def test_machine_image_rejects_invalid_mime_without_calling_storage(monkeypatch):
+    makerspace = enable_machines(make_space("machines-image-mime"))
+    manager = make_member("machines-image-mime-manager", makerspace)
+    machine = make_machine(makerspace)
+    presign = Mock(side_effect=AssertionError("storage should not be called"))
+    monkeypatch.setattr(
+        "apps.inventory.public_image_storage.presigned_upload",
+        presign,
+    )
+
+    response = authenticated_client(manager).post(
+        machine_image_url(machine),
+        {"content_type": "image/svg+xml", "filename": "machine.svg"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    presign.assert_not_called()
+    assert AuditLog.objects.count() == 0
+
+
+def test_machine_image_rejects_foreign_key_prefix(monkeypatch):
+    mock_machine_image_storage(monkeypatch)
+    makerspace = enable_machines(make_space("machines-image-prefix"))
+    manager = make_member("machines-image-prefix-manager", makerspace)
+    machine = make_machine(makerspace)
+
+    response = authenticated_client(manager).put(
+        machine_image_url(machine),
+        {"object_key": "machine/999/not-yours.png"},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    machine.refresh_from_db()
+    assert machine.image_key == ""
+
+
+def test_machine_image_rejects_key_reused_by_another_model(monkeypatch):
+    mock_machine_image_storage(monkeypatch)
+    makerspace = enable_machines(make_space("machines-image-reuse"))
+    manager = make_member("machines-image-reuse-manager", makerspace)
+    machine = make_machine(makerspace)
+    object_key = f"machine/{makerspace.id}/shared.png"
+    InventoryProduct.objects.create(
+        makerspace=makerspace,
+        name="Image key owner",
+        image_key=object_key,
+    )
+
+    response = authenticated_client(manager).put(
+        machine_image_url(machine),
+        {"object_key": object_key},
+        format="json",
+    )
+
+    assert response.status_code == 400
+    machine.refresh_from_db()
+    assert machine.image_key == ""
+
+
+def test_machine_image_storage_unavailable_returns_503(monkeypatch):
+    makerspace = enable_machines(make_space("machines-image-storage"))
+    manager = make_member("machines-image-storage-manager", makerspace)
+    machine = make_machine(makerspace)
+
+    def unavailable(*args, **kwargs):
+        raise StorageUnavailable()
+
+    monkeypatch.setattr(
+        "apps.inventory.public_image_storage.presigned_upload",
+        unavailable,
+    )
+    response = authenticated_client(manager).post(
+        machine_image_url(machine),
+        {"content_type": "image/jpeg", "filename": "machine.jpg"},
+        format="json",
+    )
+
+    assert response.status_code == 503
+    assert AuditLog.objects.count() == 0
+
+
+def test_makerspace_purge_collection_includes_machine_image():
+    makerspace = enable_machines(make_space("machines-image-purge"))
+    machine = make_machine(makerspace)
+    machine.image_key = f"machine/{makerspace.id}/purge.png"
+    machine.save(update_fields=["image_key"])
+
+    keys = makerspace_lifecycle._collect_public_image_keys(makerspace)
+
+    assert machine.image_key in keys
+
+
+def test_operate_only_operator_cannot_manage_machine_image(monkeypatch):
+    mock_machine_image_storage(monkeypatch)
+    makerspace = enable_machines(make_space("machines-image-operator"))
+    operator = make_member(
+        "machines-image-operator-user",
+        makerspace,
+        membership_role=MakerspaceMembership.Role.GUEST_ADMIN,
+        role=User.Role.GUEST_ADMIN,
+    )
+    machine = make_machine(makerspace)
+    MachineOperator.objects.create(
+        machine=machine,
+        user=operator,
+        access_level=MachineOperator.AccessLevel.OPERATE,
+    )
+
+    response = authenticated_client(operator).post(
+        machine_image_url(machine),
+        {"content_type": "image/png", "filename": "machine.png"},
+        format="json",
+    )
+
+    assert response.status_code == 403
+
+
+def test_machine_image_is_404_across_tenants(monkeypatch):
+    mock_machine_image_storage(monkeypatch)
+    own_space = enable_machines(make_space("machines-image-own"))
+    other_space = enable_machines(make_space("machines-image-other"))
+    manager = make_member("machines-image-own-manager", own_space)
+    other_machine = make_machine(other_space)
+
+    response = authenticated_client(manager).post(
+        machine_image_url(other_machine),
+        {"content_type": "image/png", "filename": "machine.png"},
+        format="json",
+    )
+
+    assert response.status_code == 404
