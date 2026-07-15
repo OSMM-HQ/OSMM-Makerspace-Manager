@@ -38,6 +38,7 @@ from apps.admin_api.views_notification_rules import NotificationRulesView
 from apps.admin_api.views_platform import PlatformEmailSettingsView
 from apps.admin_api.views_warranty import (
     AssetWarrantyView,
+    MachineWarrantyView,
     MakerspaceWarrantyReportView,
     PrinterWarrantyView,
 )
@@ -75,6 +76,11 @@ urlpatterns = [
         'machines/<int:pk>/image',
         MachineImageView.as_view(),
         name='admin-machine-image',
+    ),
+    path(
+        'machines/<int:pk>/warranty',
+        MachineWarrantyView.as_view(),
+        name='admin-machine-warranty',
     ),
     path(
         'machines/<int:pk>/set-status',

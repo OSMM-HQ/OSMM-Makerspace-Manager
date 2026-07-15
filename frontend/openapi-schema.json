@@ -3201,6 +3201,98 @@
                 }
             }
         },
+        "/api/v1/admin/machines/{id}/warranty": {
+            "get": {
+                "operationId": "api_v1_admin_machines_warranty_retrieve",
+                "summary": "Retrieve warranty details for a machine",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Warranty"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "put": {
+                "operationId": "api_v1_admin_machines_warranty_update",
+                "summary": "Create or update warranty details for a machine",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyUpsert"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyUpsert"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/WarrantyUpsert"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Warranty"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid warranty details."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/machines/documents/{id}": {
             "delete": {
                 "operationId": "api_v1_admin_machines_documents_destroy",
@@ -10343,6 +10435,43 @@
             }
         },
         "/api/v1/admin/warranty/{id}/documents": {
+            "get": {
+                "operationId": "api_v1_admin_warranty_documents_list",
+                "summary": "List documents attached to a warranty",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin warranty"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/WarrantyDocument"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
             "post": {
                 "operationId": "api_v1_admin_warranty_documents_create",
                 "summary": "Finalize an uploaded warranty document",
@@ -19650,6 +19779,10 @@
                         "nullable": true,
                         "readOnly": true
                     },
+                    "warranty_status": {
+                        "type": "string",
+                        "readOnly": true
+                    },
                     "is_active": {
                         "type": "boolean",
                         "readOnly": true
@@ -19716,7 +19849,8 @@
                     "name",
                     "status",
                     "updated_at",
-                    "usage_hours"
+                    "usage_hours",
+                    "warranty_status"
                 ]
             },
             "MachineDocument": {
@@ -22309,6 +22443,10 @@
                     "image_url": {
                         "type": "string",
                         "nullable": true,
+                        "readOnly": true
+                    },
+                    "warranty_status": {
+                        "type": "string",
                         "readOnly": true
                     },
                     "is_active": {
@@ -27273,6 +27411,16 @@
                         "nullable": true,
                         "readOnly": true
                     },
+                    "machine_id": {
+                        "type": "integer",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "machine_name": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
                     "purchased_on": {
                         "type": "string",
                         "format": "date",
@@ -27313,6 +27461,8 @@
                     "host_kind",
                     "host_label",
                     "id",
+                    "machine_id",
+                    "machine_name",
                     "printer_id",
                     "printer_model",
                     "printer_name",

@@ -23,6 +23,13 @@ class Warranty(models.Model):
         on_delete=models.CASCADE,
         related_name="warranty",
     )
+    machine = models.OneToOneField(
+        "machines.Machine",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="warranty",
+    )
     purchased_on = models.DateField(null=True, blank=True)
     warranty_expires_on = models.DateField(null=True, blank=True)
     vendor_name = models.CharField(max_length=200, blank=True)
@@ -34,8 +41,9 @@ class Warranty(models.Model):
         constraints = [
             models.CheckConstraint(
                 condition=(
-                    models.Q(asset__isnull=False, printer__isnull=True)
-                    | models.Q(asset__isnull=True, printer__isnull=False)
+                    models.Q(asset__isnull=False, printer__isnull=True, machine__isnull=True)
+                    | models.Q(asset__isnull=True, printer__isnull=False, machine__isnull=True)
+                    | models.Q(asset__isnull=True, printer__isnull=True, machine__isnull=False)
                 ),
                 name="warranty_exactly_one_host",
             ),
@@ -47,10 +55,14 @@ class Warranty(models.Model):
             errors["asset"] = "Asset must belong to the same makerspace."
         if self.printer_id and self.printer.makerspace_id != self.makerspace_id:
             errors["printer"] = "Printer must belong to the same makerspace."
+        if self.machine_id and self.machine.makerspace_id != self.makerspace_id:
+            errors["machine"] = "Machine must belong to the same makerspace."
         if errors:
             raise ValidationError(errors)
 
     def __str__(self):
+        if self.machine_id:
+            return f"Warranty for machine {self.machine}"
         if self.asset_id:
             return f"Warranty for asset {self.asset}"
         if self.printer_id:

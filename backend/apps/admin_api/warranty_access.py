@@ -1,9 +1,12 @@
 from django.shortcuts import get_object_or_404
+from rest_framework.exceptions import PermissionDenied
 
 from apps.accounts import rbac
 from apps.admin_api.permissions import require_action
 from apps.inventory.models import InventoryAsset
 from apps.makerspaces.guards import require_module
+from apps.machines import access as machine_access
+from apps.machines.models import Machine
 from apps.printing.models import PrintPrinter
 from apps.warranty.models import Warranty, WarrantyDocument
 
@@ -28,11 +31,21 @@ def resolve_printer_host(user, printer_pk):
     )
 
 
+def resolve_machine_host(user, machine_pk):
+    return get_object_or_404(
+        rbac.scope_by_makerspace(
+            user,
+            Machine.objects.select_related("makerspace", "machine_type"),
+        ),
+        pk=machine_pk,
+    )
+
+
 def resolve_warranty(user, warranty_pk):
     return get_object_or_404(
         rbac.scope_by_makerspace(
             user,
-            Warranty.objects.select_related("makerspace", "asset", "printer"),
+            Warranty.objects.select_related("makerspace", "asset", "printer", "machine"),
             "makerspace_id",
         ),
         pk=warranty_pk,
@@ -47,6 +60,8 @@ def resolve_document(user, doc_pk):
                 "warranty",
                 "warranty__asset",
                 "warranty__printer",
+                "warranty__machine",
+                "warranty__machine__machine_type",
             ),
             "warranty__makerspace_id",
         ),
@@ -61,6 +76,11 @@ def action_and_module_for_warranty(warranty):
 
 
 def enforce(user, warranty):
+    if warranty.machine_id:
+        if not machine_access.can_manage_machine(user, warranty.machine):
+            raise PermissionDenied()
+        require_module(warranty.makerspace_id, "machines")
+        return
     action, module = action_and_module_for_warranty(warranty)
     require_action(user, action, warranty.makerspace_id)
     require_module(warranty.makerspace_id, module)

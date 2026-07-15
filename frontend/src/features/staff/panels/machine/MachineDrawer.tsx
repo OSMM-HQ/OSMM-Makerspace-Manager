@@ -8,9 +8,10 @@ import { ErrorsTab } from "./ErrorsTab";
 import { OperatorsTab } from "./OperatorsTab";
 import { OverviewTab } from "./OverviewTab";
 import { UsageTab } from "./UsageTab";
+import { WarrantyTab } from "./WarrantyTab";
 
-const TABS = ["Overview", "Operators", "Usage", "Documents", "Errors"] as const;
-type MachineTab = (typeof TABS)[number];
+const BASE_TABS = ["Overview", "Operators", "Usage", "Documents", "Errors"] as const;
+type MachineTab = (typeof BASE_TABS)[number] | "Warranty";
 
 export function MachineDrawer({ machineId, makerspaceId, onClose }: {
   machineId: number;
@@ -23,6 +24,9 @@ export function MachineDrawer({ machineId, makerspaceId, onClose }: {
     queryFn: () => getMachine(machineId),
   });
   const details = machine.data;
+  const tabs: readonly MachineTab[] = details?.can_edit
+    ? [...BASE_TABS, "Warranty"]
+    : BASE_TABS;
 
   return (
     <DetailDrawer open title={details?.name ?? "Machine details"} onClose={onClose}>
@@ -48,7 +52,7 @@ export function MachineDrawer({ machineId, makerspaceId, onClose }: {
           </div>
           <div className="overflow-x-auto border-b border-line" role="tablist" aria-label="Machine details">
             <div className="flex min-w-max gap-1">
-              {TABS.map((tab) => (
+              {tabs.map((tab) => (
                 <button
                   key={tab}
                   type="button"
@@ -86,6 +90,9 @@ export function MachineDrawer({ machineId, makerspaceId, onClose }: {
             ) : null}
             {activeTab === "Errors" ? (
               <ErrorsTab machineId={machineId} canOperate={details.can_operate} />
+            ) : null}
+            {activeTab === "Warranty" && details.can_edit ? (
+              <WarrantyTab machineId={machineId} />
             ) : null}
           </div>
         </div>

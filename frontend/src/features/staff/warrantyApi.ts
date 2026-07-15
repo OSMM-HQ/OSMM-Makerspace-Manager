@@ -1,7 +1,7 @@
 import { staffRequest } from "../../lib/api";
 
 export type WarrantyStatus = "unknown" | "active" | "expiring_soon" | "expired";
-export type WarrantyHostKind = "asset" | "printer";
+export type WarrantyHostKind = "asset" | "printer" | "machine";
 
 export type WarrantyDocument = {
   id: number;
@@ -22,6 +22,8 @@ export type Warranty = {
   printer_id: number | null;
   printer_name: string | null;
   printer_model: string | null;
+  machine_id: number | null;
+  machine_name: string | null;
   purchased_on: string | null;
   warranty_expires_on: string | null;
   vendor_name: string;
@@ -59,9 +61,9 @@ type WarrantyPresignResponse = {
 };
 
 export function warrantyHostPath(hostKind: WarrantyHostKind, hostId: number) {
-  return hostKind === "asset"
-    ? `/admin/assets/${hostId}/warranty`
-    : `/admin/printing/printers/${hostId}/warranty`;
+  if (hostKind === "asset") return `/admin/assets/${hostId}/warranty`;
+  if (hostKind === "printer") return `/admin/printing/printers/${hostId}/warranty`;
+  return `/admin/machines/${hostId}/warranty`;
 }
 
 export function getWarranty(hostKind: WarrantyHostKind, hostId: number) {

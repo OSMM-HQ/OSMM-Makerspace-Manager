@@ -8,7 +8,9 @@ def resolve_machine(user, pk):
     return get_object_or_404(
         scope_machines_for_actor(
             user,
-            Machine.objects.select_related('makerspace', 'machine_type').all(),
+            Machine.objects.select_related(
+                'makerspace', 'machine_type', 'warranty'
+            ).all(),
         ),
         pk=pk,
     )

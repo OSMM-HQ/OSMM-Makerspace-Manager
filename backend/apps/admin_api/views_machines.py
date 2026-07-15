@@ -54,7 +54,7 @@ class MachineListCreateView(APIView):
             raise PermissionDenied()
         queryset = access.scope_machines_for_actor(
             request.user,
-            Machine.objects.select_related('makerspace', 'machine_type')
+            Machine.objects.select_related('makerspace', 'machine_type', 'warranty')
             .filter(makerspace_id=makerspace_id)
             .annotate(
                 usage_total=Coalesce(

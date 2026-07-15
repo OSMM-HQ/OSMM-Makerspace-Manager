@@ -179,6 +179,7 @@ _MODEL_LOOKUPS = {
     "admin-inventory-asset-detail": ("inventory.InventoryAsset", "makerspace_id"),
     "admin-asset-warranty": ("inventory.InventoryAsset", "makerspace_id"),
     "admin-printer-warranty": ("printing.PrintPrinter", "makerspace_id"),
+    "admin-machine-warranty": ("machines.Machine", "makerspace_id"),
     "admin-warranty-document-presign": ("warranty.Warranty", "makerspace_id"),
     "admin-warranty-documents": ("warranty.Warranty", "makerspace_id"),
     "admin-warranty-document-url": ("warranty.WarrantyDocument", "warranty__makerspace_id"),

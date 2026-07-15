@@ -28,6 +28,8 @@ class WarrantySerializer(serializers.ModelSerializer):
     printer_id = serializers.SerializerMethodField()
     printer_name = serializers.SerializerMethodField()
     printer_model = serializers.SerializerMethodField()
+    machine_id = serializers.SerializerMethodField()
+    machine_name = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
     documents = WarrantyDocumentSerializer(many=True, read_only=True)
 
@@ -44,6 +46,8 @@ class WarrantySerializer(serializers.ModelSerializer):
             "printer_id",
             "printer_name",
             "printer_model",
+            "machine_id",
+            "machine_name",
             "purchased_on",
             "warranty_expires_on",
             "vendor_name",
@@ -54,12 +58,18 @@ class WarrantySerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_host_kind(self, obj) -> str:
-        return "asset" if obj.asset_id else "printer"
+        if obj.machine_id:
+            return "machine"
+        if obj.asset_id:
+            return "asset"
+        return "printer"
 
     def get_host_id(self, obj) -> int:
-        return obj.asset_id or obj.printer_id
+        return obj.machine_id or obj.asset_id or obj.printer_id
 
     def get_host_label(self, obj) -> str:
+        if obj.machine_id:
+            return obj.machine.name
         if obj.asset_id:
             return obj.asset.asset_tag
         return obj.printer.name
@@ -81,6 +91,12 @@ class WarrantySerializer(serializers.ModelSerializer):
 
     def get_printer_model(self, obj) -> str | None:
         return obj.printer.model if obj.printer_id else None
+
+    def get_machine_id(self, obj) -> int | None:
+        return obj.machine_id
+
+    def get_machine_name(self, obj) -> str | None:
+        return obj.machine.name if obj.machine_id else None
 
     def get_status(self, obj) -> str:
         return warranty_status(obj, timezone.localdate())

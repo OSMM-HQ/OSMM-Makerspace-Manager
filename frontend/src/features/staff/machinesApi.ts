@@ -3,6 +3,7 @@ import { uploadPublicImage } from "./ImageUploader";
 
 export type MachineStatus = "idle" | "running" | "reserved" | "maintenance" | "offline";
 export type MachineAccessLevel = "operate" | "manage" | "full";
+export type MachineWarrantyStatus = "unknown" | "active" | "expiring_soon" | "expired";
 
 export type MachineType = {
   id: number;
@@ -25,6 +26,7 @@ export type Machine = {
   firmware_version: string;
   camera_feed_url: string;
   image_url: string | null;
+  warranty_status: MachineWarrantyStatus;
   is_active: boolean;
   linked_print_printer: number | null;
   usage_hours: string;

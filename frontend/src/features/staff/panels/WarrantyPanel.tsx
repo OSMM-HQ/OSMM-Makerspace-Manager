@@ -31,7 +31,11 @@ export function WarrantyPanel({
   const [expiresBefore, setExpiresBefore] = useState("");
   const [page, setPage] = useState(1);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const canManageRow = (row: WarrantyReportRow) => (row.host_kind === "asset" ? canEditInventory : canSeePrinting);
+  const canManageRow = (row: WarrantyReportRow) => {
+    if (row.host_kind === "asset") return canEditInventory;
+    if (row.host_kind === "printer") return canSeePrinting;
+    return true;
+  };
   const queryParams = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });
   if (status !== "all") queryParams.set("status", status);
   if (missingDocs) queryParams.set("missing_docs", "true");
@@ -43,11 +47,7 @@ export function WarrantyPanel({
 
   const visibleRows = warranties.data?.results ?? [];
   const totalPages = Math.max(1, Math.ceil((warranties.data?.count ?? 0) / PAGE_SIZE));
-  const scopeLabel = canEditInventory && canSeePrinting
-    ? "hardware assets and printers"
-    : canEditInventory
-      ? "hardware assets"
-      : "printers";
+  const scopeLabel = "equipment you can manage";
   const filtersActive = status !== "all" || missingDocs || Boolean(expiresBefore);
 
   function updateStatus(value: StatusFilter) {

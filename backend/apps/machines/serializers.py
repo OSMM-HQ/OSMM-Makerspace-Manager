@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.inventory import public_image_storage
@@ -12,6 +13,8 @@ from apps.machines.models import (
     MachineType,
     MachineUsageEntry,
 )
+from apps.warranty.models import Warranty
+from apps.warranty.status import STATUS_UNKNOWN, warranty_status
 
 
 class MachineTypeSerializer(serializers.ModelSerializer):
@@ -140,6 +143,7 @@ class MachineSerializer(serializers.ModelSerializer):
     )
     usage_hours = serializers.SerializerMethodField()
     image_url = serializers.SerializerMethodField()
+    warranty_status = serializers.SerializerMethodField()
     can_operate = serializers.SerializerMethodField()
     can_edit = serializers.SerializerMethodField()
     can_delegate = serializers.SerializerMethodField()
@@ -162,6 +166,7 @@ class MachineSerializer(serializers.ModelSerializer):
             'firmware_version',
             'camera_feed_url',
             'image_url',
+            'warranty_status',
             'is_active',
             'linked_print_printer',
             'usage_hours',
@@ -190,6 +195,13 @@ class MachineSerializer(serializers.ModelSerializer):
 
     def get_image_url(self, obj) -> str | None:
         return public_image_storage.public_url(obj.image_key) or None
+
+    def get_warranty_status(self, obj) -> str:
+        try:
+            warranty = obj.warranty
+        except Warranty.DoesNotExist:
+            return STATUS_UNKNOWN
+        return warranty_status(warranty, timezone.localdate())
 
     def _capabilities(self, obj):
         from apps.machines import access

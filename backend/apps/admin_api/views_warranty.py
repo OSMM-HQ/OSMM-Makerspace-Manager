@@ -1,7 +1,7 @@
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -9,9 +9,14 @@ from apps.accounts import rbac
 from apps.admin_api.permissions import IsActiveStaff, require_action
 from apps.admin_api.serializers_warranty import WarrantySerializer, WarrantyUpsertSerializer
 from apps.admin_api.views_warranty_report import MakerspaceWarrantyReportView
-from apps.admin_api.warranty_access import resolve_asset_host, resolve_printer_host
+from apps.admin_api.warranty_access import (
+    resolve_asset_host,
+    resolve_machine_host,
+    resolve_printer_host,
+)
 from apps.audit import services as audit
 from apps.makerspaces.guards import require_module
+from apps.machines import access as machine_access
 from apps.warranty.models import Warranty
 
 
@@ -109,46 +114,98 @@ class PrinterWarrantyView(APIView):
         return Response(WarrantySerializer(_reload_warranty(warranty)).data)
 
 
-def _asset_warranty(asset):
-    return (
-        Warranty.objects.select_related("asset", "printer")
-        .prefetch_related("documents")
-        .filter(asset=asset)
-        .first()
+class MachineWarrantyView(APIView):
+    permission_classes = [IsActiveStaff]
+
+    def _machine(self, request, pk):
+        machine = resolve_machine_host(request.user, pk)
+        if not machine_access.can_manage_machine(request.user, machine):
+            raise PermissionDenied()
+        require_module(machine.makerspace_id, "machines")
+        return machine
+
+    @extend_schema(
+        tags=["Admin warranty"],
+        summary="Retrieve warranty details for a machine",
+        responses={200: WarrantySerializer},
     )
+    def get(self, request, pk, *args, **kwargs):
+        machine = self._machine(request, pk)
+        warranty = _machine_warranty(machine)
+        if warranty is None:
+            return Response(None)
+        return Response(WarrantySerializer(warranty).data)
+
+    @extend_schema(
+        tags=["Admin warranty"],
+        summary="Create or update warranty details for a machine",
+        request=WarrantyUpsertSerializer,
+        responses={
+            200: WarrantySerializer,
+            400: OpenApiResponse(description="Invalid warranty details."),
+        },
+    )
+    def put(self, request, pk, *args, **kwargs):
+        machine = self._machine(request, pk)
+        serializer = WarrantyUpsertSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        warranty, created = _upsert_warranty(
+            machine=machine,
+            data=serializer.validated_data,
+        )
+        audit.record(
+            request.user,
+            "warranty.created" if created else "warranty.updated",
+            makerspace=machine.makerspace,
+            target=warranty,
+        )
+        return Response(WarrantySerializer(_reload_warranty(warranty)).data)
+
+
+def _asset_warranty(asset):
+    return _host_warranty("asset", asset)
 
 
 def _printer_warranty(printer):
+    return _host_warranty("printer", printer)
+
+
+def _machine_warranty(machine):
+    return _host_warranty("machine", machine)
+
+
+def _host_warranty(host_kind, host):
     return (
-        Warranty.objects.select_related("asset", "printer")
+        Warranty.objects.select_related("asset", "printer", "machine")
         .prefetch_related("documents")
-        .filter(printer=printer)
+        .filter(**{host_kind: host})
         .first()
     )
 
 
 def _reload_warranty(warranty):
     return (
-        Warranty.objects.select_related("asset", "printer")
+        Warranty.objects.select_related("asset", "printer", "machine")
         .prefetch_related("documents")
         .get(pk=warranty.pk)
     )
 
 
 @transaction.atomic
-def _upsert_warranty(*, data, asset=None, printer=None):
-    if asset is not None:
-        warranty, created = Warranty.objects.get_or_create(
-            asset=asset,
-            defaults={"makerspace_id": asset.makerspace_id},
-        )
-        warranty.makerspace_id = asset.makerspace_id
-    else:
-        warranty, created = Warranty.objects.get_or_create(
-            printer=printer,
-            defaults={"makerspace_id": printer.makerspace_id},
-        )
-        warranty.makerspace_id = printer.makerspace_id
+def _upsert_warranty(*, data, asset=None, printer=None, machine=None):
+    hosts = {
+        kind: host
+        for kind, host in (("asset", asset), ("printer", printer), ("machine", machine))
+        if host is not None
+    }
+    if len(hosts) != 1:
+        raise ValueError("Exactly one warranty host is required.")
+    host_kind, host = next(iter(hosts.items()))
+    warranty, created = Warranty.objects.get_or_create(
+        **{host_kind: host},
+        defaults={"makerspace_id": host.makerspace_id},
+    )
+    warranty.makerspace_id = host.makerspace_id
     for field in ("purchased_on", "warranty_expires_on", "vendor_name", "vendor_contact"):
         if field in data:
             setattr(warranty, field, data[field])
@@ -160,4 +217,9 @@ def _upsert_warranty(*, data, asset=None, printer=None):
     return warranty, created
 
 
-__all__ = ["AssetWarrantyView", "PrinterWarrantyView", "MakerspaceWarrantyReportView"]
+__all__ = [
+    "AssetWarrantyView",
+    "MachineWarrantyView",
+    "PrinterWarrantyView",
+    "MakerspaceWarrantyReportView",
+]

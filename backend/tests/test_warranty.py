@@ -3,7 +3,9 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
-from django.db import IntegrityError, transaction
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import IntegrityError, connection, transaction
+from django.db.migrations.executor import MigrationExecutor
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
@@ -12,6 +14,7 @@ from rest_framework.test import APIClient
 from apps.accounts.models import User
 from apps.audit.models import AuditLog
 from apps.inventory.models import InventoryAsset
+from apps.machines.models import Machine, MachineOperator, MachineType
 from apps.makerspaces.models import MakerspaceMembership
 from apps.printing.models import FilamentSpool, ManualPrintLog, PrintBucket, PrintPrinter
 from apps.warranty.models import Warranty, WarrantyDocument
@@ -41,6 +44,19 @@ def make_printer(makerspace, *, name="Printer 1", model="Ender 3"):
     return PrintPrinter.objects.create(makerspace=makerspace, name=name, model=model)
 
 
+def make_machine(makerspace, *, name="Machine 1", machine_type=None):
+    enable_modules(makerspace, "machines")
+    machine_type = machine_type or MachineType.objects.get(
+        makerspace__isnull=True,
+        slug="3d_printer",
+    )
+    return Machine.objects.create(
+        makerspace=makerspace,
+        machine_type=machine_type,
+        name=name,
+    )
+
+
 def attach_asset_warranty(asset, **overrides):
     defaults = {
         "makerspace": asset.makerspace,
@@ -62,6 +78,19 @@ def attach_printer_warranty(printer, **overrides):
         "warranty_expires_on": timezone.localdate() + timedelta(days=90),
         "vendor_name": "Warranty Vendor Printer",
         "vendor_contact": "printer@example.com",
+    }
+    defaults.update(overrides)
+    return Warranty.objects.create(**defaults)
+
+
+def attach_machine_warranty(machine, **overrides):
+    defaults = {
+        "makerspace": machine.makerspace,
+        "machine": machine,
+        "purchased_on": timezone.localdate() - timedelta(days=90),
+        "warranty_expires_on": timezone.localdate() + timedelta(days=90),
+        "vendor_name": "Warranty Vendor Machine",
+        "vendor_contact": "machine@example.com",
     }
     defaults.update(overrides)
     return Warranty.objects.create(**defaults)
@@ -194,6 +223,81 @@ def test_printer_warranty_upsert_read_update_and_audit():
     ]
 
 
+def test_machine_warranty_upsert_and_generic_document_endpoints(monkeypatch):
+    delete = mock_warranty_storage(monkeypatch)
+    makerspace = make_space("warranty-machine-upsert")
+    user = make_member("warranty-machine-manager", makerspace)
+    machine = make_machine(makerspace, name="CNC Router")
+    client = authenticated_client(user)
+    url = reverse("admin-machine-warranty", kwargs={"pk": machine.id})
+
+    created = client.put(
+        url,
+        warranty_payload(vendor_name="Machine Warranty Vendor"),
+        format="json",
+    )
+    read = client.get(url)
+    updated = client.put(
+        url,
+        warranty_payload(
+            warranty_expires_on=str(timezone.localdate() + timedelta(days=15)),
+            vendor_name="Machine Warranty Updated",
+        ),
+        format="json",
+    )
+    warranty = Warranty.objects.get(machine=machine)
+    presign = client.post(
+        reverse("admin-warranty-document-presign", kwargs={"pk": warranty.id}),
+        {"filename": "machine-bill.pdf", "content_type": "application/pdf"},
+        format="json",
+    )
+    finalized = client.post(
+        reverse("admin-warranty-documents", kwargs={"pk": warranty.id}),
+        {
+            "object_key": presign.data["object_key"],
+            "original_filename": "machine-bill.pdf",
+        },
+        format="json",
+    )
+    document = WarrantyDocument.objects.get(warranty=warranty)
+    listed = client.get(
+        reverse("admin-warranty-documents", kwargs={"pk": warranty.id})
+    )
+    signed = client.get(
+        reverse("admin-warranty-document-url", kwargs={"pk": document.id})
+    )
+    deleted = client.delete(
+        reverse("admin-warranty-document-detail", kwargs={"pk": document.id})
+    )
+
+    assert created.status_code == 200
+    assert read.status_code == 200
+    assert read.data["host_kind"] == "machine"
+    assert read.data["host_id"] == machine.id
+    assert read.data["host_label"] == "CNC Router"
+    assert read.data["machine_id"] == machine.id
+    assert read.data["machine_name"] == "CNC Router"
+    assert read.data["asset_id"] is None
+    assert read.data["printer_id"] is None
+    assert updated.status_code == 200
+    assert updated.data["vendor_name"] == "Machine Warranty Updated"
+    assert updated.data["status"] == "expiring_soon"
+    assert warranty.makerspace_id == machine.makerspace_id
+    assert presign.status_code == 201
+    assert finalized.status_code == 201
+    assert listed.status_code == 200
+    assert [row["id"] for row in listed.data] == [document.id]
+    assert signed.data == {"url": "https://signed"}
+    assert deleted.status_code == 204
+    delete.assert_called_once_with(document.object_key)
+    assert list(AuditLog.objects.order_by("id").values_list("action", flat=True)) == [
+        "warranty.created",
+        "warranty.updated",
+        "warranty.document_added",
+        "warranty.document_removed",
+    ]
+
+
 def test_warranty_rbac_status_code_contract():
     makerspace = make_space("warranty-rbac")
     other_space = make_space("warranty-rbac-other")
@@ -229,6 +333,94 @@ def test_warranty_rbac_status_code_contract():
     assert authenticated_client(other_member).put(printer_url, warranty_payload(), format="json").status_code == 404
     assert authenticated_client(space_manager).put(asset_url, warranty_payload(), format="json").status_code == 200
     assert authenticated_client(space_manager).put(printer_url, warranty_payload(), format="json").status_code == 200
+
+
+def test_machine_warranty_operator_type_manager_tenant_and_module_contract():
+    makerspace = make_space("warranty-machine-rbac")
+    other_space = make_space("warranty-machine-rbac-other")
+    machine = make_machine(makerspace, name="Operator Machine")
+    type_machine = make_machine(makerspace, name="Type Managed Machine")
+    custom_type = MachineType.objects.create(
+        makerspace=makerspace,
+        slug="custom-cnc",
+        name="Custom CNC",
+    )
+    custom_machine = make_machine(
+        makerspace,
+        name="Custom Machine",
+        machine_type=custom_type,
+    )
+    manage = make_member(
+        "warranty-machine-manage",
+        makerspace,
+        membership_role=MakerspaceMembership.Role.GUEST_ADMIN,
+        role=User.Role.GUEST_ADMIN,
+    )
+    full = make_member(
+        "warranty-machine-full",
+        makerspace,
+        membership_role=MakerspaceMembership.Role.GUEST_ADMIN,
+        role=User.Role.GUEST_ADMIN,
+    )
+    operate = make_member(
+        "warranty-machine-operate",
+        makerspace,
+        membership_role=MakerspaceMembership.Role.GUEST_ADMIN,
+        role=User.Role.GUEST_ADMIN,
+    )
+    type_manager = make_member(
+        "warranty-machine-type-manager",
+        makerspace,
+        membership_role=MakerspaceMembership.Role.PRINT_MANAGER,
+    )
+    other_member = make_member("warranty-machine-other", other_space)
+    MachineOperator.objects.bulk_create(
+        [
+            MachineOperator(
+                machine=machine,
+                user=manage,
+                access_level=MachineOperator.AccessLevel.MANAGE,
+            ),
+            MachineOperator(
+                machine=machine,
+                user=full,
+                access_level=MachineOperator.AccessLevel.FULL,
+            ),
+            MachineOperator(
+                machine=machine,
+                user=operate,
+                access_level=MachineOperator.AccessLevel.OPERATE,
+            ),
+        ]
+    )
+    url = reverse("admin-machine-warranty", kwargs={"pk": machine.id})
+    type_url = reverse("admin-machine-warranty", kwargs={"pk": type_machine.id})
+    custom_url = reverse("admin-machine-warranty", kwargs={"pk": custom_machine.id})
+
+    assert authenticated_client(manage).put(url, warranty_payload(), format="json").status_code == 200
+    assert authenticated_client(full).get(url).status_code == 200
+    assert authenticated_client(operate).get(url).status_code == 403
+    assert authenticated_client(type_manager).put(
+        type_url, warranty_payload(), format="json"
+    ).status_code == 200
+    assert authenticated_client(type_manager).put(
+        custom_url, warranty_payload(), format="json"
+    ).status_code == 403
+    assert authenticated_client(other_member).get(url).status_code == 404
+
+    warranty = Warranty.objects.get(machine=machine)
+    assert authenticated_client(operate).post(
+        reverse("admin-warranty-document-presign", kwargs={"pk": warranty.id}),
+        {"filename": "denied.pdf", "content_type": "application/pdf"},
+        format="json",
+    ).status_code == 403
+
+    makerspace.enabled_modules = [
+        module for module in makerspace.enabled_modules if module != "machines"
+    ]
+    makerspace.save(update_fields=["enabled_modules"])
+    assert authenticated_client(manage).get(url).status_code == 400
+    assert authenticated_client(operate).get(url).status_code == 403
 
 
 def test_warranty_documents_presign_finalize_url_delete_and_guards(monkeypatch):
@@ -346,17 +538,83 @@ def test_warranty_status_computation_boundaries():
     assert warranty_status(SimpleNamespace(warranty_expires_on=today + timedelta(days=31)), today) == "active"
 
 
-def test_warranty_model_constraints_enforce_xor_host_and_one_per_asset():
+def test_warranty_model_constraints_enforce_exactly_one_of_three_hosts():
     makerspace = make_space("warranty-constraints")
     asset = make_asset(makerspace)
     printer = make_printer(makerspace)
+    machine = make_machine(makerspace)
 
     with pytest.raises(IntegrityError), transaction.atomic():
-        Warranty.objects.create(makerspace=makerspace, asset=asset, printer=printer)
+        Warranty.objects.create(makerspace=makerspace)
+
+    for hosts in (
+        {"asset": asset, "printer": printer},
+        {"asset": asset, "machine": machine},
+        {"printer": printer, "machine": machine},
+    ):
+        with pytest.raises(IntegrityError), transaction.atomic():
+            Warranty.objects.create(makerspace=makerspace, **hosts)
 
     Warranty.objects.create(makerspace=makerspace, asset=asset)
     with pytest.raises(IntegrityError), transaction.atomic():
         Warranty.objects.create(makerspace=makerspace, asset=asset)
+
+
+def test_machine_warranty_clean_rejects_cross_makerspace_host():
+    makerspace = make_space("warranty-machine-clean")
+    other_space = make_space("warranty-machine-clean-other")
+    machine = make_machine(other_space)
+    warranty = Warranty(makerspace=makerspace, machine=machine)
+
+    with pytest.raises(DjangoValidationError):
+        warranty.full_clean()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_warranty_0001_rows_migrate_forward_through_machine_host():
+    makerspace = make_space("warranty-migration")
+    asset = make_asset(makerspace)
+    printer = make_printer(makerspace)
+    executor = MigrationExecutor(connection)
+    from_target = [("warranty", "0001_initial")]
+    to_target = [("warranty", "0002_machine_host")]
+
+    try:
+        executor.migrate(from_target)
+        old_apps = executor.loader.project_state(from_target).apps
+        OldWarranty = old_apps.get_model("warranty", "Warranty")
+        asset_row = OldWarranty.objects.create(
+            makerspace_id=makerspace.id,
+            asset_id=asset.id,
+            vendor_name="MIGRATION_ASSET_VENDOR",
+        )
+        printer_row = OldWarranty.objects.create(
+            makerspace_id=makerspace.id,
+            printer_id=printer.id,
+            vendor_name="MIGRATION_PRINTER_VENDOR",
+        )
+
+        executor = MigrationExecutor(connection)
+        executor.migrate(to_target)
+        new_apps = executor.loader.project_state(to_target).apps
+        NewWarranty = new_apps.get_model("warranty", "Warranty")
+        migrated = {
+            row.id: row
+            for row in NewWarranty.objects.filter(
+                id__in=(asset_row.id, printer_row.id)
+            )
+        }
+
+        assert migrated[asset_row.id].asset_id == asset.id
+        assert migrated[asset_row.id].printer_id is None
+        assert migrated[asset_row.id].machine_id is None
+        assert migrated[asset_row.id].vendor_name == "MIGRATION_ASSET_VENDOR"
+        assert migrated[printer_row.id].printer_id == printer.id
+        assert migrated[printer_row.id].asset_id is None
+        assert migrated[printer_row.id].machine_id is None
+        assert migrated[printer_row.id].vendor_name == "MIGRATION_PRINTER_VENDOR"
+    finally:
+        MigrationExecutor(connection).migrate(to_target)
 
 
 def test_warranty_data_does_not_leak_to_public_payloads():
@@ -384,6 +642,14 @@ def test_warranty_data_does_not_leak_to_public_payloads():
         warranty_expires_on=timezone.datetime(2027, 4, 5).date(),
         vendor_name="NEVER_PUBLIC_PRINTER_VENDOR",
     )
+    machine = make_machine(makerspace, name="Private Warranty Machine")
+    machine_warranty = attach_machine_warranty(
+        machine,
+        purchased_on=timezone.datetime(2026, 3, 4).date(),
+        warranty_expires_on=timezone.datetime(2027, 5, 6).date(),
+        vendor_name="NEVER_PUBLIC_MACHINE_VENDOR",
+        vendor_contact="NEVER_PUBLIC_MACHINE_CONTACT",
+    )
     WarrantyDocument.objects.create(
         warranty=asset_warranty,
         object_key=f"warranty/{makerspace.id}/asset.pdf",
@@ -395,6 +661,13 @@ def test_warranty_data_does_not_leak_to_public_payloads():
         warranty=printer_warranty,
         object_key=f"warranty/{makerspace.id}/printer.pdf",
         original_filename="printer.pdf",
+        content_type="application/pdf",
+        size_bytes=123,
+    )
+    WarrantyDocument.objects.create(
+        warranty=machine_warranty,
+        object_key=f"warranty/{makerspace.id}/machine.pdf",
+        original_filename="NEVER_PUBLIC_MACHINE_BILL.pdf",
         content_type="application/pdf",
         size_bytes=123,
     )
@@ -438,10 +711,15 @@ def test_warranty_data_does_not_leak_to_public_payloads():
             response,
             "NEVER_PUBLIC_ASSET_VENDOR",
             "NEVER_PUBLIC_PRINTER_VENDOR",
+            "NEVER_PUBLIC_MACHINE_VENDOR",
+            "NEVER_PUBLIC_MACHINE_CONTACT",
+            "NEVER_PUBLIC_MACHINE_BILL.pdf",
             "2026-01-02",
             "2027-03-04",
             "2026-02-03",
             "2027-04-05",
+            "2026-03-04",
+            "2027-05-06",
         )
 
 
@@ -512,6 +790,48 @@ def test_warranty_report_gates_rows_by_host_action_and_makerspace_scope():
         "printer",
     ]
     assert cross_tenant.status_code == 404
+
+
+def test_warranty_report_machine_rows_include_manage_and_full_not_operate():
+    makerspace = make_space("warranty-report-machine-tiers")
+    actor = make_member(
+        "warranty-report-machine-operator",
+        makerspace,
+        membership_role=MakerspaceMembership.Role.GUEST_ADMIN,
+        role=User.Role.GUEST_ADMIN,
+    )
+    manage_machine = make_machine(makerspace, name="Manage Machine")
+    full_machine = make_machine(makerspace, name="Full Machine")
+    operate_machine = make_machine(makerspace, name="Operate Machine")
+    for machine, level in (
+        (manage_machine, MachineOperator.AccessLevel.MANAGE),
+        (full_machine, MachineOperator.AccessLevel.FULL),
+        (operate_machine, MachineOperator.AccessLevel.OPERATE),
+    ):
+        MachineOperator.objects.create(
+            machine=machine,
+            user=actor,
+            access_level=level,
+        )
+        attach_machine_warranty(machine)
+
+    response = authenticated_client(actor).get(
+        reverse(
+            "admin-makerspace-warranties",
+            kwargs={"makerspace_id": makerspace.id},
+        )
+    )
+
+    assert response.status_code == 200
+    assert response.data["count"] == 2
+    assert [row["host_kind"] for row in response_rows(response)] == [
+        "machine",
+        "machine",
+    ]
+    assert {row["host_id"] for row in response_rows(response)} == {
+        manage_machine.id,
+        full_machine.id,
+    }
 
 def test_warranty_report_status_filter_is_applied_server_side():
     makerspace = make_space("warranty-report-filter")

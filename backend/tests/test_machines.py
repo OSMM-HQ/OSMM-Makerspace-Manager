@@ -6,6 +6,7 @@ import pytest
 from django.db import IntegrityError, connection, transaction
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.accounts.models import User
 from apps.audit.models import AuditLog
@@ -22,6 +23,7 @@ from apps.machines.models import (
 from apps.makerspaces import lifecycle as makerspace_lifecycle
 from apps.makerspaces.models import MakerspaceMembership
 from apps.printing.models import PrintPrinter
+from apps.warranty.models import Warranty
 from tests.return_helpers import authenticated_client, make_member, make_space, make_user
 
 pytestmark = pytest.mark.django_db
@@ -1053,6 +1055,37 @@ def test_machine_serializer_exposes_can_manage_capability():
     )
     assert response.status_code == 200
     assert response.data["can_manage"] is True
+
+
+def test_machine_serializer_exposes_only_lightweight_warranty_status():
+    makerspace = enable_machines(make_space("machines-warranty-status"))
+    manager = make_member("machines-warranty-status-manager", makerspace)
+    machine = make_machine(makerspace)
+    client = authenticated_client(manager)
+    url = reverse("admin-machine-detail", kwargs={"pk": machine.id})
+
+    uncovered = client.get(url)
+    Warranty.objects.create(
+        makerspace=makerspace,
+        machine=machine,
+        warranty_expires_on=timezone.localdate(),
+        vendor_name="PRIVATE_MACHINE_VENDOR",
+        vendor_contact="PRIVATE_MACHINE_CONTACT",
+    )
+    covered = client.get(url)
+
+    assert uncovered.status_code == 200
+    assert uncovered.data["warranty_status"] == "unknown"
+    assert covered.status_code == 200
+    assert covered.data["warranty_status"] == "expiring_soon"
+    for field in (
+        "warranty",
+        "vendor_name",
+        "vendor_contact",
+        "purchased_on",
+        "warranty_expires_on",
+    ):
+        assert field not in covered.data
 
 
 def test_machine_image_presign_finalize_delete_and_audit(monkeypatch, settings):

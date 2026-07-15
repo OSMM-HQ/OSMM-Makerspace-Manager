@@ -57,6 +57,17 @@ class WarrantyDocumentCreateView(APIView):
 
     @extend_schema(
         tags=["Admin warranty"],
+        summary="List documents attached to a warranty",
+        responses={200: WarrantyDocumentSerializer(many=True)},
+    )
+    def get(self, request, pk, *args, **kwargs):
+        warranty = resolve_warranty(request.user, pk)
+        enforce(request.user, warranty)
+        documents = warranty.documents.order_by("-created_at", "-id")
+        return Response(WarrantyDocumentSerializer(documents, many=True).data)
+
+    @extend_schema(
+        tags=["Admin warranty"],
         summary="Finalize an uploaded warranty document",
         request=WarrantyDocumentFinalizeSerializer,
         responses={

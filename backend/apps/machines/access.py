@@ -220,6 +220,50 @@ def scope_machines_for_actor(actor, queryset):
     return queryset.filter(q).distinct()
 
 
+def scope_manageable_machines_for_actor(actor, queryset):
+    """Machines whose warranty the actor may manage, entirely at query level.
+
+    Includes machine admins, type managers, and active manage/full operators.
+    Operate-only assignments are deliberately excluded from warranty reporting.
+    """
+    from django.db.models import Q
+
+    if actor is None or not getattr(actor, "is_authenticated", False):
+        return queryset.none()
+
+    queryset = rbac.scope_by_makerspace(actor, queryset)
+    manage_scope = rbac.makerspaces_for_action(actor, Action.MANAGE_MACHINES)
+    if manage_scope is rbac.ALL:
+        return queryset
+
+    q = Q(makerspace_id__in=manage_scope) if manage_scope else Q(pk__in=[])
+    for action in _managing_actions():
+        type_scope = rbac.makerspaces_for_action(actor, action)
+        if type_scope is rbac.ALL:
+            q |= Q(machine_type__managing_action=action)
+        elif type_scope:
+            q |= Q(
+                machine_type__managing_action=action,
+                makerspace_id__in=type_scope,
+            )
+
+    if (
+        getattr(actor, "is_active", False)
+        and getattr(actor, "access_status", None) == User.AccessStatus.ACTIVE
+    ):
+        member_ms = rbac._exclude_archived_ids(
+            set(actor.makerspace_memberships.values_list("makerspace_id", flat=True))
+        )
+        operator_ids = MachineOperator.objects.filter(
+            user=actor,
+            access_level__in=(MANAGE, FULL),
+            machine__makerspace_id__in=member_ms,
+        ).values_list("machine_id", flat=True)
+        q |= Q(pk__in=operator_ids)
+
+    return queryset.filter(q).distinct()
+
+
 def can_see_machines(actor, makerspace_id):
     """Server-derived capability for the Machines tab within one makerspace."""
     if rbac.can(actor, Action.MANAGE_MACHINES, makerspace_id):

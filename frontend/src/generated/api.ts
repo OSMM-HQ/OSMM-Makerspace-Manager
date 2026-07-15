@@ -94,6 +94,7 @@ export const openApiPaths = [
   "/api/v1/admin/machines/{id}/set-status",
   "/api/v1/admin/machines/{id}/unretire",
   "/api/v1/admin/machines/{id}/usage",
+  "/api/v1/admin/machines/{id}/warranty",
   "/api/v1/admin/makerspace/{makerspace_id}/accepted-requests",
   "/api/v1/admin/makerspace/{makerspace_id}/accountability",
   "/api/v1/admin/makerspace/{makerspace_id}/active-loans",

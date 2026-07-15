@@ -21,6 +21,8 @@ from apps.admin_api.views_inventory import InventoryPagination
 from apps.inventory.models import InventoryAsset
 from apps.makerspaces.models import Makerspace
 from apps.makerspaces.platform import module_enabled
+from apps.machines import access as machine_access
+from apps.machines.models import Machine
 from apps.printing.models import PrintPrinter
 from apps.warranty.models import Warranty
 from apps.warranty.status import (
@@ -79,15 +81,16 @@ class MakerspaceWarrantyReportView(APIView):
 
         asset_qs = _asset_hosts(request.user, makerspace, today, filters)
         printer_qs = _printer_hosts(request.user, makerspace, today, filters)
-        asset_count = asset_qs.count()
-        printer_count = printer_qs.count()
-        total_count = asset_count + printer_count
+        machine_qs = _machine_hosts(request.user, makerspace, today, filters)
+        host_querysets = (asset_qs, printer_qs, machine_qs)
+        host_counts = tuple(qs.count() for qs in host_querysets)
+        total_count = sum(host_counts)
 
         paginator = self.pagination_class()
         page_size = paginator.get_page_size(request) or total_count or 1
         page_number = _page_number(request, total_count, page_size, paginator.page_query_param)
         offset = (page_number - 1) * page_size
-        rows = _page_rows(asset_qs, printer_qs, asset_count, offset, page_size, today)
+        rows = _page_rows(host_querysets, host_counts, offset, page_size, today)
         serializer = WarrantyReportRowSerializer(rows, many=True)
         return Response(
             {
@@ -131,6 +134,17 @@ def _printer_hosts(user, makerspace, today, filters):
     ).filter(makerspace_id=makerspace_id)
     qs = _apply_host_filters(qs, today, filters)
     return qs.order_by(Lower("name"), "name", Lower("model"), "model", "id")
+
+
+def _machine_hosts(user, makerspace, today, filters):
+    if not module_enabled(makerspace, "machines"):
+        return Machine.objects.none()
+    qs = machine_access.scope_manageable_machines_for_actor(
+        user,
+        Machine.objects.select_related("warranty", "machine_type"),
+    ).filter(makerspace_id=makerspace.id)
+    qs = _apply_host_filters(qs, today, filters)
+    return qs.order_by(Lower("name"), "name", "id")
 
 
 def _apply_host_filters(qs, today, filters):
@@ -183,21 +197,25 @@ def _page_link(request, page_number, enabled):
     return replace_query_param(request.build_absolute_uri(), "page", page_number)
 
 
-def _page_rows(asset_qs, printer_qs, asset_count, offset, page_size, today):
+def _page_rows(host_querysets, host_counts, offset, page_size, today):
     rows = []
     remaining = page_size
-    if offset < asset_count:
-        asset_limit = min(remaining, asset_count - offset)
-        rows.extend(_asset_row(asset, today) for asset in asset_qs[offset : offset + asset_limit])
-        remaining -= asset_limit
-        printer_offset = 0
-    else:
-        printer_offset = offset - asset_count
-    if remaining > 0:
+    row_builders = (_asset_row, _printer_row, _machine_row)
+    for queryset, count, row_builder in zip(
+        host_querysets, host_counts, row_builders, strict=True
+    ):
+        if offset >= count:
+            offset -= count
+            continue
+        limit = min(remaining, count - offset)
         rows.extend(
-            _printer_row(printer, today)
-            for printer in printer_qs[printer_offset : printer_offset + remaining]
+            row_builder(host, today)
+            for host in queryset[offset : offset + limit]
         )
+        remaining -= limit
+        offset = 0
+        if remaining == 0:
+            break
     return rows
 
 
@@ -216,6 +234,15 @@ def _printer_row(printer, today):
         "host_kind": "printer",
         "host_id": printer.id,
         "host_label": label,
+        "serial_number": None,
+    }
+
+
+def _machine_row(machine, today):
+    return _base_row(_host_warranty(machine), machine.document_count, today) | {
+        "host_kind": "machine",
+        "host_id": machine.id,
+        "host_label": machine.name,
         "serial_number": None,
     }
 

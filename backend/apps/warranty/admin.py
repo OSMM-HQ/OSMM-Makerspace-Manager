@@ -10,8 +10,10 @@ class WarrantyAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     list_display = (
         "id",
         "makerspace",
+        "host",
         "asset",
         "printer",
+        "machine",
         "purchased_on",
         "warranty_expires_on",
         "vendor_name",
@@ -22,11 +24,20 @@ class WarrantyAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         "vendor_contact",
         "asset__asset_tag",
         "printer__name",
+        "machine__name",
         "makerspace__name",
         "makerspace__slug",
     )
-    raw_id_fields = ("makerspace", "asset", "printer")
+    raw_id_fields = ("makerspace", "asset", "printer", "machine")
     readonly_fields = ("created_at", "updated_at")
+
+    @admin.display(description="Host")
+    def host(self, obj):
+        if obj.machine_id:
+            return obj.machine
+        if obj.asset_id:
+            return obj.asset
+        return obj.printer
 
 
 @admin.register(WarrantyDocument)
