@@ -82,7 +82,7 @@ class RestoreUserAccessView(APIView):
         with transaction.atomic():
             user = get_object_or_404(User.objects.select_for_update(), pk=pk)
             require_user_access_mutation(request.user, user)
-            if user.access_status != User.AccessStatus.ACTIVE:
+            if user.access_status != User.AccessStatus.ACTIVE and user.is_active:
                 memberships = user.makerspace_memberships.select_related(
                     "makerspace"
                 ).order_by("makerspace_id")

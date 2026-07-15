@@ -49,16 +49,19 @@ Stage-4 review → 6 findings, all fixed. **1347 backend tests pass**, `tsc -b`/
   (managed-only, request history + status badges + cap-error toasts; active state derives from the server
   `is_platform_subdomain` flag — managed mode returns a TXT record for every domain, so absence-of-record can't
   detect a provisioned subdomain). Self-host custom-domain (Part A) unaffected. OpenAPI + TS client regen.
-- **Stage-4 review (2 rounds, 13 findings, all fixed except 2 consciously accepted):** quota bypasses closed on
-  printer-create/unretire/api-client-reactivate/product-unarchive/staff-restore; storage charged in both presign
-  modes (no extra HEAD); image replace guards idempotent double-charge + deletes the finalized object on a quota
-  rejection (no unmetered orphan); `recompute_storage` skips overwriting a space's counter on a storage read error
-  (no outage-time corruption); subdomain admin `status`/`requested_label`/`makerspace` read-only (approval only via
-  the action). **Accepted (documented) fair-use edges — superadmin-overridable, not security/data-loss:** (1) an
-  image *replacement* charges gross-before-net so a space *exactly* at the storage cap can't swap an equal/smaller
-  image; (2) the printer→`Machine` auto-link runs in a `transaction.on_commit` signal after the quota lock releases,
-  so two *simultaneous* printer creates at exactly `machines_limit-1` can both pass. `recompute_storage` reconciles
-  storage regardless.
+- **Stage-4 review (3 rounds, 15 findings, all fixed except accepted fair-use edges):** quota bypasses closed on
+  printer-create/unretire/api-client-reactivate/product-unarchive/staff-restore (staff-restore gated on
+  `user.is_active` so it only charges when the restore actually makes memberships count); storage charged in both
+  presign modes (no extra HEAD); image replace guards idempotent double-charge; `recompute_storage` skips
+  overwriting a space's counter on a storage read error (no outage-time corruption) — it is the authoritative
+  reconciler; subdomain admin `status`/`requested_label`/`makerspace` read-only (approval only via the action);
+  frontend active-subdomain uses the server `is_platform_subdomain` flag. **Accepted (documented) fair-use edges —
+  superadmin-overridable, reconciled by `recompute_storage`, not security/data-loss:** (1) a rejected image upload
+  while a space is *exactly* at the storage cap can leave an uncounted orphan object (deleting it was reverted
+  because a concurrent same-key attach made the cleanup race-delete a just-committed image — data loss is worse);
+  (2) an image *replacement* charges gross-before-net so a space *exactly* at the cap can't swap an equal/smaller
+  image; (3) the printer→`Machine` auto-link runs in a `transaction.on_commit` signal after the quota lock
+  releases, so two *simultaneous* printer creates at exactly `machines_limit-1` can both pass.
 
 ## Recent batch — self-host-first program, PART A: self-host custom-domain auto-trust (2026-07-15)
 

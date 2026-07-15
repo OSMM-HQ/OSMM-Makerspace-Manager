@@ -145,7 +145,7 @@ class UserAdmin(SuperuserOnlyModelAdmin, DjangoUserAdmin, ModelAdmin):
             try:
                 with transaction.atomic():
                     locked = User.objects.select_for_update().get(pk=user.pk)
-                    if locked.access_status != User.AccessStatus.ACTIVE:
+                    if locked.access_status != User.AccessStatus.ACTIVE and locked.is_active:
                         memberships = MakerspaceMembership.objects.select_related(
                             "makerspace"
                         ).filter(user=locked).order_by("makerspace_id")
