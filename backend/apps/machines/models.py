@@ -226,3 +226,52 @@ class MachineErrorLog(models.Model):
 
     def __str__(self):
         return f"{self.severity} @ {self.machine}"
+
+
+class MachineConsumable(models.Model):
+    class Measurement(models.TextChoices):
+        COUNT = "count", "Count"
+        GRAMS = "grams", "Grams"
+
+    machine = models.ForeignKey(
+        Machine, on_delete=models.CASCADE, related_name="consumables"
+    )
+    measurement = models.CharField(max_length=10, choices=Measurement.choices)
+    product = models.ForeignKey(
+        "inventory.InventoryProduct",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="machine_consumables",
+    )
+    label = models.CharField(max_length=200, blank=True)
+    remaining = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    low_threshold = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True
+    )
+    note = models.CharField(max_length=255, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["measurement", "label", "product__name"]
+        unique_together = ("machine", "product")
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(measurement="count", product__isnull=False)
+                    | Q(measurement="grams", product__isnull=True)
+                ),
+                name="machineconsumable_count_xor_grams",
+            ),
+        ]
+
+    def __str__(self):
+        name = self.product.name if self.product_id else self.label
+        return f"{name} @ {self.machine}"

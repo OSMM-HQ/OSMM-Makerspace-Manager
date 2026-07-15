@@ -106,6 +106,7 @@ UNFOLD = {
                     _item("Machine types", "category", "admin:machines_machinetype_changelist"),
                     _item("Machine operators", "engineering", "admin:machines_machineoperator_changelist"),
                     _item("Usage entries", "timelapse", "admin:machines_machineusageentry_changelist"),
+                    _item("Machine consumables", "deployed_code", "admin:machines_machineconsumable_changelist"),
                     _item("Machine documents", "description", "admin:machines_machinedocument_changelist"),
                     _item("Machine error logs", "error", "admin:machines_machineerrorlog_changelist"),
                 ],

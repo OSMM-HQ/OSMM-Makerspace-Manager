@@ -147,6 +147,20 @@ def adjust_quantities(
     return locked
 
 
+def consume_available(product, quantity, reason, actor):
+    """Consume whole units from available inventory through the adjustment ledger."""
+    if isinstance(quantity, bool) or not isinstance(quantity, int) or quantity <= 0:
+        raise InsufficientStock("Consumption quantity must be a positive integer.")
+    return adjust_quantities(
+        product,
+        delta_available=-quantity,
+        delta_damaged=0,
+        delta_lost=0,
+        reason=reason,
+        actor=actor,
+    )
+
+
 def move_available_to_triage_bucket(product, quantity, *, outcome, reason, actor):
     """Move returned public-report stock out of available after staff triage.
 

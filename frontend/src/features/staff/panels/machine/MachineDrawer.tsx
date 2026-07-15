@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { DetailDrawer, EmptyState, Skeleton, StatusBadge } from "../../../../components/ui";
 import { getMachine, machineKeys } from "../../machinesApi";
+import { ConsumablesTab } from "./ConsumablesTab";
 import { DocumentsTab } from "./DocumentsTab";
 import { ErrorsTab } from "./ErrorsTab";
 import { OperatorsTab } from "./OperatorsTab";
@@ -10,7 +11,7 @@ import { OverviewTab } from "./OverviewTab";
 import { UsageTab } from "./UsageTab";
 import { WarrantyTab } from "./WarrantyTab";
 
-const BASE_TABS = ["Overview", "Operators", "Usage", "Documents", "Errors"] as const;
+const BASE_TABS = ["Overview", "Operators", "Consumables", "Usage", "Documents", "Errors"] as const;
 type MachineTab = (typeof BASE_TABS)[number] | "Warranty";
 
 export function MachineDrawer({ machineId, makerspaceId, onClose }: {
@@ -81,6 +82,10 @@ export function MachineDrawer({ machineId, makerspaceId, onClose }: {
             ) : null}
             {activeTab === "Operators" ? (
               <OperatorsTab machineId={machineId} canDelegate={details.can_delegate} />
+            ) : null}
+            {activeTab === "Consumables" ? (
+              <ConsumablesTab machineId={machineId} canEdit={details.can_edit}
+                canOperate={details.can_operate} />
             ) : null}
             {activeTab === "Usage" ? (
               <UsageTab machineId={machineId} makerspaceId={makerspaceId} canOperate={details.can_operate} />

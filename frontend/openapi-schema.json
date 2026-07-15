@@ -2308,6 +2308,278 @@
                 }
             }
         },
+        "/api/v1/admin/machines/{id}/consumable-candidates": {
+            "get": {
+                "operationId": "api_v1_admin_machines_consumable_candidates_list",
+                "summary": "List inventory products eligible as count consumables",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/ConsumableCandidate"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "description": "Machine operation is not permitted."
+                    },
+                    "404": {
+                        "description": "Machine not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machines/{id}/consumables": {
+            "get": {
+                "operationId": "api_v1_admin_machines_consumables_list",
+                "summary": "List machine consumables",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/MachineConsumable"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "description": "Machine operation is not permitted."
+                    },
+                    "404": {
+                        "description": "Machine not found."
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_admin_machines_consumables_create",
+                "summary": "Link a count or grams consumable to a machine",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LinkMachineConsumable"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LinkMachineConsumable"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LinkMachineConsumable"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineConsumable"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid consumable."
+                    },
+                    "403": {
+                        "description": "Machine management is not permitted."
+                    },
+                    "404": {
+                        "description": "Machine not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machines/{id}/consumables/{cid}": {
+            "delete": {
+                "operationId": "api_v1_admin_machines_consumables_destroy",
+                "summary": "Unlink a machine consumable",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "cid",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    },
+                    "400": {
+                        "description": "Consumable is not linked."
+                    },
+                    "403": {
+                        "description": "Machine management is not permitted."
+                    },
+                    "404": {
+                        "description": "Machine not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machines/{id}/consumables/{cid}/log": {
+            "post": {
+                "operationId": "api_v1_admin_machines_consumables_log_create",
+                "summary": "Log machine consumable usage",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "cid",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LogMachineConsumption"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LogMachineConsumption"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LogMachineConsumption"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineConsumable"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid quantity or insufficient stock."
+                    },
+                    "403": {
+                        "description": "Machine operation is not permitted."
+                    },
+                    "404": {
+                        "description": "Machine not found."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/machines/{id}/documents": {
             "get": {
                 "operationId": "api_v1_admin_machines_documents_list",
@@ -17307,6 +17579,28 @@
                 "type": "string",
                 "description": "* `available` - Available\n* `damaged` - Damaged\n* `lost` - Lost\n* `unknown` - Unknown"
             },
+            "ConsumableCandidate": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "available": {
+                        "type": "integer",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "available",
+                    "id",
+                    "name"
+                ]
+            },
             "ContainerAssetSummary": {
                 "type": "object",
                 "properties": {
@@ -19648,6 +19942,40 @@
                 "type": "string",
                 "description": "* `info` - Info\n* `warning` - Warning\n* `critical` - Critical"
             },
+            "LinkMachineConsumable": {
+                "type": "object",
+                "properties": {
+                    "measurement": {
+                        "$ref": "#/components/schemas/MeasurementEnum"
+                    },
+                    "product_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "remaining": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "low_threshold": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "nullable": true
+                    },
+                    "note": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "measurement"
+                ]
+            },
             "LogError": {
                 "type": "object",
                 "properties": {
@@ -19662,6 +19990,19 @@
                 "required": [
                     "message",
                     "severity"
+                ]
+            },
+            "LogMachineConsumption": {
+                "type": "object",
+                "properties": {
+                    "quantity": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    }
+                },
+                "required": [
+                    "quantity"
                 ]
             },
             "LogUsage": {
@@ -19851,6 +20192,77 @@
                     "updated_at",
                     "usage_hours",
                     "warranty_status"
+                ]
+            },
+            "MachineConsumable": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "measurement": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MeasurementEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "product": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "product_name": {
+                        "type": "string",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "available": {
+                        "type": "integer",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "remaining": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "low_threshold": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "note": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "available",
+                    "created_at",
+                    "id",
+                    "label",
+                    "low_threshold",
+                    "measurement",
+                    "note",
+                    "product",
+                    "product_name",
+                    "remaining"
                 ]
             },
             "MachineDocument": {
@@ -20758,6 +21170,14 @@
                 ],
                 "type": "string",
                 "description": "* `success` - Success\n* `failed` - Failed"
+            },
+            "MeasurementEnum": {
+                "enum": [
+                    "count",
+                    "grams"
+                ],
+                "type": "string",
+                "description": "* `count` - Count\n* `grams` - Grams"
             },
             "Mode087Enum": {
                 "enum": [

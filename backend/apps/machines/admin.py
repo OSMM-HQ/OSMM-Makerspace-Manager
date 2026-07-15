@@ -5,6 +5,7 @@ from unfold.admin import ModelAdmin
 from apps.machines import services
 from apps.machines.models import (
     Machine,
+    MachineConsumable,
     MachineDocument,
     MachineErrorLog,
     MachineOperator,
@@ -128,3 +129,12 @@ class MachineErrorLogAdmin(_ReadOnlyMachineChildAdmin):
     list_display = ("id", "machine", "severity", "logged_by", "created_at")
     list_filter = ("severity",)
     search_fields = ("machine__name", "message")
+
+
+@admin.register(MachineConsumable)
+class MachineConsumableAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = (
+        "id", "machine", "measurement", "product", "label", "remaining", "created_at"
+    )
+    list_filter = ("measurement",)
+    search_fields = ("machine__name", "product__name", "label")

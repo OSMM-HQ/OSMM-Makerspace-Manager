@@ -97,6 +97,8 @@ export const machineKeys = {
   usage: (machineId: number) => ["machine-usage", machineId] as const,
   operators: (machineId: number) => ["machine-operators", machineId] as const,
   operatorCandidates: (machineId: number) => ["machine-operator-candidates", machineId] as const,
+  consumables: (machineId: number) => ["machine-consumables", machineId] as const,
+  consumableCandidates: (machineId: number) => ["machine-consumable-candidates", machineId] as const,
   documents: (machineId: number) => ["machine-documents", machineId] as const,
   errors: (machineId: number) => ["machine-errors", machineId] as const,
 };
@@ -271,3 +273,15 @@ export function addMachineErrorLog(machineId: number, payload: { severity: strin
     method: "POST", body: JSON.stringify(payload),
   });
 }
+
+export {
+  getConsumableCandidates,
+  getMachineConsumables,
+  linkMachineConsumable,
+  logMachineConsumption,
+  unlinkMachineConsumable,
+  type ConsumableCandidate,
+  type ConsumableMeasurement,
+  type LinkConsumablePayload,
+  type MachineConsumable,
+} from "./machineConsumablesApi";

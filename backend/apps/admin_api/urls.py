@@ -16,6 +16,12 @@ from apps.admin_api.views_machine_documents import (
     MachineDocumentUrlView,
 )
 from apps.admin_api.views_machine_candidates import MachineOperatorCandidatesView
+from apps.admin_api.views_machine_consumables import (
+    MachineConsumableCandidatesView,
+    MachineConsumableDetailView,
+    MachineConsumablesView,
+    MachineConsumptionLogView,
+)
 from apps.admin_api.views_machine_image import MachineImageView
 from apps.admin_api.views_machine_operators import (
     MachineOperatorDetailView,
@@ -101,6 +107,26 @@ urlpatterns = [
         'machines/<int:pk>/usage',
         MachineUsageView.as_view(),
         name='admin-machine-usage',
+    ),
+    path(
+        'machines/<int:pk>/consumables',
+        MachineConsumablesView.as_view(),
+        name='admin-machine-consumables',
+    ),
+    path(
+        'machines/<int:pk>/consumables/<int:cid>',
+        MachineConsumableDetailView.as_view(),
+        name='admin-machine-consumable-detail',
+    ),
+    path(
+        'machines/<int:pk>/consumables/<int:cid>/log',
+        MachineConsumptionLogView.as_view(),
+        name='admin-machine-consumption-log',
+    ),
+    path(
+        'machines/<int:pk>/consumable-candidates',
+        MachineConsumableCandidatesView.as_view(),
+        name='admin-machine-consumable-candidates',
     ),
     path(
         'machines/<int:pk>/operators',

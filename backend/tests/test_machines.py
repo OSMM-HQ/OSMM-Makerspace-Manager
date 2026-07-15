@@ -1,9 +1,11 @@
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
+from threading import Barrier
 from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
-from django.db import IntegrityError, connection, transaction
+from django.db import IntegrityError, close_old_connections, connection, transaction
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
@@ -11,10 +13,11 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.audit.models import AuditLog
 from apps.evidence.storage import StorageUnavailable
-from apps.inventory.models import InventoryProduct
+from apps.inventory.models import InventoryProduct, TrackingMode
 from apps.machines import access
 from apps.machines.models import (
     Machine,
+    MachineConsumable,
     MachineDocument,
     MachineOperator,
     MachineType,
@@ -22,6 +25,7 @@ from apps.machines.models import (
 )
 from apps.makerspaces import lifecycle as makerspace_lifecycle
 from apps.makerspaces.models import MakerspaceMembership
+from apps.operations.models import InventoryAdjustment
 from apps.printing.models import PrintPrinter
 from apps.warranty.models import Warranty
 from tests.return_helpers import authenticated_client, make_member, make_space, make_user
@@ -1258,3 +1262,337 @@ def test_machine_image_is_404_across_tenants(monkeypatch):
     )
 
     assert response.status_code == 404
+
+
+def _consumables_url(machine):
+    return reverse("admin-machine-consumables", kwargs={"pk": machine.pk})
+
+
+def _consumable_url(machine, consumable_id):
+    return reverse(
+        "admin-machine-consumable-detail",
+        kwargs={"pk": machine.pk, "cid": consumable_id},
+    )
+
+
+def _consumption_url(machine, consumable_id):
+    return reverse(
+        "admin-machine-consumption-log",
+        kwargs={"pk": machine.pk, "cid": consumable_id},
+    )
+
+
+def _consumable_product(makerspace, name, available=10, **overrides):
+    return InventoryProduct.objects.create(
+        makerspace=makerspace,
+        name=name,
+        total_quantity=available,
+        available_quantity=available,
+        **overrides,
+    )
+
+
+def _operate_only_user(makerspace, machine, username):
+    user = make_member(
+        username,
+        makerspace,
+        membership_role=MakerspaceMembership.Role.GUEST_ADMIN,
+        role=User.Role.GUEST_ADMIN,
+    )
+    MachineOperator.objects.create(
+        machine=machine,
+        user=user,
+        access_level=MachineOperator.AccessLevel.OPERATE,
+    )
+    return user
+
+
+def test_machine_consumables_link_count_and_grams_with_live_balances():
+    makerspace = enable_machines(make_space("machine-consumables-link"))
+    manager = make_member("machine-consumables-link-manager", makerspace)
+    machine = make_machine(makerspace)
+    product = _consumable_product(makerspace, "Coolant bottles", 8)
+    client = authenticated_client(manager)
+
+    count = client.post(
+        _consumables_url(machine),
+        {
+            "measurement": "count",
+            "product_id": product.pk,
+            "low_threshold": "2.00",
+            "note": "Cabinet stock",
+        },
+        format="json",
+    )
+    grams = client.post(
+        _consumables_url(machine),
+        {
+            "measurement": "grams",
+            "label": "Cutting compound",
+            "remaining": "750.50",
+            "low_threshold": "100.00",
+        },
+        format="json",
+    )
+
+    assert count.status_code == 201
+    assert count.data["product_name"] == product.name
+    assert count.data["available"] == 8
+    assert count.data["remaining"] is None
+    assert grams.status_code == 201
+    assert grams.data["product"] is None
+    assert grams.data["available"] is None
+    assert Decimal(grams.data["remaining"]) == Decimal("750.50")
+    assert MachineConsumable.objects.filter(machine=machine).count() == 2
+    assert AuditLog.objects.filter(action="machine.consumable_linked").count() == 2
+
+
+def test_count_consumable_rejects_cross_makerspace_and_individual_products():
+    makerspace = enable_machines(make_space("machine-consumables-product-scope"))
+    other = enable_machines(make_space("machine-consumables-product-other"))
+    manager = make_member("machine-consumables-product-manager", makerspace)
+    machine = make_machine(makerspace)
+    foreign = _consumable_product(other, "Foreign product", 3)
+    individual = _consumable_product(
+        makerspace,
+        "Serialized product",
+        1,
+        tracking_mode=TrackingMode.INDIVIDUAL,
+    )
+    client = authenticated_client(manager)
+
+    cross_response = client.post(
+        _consumables_url(machine),
+        {"measurement": "count", "product_id": foreign.pk},
+        format="json",
+    )
+    individual_response = client.post(
+        _consumables_url(machine),
+        {"measurement": "count", "product_id": individual.pk},
+        format="json",
+    )
+
+    assert cross_response.status_code == 400
+    assert individual_response.status_code == 400
+    assert MachineConsumable.objects.count() == 0
+
+
+def test_consumable_link_and_unlink_require_manage_but_log_allows_operate():
+    makerspace = enable_machines(make_space("machine-consumables-permissions"))
+    manager = make_member("machine-consumables-permissions-manager", makerspace)
+    machine = make_machine(makerspace)
+    operator = _operate_only_user(
+        makerspace, machine, "machine-consumables-permissions-operator"
+    )
+    product = _consumable_product(makerspace, "Abrasive discs", 6)
+    operator_client = authenticated_client(operator)
+
+    forbidden_link = operator_client.post(
+        _consumables_url(machine),
+        {"measurement": "count", "product_id": product.pk},
+        format="json",
+    )
+    linked = authenticated_client(manager).post(
+        _consumables_url(machine),
+        {"measurement": "count", "product_id": product.pk},
+        format="json",
+    )
+    logged = operator_client.post(
+        _consumption_url(machine, linked.data["id"]),
+        {"quantity": "2"},
+        format="json",
+    )
+    forbidden_unlink = operator_client.delete(
+        _consumable_url(machine, linked.data["id"])
+    )
+    removed = authenticated_client(manager).delete(
+        _consumable_url(machine, linked.data["id"])
+    )
+
+    assert forbidden_link.status_code == 403
+    assert linked.status_code == 201
+    assert logged.status_code == 200
+    assert logged.data["available"] == 4
+    assert forbidden_unlink.status_code == 403
+    assert removed.status_code == 204
+    assert AuditLog.objects.filter(action="machine.consumable_unlinked").exists()
+
+
+def test_consumption_rejects_retired_machine_and_foreign_consumable():
+    makerspace = enable_machines(make_space("machine-consumables-retired"))
+    manager = make_member("machine-consumables-retired-manager", makerspace)
+    machine = make_machine(makerspace, name="Primary")
+    other_machine = make_machine(makerspace, name="Other")
+    client = authenticated_client(manager)
+    linked = client.post(
+        _consumables_url(machine),
+        {"measurement": "grams", "label": "Grease", "remaining": "20"},
+        format="json",
+    )
+    foreign = client.post(
+        _consumables_url(other_machine),
+        {"measurement": "grams", "label": "Oil", "remaining": "20"},
+        format="json",
+    )
+
+    foreign_response = client.post(
+        _consumption_url(machine, foreign.data["id"]),
+        {"quantity": "1"},
+        format="json",
+    )
+    machine.is_active = False
+    machine.save(update_fields=["is_active"])
+    retired_response = client.post(
+        _consumption_url(machine, linked.data["id"]),
+        {"quantity": "1"},
+        format="json",
+    )
+
+    assert foreign_response.status_code == 400
+    assert retired_response.status_code == 400
+    assert "retired" in str(retired_response.data).lower()
+
+
+def test_count_consumption_decrements_availability_and_overdraw_is_400():
+    makerspace = enable_machines(make_space("machine-consumables-count-log"))
+    manager = make_member("machine-consumables-count-manager", makerspace)
+    machine = make_machine(makerspace)
+    product = _consumable_product(makerspace, "Filter cartridges", 5)
+    client = authenticated_client(manager)
+    linked = client.post(
+        _consumables_url(machine),
+        {"measurement": "count", "product_id": product.pk},
+        format="json",
+    )
+
+    oversized = client.post(
+        _consumption_url(machine, linked.data["id"]),
+        {"quantity": "6"},
+        format="json",
+    )
+    consumed = client.post(
+        _consumption_url(machine, linked.data["id"]),
+        {"quantity": "3"},
+        format="json",
+    )
+    competing_overdraw = client.post(
+        _consumption_url(machine, linked.data["id"]),
+        {"quantity": "3"},
+        format="json",
+    )
+
+    product.refresh_from_db()
+    assert oversized.status_code == 400
+    assert consumed.status_code == 200
+    assert competing_overdraw.status_code == 400
+    assert product.available_quantity == 2
+    assert InventoryAdjustment.objects.filter(
+        product=product, delta_available=-3, delta_damaged=0, delta_lost=0
+    ).exists()
+    assert AuditLog.objects.filter(action="inventory.quantity_adjusted").exists()
+    assert AuditLog.objects.filter(action="machine.consumption_logged").count() == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_concurrent_count_consumption_never_overdraws():
+    makerspace = enable_machines(make_space("machine-consumables-concurrent"))
+    manager = make_member("machine-consumables-concurrent-manager", makerspace)
+    machine = make_machine(makerspace)
+    product = _consumable_product(makerspace, "Concurrent stock", 5)
+    linked = authenticated_client(manager).post(
+        _consumables_url(machine),
+        {"measurement": "count", "product_id": product.pk},
+        format="json",
+    )
+    barrier = Barrier(2)
+
+    def consume():
+        close_old_connections()
+        client = authenticated_client(manager)
+        barrier.wait()
+        response = client.post(
+            _consumption_url(machine, linked.data["id"]),
+            {"quantity": "4"},
+            format="json",
+        )
+        close_old_connections()
+        return response.status_code
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        statuses = list(pool.map(lambda _: consume(), range(2)))
+
+    product.refresh_from_db()
+    assert sorted(statuses) == [200, 400]
+    assert product.available_quantity == 1
+
+
+def test_grams_consumption_decrements_locked_local_ledger_without_overdraw():
+    makerspace = enable_machines(make_space("machine-consumables-grams-log"))
+    manager = make_member("machine-consumables-grams-manager", makerspace)
+    machine = make_machine(makerspace)
+    client = authenticated_client(manager)
+    linked = client.post(
+        _consumables_url(machine),
+        {"measurement": "grams", "label": "Polishing paste", "remaining": "12.50"},
+        format="json",
+    )
+
+    consumed = client.post(
+        _consumption_url(machine, linked.data["id"]),
+        {"quantity": "2.25"},
+        format="json",
+    )
+    overdraw = client.post(
+        _consumption_url(machine, linked.data["id"]),
+        {"quantity": "11"},
+        format="json",
+    )
+
+    row = MachineConsumable.objects.get(pk=linked.data["id"])
+    assert consumed.status_code == 200
+    assert Decimal(consumed.data["remaining"]) == Decimal("10.25")
+    assert overdraw.status_code == 400
+    assert row.remaining == Decimal("10.25")
+    assert InventoryAdjustment.objects.count() == 0
+
+
+def test_consumables_respect_disabled_machines_module_after_permission_check():
+    makerspace = enable_machines(make_space("machine-consumables-module"))
+    manager = make_member("machine-consumables-module-manager", makerspace)
+    machine = make_machine(makerspace)
+    makerspace.enabled_modules = [
+        name for name in makerspace.enabled_modules if name != "machines"
+    ]
+    makerspace.save(update_fields=["enabled_modules"])
+
+    response = authenticated_client(manager).get(_consumables_url(machine))
+
+    assert response.status_code == 400
+
+
+def test_consumable_candidates_are_minimal_and_filter_archived_and_individual():
+    makerspace = enable_machines(make_space("machine-consumables-candidates"))
+    machine = make_machine(makerspace)
+    operator = _operate_only_user(
+        makerspace, machine, "machine-consumables-candidates-operator"
+    )
+    eligible = _consumable_product(makerspace, "Eligible", 7)
+    _consumable_product(makerspace, "Archived", 3, is_archived=True)
+    _consumable_product(
+        makerspace,
+        "Individual",
+        1,
+        tracking_mode=TrackingMode.INDIVIDUAL,
+    )
+    other = enable_machines(make_space("machine-consumables-candidates-other"))
+    _consumable_product(other, "Foreign", 9)
+
+    response = authenticated_client(operator).get(
+        reverse("admin-machine-consumable-candidates", kwargs={"pk": machine.pk})
+    )
+
+    assert response.status_code == 200
+    assert response.data == [
+        {"id": eligible.pk, "name": eligible.name, "available": 7}
+    ]
+    assert set(response.data[0]) == {"id", "name", "available"}
