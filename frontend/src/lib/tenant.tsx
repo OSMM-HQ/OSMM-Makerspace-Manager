@@ -7,7 +7,7 @@ import {
   type TenantBootstrap,
 } from "./api";
 import { applyTenantBranding } from "./branding";
-import { configuredTenantToken } from "./runtimeConfig";
+import { configuredOriginBootstrap, configuredTenantToken } from "./runtimeConfig";
 
 type TenantContextValue =
   | {
@@ -31,50 +31,73 @@ type TenantContextValue =
 
 const TenantContext = createContext<TenantContextValue | null>(null);
 
+const CENTRAL_VALUE: TenantContextValue = {
+  mode: "central",
+  loading: false,
+  error: null,
+  bootstrap: null,
+  slug: "",
+  makerspaceId: null,
+  modules: new Set(),
+};
+
 export function TenantProvider({ children }: { children: ReactNode }) {
   const tenantToken = configuredTenantToken();
-  const singleTenant = Boolean(tenantToken);
-  const tenantQuery = useQuery({
+  const hasToken = Boolean(tenantToken);
+  // SaaS one-domain-per-makerspace: with no explicit token but the origin-bootstrap
+  // flag set, resolve the makerspace from the request origin/Host server-side. The
+  // flag keeps central/dev/self-host deployments on the synchronous central path
+  // (no extra request, behavior unchanged).
+  const originBootstrap = !hasToken && configuredOriginBootstrap();
+
+  const tokenQuery = useQuery({
     queryKey: ["runtime-tenant", tenantToken],
     queryFn: () => bootstrapTenant({ tenant: tenantToken }),
-    enabled: singleTenant,
+    enabled: hasToken,
     staleTime: Infinity,
   });
+  // No tenant/slug params → the backend resolves the makerspace by Origin/Host.
+  // retry:false so an unresolved origin (central portal) falls back promptly.
+  const originQuery = useQuery({
+    queryKey: ["runtime-tenant-origin"],
+    queryFn: () => bootstrapTenant({}),
+    enabled: originBootstrap,
+    staleTime: Infinity,
+    retry: false,
+  });
+
+  const activeQuery = hasToken ? tokenQuery : originQuery;
 
   useEffect(() => {
-    if (tenantQuery.data) {
-      setRuntimePublishableKey(tenantQuery.data.public_api.publishable_key);
-      applyTenantBranding(tenantQuery.data);
+    if (activeQuery.data) {
+      setRuntimePublishableKey(activeQuery.data.public_api.publishable_key);
+      applyTenantBranding(activeQuery.data);
     }
-  }, [tenantQuery.data]);
+  }, [activeQuery.data]);
 
-  if (!singleTenant) {
+  // Central portal: no token and no origin-bootstrap flag → central directory.
+  // Origin-bootstrap that resolved to no makerspace (settled without data) also
+  // falls back to central so the shared apex still serves the directory.
+  if (!hasToken && !originBootstrap) {
     return (
-      <TenantContext.Provider
-        value={{
-          mode: "central",
-          loading: false,
-          error: null,
-          bootstrap: null,
-          slug: "",
-          makerspaceId: null,
-          modules: new Set(),
-        }}
-      >
-        {children}
-      </TenantContext.Provider>
+      <TenantContext.Provider value={CENTRAL_VALUE}>{children}</TenantContext.Provider>
+    );
+  }
+  if (originBootstrap && !originQuery.isLoading && !originQuery.data) {
+    return (
+      <TenantContext.Provider value={CENTRAL_VALUE}>{children}</TenantContext.Provider>
     );
   }
 
-  const error = tenantQuery.error instanceof Error ? tenantQuery.error : null;
+  const error = activeQuery.error instanceof Error ? activeQuery.error : null;
   const value: TenantContextValue = {
     mode: "single",
-    loading: tenantQuery.isLoading,
+    loading: activeQuery.isLoading,
     error,
-    bootstrap: tenantQuery.data ?? null,
-    slug: tenantQuery.data?.makerspace.slug ?? "",
-    makerspaceId: tenantQuery.data?.makerspace.id ?? null,
-    modules: new Set(tenantQuery.data?.modules ?? []),
+    bootstrap: activeQuery.data ?? null,
+    slug: activeQuery.data?.makerspace.slug ?? "",
+    makerspaceId: activeQuery.data?.makerspace.id ?? null,
+    modules: new Set(activeQuery.data?.modules ?? []),
   };
 
   return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>;

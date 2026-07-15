@@ -1,6 +1,11 @@
 export type RuntimeTenantConfig = {
   apiUrl?: string;
   tenantToken?: string;
+  // SaaS-only: when true and no tenantToken is set, the app resolves its
+  // makerspace by request origin/Host via GET /bootstrap (one branded site per
+  // domain). Set exclusively by the SaaS Caddy overlay's config.js. Absent for
+  // central/dev/self-host deployments so their behavior stays unchanged.
+  originBootstrap?: boolean;
 };
 
 declare global {
@@ -18,7 +23,12 @@ export function runtimeTenantConfig(): RuntimeTenantConfig {
   return {
     apiUrl: clean(config?.apiUrl) || undefined,
     tenantToken: clean(config?.tenantToken) || undefined,
+    originBootstrap: config?.originBootstrap === true,
   };
+}
+
+export function configuredOriginBootstrap(): boolean {
+  return runtimeTenantConfig().originBootstrap === true;
 }
 
 export function configuredTenantToken(): string {
