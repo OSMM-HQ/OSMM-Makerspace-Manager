@@ -1,5 +1,7 @@
 from urllib.parse import urlparse
 
+from django.conf import settings
+
 from apps.inventory import public_image_storage
 from apps.integrations.email import email_enabled
 from apps.makerspaces.models import Makerspace, default_branding_config, default_theme_config
@@ -36,9 +38,13 @@ def origin_to_hostname(origin):
 
 
 def makerspace_staff_origins(makerspace):
-    if not makerspace.frontend_domain:
-        return set()
-    return {f"https://{makerspace.frontend_domain}"}
+    origins = set(settings.PLATFORM_STAFF_ORIGINS)
+    if (
+        makerspace.frontend_domain
+        and makerspace.frontend_domain_status == Makerspace.DomainStatus.VERIFIED
+    ):
+        origins.add(f"https://{makerspace.frontend_domain}")
+    return origins
 
 
 def makerspace_public_origins(makerspace):

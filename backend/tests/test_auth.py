@@ -108,6 +108,7 @@ def test_refresh_allows_registered_staff_frontend_origin():
         name="Registered",
         slug="registered",
         frontend_domain="staff.example",
+        frontend_domain_status=Makerspace.DomainStatus.VERIFIED,
     )
     client = APIClient()
     _login(client)
@@ -128,6 +129,7 @@ def test_refresh_rejects_non_localhost_http_staff_frontend_origin():
         name="HTTP Staff",
         slug="http-staff",
         frontend_domain="staff.example",
+        frontend_domain_status=Makerspace.DomainStatus.VERIFIED,
     )
     client = APIClient()
     _login(client)

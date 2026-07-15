@@ -1,6 +1,7 @@
 from urllib.parse import urlsplit
 
 from corsheaders.signals import check_request_enabled
+from django.conf import settings
 
 from apps.makerspaces.models import Makerspace
 from apps.makerspaces.platform import makerspace_public_origins, makerspace_staff_origins
@@ -23,12 +24,15 @@ def _origin_host(origin):
 def origin_is_registered(origin):
     if not origin:
         return False
+    if origin in set(settings.PLATFORM_STAFF_ORIGINS):
+        return True
     # Indexed lookup: a branded-domain origin matches by host; an API-client/public origin
     # matches by exact membership in cors_allowed_origins (jsonb containment).
     host = _origin_host(origin)
     if host:
         for makerspace in Makerspace.objects.filter(
             frontend_domain__iexact=host,
+            frontend_domain_status=Makerspace.DomainStatus.VERIFIED,
             archived_at__isnull=True,
         ):
             if origin in makerspace_public_origins(makerspace):
@@ -43,6 +47,8 @@ def staff_origin_is_registered(origin):
     """Credentialed staff-auth endpoints only trust the configured frontend domain."""
     if not origin:
         return False
+    if origin in set(settings.PLATFORM_STAFF_ORIGINS):
+        return True
     host = _origin_host(origin)
     if not host:
         return False
@@ -50,6 +56,7 @@ def staff_origin_is_registered(origin):
     # https://<frontend_domain> origin — never cors_allowed_origins.
     for makerspace in Makerspace.objects.filter(
         frontend_domain__iexact=host,
+        frontend_domain_status=Makerspace.DomainStatus.VERIFIED,
         archived_at__isnull=True,
     ):
         if origin in makerspace_staff_origins(makerspace):

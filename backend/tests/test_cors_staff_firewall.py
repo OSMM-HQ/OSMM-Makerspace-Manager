@@ -3,6 +3,7 @@ from types import SimpleNamespace
 import pytest
 
 from apps.makerspaces.cors import cors_allow_registered_frontend
+from apps.makerspaces.models import Makerspace
 from tests.return_helpers import make_space
 
 pytestmark = pytest.mark.django_db
@@ -41,8 +42,15 @@ def cors_allows(path, origin):
 def makerspace_with_origins():
     makerspace = make_space("cors-firewall")
     makerspace.frontend_domain = "staff.example.com"
+    makerspace.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
     makerspace.cors_allowed_origins = [PUBLIC_API_ORIGIN]
-    makerspace.save(update_fields=["frontend_domain", "cors_allowed_origins"])
+    makerspace.save(
+        update_fields=[
+            "frontend_domain",
+            "frontend_domain_status",
+            "cors_allowed_origins",
+        ]
+    )
     return makerspace
 
 

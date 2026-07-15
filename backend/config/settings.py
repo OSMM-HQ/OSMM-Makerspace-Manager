@@ -17,6 +17,17 @@ from config.unfold import UNFOLD
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
+PLATFORM_DOMAIN_SUFFIX = env("PLATFORM_DOMAIN_SUFFIX", default="")
+INFRA_HOSTS = set(
+    env.list(
+        "INFRA_HOSTS",
+        default=["localhost", "127.0.0.1", "backend", "backend:8000"],
+    )
+)
+PLATFORM_STAFF_ORIGINS = env.list("PLATFORM_STAFF_ORIGINS", default=[])
+BEHIND_TRUSTED_PROXY = env.bool("BEHIND_TRUSTED_PROXY", default=False)
+if BEHIND_TRUSTED_PROXY:
+    ALLOWED_HOSTS = ["*"]
 PUBLIC_APP_BASE_URL = env("PUBLIC_APP_BASE_URL", default="").rstrip("/")
 MANAGED_POSTGRES = env.bool("MANAGED_POSTGRES", default=False)
 STORAGE_PRESIGN_METHOD = env("STORAGE_PRESIGN_METHOD", default="post")
@@ -59,6 +70,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "apps.makerspaces.middleware.TenantHostValidationMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "csp.middleware.CSPMiddleware",
     "config.admin_access.AdminCspEvalMiddleware",

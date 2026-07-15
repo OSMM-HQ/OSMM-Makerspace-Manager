@@ -236,7 +236,8 @@ def test_patch_asset_from_tenant_branded_origin_is_allowed():
     # makerspace for tenant-branded staff domains, else legitimate PATCHes 403.
     makerspace = make_space("asset-editor-origin")
     makerspace.frontend_domain = "tools.example.org"
-    makerspace.save(update_fields=["frontend_domain"])
+    makerspace.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
+    makerspace.save(update_fields=["frontend_domain", "frontend_domain_status"])
     admin = make_admin(makerspace)
     asset = make_asset(makerspace, tag="ORIGIN-1")
 

@@ -5,7 +5,7 @@ from rest_framework.test import APIClient, APIRequestFactory, force_authenticate
 from apps.accounts.models import User
 from apps.accounts.serializers import user_payload
 from apps.accounts.views import MeView
-from apps.makerspaces.models import MakerspaceMembership
+from apps.makerspaces.models import Makerspace, MakerspaceMembership
 from tests.return_helpers import make_space, make_user
 
 pytestmark = pytest.mark.django_db
@@ -16,7 +16,8 @@ LOGIN = "/api/v1/auth/login"
 def _make_staff_with_memberships(username="profile-scope-staff"):
     space_a = make_space(f"{username}-a")
     space_a.frontend_domain = "a.example"
-    space_a.save(update_fields=["frontend_domain"])
+    space_a.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
+    space_a.save(update_fields=["frontend_domain", "frontend_domain_status"])
     space_b = make_space(f"{username}-b")
     archived = make_space(f"{username}-archived")
     archived.frontend_domain = "archived.example"
@@ -98,8 +99,15 @@ def test_login_response_scopes_memberships_to_branded_staff_origin():
 def test_hidden_makerspace_staff_keeps_own_profile_membership():
     hidden = make_space("profile-hidden-own")
     hidden.frontend_domain = "hidden.example"
+    hidden.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
     hidden.superadmin_access_enabled = False
-    hidden.save(update_fields=["frontend_domain", "superadmin_access_enabled"])
+    hidden.save(
+        update_fields=[
+            "frontend_domain",
+            "frontend_domain_status",
+            "superadmin_access_enabled",
+        ]
+    )
     user = make_user(
         "profile-hidden-manager",
         role=User.Role.SPACE_MANAGER,

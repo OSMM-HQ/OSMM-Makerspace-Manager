@@ -4,7 +4,7 @@ from rest_framework.test import APIClient, APIRequestFactory
 
 from apps.accounts.models import User
 from apps.makerspaces.cors import origin_is_registered, staff_origin_is_registered
-from apps.makerspaces.models import MakerspaceMembership
+from apps.makerspaces.models import Makerspace, MakerspaceMembership
 from apps.makerspaces.origin_scope import NO_STAFF_ORIGIN_SCOPE, staff_origin_scope
 from tests.return_helpers import make_member, make_product, make_space, make_user
 
@@ -17,6 +17,7 @@ def test_bootstrap_resolves_public_code_without_private_fields():
     makerspace.theme_config = {"primary_color": "#111111"}
     makerspace.branding_config = {"display_name": "Platform A"}
     makerspace.frontend_domain = "platform-a.example"
+    makerspace.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
     makerspace.cors_allowed_origins = ["https://api-client.example"]
     makerspace.save()
 
@@ -93,6 +94,17 @@ def test_public_only_cors_origin_allows_public_api_but_not_staff_scope():
     assert response.status_code == 200
     assert origin_is_registered(public_origin) is True
     assert staff_origin_is_registered(public_origin) is False
+    assert staff_origin_scope(request) is NO_STAFF_ORIGIN_SCOPE
+
+
+@override_settings(PLATFORM_STAFF_ORIGINS=["https://osmm.me"])
+def test_platform_staff_origin_is_allowed_without_tenant_scope():
+    request = APIRequestFactory().get(
+        "/api/v1/admin/makerspaces",
+        HTTP_ORIGIN="https://osmm.me",
+    )
+
+    assert staff_origin_is_registered("https://osmm.me") is True
     assert staff_origin_scope(request) is NO_STAFF_ORIGIN_SCOPE
 
 
@@ -173,7 +185,8 @@ def test_staff_origin_scope_filters_makerspace_list_and_blocks_cross_tenant_targ
     space_a = make_space("platform-origin-scope-a")
     space_b = make_space("platform-origin-scope-b")
     space_a.frontend_domain = "space-a.example"
-    space_a.save(update_fields=["frontend_domain"])
+    space_a.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
+    space_a.save(update_fields=["frontend_domain", "frontend_domain_status"])
     product_a = make_product(space_a, name="Scope A")
     product_b = make_product(space_b, name="Scope B")
     staff = make_user(

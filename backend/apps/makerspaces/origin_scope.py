@@ -1,5 +1,7 @@
 from urllib.parse import urlsplit
 
+from django.conf import settings
+
 from apps.makerspaces.models import Makerspace
 from apps.makerspaces.platform import makerspace_staff_origins
 
@@ -23,6 +25,8 @@ def _origin_candidate(request):
 def staff_origin_scope(request):
     origin = _origin_candidate(request)
     if not origin:
+        return NO_STAFF_ORIGIN_SCOPE
+    if origin in set(settings.PLATFORM_STAFF_ORIGINS):
         return NO_STAFF_ORIGIN_SCOPE
 
     matches = {

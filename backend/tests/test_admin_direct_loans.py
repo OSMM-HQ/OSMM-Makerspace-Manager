@@ -145,7 +145,8 @@ def staff_verify_url(makerspace):
 
 def set_staff_domain(makerspace, domain):
     makerspace.frontend_domain = domain
-    makerspace.save(update_fields=["frontend_domain"])
+    makerspace.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
+    makerspace.save(update_fields=["frontend_domain", "frontend_domain_status"])
     return f"https://{domain}"
 
 
