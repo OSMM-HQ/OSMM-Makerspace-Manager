@@ -9,6 +9,7 @@ const DirectLoans = lazy(() => import("./DirectLoans").then((m) => ({ default: m
 const Inventory = lazy(() => import("./panels/Inventory").then((m) => ({ default: m.Inventory })));
 const Ledger = lazy(() => import("./panels/Ledger").then((m) => ({ default: m.Ledger })));
 const PrintingPanel = lazy(() => import("./panels/PrintingPanel").then((m) => ({ default: m.PrintingPanel })));
+const MachinesPanel = lazy(() => import("./panels/MachinesPanel").then((m) => ({ default: m.MachinesPanel })));
 const QrTools = lazy(() => import("./panels/QrTools").then((m) => ({ default: m.QrTools })));
 const RequestsPanel = lazy(() => import("./panels/RequestsPanel").then((m) => ({ default: m.RequestsPanel })));
 const Users = lazy(() => import("./panels/Users").then((m) => ({ default: m.Users })));
@@ -43,6 +44,7 @@ export function StaffTabContent({
   canUseToBuy,
   canManageQr,
   canManageMakerspace,
+  canManageMachines,
   canSeeHardware,
   canSeePrinting,
   canViewAudit,
@@ -59,6 +61,7 @@ export function StaffTabContent({
   canUseToBuy: boolean;
   canManageQr: boolean;
   canManageMakerspace: boolean;
+  canManageMachines: boolean;
   canSeeHardware: boolean;
   canSeePrinting: boolean;
   canViewAudit: boolean;
@@ -96,6 +99,7 @@ export function StaffTabContent({
       {activeTab === "needsfix" && canEditInventory ? <NeedsFixShelf key={makerspaceKey} makerspace={activeMakerspace} /> : null}
       {activeTab === "categories" && canEditInventory ? <Categories key={makerspaceKey} makerspace={activeMakerspace} /> : null}
       {activeTab === "printing" ? <PrintingPanel key={makerspaceKey} makerspace={activeMakerspace} /> : null}
+      {activeTab === "machines" ? <MachinesPanel key={makerspaceKey} makerspaceId={activeMakerspace.id} canManage={canManageMachines} /> : null}
       {activeTab === "tobuy" ? (
         <ProcurementPanel
           key={makerspaceKey}

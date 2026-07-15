@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     "apps.operations",
     "apps.procurement",
     "apps.notifications",
+    "apps.machines",
 ]
 
 MIDDLEWARE = [
@@ -169,6 +170,11 @@ EVIDENCE_ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"]
 WARRANTY_DOC_MAX_BYTES = env.int("WARRANTY_DOC_MAX_BYTES", default=10485760)
 WARRANTY_DOC_ALLOWED_MIME = env.list(
     "WARRANTY_DOC_ALLOWED_MIME",
+    default=["application/pdf", "image/jpeg", "image/png", "image/webp"],
+)
+MACHINE_DOC_MAX_BYTES = env.int("MACHINE_DOC_MAX_BYTES", default=10485760)
+MACHINE_DOC_ALLOWED_MIME = env.list(
+    "MACHINE_DOC_ALLOWED_MIME",
     default=["application/pdf", "image/jpeg", "image/png", "image/webp"],
 )
 PROCUREMENT_RECEIPT_MAX_BYTES = env.int("PROCUREMENT_RECEIPT_MAX_BYTES", default=10485760)

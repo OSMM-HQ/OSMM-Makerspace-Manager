@@ -14,6 +14,10 @@ NESTED_MAKERSPACE_LOOKUPS = {
     "printing.printrequest": "bucket__makerspace_id",
     "warranty.warrantydocument": "warranty__makerspace_id",
     "procurement.tobuyreceipt": "to_buy_item__makerspace_id",
+    "machines.machineoperator": "machine__makerspace_id",
+    "machines.machineusageentry": "machine__makerspace_id",
+    "machines.machinedocument": "machine__makerspace_id",
+    "machines.machineerrorlog": "machine__makerspace_id",
 }
 
 # Registered admin models that are intentionally NOT makerspace-scoped (account/global).

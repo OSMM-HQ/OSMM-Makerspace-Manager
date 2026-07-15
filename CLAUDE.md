@@ -2,6 +2,62 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — Machines module (M1 of the FabLab expansion; 2026-07-14)
+
+First milestone of a 5-milestone FabLab platform expansion (Machines → Machine-ops → Materials/
+Manufacturing → Projects → Community/Insights). A generalized **Machines** module — the keystone
+Reservations (M2), Maintenance (M2), Incident Reporting (M2), the Job Queue (M3), and Analytics (M5)
+will build on. Codex Stage-1 APPROVED after 4 review rounds; built Codex-assisted + Claude-verified
+per step; **1184 backend tests pass** (1167 baseline + 17 new machines tests); `tsc -b` + `npm run
+build` green. Spec (gitignored): `docs/superpowers/specs/2026-07-14-machines-module-design.md`.
+
+- **New `apps/machines/` app** (migrations `0001` models, `0002` seed, `0003` printer backfill;
+  makerspaces `0027` enables the module on existing labs). Six models: **MachineType** (nullable-
+  makerspace catalog — global built-ins seeded `makerspace=NULL, is_builtin=True` + per-lab custom;
+  **two partial unique constraints** `uniq_global_machinetype_slug` / `uniq_lab_machinetype_slug`
+  because plain `unique_together` doesn't dedupe NULLs; `CheckConstraint machinetype_builtin_is_global`;
+  server-controlled `managing_action` storing the rbac.Action VALUE, `3d_printer → "manage_printing"`),
+  **Machine** (status `idle/running/reserved/maintenance/offline` — **manual + informational only, never
+  governs 3D-print scheduling**; `linked_print_printer` nullable OneToOne SET_NULL, **no cached
+  usage_hours** — derived via `Sum`; `created_by` SET_NULL for migrated rows), **MachineOperator** (M2M,
+  `operate/manage/full`), **MachineUsageEntry** (append-only ledger, `hours>0` constraint, `manual`-only
+  in M1), **MachineDocument** (private-bucket manuals/SOP), **MachineErrorLog** (append-only; distinct
+  from M2 Incident Reporting).
+- **3-tier authz** (`apps/machines/access.py` + new `Action.MANAGE_MACHINES` → Space Manager +
+  Superadmin): (1) MANAGE_MACHINES full control; (2) **type managers** via `MachineType.managing_action`
+  (`rbac.can(actor, managing_action, ms_id)` — Print Manager manages `3d_printer` machines); (3) per-
+  machine operators. **Delegation rules:** a `full` operator can retire + manage `operate`/`manage`
+  operators but **cannot** grant/revoke `full` or unretire (no self-propagating admin); every operator
+  check re-verifies **live active membership** (`is_active_member`) so stale/suspended rows are inert.
+  `scope_machines_for_actor` (union of MANAGE_MACHINES labs + type-managed + assigned) + `can_see_machines`
+  capability. Honors the existing hard-hide/archived scoping via the rbac helpers.
+- **Services are the single source of truth** (`services.py`, atomic + row-locked + audited):
+  `set_status`, `log_usage` (locks machine first), `machine_usage_total`, `assign_operator`/
+  `remove_operator` (enforce active-member + delegation), `retire_machine`/`unretire_machine`,
+  `log_error`, `attach_document`/`remove_document`. Retired machines reject usage/error/operator/status
+  mutations. `storage.py` mirrors `warranty/storage.py` (private bucket, byte-sniff finalize, PUT/POST
+  presign; settings `MACHINE_DOC_ALLOWED_MIME`/`MACHINE_DOC_MAX_BYTES`). `linking.py` + a `post_save`
+  signal (`transaction.on_commit`) auto-link every new `PrintPrinter` to a `Machine` (fail-safe, never
+  breaks printer creation); the `0003` migration backfills existing printers.
+- **REST API** (`admin_api/views_machines*.py`, `views_machine_operators/documents/types.py`;
+  `machine_access.resolve_machine` = scope→404-then-403; all `@extend_schema`, `IsActiveStaff`,
+  `require_module("machines")`): machine list/create + detail/PATCH (**no DELETE — retire only**),
+  set-status, retire/unretire, usage list/log, operators list/assign/patch/remove, documents
+  presign/finalize/list/url/delete, error-logs list/create, machine-types list/create (managing_action
+  forced blank). Serializers **never expose `object_key`**; `status`/`is_active`/`linked_print_printer`
+  read-only. `origin_scope.py` wired (all 14 URL names + `machines` model dispatch). OpenAPI snapshot +
+  generated TS client regenerated.
+- **`/control/` admin** (`apps/machines/admin.py`): all 6 models under a **Machines** sidebar group;
+  `MachineAdmin.has_delete_permission()=False` (retire/unretire/set-status as service-backed admin
+  actions), `linked_print_printer`/`status`/`is_active` read-only; child models read-only + added to
+  `config.admin_access.NESTED_MAKERSPACE_LOOKUPS` (`machine__makerspace_id`) so the hidden-scope drift
+  guard stays clean. Default-enabled **`machines`** module flag added to `DEFAULT_ENABLED_MODULES`.
+- **Frontend**: `machinesApi.ts` + `MachinesPanel` (+ `MachineDetailDrawer`/`MachineDetailSections`):
+  list/create + detail drawer (editable fields, status control, operators, usage, documents via
+  presign→upload→finalize, error logs, retire). New **Machines** tab/group in `staffAccess.ts`, gated on
+  the `machines` module + `canManageMachines` (Space Manager/Superadmin) or `canSeePrinting` (Print
+  Manager as `3d_printer` type-manager). Tests: `backend/tests/test_machines.py` (17).
+
 ## Recent batch — audit fixes + features + dependency upgrade (P1–P17; 2026-07-08)
 
 20-phase batch from a 4-agent Codex codebase audit, merged to `main` (fast-forward). **1167 backend

@@ -57,6 +57,7 @@ DEFAULT_ENABLED_MODULES = [
     "qr_print_batches",
     "asset_units",
     "procurement",
+    "machines",
 ]
 
 

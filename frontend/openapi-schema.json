@@ -2216,6 +2216,878 @@
                 }
             }
         },
+        "/api/v1/admin/machines/{id}": {
+            "get": {
+                "operationId": "api_v1_admin_machines_retrieve",
+                "summary": "Retrieve a machine",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Machine"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "api_v1_admin_machines_partial_update",
+                "summary": "Update a machine",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMachine"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMachine"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMachine"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Machine"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid machine details."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machines/{id}/documents": {
+            "get": {
+                "operationId": "api_v1_admin_machines_documents_list",
+                "summary": "List machine documents",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/MachineDocument"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_admin_machines_documents_create",
+                "summary": "Finalize a machine document upload",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DocumentFinalize"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DocumentFinalize"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DocumentFinalize"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineDocument"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid machine document."
+                    },
+                    "503": {
+                        "description": "Machine document storage is unavailable."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machines/{id}/documents/presign": {
+            "post": {
+                "operationId": "api_v1_admin_machines_documents_presign_create",
+                "summary": "Create a machine document upload URL",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DocumentPresign"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DocumentPresign"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DocumentPresign"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Machine document upload details."
+                    },
+                    "400": {
+                        "description": "Invalid document upload request."
+                    },
+                    "503": {
+                        "description": "Machine document storage is unavailable."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machines/{id}/error-logs": {
+            "get": {
+                "operationId": "api_v1_admin_machines_error_logs_list",
+                "summary": "List machine error logs",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/MachineErrorLog"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_admin_machines_error_logs_create",
+                "summary": "Log a machine error",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LogError"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LogError"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LogError"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineErrorLog"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid error log."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machines/{id}/operator-candidates": {
+            "get": {
+                "operationId": "api_v1_admin_machines_operator_candidates_list",
+                "summary": "List active members eligible for machine operator assignment",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/OperatorCandidate"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "description": "Operator delegation is not permitted."
+                    },
+                    "404": {
+                        "description": "Machine not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machines/{id}/operators": {
+            "get": {
+                "operationId": "api_v1_admin_machines_operators_list",
+                "summary": "List machine operators",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/MachineOperator"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_admin_machines_operators_create",
+                "summary": "Assign a machine operator",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AssignOperator"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AssignOperator"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/AssignOperator"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineOperator"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid operator assignment."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machines/{id}/operators/{user_pk}": {
+            "patch": {
+                "operationId": "api_v1_admin_machines_operators_partial_update",
+                "summary": "Update a machine operator",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "user_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedAssignOperator"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedAssignOperator"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedAssignOperator"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineOperator"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid operator assignment."
+                    }
+                }
+            },
+            "delete": {
+                "operationId": "api_v1_admin_machines_operators_destroy",
+                "summary": "Remove a machine operator",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "user_pk",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machines/{id}/retire": {
+            "post": {
+                "operationId": "api_v1_admin_machines_retire_create",
+                "summary": "Retire a machine",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Machine"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machines/{id}/set-status": {
+            "post": {
+                "operationId": "api_v1_admin_machines_set_status_create",
+                "summary": "Set a machine status",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SetStatus"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SetStatus"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SetStatus"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Machine"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid machine status."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machines/{id}/unretire": {
+            "post": {
+                "operationId": "api_v1_admin_machines_unretire_create",
+                "summary": "Reactivate a retired machine",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Machine"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machines/{id}/usage": {
+            "get": {
+                "operationId": "api_v1_admin_machines_usage_list",
+                "summary": "List machine usage entries",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/MachineUsageEntry"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_admin_machines_usage_create",
+                "summary": "Log machine usage",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LogUsage"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LogUsage"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/LogUsage"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineUsageEntry"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid usage entry."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machines/documents/{id}": {
+            "delete": {
+                "operationId": "api_v1_admin_machines_documents_destroy",
+                "summary": "Delete a machine document",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machines/documents/{id}/url": {
+            "get": {
+                "operationId": "api_v1_admin_machines_documents_url_retrieve",
+                "summary": "Create a signed machine document view URL",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Signed machine document URL."
+                    },
+                    "503": {
+                        "description": "Machine document storage is unavailable."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/accepted-requests": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_accepted_requests_list",
@@ -5084,6 +5956,195 @@
                             }
                         },
                         "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/machine-types": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_machine_types_list",
+                "summary": "List machine types for a makerspace",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/MachineType"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_admin_makerspace_machine_types_create",
+                "summary": "Create a custom machine type",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MachineTypeCreate"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MachineTypeCreate"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MachineTypeCreate"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineType"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid machine type."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/machines": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_machines_retrieve",
+                "summary": "List machines in a makerspace",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineListResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_admin_makerspace_machines_create",
+                "summary": "Create a machine",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Machine"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Machine"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/Machine"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Machine"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid machine details."
                     }
                 }
             }
@@ -14632,6 +15693,15 @@
                     }
                 }
             },
+            "AccessLevelEnum": {
+                "enum": [
+                    "operate",
+                    "manage",
+                    "full"
+                ],
+                "type": "string",
+                "description": "* `operate` - Operate\n* `manage` - Manage\n* `full` - Full"
+            },
             "AccessStatusEnum": {
                 "enum": [
                     "active",
@@ -15429,6 +16499,22 @@
                 },
                 "required": [
                     "box_code"
+                ]
+            },
+            "AssignOperator": {
+                "type": "object",
+                "properties": {
+                    "user_id": {
+                        "type": "integer"
+                    },
+                    "access_level": {
+                        "type": "string",
+                        "maxLength": 16
+                    }
+                },
+                "required": [
+                    "access_level",
+                    "user_id"
                 ]
             },
             "AuditLog": {
@@ -16442,6 +17528,53 @@
                 ],
                 "type": "string",
                 "description": "* `needs_fix` - needs_fix\n* `remove` - remove"
+            },
+            "DocTypeEnum": {
+                "enum": [
+                    "manual",
+                    "sop"
+                ],
+                "type": "string",
+                "description": "* `manual` - Manual\n* `sop` - SOP"
+            },
+            "DocumentFinalize": {
+                "type": "object",
+                "properties": {
+                    "object_key": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "doc_type": {
+                        "type": "string",
+                        "maxLength": 16
+                    },
+                    "original_filename": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "doc_type",
+                    "object_key",
+                    "original_filename"
+                ]
+            },
+            "DocumentPresign": {
+                "type": "object",
+                "properties": {
+                    "filename": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "content_type": {
+                        "type": "string",
+                        "maxLength": 100
+                    }
+                },
+                "required": [
+                    "content_type",
+                    "filename"
+                ]
             },
             "DomainVerificationRecord": {
                 "type": "object",
@@ -17965,7 +19098,7 @@
                 "type": "object",
                 "properties": {
                     "source": {
-                        "$ref": "#/components/schemas/SourceEnum"
+                        "$ref": "#/components/schemas/LedgerRowSourceEnum"
                     },
                     "item_name": {
                         "type": "string"
@@ -18022,6 +19155,15 @@
                     "status",
                     "units"
                 ]
+            },
+            "LedgerRowSourceEnum": {
+                "enum": [
+                    "request",
+                    "self_checkout",
+                    "direct_handout"
+                ],
+                "type": "string",
+                "description": "* `request` - request\n* `self_checkout` - self_checkout\n* `direct_handout` - direct_handout"
             },
             "LedgerUnit": {
                 "type": "object",
@@ -18131,6 +19273,39 @@
                 "type": "string",
                 "description": "* `info` - Info\n* `warning` - Warning\n* `critical` - Critical"
             },
+            "LogError": {
+                "type": "object",
+                "properties": {
+                    "severity": {
+                        "type": "string",
+                        "maxLength": 16
+                    },
+                    "message": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "message",
+                    "severity"
+                ]
+            },
+            "LogUsage": {
+                "type": "object",
+                "properties": {
+                    "hours": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$"
+                    },
+                    "note": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "hours"
+                ]
+            },
             "LoginRequest": {
                 "type": "object",
                 "properties": {
@@ -18172,6 +19347,392 @@
                 "required": [
                     "detail"
                 ]
+            },
+            "Machine": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "makerspace": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "machine_type": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MachineType"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "machine_type_id": {
+                        "type": "integer",
+                        "writeOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "location": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "notes": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MachineStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "firmware_version": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "camera_feed_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "maxLength": 200
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "linked_print_printer": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "usage_hours": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "can_operate": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "can_edit": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "can_delegate": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "can_retire": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "can_unretire": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "can_manage": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "can_delegate",
+                    "can_edit",
+                    "can_manage",
+                    "can_operate",
+                    "can_retire",
+                    "can_unretire",
+                    "created_at",
+                    "id",
+                    "is_active",
+                    "linked_print_printer",
+                    "machine_type",
+                    "machine_type_id",
+                    "makerspace",
+                    "name",
+                    "status",
+                    "updated_at",
+                    "usage_hours"
+                ]
+            },
+            "MachineDocument": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "doc_type": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/DocTypeEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "original_filename": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "content_type": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "size_bytes": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "content_type",
+                    "created_at",
+                    "doc_type",
+                    "id",
+                    "original_filename",
+                    "size_bytes"
+                ]
+            },
+            "MachineErrorLog": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "severity": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SeverityEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "message": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "logged_by_username": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "id",
+                    "logged_by_username",
+                    "message",
+                    "severity"
+                ]
+            },
+            "MachineListResponse": {
+                "type": "object",
+                "properties": {
+                    "count": {
+                        "type": "integer"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Machine"
+                        }
+                    }
+                },
+                "required": [
+                    "count",
+                    "results"
+                ]
+            },
+            "MachineOperator": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "user": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "username": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "access_level": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AccessLevelEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "assigned_by_username": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "assigned_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "access_level",
+                    "assigned_at",
+                    "assigned_by_username",
+                    "id",
+                    "user",
+                    "username"
+                ]
+            },
+            "MachineStatusEnum": {
+                "enum": [
+                    "idle",
+                    "running",
+                    "reserved",
+                    "maintenance",
+                    "offline"
+                ],
+                "type": "string",
+                "description": "* `idle` - Idle\n* `running` - Running\n* `reserved` - Reserved\n* `maintenance` - Maintenance\n* `offline` - Offline"
+            },
+            "MachineType": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "slug": {
+                        "type": "string",
+                        "maxLength": 50,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "icon": {
+                        "type": "string",
+                        "maxLength": 50
+                    },
+                    "is_builtin": {
+                        "type": "boolean"
+                    },
+                    "managing_action": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "makerspace": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "id",
+                    "makerspace",
+                    "managing_action",
+                    "name",
+                    "slug"
+                ]
+            },
+            "MachineTypeCreate": {
+                "type": "object",
+                "properties": {
+                    "slug": {
+                        "type": "string",
+                        "maxLength": 50,
+                        "pattern": "^[-a-zA-Z0-9_]+$"
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "icon": {
+                        "type": "string",
+                        "maxLength": 50
+                    }
+                },
+                "required": [
+                    "name",
+                    "slug"
+                ]
+            },
+            "MachineUsageEntry": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "hours": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "source": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MachineUsageEntrySourceEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "note": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "logged_by_username": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "hours",
+                    "id",
+                    "logged_by_username",
+                    "note",
+                    "source"
+                ]
+            },
+            "MachineUsageEntrySourceEnum": {
+                "enum": [
+                    "manual"
+                ],
+                "type": "string",
+                "description": "* `manual` - Manual"
             },
             "Makerspace": {
                 "type": "object",
@@ -19273,6 +20834,28 @@
                     "count"
                 ]
             },
+            "OperatorCandidate": {
+                "type": "object",
+                "properties": {
+                    "user_id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "username": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "display_name": {
+                        "type": "string",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "display_name",
+                    "user_id",
+                    "username"
+                ]
+            },
             "PaginatedAdminRequestList": {
                 "type": "object",
                 "required": [
@@ -20089,6 +21672,18 @@
                     }
                 }
             },
+            "PatchedAssignOperator": {
+                "type": "object",
+                "properties": {
+                    "user_id": {
+                        "type": "integer"
+                    },
+                    "access_level": {
+                        "type": "string",
+                        "maxLength": 16
+                    }
+                }
+            },
             "PatchedBox": {
                 "type": "object",
                 "properties": {
@@ -20395,6 +21990,106 @@
                     },
                     "is_archived": {
                         "type": "boolean"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                }
+            },
+            "PatchedMachine": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "makerspace": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "machine_type": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MachineType"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "machine_type_id": {
+                        "type": "integer",
+                        "writeOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "location": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "notes": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MachineStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "firmware_version": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "camera_feed_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "maxLength": 200
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "linked_print_printer": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "usage_hours": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "can_operate": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "can_edit": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "can_delegate": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "can_retire": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "can_unretire": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "can_manage": {
+                        "type": "string",
+                        "readOnly": true
                     },
                     "created_at": {
                         "type": "string",
@@ -24136,14 +25831,27 @@
                     "status"
                 ]
             },
-            "SourceEnum": {
+            "SetStatus": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "type": "string",
+                        "maxLength": 20
+                    }
+                },
+                "required": [
+                    "status"
+                ]
+            },
+            "SeverityEnum": {
                 "enum": [
-                    "request",
-                    "self_checkout",
-                    "direct_handout"
+                    "info",
+                    "warning",
+                    "error",
+                    "critical"
                 ],
                 "type": "string",
-                "description": "* `request` - request\n* `self_checkout` - self_checkout\n* `direct_handout` - direct_handout"
+                "description": "* `info` - Info\n* `warning` - Warning\n* `error` - Error\n* `critical` - Critical"
             },
             "StaffCheckinVerifyRequest": {
                 "type": "object",

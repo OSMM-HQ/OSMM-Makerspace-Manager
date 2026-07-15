@@ -37,6 +37,7 @@ class Action:
     UPLOAD_EVIDENCE = "upload_evidence"
     MANAGE_QR = "manage_qr"
     MANAGE_PRINTING = "manage_printing"
+    MANAGE_MACHINES = "manage_machines"
     VIEW_AUDIT = "view_audit"
     TRANSFER_STOCK = "transfer_stock"        # superadmin only
     MANAGE_STAFF = "manage_staff"            # superadmin only
@@ -48,7 +49,7 @@ _SPACE_MANAGER_ACTIONS = {
     Action.REJECT_REQUEST, Action.ASSIGN_BOX, Action.ISSUE_REQUEST,
     Action.ISSUE_DIRECT_LOAN, Action.RETURN_REQUEST, Action.UPLOAD_EVIDENCE,
     Action.MANAGE_QR, Action.MANAGE_PRINTING, Action.VIEW_AUDIT,
-    Action.MANAGE_MAKERSPACE,
+    Action.MANAGE_MAKERSPACE, Action.MANAGE_MACHINES,
 }
 # Guest admins are handout-only: accepted request handovers, direct handout, returns,
 # and evidence upload. They still cannot review requests or edit inventory setup.

@@ -1,5 +1,5 @@
 const ALL_TABS = [
-  "dashboard", "notifications", "requests", "direct", "inventory", "needsfix", "categories", "printing", "tobuy", "transfers",
+  "dashboard", "notifications", "requests", "direct", "inventory", "needsfix", "categories", "printing", "machines", "tobuy", "transfers",
   "stocktake", "containers", "ledger", "reports", "accountability", "warranty", "bulk", "qr", "scanner", "api", "settings", "emailtemplates", "users", "platform", "audit",
   "email-logs",
 ] as const;
@@ -7,7 +7,7 @@ const ALL_TABS = [
 export const STAFF_TAB_KEYS: readonly string[] = ALL_TABS;
 
 const FULL_ACCESS_ROLES = ["space_manager", "inventory_manager"];
-const PRINTING_TABS = ["dashboard", "notifications", "requests", "printing", "tobuy", "reports", "warranty", "api", "emailtemplates"];
+const PRINTING_TABS = ["dashboard", "notifications", "requests", "printing", "machines", "tobuy", "reports", "warranty", "api", "emailtemplates"];
 const GUEST_ADMIN_TABS = ["requests", "direct"];
 
 export const TAB_LABELS: Record<string, string> = {
@@ -26,6 +26,7 @@ export const TAB_LABELS: Record<string, string> = {
   qr: "QR Tools",
   scanner: "Scanner",
   printing: "3D Printing",
+  machines: "Machines",
   tobuy: "To Buy",
   reports: "Reports",
   accountability: "Accountability",
@@ -43,6 +44,7 @@ export const TAB_GROUPS: { label: string; tabs: string[] }[] = [
   { label: "Operate", tabs: ["dashboard", "notifications", "requests", "direct", "ledger", "transfers", "stocktake", "tobuy"] },
   { label: "Inventory", tabs: ["inventory", "categories", "needsfix", "containers", "bulk", "qr", "scanner"] },
   { label: "3D Printing", tabs: ["printing"] },
+  { label: "Machines", tabs: ["machines"] },
   { label: "Insights", tabs: ["reports", "accountability", "warranty", "audit"] },
   { label: "Admin", tabs: ["users", "settings", "emailtemplates", "email-logs", "api", "platform"] },
 ];
@@ -59,6 +61,7 @@ export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boo
   const canViewAudit = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
   const canManageQr = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
   const canManageMakerspace = isSuperadmin || activeRole === "space_manager";
+  const canManageMachines = isSuperadmin || activeRole === "space_manager";
   const canChooseToBuyKind = isSuperadmin || activeRole === "space_manager";
   const baseTabs = handoutOnly ? GUEST_ADMIN_TABS : fullAccess ? ALL_TABS : PRINTING_TABS;
   const allowedTabs: readonly string[] = baseTabs.filter((tabName) => {
@@ -86,6 +89,7 @@ export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boo
     if (tabName === "email-logs") return canManageMakerspace;
     if (tabName === "platform") return isSuperadmin && !singleTenantLocked;
     if (tabName === "printing") return canSeePrinting;
+    if (tabName === "machines") return enabledModules.includes("machines") && (canManageMachines || canSeePrinting);
     if (tabName === "requests") return canSeeHardware || canSeePrinting;
     return true;
   });
@@ -100,6 +104,7 @@ export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boo
     canViewAudit,
     canManageQr,
     canManageMakerspace,
+    canManageMachines,
     canChooseToBuyKind,
     allowedTabs,
     defaultTab: handoutOnly ? "requests" : "dashboard",

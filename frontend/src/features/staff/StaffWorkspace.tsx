@@ -50,6 +50,7 @@ export function StaffWorkspace({
     canEditInventory,
     canIssueDirectLoan,
     canManageMakerspace,
+    canManageMachines,
     canManageQr,
     canSeeHardware,
     canSeePrinting,
@@ -134,6 +135,7 @@ export function StaffWorkspace({
               canUseToBuy={canUseToBuy}
               canManageQr={canManageQr}
               canManageMakerspace={canManageMakerspace}
+              canManageMachines={canManageMachines}
               canSeeHardware={canSeeHardware}
               canSeePrinting={canSeePrinting}
               canViewAudit={canViewAudit}

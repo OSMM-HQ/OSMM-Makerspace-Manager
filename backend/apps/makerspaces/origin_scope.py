@@ -136,6 +136,8 @@ def _model_for_path(model_path):
         from apps.procurement import models
     elif app_label == "warranty":
         from apps.warranty import models
+    elif app_label == "machines":
+        from apps.machines import models
     else:
         raise LookupError(model_path)
     return getattr(models, model_name)
@@ -162,6 +164,7 @@ _PRINT_ACTIONS = {
     "managed-request-reprint",
 }
 _MODEL_LOOKUPS = {
+    'admin-machine-operator-candidates': ('machines.Machine', 'makerspace_id'),
     "makerspace-verify-domain": ("makerspaces.Makerspace", "id"),
     "admin-inventory-detail": ("inventory.InventoryProduct", "makerspace_id"),
     "admin-inventory-image": ("inventory.InventoryProduct", "makerspace_id"),
@@ -209,6 +212,18 @@ _MODEL_LOOKUPS = {
     "to-buy-receipt-list": ("procurement.ToBuyItem", "makerspace_id"),
     "to-buy-receipt-url": ("procurement.ToBuyReceipt", "to_buy_item__makerspace_id"),
     "to-buy-receipt-detail": ("procurement.ToBuyReceipt", "to_buy_item__makerspace_id"),
+    "admin-machine-detail": ("machines.Machine", "makerspace_id"),
+    "admin-machine-set-status": ("machines.Machine", "makerspace_id"),
+    "admin-machine-retire": ("machines.Machine", "makerspace_id"),
+    "admin-machine-unretire": ("machines.Machine", "makerspace_id"),
+    "admin-machine-usage": ("machines.Machine", "makerspace_id"),
+    "admin-machine-operators": ("machines.Machine", "makerspace_id"),
+    "admin-machine-operator-detail": ("machines.Machine", "makerspace_id"),
+    "admin-machine-document-presign": ("machines.Machine", "makerspace_id"),
+    "admin-machine-documents": ("machines.Machine", "makerspace_id"),
+    "admin-machine-error-logs": ("machines.Machine", "makerspace_id"),
+    "admin-machine-document-url": ("machines.MachineDocument", "machine__makerspace_id"),
+    "admin-machine-document-detail": ("machines.MachineDocument", "machine__makerspace_id"),
     **{name: ("hardware_requests.HardwareRequest", "makerspace_id") for name in _REQUEST_ACTIONS},
     **{name: ("printing.PrintRequest", "makerspace_id") for name in _PRINT_ACTIONS},
 }

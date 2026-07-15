@@ -1,0 +1,114 @@
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+
+import { EmptyState, Skeleton, StatusBadge } from "../../../components/ui";
+import { collectionResults, createMachine, getMachines, getMachineTypes, machineKeys, type MachineStatus } from "../machinesApi";
+import { MachineDetailDrawer } from "./MachineDetailDrawer";
+import { Panel } from "./shared";
+
+type StatusFilter = "all" | MachineStatus;
+
+export function MachinesPanel({ makerspaceId, canManage }: { makerspaceId: number; canManage: boolean }) {
+  const queryClient = useQueryClient();
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [name, setName] = useState("");
+  const [machineTypeId, setMachineTypeId] = useState("");
+  const machines = useQuery({ queryKey: machineKeys.list(makerspaceId), queryFn: () => getMachines(makerspaceId) });
+  const machineTypes = useQuery({ queryKey: machineKeys.types(makerspaceId), queryFn: () => getMachineTypes(makerspaceId) });
+  const types = collectionResults(machineTypes.data);
+  const rows = useMemo(() => (machines.data?.results ?? []).filter((machine) =>
+    (typeFilter === "all" || machine.machine_type.id === Number(typeFilter)) &&
+    (statusFilter === "all" || machine.status === statusFilter),
+  ), [machines.data, statusFilter, typeFilter]);
+
+  const create = useMutation({
+    mutationFn: () => createMachine(makerspaceId, {
+      name: name.trim(), machine_type_id: Number(machineTypeId), location: "", notes: "", firmware_version: "", camera_feed_url: "",
+    }),
+    onSuccess: async (machine) => {
+      setName(""); setMachineTypeId(""); setSelectedId(machine.id);
+      await queryClient.invalidateQueries({ queryKey: machineKeys.list(makerspaceId) });
+    },
+  });
+  const filtersActive = typeFilter !== "all" || statusFilter !== "all";
+  const selectedName = machines.data?.results.find((machine) => machine.id === selectedId)?.name ?? "Machine details";
+
+  return (
+    <Panel title="Machines">
+      <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <p className="text-sm text-muted">Manage shared equipment, operators, usage, documents, and operating status.</p>
+          {machines.data ? <p className="mt-1 text-xs text-muted">{machines.data.count} machines total</p> : null}
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <label className="grid gap-1 text-xs font-semibold text-muted sm:w-48">
+            Type
+            <select className="desk-input" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)}>
+              <option value="all">All types</option>
+              {types.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
+            </select>
+          </label>
+          <label className="grid gap-1 text-xs font-semibold text-muted sm:w-44">
+            Status
+            <select className="desk-input" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}>
+              <option value="all">All statuses</option>
+              <option value="idle">Idle</option><option value="running">Running</option><option value="reserved">Reserved</option>
+              <option value="maintenance">Maintenance</option><option value="offline">Offline</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      {canManage ? (
+        <form className="mb-4 grid gap-3 rounded-xl border border-line bg-bg p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end"
+          onSubmit={(event) => { event.preventDefault(); create.mutate(); }}>
+          <label className="grid gap-1 text-xs font-semibold text-muted">
+            Machine name
+            <input className="desk-input" value={name} onChange={(event) => setName(event.target.value)} required />
+          </label>
+          <label className="grid gap-1 text-xs font-semibold text-muted">
+            Machine type
+            <select className="desk-input" value={machineTypeId} onChange={(event) => setMachineTypeId(event.target.value)} required>
+              <option value="">Select a type</option>
+              {types.map((type) => <option key={type.id} value={type.id}>{type.name}</option>)}
+            </select>
+          </label>
+          <button className="desk-button-primary" type="submit" disabled={create.isPending || !name.trim() || !machineTypeId}>
+            {create.isPending ? "Creating..." : "New machine"}
+          </button>
+          {machineTypes.error instanceof Error ? <p className="text-sm text-danger md:col-span-3">{machineTypes.error.message}</p> : null}
+          {create.error instanceof Error ? <p className="text-sm text-danger md:col-span-3">{create.error.message}</p> : null}
+        </form>
+      ) : null}
+      {machines.isLoading ? <div className="grid gap-2" aria-label="Loading machines">
+        {[0, 1, 2, 3].map((item) => <Skeleton key={item} className="h-16 w-full" />)}
+      </div> : null}
+      {machines.error instanceof Error ? <p className="mb-3 text-sm text-danger">{machines.error.message}</p> : null}
+      {!machines.isLoading && !machines.error && !rows.length ? (
+        <EmptyState title={filtersActive ? "No matching machines" : "No machines yet"}
+          description={filtersActive ? "Try a different type or status filter." : canManage ? "Create the first machine above." : "No machines are available in this makerspace."} />
+      ) : null}
+      {rows.length ? (
+        <div className="overflow-hidden rounded-xl border border-line bg-panel">
+          <div className="hidden grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto_auto] gap-3 border-b border-line bg-surface px-3 py-2 text-xs font-semibold text-muted sm:grid">
+            <span>Name</span><span>Type</span><span>Status</span><span className="text-right">Usage</span>
+          </div>
+          {rows.map((machine) => (
+            <button key={machine.id} type="button" onClick={() => setSelectedId(machine.id)}
+              className="grid w-full gap-2 border-b border-line px-3 py-3 text-left last:border-b-0 hover:bg-surface sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto_auto] sm:items-center sm:gap-3">
+              <span className="min-w-0"><strong className="block truncate text-sm text-ink">{machine.name}</strong><span className="text-xs text-muted">{machine.location || "No location"}</span></span>
+              <span className="text-sm text-muted">{machine.machine_type.name}</span>
+              <span><StatusBadge status={machine.status} /></span>
+              <span className="text-sm text-muted sm:text-right">{machine.usage_hours} h</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {selectedId !== null ? (
+        <MachineDetailDrawer key={selectedId} machineId={selectedId} makerspaceId={makerspaceId}
+          machineName={selectedName} canManage={canManage} onClose={() => setSelectedId(null)} />
+      ) : null}
+    </Panel>
+  );
+}

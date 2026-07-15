@@ -99,6 +99,18 @@ UNFOLD = {
                 ],
             },
             {
+                "title": _("Machines"),
+                "separator": True,
+                "items": [
+                    _item("Machines", "precision_manufacturing", "admin:machines_machine_changelist"),
+                    _item("Machine types", "category", "admin:machines_machinetype_changelist"),
+                    _item("Machine operators", "engineering", "admin:machines_machineoperator_changelist"),
+                    _item("Usage entries", "timelapse", "admin:machines_machineusageentry_changelist"),
+                    _item("Machine documents", "description", "admin:machines_machinedocument_changelist"),
+                    _item("Machine error logs", "error", "admin:machines_machineerrorlog_changelist"),
+                ],
+            },
+            {
                 "title": _("3D printing"),
                 "separator": True,
                 "items": [
