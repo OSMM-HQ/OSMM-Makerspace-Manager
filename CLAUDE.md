@@ -2,6 +2,67 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — Machines M1.5: modular UI + types + photo + warranty + consumables + public (2026-07-15)
+
+Follow-up to M1 bringing generic machines to **printer-level feature parity** (machines = the equipment
+umbrella; a 3D printer IS a machine via M1's auto-link; consumables live in inventory). Codex Stage-1
+APPROVED after 1 NEEDS_REVISION round; built phase-by-phase, **each phase Codex-executed + Claude-
+verified + committed green with its own tests/OpenAPI/origin/admin artifacts**. **Zero changes to core
+`apps/accounts/rbac.py`** (dynamic global roles remain a separate future spec). Spec (gitignored):
+`docs/superpowers/specs/2026-07-15-machines-m1_5-ux-warranty-consumables-design.md`. Commits
+`7205fec`(0A)·`8801abb`(0B)·`cae4466`(1)·`59f27ea`(2)·`931f67a`(3)·`64cecf1`(4)·`0a2de9b`(5); the AGPL
+relicense + rebrand was split into its own commit `423ba59`.
+
+- **Phase 0A — richer capabilities + candidate endpoint.** `MachineSerializer` replaced the single
+  `can_manage` with server-derived `can_operate/can_edit/can_delegate/can_retire/can_unretire`
+  (`can_manage` kept as a `can_edit` alias); `access.machine_capabilities` + a **bulk
+  `capabilities_for_machines`** (memoized makerspace-level rbac + one operator query) feed the list via
+  serializer context so capabilities are **O(1) queries** (usage_hours also annotated via `Coalesce(Sum)`
+  — fixes both the usage and capability N+1). New `GET /admin/machines/<pk>/operator-candidates`
+  (delegate-gated, minimal `{user_id, username, display_name}` — the staff-members endpoint is too
+  privileged + PII-heavy for an operator).
+- **Phase 0B — modular tabbed drawer.** `panels/machine/` (`MachineDrawer` shell + Overview/Operators/
+  Usage/Documents/Errors tabs, ~150 LOC each) replaced the monolithic `MachineDetailDrawer`/`…Sections`.
+  Operator assignment is a **name-based member picker** (candidates query `enabled: canDelegate`), each
+  control gated on the per-machine capability flags.
+- **Phase 1 — custom machine types.** `PATCH /admin/makerspace/<id>/machine-types/<pk>` renames a
+  **custom** type only (MANAGE_MACHINES; module→403→404→400-builtin order; slug/`managing_action`
+  immutable; iexact name-collision 400; audited). `MachineTypesPanel` (built-ins read-only, custom
+  create+rename).
+- **Phase 2 — machine photo.** `Machine.image_key` (migration `0004`) mirroring the printer image flow:
+  `public_image_storage` namespace allowlist + cross-model key-reuse guard, presign/finalize/delete
+  (`views_machine_image.py`, resolve→404→`can_manage`→403→module, MIME/prefix/reuse/503 validation),
+  computed `image_url` (never the raw key), makerspace-purge cleanup, admin read-only key, `ImageUploader`
+  on Overview + list thumbnails.
+- **Phase 3 — warranty for machines (third host).** `apps/warranty` extended asset|printer→**+machine**
+  via one atomic migration (`warranty/0002`: nullable FK → drop → re-add three-way exactly-one CHECK under
+  the same name). Generalized the serializer/upsert/report/admin off the two-host assumption; **`enforce()`
+  branches on machine host with `can_manage_machine` 403 BEFORE the module 400** (require_module raises a
+  400, so permission must come first). Report rows gated by a **query-level
+  `access.scope_manageable_machines_for_actor`** (MANAGE_MACHINES ∪ type-managed ∪ manage/full operators,
+  **excludes `operate`**) — no per-row Python check. Machine warranty **reuses the generic warranty-id +
+  document endpoints**; `MachineSerializer` exposes only `warranty_status` (never vendor/dates). Tests
+  cover a `MigrationExecutor` forward-data migration + every zero/two-host constraint combo.
+- **Phase 4 — consumables (count + grams).** `MachineConsumable` (count-XOR-grams CHECK, migration
+  `0005`). **COUNT** consumables link to an `InventoryProduct` and decrement **only** through new
+  `inventory.availability.consume_available` (→`adjust_quantities`; `InsufficientStock`→**400 not 500**);
+  **GRAMS** consumables are a **machines-owned row-locked decimal ledger** (inventory has no grams concept —
+  mirrors `FilamentSpool`) with a `>=0` overdraw→400 guard. Split `services_consumables.py` +
+  `serializers_consumables.py`; **link/unlink require `manage`, logging requires `operate`**; own
+  `consumable-candidates` endpoint (operators/Print Managers may lack `VIEW_INVENTORY`). Read-only admin +
+  `NESTED_MAKERSPACE_LOOKUPS` (`machine__makerspace_id`) keeps the drift-guard green.
+- **Phase 5 — public exposure + governance.** `Machine.is_public` (migration `0006`, default False).
+  Publication is a **MANAGE_MACHINES-only** `…/publicity` toggle (governance — `is_public` is read-only on
+  the normal PATCH so a per-machine operator can't publish; audited). A **fully separate allowlist**
+  `PublicMachineSerializer` exposes EXACTLY `name`, `machine_type{name,icon}`, `image_url`, `status`,
+  `usage_hours`. `GET /api/v1/public/<slug>/machines` (AllowAny, module-gated) + the aggregate public
+  usage stat return **only `is_public` AND non-retired** machines. Governance UI renders a **server-owned
+  public preview** (can't drift). A sentinel leak-sweep asserts warranty/docs/operators/notes/camera/
+  firmware/consumables never appear in any anonymous payload.
+- **Public-leak + quantity invariants (enforced by tests):** count-quantity math lives only in
+  `availability`; grams only in the machines service; and nothing sensitive is ever in a public payload.
+  Migrations: machines `0004`(image)/`0005`(consumables)/`0006`(is_public), warranty `0002`(machine host).
+
 ## Recent batch — Machines module (M1 of the FabLab expansion; 2026-07-14)
 
 First milestone of a 5-milestone FabLab platform expansion (Machines → Machine-ops → Materials/

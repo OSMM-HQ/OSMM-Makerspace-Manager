@@ -165,4 +165,6 @@ class MachineDetailView(APIView):
             target=machine,
             target_type='machine',
         )
-        return Response(MachineSerializer(machine).data)
+        return Response(
+            MachineSerializer(machine, context={'request': request}).data
+        )

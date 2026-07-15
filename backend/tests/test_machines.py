@@ -1010,6 +1010,9 @@ def test_machine_type_is_immutable_on_patch():
     machine.refresh_from_db()
     assert machine.machine_type == global_machine_type()  # unchanged
     assert machine.name == "Renamed"  # other fields still editable
+    # Stage-4 P2: the PATCH response must carry request context so capability flags
+    # reflect the actor (a manager can edit), matching the GET response.
+    assert response.data["can_edit"] is True
 
 
 def test_publicity_toggle_requires_manage_machines_and_returns_public_preview():
@@ -1604,7 +1607,13 @@ def test_count_consumption_decrements_availability_and_overdraw_is_400():
 def test_concurrent_count_consumption_never_overdraws():
     makerspace = enable_machines(make_space("machine-consumables-concurrent"))
     manager = make_member("machine-consumables-concurrent-manager", makerspace)
-    machine = make_machine(makerspace)
+    # This test is transaction=True, so pytest-django flushes migration-seeded data
+    # (the global built-in MachineTypes); create an explicit type instead of relying
+    # on global_machine_type(), which is absent after another transactional test.
+    machine_type = MachineType.objects.create(
+        makerspace=makerspace, slug="concurrent-type", name="Concurrent Type",
+    )
+    machine = make_machine(makerspace, machine_type=machine_type)
     product = _consumable_product(makerspace, "Concurrent stock", 5)
     linked = authenticated_client(manager).post(
         _consumables_url(machine),
@@ -1628,6 +1637,9 @@ def test_concurrent_count_consumption_never_overdraws():
     with ThreadPoolExecutor(max_workers=2) as pool:
         statuses = list(pool.map(lambda _: consume(), range(2)))
 
+    # adjust_quantities row-locks the product (select_for_update in an atomic block),
+    # so the two consumptions are strictly serialized: one wins (5 -> 1), the other
+    # would overdraw and is rejected with 400.
     product.refresh_from_db()
     assert sorted(statuses) == [200, 400]
     assert product.available_quantity == 1
