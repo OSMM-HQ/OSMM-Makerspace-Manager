@@ -12,8 +12,15 @@ DOMAIN_CHANGE_COOLDOWN_MESSAGE = (
 )
 
 
+def is_self_host() -> bool:
+    """Self-host mode = no platform suffix configured. In that mode the operator
+    controls both DNS and the server, so a custom domain is trusted (by a
+    superadmin) without the TXT challenge that defends the shared managed box."""
+    return not str(settings.PLATFORM_DOMAIN_SUFFIX or "").strip()
+
+
 def expected_record(makerspace):
-    if not makerspace.frontend_domain:
+    if is_self_host() or not makerspace.frontend_domain:
         return None
     return {
         "host": f"{EXPECTED_HOST_PREFIX}.{makerspace.frontend_domain}",
@@ -124,6 +131,16 @@ def verify_domain(makerspace):
         return (Makerspace.DomainStatus.PENDING, None, "No custom domain set.")
 
     target = makerspace.frontend_domain
+    # Self-host: the operator owns DNS and the server, so a superadmin-set custom
+    # domain is trusted immediately — the TXT challenge only defends the shared box.
+    if is_self_host():
+        return _commit_status(
+            makerspace,
+            target,
+            Makerspace.DomainStatus.VERIFIED,
+            set_verified_at=True,
+            detail="Self-hosted custom domain — trusted automatically.",
+        )
     # Platform subdomains are provisioned+verified by staff and have no per-tenant TXT
     # record. Running the custom-domain DNS flow on them would mark them FAILED and drop
     # the live tenant host from the allowlists — so keep them VERIFIED without a lookup.

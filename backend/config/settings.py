@@ -17,7 +17,26 @@ from config.unfold import UNFOLD
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
-PLATFORM_DOMAIN_SUFFIX = env("PLATFORM_DOMAIN_SUFFIX", default="")
+
+
+def normalize_platform_domain_suffix(raw):
+    """Canonicalize the platform suffix to the leading-dot lowercase form.
+
+    Blank/whitespace/None => "" (self-host). Otherwise lowercase + strip and
+    prepend a leading "." if missing, so an operator may set PLATFORM_DOMAIN_SUFFIX
+    as either "osmm.me" or ".osmm.me" and the stored value is always ".osmm.me".
+    The leading dot is what makes endswith(suffix) reject look-alikes (evilosmm.me)
+    and what provisioning.provision_subdomain requires.
+    """
+    value = str(raw or "").strip().lower()
+    if not value:
+        return ""
+    return value if value.startswith(".") else "." + value
+
+
+PLATFORM_DOMAIN_SUFFIX = normalize_platform_domain_suffix(
+    env("PLATFORM_DOMAIN_SUFFIX", default="")
+)
 INFRA_HOSTS = set(
     env.list(
         "INFRA_HOSTS",

@@ -236,3 +236,35 @@ def test_me_requires_auth_and_returns_profile():
     assert resp.status_code == 200
     assert resp.data["username"] == "meuser"
     assert resp.data["role"] == "space_manager"
+
+
+# --- Part A / Task A2b: staff refresh CSRF trusts the auto-verified self-host origin ---
+
+
+@pytest.mark.django_db
+def test_refresh_trusts_autoverified_selfhost_custom_origin(settings):
+    from django.test import override_settings
+    from apps.makerspaces import domain_verification
+
+    with override_settings(PLATFORM_DOMAIN_SUFFIX=""):
+        makerspace = Makerspace.objects.create(
+            name="Self Host", slug="selfhost-refresh", frontend_domain="tools.selfhost.example"
+        )
+        # A1/A2: self-host auto-trust marks the domain VERIFIED without a TXT challenge.
+        status, _at, _detail = domain_verification.verify_domain(makerspace)
+        assert status == Makerspace.DomainStatus.VERIFIED
+
+        client = APIClient()
+        _login(client)
+
+        # Origin is NOT in CORS_ALLOWED_ORIGINS; it must pass purely via the verified
+        # staff-origin allowlist (staff_origin_is_registered).
+        resp = client.post(
+            REFRESH,
+            HTTP_X_REFRESH_CSRF="1",
+            HTTP_ORIGIN="https://tools.selfhost.example",
+        )
+
+    assert resp.status_code == 200
+    assert "access" in resp.data
+    assert "refresh_token" in resp.cookies

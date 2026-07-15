@@ -332,7 +332,7 @@ def test_tls_check_denials_are_non_enumerable():
     }
 
 
-@override_settings(PLATFORM_ORIGIN_HOST='origin.osmm.me')
+@override_settings(PLATFORM_DOMAIN_SUFFIX='.osmm.me', PLATFORM_ORIGIN_HOST='origin.osmm.me')
 @pytest.mark.django_db
 def test_verify_domain_fails_when_txt_matches_but_origin_does_not(monkeypatch):
     makerspace = make_space('origin-gate-failed')
@@ -354,7 +354,7 @@ def test_verify_domain_fails_when_txt_matches_but_origin_does_not(monkeypatch):
     assert makerspace.frontend_domain_status == Makerspace.DomainStatus.FAILED
 
 
-@override_settings(PLATFORM_ORIGIN_HOST='origin.osmm.me')
+@override_settings(PLATFORM_DOMAIN_SUFFIX='.osmm.me', PLATFORM_ORIGIN_HOST='origin.osmm.me')
 @pytest.mark.django_db
 def test_verify_domain_succeeds_when_txt_and_origin_match(monkeypatch):
     makerspace = make_space('origin-gate-verified')
@@ -374,7 +374,7 @@ def test_verify_domain_succeeds_when_txt_and_origin_match(monkeypatch):
     assert detail == 'Domain verified.'
 
 
-@override_settings(PLATFORM_ORIGIN_HOST='')
+@override_settings(PLATFORM_DOMAIN_SUFFIX='.osmm.me', PLATFORM_ORIGIN_HOST='')
 @pytest.mark.django_db
 def test_verify_domain_keeps_legacy_txt_only_behavior_when_origin_is_blank(monkeypatch):
     makerspace = make_space('origin-gate-dormant')
