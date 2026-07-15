@@ -181,7 +181,16 @@ class PublicStatsCurrentLoanSerializer(serializers.Serializer):
     since = serializers.DateTimeField(read_only=True, allow_null=True)
 
 
+class PublicStatsMachinesSerializer(serializers.Serializer):
+    usage_hours = serializers.FloatField(read_only=True)
+
+
 class PublicStatsSerializer(serializers.Serializer):
+    machines = PublicStatsMachinesSerializer(
+        read_only=True,
+        required=False,
+        allow_null=True,
+    )
     printing = PublicStatsPrintingSerializer(
         read_only=True,
         required=False,

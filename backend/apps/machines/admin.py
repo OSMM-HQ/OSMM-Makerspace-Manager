@@ -33,13 +33,16 @@ class MachineTypeAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
 
 @admin.register(Machine)
 class MachineAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
-    list_display = ("id", "name", "makerspace", "machine_type", "status", "is_active")
-    list_filter = ("status", "is_active", "makerspace", "machine_type")
+    list_display = (
+        'id', 'name', 'makerspace', 'machine_type', 'status', 'is_public', 'is_active'
+    )
+    list_filter = ('status', 'is_public', 'is_active', 'makerspace', 'machine_type')
     search_fields = ("name", "location", "makerspace__name")
     raw_id_fields = ("makerspace", "machine_type", "linked_print_printer", "created_by")
     # status/is_active/link are service-owned — never raw-edited in the admin.
     readonly_fields = (
         "status",
+        'is_public',
         "is_active",
         "linked_print_printer",
         "image_key",

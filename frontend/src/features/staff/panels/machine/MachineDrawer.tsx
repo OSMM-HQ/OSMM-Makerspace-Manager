@@ -14,9 +14,10 @@ import { WarrantyTab } from "./WarrantyTab";
 const BASE_TABS = ["Overview", "Operators", "Consumables", "Usage", "Documents", "Errors"] as const;
 type MachineTab = (typeof BASE_TABS)[number] | "Warranty";
 
-export function MachineDrawer({ machineId, makerspaceId, onClose }: {
+export function MachineDrawer({ machineId, makerspaceId, canManageMachines, onClose }: {
   machineId: number;
   makerspaceId: number;
+  canManageMachines: boolean;
   onClose: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<MachineTab>("Overview");
@@ -74,6 +75,7 @@ export function MachineDrawer({ machineId, makerspaceId, onClose }: {
               <OverviewTab
                 machine={details}
                 makerspaceId={makerspaceId}
+                canManageMachines={canManageMachines}
                 canEdit={details.can_edit}
                 canOperate={details.can_operate}
                 canRetire={details.can_retire}

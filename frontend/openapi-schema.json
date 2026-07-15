@@ -3246,6 +3246,104 @@
                 }
             }
         },
+        "/api/v1/admin/machines/{id}/publicity": {
+            "get": {
+                "operationId": "api_v1_admin_machines_publicity_retrieve",
+                "summary": "Preview a machine public listing",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PublicMachine"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "api_v1_admin_machines_publicity_partial_update",
+                "summary": "Set machine public visibility",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMachinePublicity"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMachinePublicity"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMachinePublicity"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PublicMachine"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid publicity setting."
+                    },
+                    "403": {
+                        "description": "MANAGE_MACHINES is required."
+                    },
+                    "404": {
+                        "description": "Machine not found."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/machines/{id}/retire": {
             "post": {
                 "operationId": "api_v1_admin_machines_retire_create",
@@ -15587,6 +15685,62 @@
                 }
             }
         },
+        "/api/v1/public/{makerspace_slug}/machines": {
+            "get": {
+                "operationId": "api_v1_public_machines_list",
+                "description": "List active machines published by a public makerspace.",
+                "summary": "List public machines",
+                "parameters": [
+                    {
+                        "in": "header",
+                        "name": "X-Publishable-Key",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Public API key for a makerspace public client. Required when API_CLIENT_AUTH_REQUIRED is enabled."
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Public makerspace code or slug.",
+                        "required": true
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "Public machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    },
+                    {}
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedPublicMachineList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/public/{makerspace_slug}/requests": {
             "post": {
                 "operationId": "api_v1_public_requests_create",
@@ -20124,6 +20278,10 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "is_public": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
                     "is_active": {
                         "type": "boolean",
                         "readOnly": true
@@ -20183,6 +20341,7 @@
                     "id",
                     "image_url",
                     "is_active",
+                    "is_public",
                     "linked_print_printer",
                     "machine_type",
                     "machine_type_id",
@@ -22158,6 +22317,37 @@
                     }
                 }
             },
+            "PaginatedPublicMachineList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PublicMachine"
+                        }
+                    }
+                }
+            },
             "PaginatedPublicProductList": {
                 "type": "object",
                 "required": [
@@ -22869,6 +23059,10 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "is_public": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
                     "is_active": {
                         "type": "boolean",
                         "readOnly": true
@@ -22915,6 +23109,14 @@
                         "type": "string",
                         "format": "date-time",
                         "readOnly": true
+                    }
+                }
+            },
+            "PatchedMachinePublicity": {
+                "type": "object",
+                "properties": {
+                    "is_public": {
+                        "type": "boolean"
                     }
                 }
             },
@@ -24786,6 +24988,64 @@
                     "url"
                 ]
             },
+            "PublicMachine": {
+                "type": "object",
+                "description": "Allowlist-only public projection; never subclass the staff serializer.",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "machine_type": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PublicMachineType"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "image_url": {
+                        "type": "string",
+                        "format": "uri",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "usage_hours": {
+                        "type": "string",
+                        "format": "decimal",
+                        "example": "12.50",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "image_url",
+                    "machine_type",
+                    "name",
+                    "status",
+                    "usage_hours"
+                ]
+            },
+            "PublicMachineType": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "icon": {
+                        "type": "string",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "icon",
+                    "name"
+                ]
+            },
             "PublicMakerspace": {
                 "type": "object",
                 "properties": {
@@ -25133,6 +25393,15 @@
             "PublicStats": {
                 "type": "object",
                 "properties": {
+                    "machines": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PublicStatsMachines"
+                            }
+                        ],
+                        "readOnly": true,
+                        "nullable": true
+                    },
                     "printing": {
                         "allOf": [
                             {
@@ -25161,6 +25430,7 @@
                 "required": [
                     "current_loans",
                     "hardware",
+                    "machines",
                     "printing"
                 ]
             },
@@ -25356,6 +25626,19 @@
                     "available_count",
                     "currently_out_count",
                     "library_size"
+                ]
+            },
+            "PublicStatsMachines": {
+                "type": "object",
+                "properties": {
+                    "usage_hours": {
+                        "type": "number",
+                        "format": "double",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "usage_hours"
                 ]
             },
             "PublicStatsPopularHardware": {

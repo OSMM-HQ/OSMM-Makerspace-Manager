@@ -165,7 +165,9 @@ def make_public_tool_loan(makerspace, request, requester, *, source):
 
 
 def assert_public_stats_schema(payload):
-    assert set(payload) == {"printing", "hardware", "current_loans"}
+    assert set(payload) == {'machines', 'printing', 'hardware', 'current_loans'}
+    if payload['machines'] is not None:
+        assert set(payload['machines']) == {'usage_hours'}
     if payload["printing"] is not None:
         assert set(payload["printing"]) == {
             "hours_all_time",
@@ -332,7 +334,8 @@ def test_build_public_stats_returns_exact_schema(monkeypatch):
 
     stats = build_public_stats(makerspace)
 
-    assert set(stats) == {"printing", "hardware", "current_loans"}
+    assert set(stats) == {'machines', 'printing', 'hardware', 'current_loans'}
+    assert stats['machines'] is None
     assert set(stats["printing"]) == {
         "hours_all_time",
         "hours_this_month",

@@ -12,13 +12,15 @@ import {
   type MachineStatus,
 } from "../../machinesApi";
 import { ImageUploader } from "../../ImageUploader";
+import { MachinePublicSettings } from "../MachinePublicSettings";
 
 const MACHINE_STATUSES: MachineStatus[] = ["idle", "running", "reserved", "maintenance", "offline"];
 type MachineForm = Pick<Machine, "name" | "location" | "notes" | "firmware_version" | "camera_feed_url">;
 
-export function OverviewTab({ machine, makerspaceId, canEdit, canOperate, canRetire, canUnretire }: {
+export function OverviewTab({ machine, makerspaceId, canManageMachines, canEdit, canOperate, canRetire, canUnretire }: {
   machine: Machine;
   makerspaceId: number;
+  canManageMachines: boolean;
   canEdit: boolean;
   canOperate: boolean;
   canRetire: boolean;
@@ -134,6 +136,9 @@ export function OverviewTab({ machine, makerspaceId, canEdit, canOperate, canRet
         {setStatusMutation.error instanceof Error ? <p className="mt-2 text-sm text-danger">{setStatusMutation.error.message}</p> : null}
         {lifecycle.error instanceof Error ? <p className="mt-2 text-sm text-danger">{lifecycle.error.message}</p> : null}
       </section>
+      {canManageMachines ? (
+        <MachinePublicSettings machine={machine} makerspaceId={makerspaceId} />
+      ) : null}
     </div>
   );
 }

@@ -1012,6 +1012,113 @@ def test_machine_type_is_immutable_on_patch():
     assert machine.name == "Renamed"  # other fields still editable
 
 
+def test_publicity_toggle_requires_manage_machines_and_returns_public_preview():
+    makerspace = enable_machines(make_space('machines-publicity'))
+    manager = make_member('machines-publicity-manager', makerspace)
+    machine = make_machine(makerspace)
+    MachineUsageEntry.objects.create(machine=machine, hours=Decimal('3.25'))
+
+    response = authenticated_client(manager).patch(
+        reverse('admin-machine-publicity', kwargs={'pk': machine.pk}),
+        {'is_public': True},
+        format='json',
+    )
+
+    machine.refresh_from_db()
+    assert response.status_code == 200
+    assert machine.is_public is True
+    assert set(response.data) == {
+        'name',
+        'machine_type',
+        'image_url',
+        'status',
+        'usage_hours',
+    }
+    assert set(response.data['machine_type']) == {'name', 'icon'}
+    assert Decimal(response.data['usage_hours']) == Decimal('3.25')
+    audit = AuditLog.objects.get(action='machine.publicity_changed')
+    assert audit.actor == manager
+    assert audit.makerspace == makerspace
+    assert audit.meta == {'from': False, 'to': True}
+
+
+def test_full_operator_cannot_publish_and_normal_patch_cannot_change_publicity():
+    makerspace = enable_machines(make_space('machines-publicity-operator'))
+    operator = make_member(
+        'machines-publicity-full-operator',
+        makerspace,
+        membership_role=MakerspaceMembership.Role.GUEST_ADMIN,
+        role=User.Role.GUEST_ADMIN,
+    )
+    machine = make_machine(makerspace)
+    MachineOperator.objects.create(
+        machine=machine,
+        user=operator,
+        access_level=MachineOperator.AccessLevel.FULL,
+    )
+    client = authenticated_client(operator)
+
+    normal_patch = client.patch(
+        reverse('admin-machine-detail', kwargs={'pk': machine.pk}),
+        {'is_public': True, 'name': 'Operator-renamed machine'},
+        format='json',
+    )
+    publicity = client.patch(
+        reverse('admin-machine-publicity', kwargs={'pk': machine.pk}),
+        {'is_public': True},
+        format='json',
+    )
+
+    machine.refresh_from_db()
+    assert normal_patch.status_code == 200
+    assert machine.name == 'Operator-renamed machine'
+    assert machine.is_public is False
+    assert normal_patch.data['is_public'] is False
+    assert publicity.status_code == 403
+    assert not AuditLog.objects.filter(action='machine.publicity_changed').exists()
+
+
+def test_publicity_scope_permission_and_module_checks_are_ordered():
+    own = enable_machines(make_space('machines-publicity-scope-own'))
+    other = enable_machines(make_space('machines-publicity-scope-other'))
+    manager = make_member('machines-publicity-scope-manager', own)
+    full_operator = make_member(
+        'machines-publicity-scope-operator',
+        own,
+        membership_role=MakerspaceMembership.Role.GUEST_ADMIN,
+        role=User.Role.GUEST_ADMIN,
+    )
+    own_machine = make_machine(own)
+    foreign_machine = make_machine(other)
+    MachineOperator.objects.create(
+        machine=own_machine,
+        user=full_operator,
+        access_level=MachineOperator.AccessLevel.FULL,
+    )
+    own.enabled_modules = [name for name in own.enabled_modules if name != 'machines']
+    own.save(update_fields=['enabled_modules'])
+
+    manager_module = authenticated_client(manager).patch(
+        reverse('admin-machine-publicity', kwargs={'pk': own_machine.pk}),
+        {'is_public': True},
+        format='json',
+    )
+    operator_permission = authenticated_client(full_operator).patch(
+        reverse('admin-machine-publicity', kwargs={'pk': own_machine.pk}),
+        {'is_public': True},
+        format='json',
+    )
+    foreign_scope = authenticated_client(manager).patch(
+        reverse('admin-machine-publicity', kwargs={'pk': foreign_machine.pk}),
+        {'is_public': True},
+        format='json',
+    )
+
+    assert manager_module.status_code == 400
+    assert operator_permission.status_code == 403
+    assert foreign_scope.status_code == 404
+
+
 def test_remove_operator_rejected_on_retired_machine():
     makerspace = enable_machines(make_space("machines-remove-retired"))
     manager = make_member("machines-remove-retired-mgr", makerspace)

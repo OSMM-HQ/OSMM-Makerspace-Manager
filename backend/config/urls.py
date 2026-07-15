@@ -31,6 +31,7 @@ def docs_root(_request):
 
 
 urlpatterns = [
+    path('api/v1/', include('apps.machines.urls')),
     path("", docs_root, name="docs-root"),
     # Mounted at /control/ (not /admin/) so it never collides with the React staff
     # console, which owns /admin on the SPA. The Django admin is the Super Admin

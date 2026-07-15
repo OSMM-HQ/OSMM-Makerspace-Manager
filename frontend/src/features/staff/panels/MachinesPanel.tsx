@@ -111,6 +111,7 @@ export function MachinesPanel({ makerspaceId, canManage }: { makerspaceId: numbe
       ) : null}
       {selectedId !== null ? (
         <MachineDrawer key={selectedId} machineId={selectedId} makerspaceId={makerspaceId}
+          canManageMachines={canManage}
           onClose={() => setSelectedId(null)} />
       ) : null}
     </Panel>

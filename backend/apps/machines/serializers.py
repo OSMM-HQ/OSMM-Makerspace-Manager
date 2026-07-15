@@ -167,6 +167,7 @@ class MachineSerializer(serializers.ModelSerializer):
             'camera_feed_url',
             'image_url',
             'warranty_status',
+            'is_public',
             'is_active',
             'linked_print_printer',
             'usage_hours',
@@ -182,6 +183,7 @@ class MachineSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'makerspace',
             'status',
+            'is_public',
             'is_active',
             'linked_print_printer',
             'created_at',
@@ -251,6 +253,10 @@ class MachineListResponseSerializer(serializers.Serializer):
 
 class SetStatusSerializer(serializers.Serializer):
     status = serializers.CharField(max_length=20)
+
+
+class MachinePublicitySerializer(serializers.Serializer):
+    is_public = serializers.BooleanField()
 
 
 class LogUsageSerializer(serializers.Serializer):

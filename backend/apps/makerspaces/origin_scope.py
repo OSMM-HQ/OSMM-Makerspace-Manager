@@ -172,6 +172,7 @@ _PRINT_ACTIONS = {
 }
 _MODEL_LOOKUPS = {
     'admin-machine-operator-candidates': ('machines.Machine', 'makerspace_id'),
+    'admin-machine-publicity': ('machines.Machine', 'makerspace_id'),
     "makerspace-verify-domain": ("makerspaces.Makerspace", "id"),
     "admin-inventory-detail": ("inventory.InventoryProduct", "makerspace_id"),
     "admin-inventory-image": ("inventory.InventoryProduct", "makerspace_id"),

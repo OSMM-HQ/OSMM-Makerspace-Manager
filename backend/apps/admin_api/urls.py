@@ -23,6 +23,7 @@ from apps.admin_api.views_machine_consumables import (
     MachineConsumptionLogView,
 )
 from apps.admin_api.views_machine_image import MachineImageView
+from apps.admin_api.views_machine_publicity import MachinePublicityView
 from apps.admin_api.views_machine_operators import (
     MachineOperatorDetailView,
     MachineOperatorsView,
@@ -82,6 +83,11 @@ urlpatterns = [
         'machines/<int:pk>/image',
         MachineImageView.as_view(),
         name='admin-machine-image',
+    ),
+    path(
+        'machines/<int:pk>/publicity',
+        MachinePublicityView.as_view(),
+        name='admin-machine-publicity',
     ),
     path(
         'machines/<int:pk>/warranty',
