@@ -8,6 +8,7 @@ from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
+from apps.admin_api.serializers_makerspaces import MakerspaceSerializer
 from apps.makerspaces import domain_verification
 from apps.makerspaces.hosting import (
     canonical_host,
@@ -473,3 +474,83 @@ def test_domain_change_cooldown_is_dormant_when_zero():
     )
 
     assert response.status_code == 200
+
+
+# --- Stage-4 review fixes -----------------------------------------------------
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@pytest.mark.django_db
+def test_serializer_rejects_platform_apex():
+    space = make_space("apex-reject")
+    serializer = MakerspaceSerializer(
+        instance=space, data={"frontend_domain": "osmm.me"}, partial=True
+    )
+    assert not serializer.is_valid()
+    assert "frontend_domain" in serializer.errors
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@pytest.mark.django_db
+def test_serializer_rejects_platform_subdomain_claim():
+    space = make_space("sub-reject")
+    serializer = MakerspaceSerializer(
+        instance=space, data={"frontend_domain": "acme.osmm.me"}, partial=True
+    )
+    assert not serializer.is_valid()
+    assert "frontend_domain" in serializer.errors
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@pytest.mark.django_db
+def test_serializer_allows_noop_platform_domain_update():
+    space = make_space("noop-update")
+    space.frontend_domain = "acme.osmm.me"
+    space.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
+    space.save()
+    serializer = MakerspaceSerializer(
+        instance=space,
+        data={"frontend_domain": "acme.osmm.me", "hidden_from_central_directory": True},
+        partial=True,
+    )
+    assert serializer.is_valid(), serializer.errors
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@pytest.mark.django_db
+def test_verify_domain_platform_subdomain_stays_verified(monkeypatch):
+    space = make_space("plat-verify")
+    space.frontend_domain = "acme.osmm.me"
+    space.frontend_domain_status = Makerspace.DomainStatus.PENDING
+    space.save()
+
+    def _no_dns(name):
+        raise AssertionError("platform subdomains must not trigger a DNS lookup")
+
+    monkeypatch.setattr(domain_verification, "_resolve_txt", _no_dns)
+    status, _verified_at, _detail = domain_verification.verify_domain(space)
+    assert status == Makerspace.DomainStatus.VERIFIED
+    space.refresh_from_db()
+    assert space.frontend_domain_status == Makerspace.DomainStatus.VERIFIED
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", PLATFORM_ORIGIN_HOST="")
+@pytest.mark.django_db
+def test_verify_domain_aborts_on_concurrent_domain_change(monkeypatch):
+    # DB row holds domain B; a stale in-memory instance still points at domain A.
+    space = make_space("race")
+    space.frontend_domain = "b.example.com"
+    space.frontend_domain_status = Makerspace.DomainStatus.PENDING
+    space.save()
+
+    stale = Makerspace.objects.get(pk=space.pk)
+    stale.frontend_domain = "a.example.com"  # in memory only — never saved
+    monkeypatch.setattr(
+        domain_verification, "_resolve_txt", lambda name: [stale.domain_verification_token]
+    )
+
+    _status, _verified_at, detail = domain_verification.verify_domain(stale)
+    assert "changed during verification" in detail
+    space.refresh_from_db()
+    # Domain B must NOT have been granted VERIFIED off the stale A verification.
+    assert space.frontend_domain_status == Makerspace.DomainStatus.PENDING

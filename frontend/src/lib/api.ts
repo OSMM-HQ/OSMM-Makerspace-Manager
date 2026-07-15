@@ -145,11 +145,13 @@ export async function publicV1Request<T>(
 
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(
+    const error = new Error(
       body.detail ??
         Object.values(body).flat().join(" ") ??
         `Request failed (${response.status})`,
-    );
+    ) as Error & { status?: number };
+    error.status = response.status;
+    throw error;
   }
 
   return (await response.json()) as T;

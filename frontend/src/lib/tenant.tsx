@@ -76,17 +76,22 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   }, [activeQuery.data]);
 
   // Central portal: no token and no origin-bootstrap flag → central directory.
-  // Origin-bootstrap that resolved to no makerspace (settled without data) also
-  // falls back to central so the shared apex still serves the directory.
   if (!hasToken && !originBootstrap) {
     return (
       <TenantContext.Provider value={CENTRAL_VALUE}>{children}</TenantContext.Provider>
     );
   }
+  // Origin bootstrap that resolved to no makerspace (a genuine 404 — the shared apex
+  // has no tenant) falls back to the central directory. Any OTHER failure (network,
+  // 5xx) is operational and must surface as a single-tenant error, not silently render
+  // the wrong site.
   if (originBootstrap && !originQuery.isLoading && !originQuery.data) {
-    return (
-      <TenantContext.Provider value={CENTRAL_VALUE}>{children}</TenantContext.Provider>
-    );
+    const status = (originQuery.error as { status?: number } | null)?.status;
+    if (status === 404) {
+      return (
+        <TenantContext.Provider value={CENTRAL_VALUE}>{children}</TenantContext.Provider>
+      );
+    }
   }
 
   const error = activeQuery.error instanceof Error ? activeQuery.error : null;

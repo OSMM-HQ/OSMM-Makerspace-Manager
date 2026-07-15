@@ -199,7 +199,19 @@ class MakerspaceSerializer(serializers.ModelSerializer):
 
             platform_suffix = str(settings.PLATFORM_DOMAIN_SUFFIX or "").strip().lower()
             canonical = canonical_host(normalized_domain)
-            if platform_suffix and canonical and canonical.endswith(platform_suffix):
+            current_domain = self.instance.frontend_domain if self.instance is not None else None
+            domain_is_changing = normalized_domain != current_domain
+            # Reject a tenant claiming a platform host — BOTH the apex (osmm.me) and any
+            # subdomain (*.osmm.me). Only when the value is actually changing, so a no-op
+            # PATCH that resends an already-provisioned platform domain (e.g. toggling
+            # hidden_from_central_directory) still succeeds.
+            platform_apex = platform_suffix.lstrip(".")
+            if (
+                platform_suffix
+                and canonical
+                and domain_is_changing
+                and (canonical == platform_apex or canonical.endswith(platform_suffix))
+            ):
                 raise serializers.ValidationError(
                     {
                         "frontend_domain": (
