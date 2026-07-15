@@ -1,9 +1,14 @@
+from datetime import timedelta
+
 import pytest
 from django.core.exceptions import ValidationError
 from django.http import HttpResponse
 from django.test import RequestFactory, override_settings
+from django.utils import timezone
+from rest_framework.test import APIClient
 
 from apps.accounts.models import User
+from apps.makerspaces import domain_verification
 from apps.makerspaces.hosting import (
     canonical_host,
     host_is_allowed,
@@ -110,6 +115,7 @@ def test_provision_subdomain_sets_verified_platform_domain():
     assert provisioned.frontend_domain == "acme.osmm.me"
     assert provisioned.frontend_domain_status == Makerspace.DomainStatus.VERIFIED
     assert provisioned.domain_verified_at is not None
+    assert provisioned.frontend_domain_changed_at is not None
 
 
 @override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
@@ -186,3 +192,284 @@ def test_provision_subdomain_endpoint_requires_superadmin():
     assert allowed.status_code == 200
     assert allowed.data["frontend_domain"] == "endpoint.osmm.me"
     assert allowed.data["frontend_domain_status"] == Makerspace.DomainStatus.VERIFIED
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX='.osmm.me', INFRA_HOSTS={'testserver'})
+@pytest.mark.django_db
+def test_tls_check_allows_verified_custom_domain():
+    makerspace = make_space('tls-verified-custom')
+    makerspace.frontend_domain = 'tools.acme.com'
+    makerspace.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
+    makerspace.save()
+    from apps.makerspaces import hosting
+
+    hosting.invalidate()
+    response = APIClient().get(
+        '/api/v1/internal/tls-check',
+        {'domain': 'tools.acme.com'},
+        HTTP_HOST='testserver',
+    )
+
+    assert response.status_code == 200
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX='.osmm.me', INFRA_HOSTS={'testserver'})
+@pytest.mark.django_db
+def test_tls_check_denies_pending_domain():
+    makerspace = make_space('tls-pending-custom')
+    makerspace.frontend_domain = 'pending.acme.com'
+    makerspace.frontend_domain_status = Makerspace.DomainStatus.PENDING
+    makerspace.save()
+    from apps.makerspaces import hosting
+
+    hosting.invalidate()
+    response = APIClient().get(
+        '/api/v1/internal/tls-check',
+        {'domain': 'pending.acme.com'},
+        HTTP_HOST='testserver',
+    )
+
+    assert response.status_code == 403
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX='.osmm.me', INFRA_HOSTS={'testserver'})
+@pytest.mark.django_db
+def test_tls_check_denies_verified_platform_domain():
+    makerspace = make_space('tls-platform-domain')
+    makerspace.frontend_domain = 'acme.osmm.me'
+    makerspace.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
+    makerspace.save()
+    from apps.makerspaces import hosting
+
+    hosting.invalidate()
+    response = APIClient().get(
+        '/api/v1/internal/tls-check',
+        {'domain': 'acme.osmm.me'},
+        HTTP_HOST='testserver',
+    )
+
+    assert response.status_code == 403
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX='.osmm.me', INFRA_HOSTS={'testserver'})
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    'domain',
+    ['203.0.113.5', 'acme.osmm.me:443', None, ''],
+)
+def test_tls_check_denies_invalid_or_missing_domain(domain):
+    params = {} if domain is None else {'domain': domain}
+
+    response = APIClient().get(
+        '/api/v1/internal/tls-check',
+        params,
+        HTTP_HOST='testserver',
+    )
+
+    assert response.status_code == 403
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX='.osmm.me', INFRA_HOSTS={'testserver'})
+@pytest.mark.django_db
+def test_tls_check_fails_closed_when_verified_domain_lookup_errors(monkeypatch):
+    monkeypatch.setattr(
+        'apps.makerspaces.hosting.verified_frontend_domains',
+        lambda: (_ for _ in ()).throw(RuntimeError('db down')),
+    )
+
+    response = APIClient().get(
+        '/api/v1/internal/tls-check',
+        {'domain': 'tools.acme.com'},
+        HTTP_HOST='testserver',
+    )
+    ordinary_denial = APIClient().get(
+        '/api/v1/internal/tls-check',
+        HTTP_HOST='testserver',
+    )
+
+    assert response.status_code == 403
+    assert (response.status_code, response.content) == (
+        ordinary_denial.status_code,
+        ordinary_denial.content,
+    )
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX='.osmm.me', INFRA_HOSTS={'testserver'})
+@pytest.mark.django_db
+def test_tls_check_denials_are_non_enumerable():
+    pending = make_space('tls-denial-pending')
+    pending.frontend_domain = 'pending.example.com'
+    pending.frontend_domain_status = Makerspace.DomainStatus.PENDING
+    pending.save()
+    platform = make_space('tls-denial-platform')
+    platform.frontend_domain = 'platform.osmm.me'
+    platform.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
+    platform.save()
+    from apps.makerspaces import hosting
+
+    hosting.invalidate()
+    client = APIClient()
+    responses = [
+        client.get(
+            '/api/v1/internal/tls-check',
+            params,
+            HTTP_HOST='testserver',
+        )
+        for params in (
+            {'domain': 'pending.example.com'},
+            {'domain': 'platform.osmm.me'},
+            {'domain': 'unknown.example.com'},
+            {'domain': '203.0.113.5'},
+            {'domain': 'platform.osmm.me:443'},
+            {},
+            {'domain': ''},
+        )
+    ]
+
+    assert {(response.status_code, response.content) for response in responses} == {
+        (403, responses[0].content)
+    }
+
+
+@override_settings(PLATFORM_ORIGIN_HOST='origin.osmm.me')
+@pytest.mark.django_db
+def test_verify_domain_fails_when_txt_matches_but_origin_does_not(monkeypatch):
+    makerspace = make_space('origin-gate-failed')
+    makerspace.frontend_domain = 'tools.acme.com'
+    makerspace.save()
+    monkeypatch.setattr(
+        domain_verification,
+        '_resolve_txt',
+        lambda name: [makerspace.domain_verification_token],
+    )
+    monkeypatch.setattr(domain_verification, 'resolves_to_origin', lambda instance: False)
+
+    status, verified_at, detail = domain_verification.verify_domain(makerspace)
+
+    assert status == Makerspace.DomainStatus.FAILED
+    assert verified_at is None
+    assert detail == 'Domain does not resolve to the platform origin yet.'
+    makerspace.refresh_from_db()
+    assert makerspace.frontend_domain_status == Makerspace.DomainStatus.FAILED
+
+
+@override_settings(PLATFORM_ORIGIN_HOST='origin.osmm.me')
+@pytest.mark.django_db
+def test_verify_domain_succeeds_when_txt_and_origin_match(monkeypatch):
+    makerspace = make_space('origin-gate-verified')
+    makerspace.frontend_domain = 'tools.acme.com'
+    makerspace.save()
+    monkeypatch.setattr(
+        domain_verification,
+        '_resolve_txt',
+        lambda name: [makerspace.domain_verification_token],
+    )
+    monkeypatch.setattr(domain_verification, 'resolves_to_origin', lambda instance: True)
+
+    status, verified_at, detail = domain_verification.verify_domain(makerspace)
+
+    assert status == Makerspace.DomainStatus.VERIFIED
+    assert verified_at is not None
+    assert detail == 'Domain verified.'
+
+
+@override_settings(PLATFORM_ORIGIN_HOST='')
+@pytest.mark.django_db
+def test_verify_domain_keeps_legacy_txt_only_behavior_when_origin_is_blank(monkeypatch):
+    makerspace = make_space('origin-gate-dormant')
+    makerspace.frontend_domain = 'tools.acme.com'
+    makerspace.save()
+    monkeypatch.setattr(
+        domain_verification,
+        '_resolve_txt',
+        lambda name: [makerspace.domain_verification_token],
+    )
+
+    status, verified_at, detail = domain_verification.verify_domain(makerspace)
+
+    assert status == Makerspace.DomainStatus.VERIFIED
+    assert verified_at is not None
+    assert detail == 'Domain verified.'
+
+
+@override_settings(
+    PLATFORM_DOMAIN_SUFFIX='.osmm.me',
+    INFRA_HOSTS={'testserver'},
+    DOMAIN_CHANGE_COOLDOWN_SECONDS=3600,
+)
+@pytest.mark.django_db
+def test_domain_change_cooldown_rejects_a_second_change():
+    makerspace = make_space('domain-cooldown-rejected')
+    manager = make_member('domain-cooldown-rejected-manager', makerspace)
+    client = authenticated_client(manager)
+    url = f'/api/v1/admin/makerspaces/{makerspace.id}'
+
+    first = client.patch(
+        url,
+        {'frontend_domain': 'first.example.com'},
+        format='json',
+        HTTP_HOST='testserver',
+    )
+    makerspace.refresh_from_db()
+    second = client.patch(
+        url,
+        {'frontend_domain': 'second.example.com'},
+        format='json',
+        HTTP_HOST='testserver',
+    )
+
+    assert first.status_code == 200
+    assert makerspace.frontend_domain_changed_at is not None
+    assert second.status_code == 400
+    assert second.data['frontend_domain'] == [
+        'You changed your domain recently; please wait before changing it again.'
+    ]
+
+
+@override_settings(
+    PLATFORM_DOMAIN_SUFFIX='.osmm.me',
+    INFRA_HOSTS={'testserver'},
+    DOMAIN_CHANGE_COOLDOWN_SECONDS=3600,
+)
+@pytest.mark.django_db
+def test_domain_change_is_allowed_after_cooldown_passes():
+    makerspace = make_space('domain-cooldown-expired')
+    makerspace.frontend_domain = 'old.example.com'
+    makerspace.frontend_domain_changed_at = timezone.now() - timedelta(hours=2)
+    makerspace.save()
+    manager = make_member('domain-cooldown-expired-manager', makerspace)
+
+    response = authenticated_client(manager).patch(
+        f'/api/v1/admin/makerspaces/{makerspace.id}',
+        {'frontend_domain': 'new.example.com'},
+        format='json',
+        HTTP_HOST='testserver',
+    )
+
+    assert response.status_code == 200
+    makerspace.refresh_from_db()
+    assert makerspace.frontend_domain == 'new.example.com'
+    assert makerspace.frontend_domain_changed_at > timezone.now() - timedelta(minutes=1)
+
+
+@override_settings(
+    PLATFORM_DOMAIN_SUFFIX='.osmm.me',
+    INFRA_HOSTS={'testserver'},
+    DOMAIN_CHANGE_COOLDOWN_SECONDS=0,
+)
+@pytest.mark.django_db
+def test_domain_change_cooldown_is_dormant_when_zero():
+    makerspace = make_space('domain-cooldown-dormant')
+    makerspace.frontend_domain = 'old-zero.example.com'
+    makerspace.frontend_domain_changed_at = timezone.now()
+    makerspace.save()
+    manager = make_member('domain-cooldown-dormant-manager', makerspace)
+
+    response = authenticated_client(manager).patch(
+        f'/api/v1/admin/makerspaces/{makerspace.id}',
+        {'frontend_domain': 'new-zero.example.com'},
+        format='json',
+        HTTP_HOST='testserver',
+    )
+
+    assert response.status_code == 200

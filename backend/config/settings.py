@@ -26,6 +26,8 @@ INFRA_HOSTS = set(
 )
 PLATFORM_STAFF_ORIGINS = env.list("PLATFORM_STAFF_ORIGINS", default=[])
 BEHIND_TRUSTED_PROXY = env.bool("BEHIND_TRUSTED_PROXY", default=False)
+PLATFORM_ORIGIN_HOST = env("PLATFORM_ORIGIN_HOST", default="")  # e.g. origin.osmm.me; blank => resolution gate dormant
+DOMAIN_CHANGE_COOLDOWN_SECONDS = env.int("DOMAIN_CHANGE_COOLDOWN_SECONDS", default=0)  # 0 => no cooldown
 if BEHIND_TRUSTED_PROXY:
     ALLOWED_HOSTS = ["*"]
 PUBLIC_APP_BASE_URL = env("PUBLIC_APP_BASE_URL", default="").rstrip("/")

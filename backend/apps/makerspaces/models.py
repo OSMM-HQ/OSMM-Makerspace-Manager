@@ -145,6 +145,7 @@ class Makerspace(models.Model):
         default=generate_domain_verification_token,
     )
     domain_verified_at = models.DateTimeField(null=True, blank=True)
+    frontend_domain_changed_at = models.DateTimeField(null=True, blank=True)
     hidden_from_central_directory = models.BooleanField(default=False)
     public_api_key = models.CharField(
         max_length=40,

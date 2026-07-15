@@ -2,6 +2,7 @@ import re
 
 from django.conf import settings
 from django.db import transaction
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -9,7 +10,7 @@ from apps.accounts.models import User
 from apps.inventory import public_image_storage
 from apps.integrations.email import platform_email_configured
 from apps.integrations.smtp_validation import validate_smtp_settings
-from apps.makerspaces.domain_verification import expected_record
+from apps.makerspaces import domain_verification
 from apps.makerspaces.hosting import canonical_host
 from apps.makerspaces.models import (
     Makerspace,
@@ -157,7 +158,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
         }
     )
     def get_domain_verification_record(self, obj):
-        return expected_record(obj)
+        return domain_verification.expected_record(obj)
 
     def validate_public_code(self, value):
         return value.upper()
@@ -181,12 +182,14 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             raw_domain = attrs.get("frontend_domain")
             normalized_domain = normalize_frontend_domain(raw_domain)
             attrs["frontend_domain"] = normalized_domain
+            if normalized_domain is None and (raw_domain or "").strip():
+                raise serializers.ValidationError(
+                    {"frontend_domain": "Enter a valid domain, e.g. alphamakerspace.com."}
+                )
+            if domain_verification.domain_change_cooldown_active(self.instance, normalized_domain):
+                error = {"frontend_domain": domain_verification.DOMAIN_CHANGE_COOLDOWN_MESSAGE}
+                raise serializers.ValidationError(error)
             if normalized_domain is None:
-                # A non-empty input that normalized to nothing was malformed.
-                if (raw_domain or "").strip():
-                    raise serializers.ValidationError(
-                        {"frontend_domain": "Enter a valid domain, e.g. alphamakerspace.com."}
-                    )
                 attrs["hidden_from_central_directory"] = False
                 return attrs
             if not _HOSTNAME_RE.match(normalized_domain):
@@ -282,6 +285,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             if "frontend_domain" in validated_data and validated_data["frontend_domain"] != old_domain:
                 locked.frontend_domain_status = Makerspace.DomainStatus.PENDING
                 locked.domain_verified_at = None
+                locked.frontend_domain_changed_at = timezone.now()
             if public_display_name is not missing:
                 # Merge into the FRESH locked row's branding_config so we never
                 # overwrite support_email/support_url from a stale client copy.

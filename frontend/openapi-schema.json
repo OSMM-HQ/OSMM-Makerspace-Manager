@@ -11785,6 +11785,34 @@
                 }
             }
         },
+        "/api/v1/internal/tls-check": {
+            "get": {
+                "operationId": "api_v1_internal_tls_check_retrieve",
+                "summary": "Check whether on-demand TLS may be issued for a domain",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "domain",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "description": "Canonical hostname requested for on-demand TLS issuance.",
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Internal"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "TLS issuance is allowed."
+                    },
+                    "403": {
+                        "description": "TLS issuance is denied."
+                    }
+                }
+            }
+        },
         "/api/v1/notifications/makerspace/{makerspace_id}": {
             "get": {
                 "operationId": "api_v1_notifications_makerspace_list",

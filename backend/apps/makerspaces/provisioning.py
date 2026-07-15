@@ -60,11 +60,13 @@ def provision_subdomain(makerspace, label: str, actor) -> Makerspace:
             locked.frontend_domain = domain
             locked.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
             locked.domain_verified_at = timezone.now()
+            locked.frontend_domain_changed_at = timezone.now()
             locked.save(
                 update_fields=[
                     "frontend_domain",
                     "frontend_domain_status",
                     "domain_verified_at",
+                    "frontend_domain_changed_at",
                     "updated_at",
                 ]
             )

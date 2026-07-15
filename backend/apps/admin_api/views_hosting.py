@@ -1,14 +1,18 @@
+from django.conf import settings
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.http import HttpResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts import rbac
 from apps.admin_api.permissions import IsActiveSuperAdmin
 from apps.admin_api.serializers_makerspaces import MakerspaceSerializer
+from apps.makerspaces import hosting
 from apps.makerspaces.models import Makerspace
 from apps.makerspaces.provisioning import provision_subdomain
 
@@ -23,6 +27,48 @@ class ProvisionSubdomainValidationErrorSerializer(serializers.Serializer):
 
 class HostingErrorSerializer(serializers.Serializer):
     detail = serializers.CharField()
+
+
+def _deny_tls():
+    return HttpResponseForbidden(b"Forbidden")
+
+
+@extend_schema(
+    tags=["Internal"],
+    summary="Check whether on-demand TLS may be issued for a domain",
+    parameters=[
+        OpenApiParameter(
+            name="domain",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            required=True,
+            description="Canonical hostname requested for on-demand TLS issuance.",
+        )
+    ],
+    responses={
+        200: OpenApiResponse(description="TLS issuance is allowed."),
+        403: OpenApiResponse(description="TLS issuance is denied."),
+    },
+    auth=[],
+)
+class TlsCheckView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+    http_method_names = ["get", "options"]
+
+    def get(self, request, *args, **kwargs):
+        try:
+            domain = hosting.canonical_host(request.query_params.get("domain", ""))
+            if domain is None:
+                return _deny_tls()
+            suffix = str(settings.PLATFORM_DOMAIN_SUFFIX or "").strip().lower()
+            if suffix and domain.endswith(suffix):
+                return _deny_tls()
+            if domain not in hosting.verified_frontend_domains():
+                return _deny_tls()
+            return HttpResponse(b"OK")
+        except Exception:
+            return _deny_tls()
 
 
 @extend_schema(
