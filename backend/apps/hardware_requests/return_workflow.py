@@ -24,6 +24,7 @@ from apps.hardware_requests.workflow_errors import (
 )
 from apps.hardware_requests.workflow_utils import locked_request
 from apps.inventory import availability
+from apps.makerspaces.limits import add_storage
 
 
 def return_items(actor, request, evidence_id, remark, box_code, resolutions):
@@ -55,6 +56,7 @@ def return_items(actor, request, evidence_id, remark, box_code, resolutions):
                 raise ReturnValidationError(
                     "Return evidence is invalid or exceeds the size limit."
                 )
+            add_storage(locked.makerspace, size)
         try:
             storage.validate_evidence_object(evidence.object_key)
         except storage.EvidenceObjectValidationError as exc:

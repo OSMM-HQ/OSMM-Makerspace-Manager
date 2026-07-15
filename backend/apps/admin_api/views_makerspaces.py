@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import generics
@@ -23,6 +24,7 @@ from apps.audit import services as audit
 from apps.evidence.responses import storage_unavailable_response
 from apps.evidence.storage import StorageUnavailable
 from apps.inventory import public_image_storage
+from apps.makerspaces.limits import add_storage, free_storage
 from apps.makerspaces.models import Makerspace
 from apps.makerspaces.origin_scope import origin_scoped_makerspace_id
 
@@ -217,6 +219,7 @@ class MakerspaceImageView(APIView):
             503: OpenApiResponse(description="Public image storage is unavailable."),
         },
     )
+    @transaction.atomic
     def put(self, request, makerspace_id, *args, **kwargs):
         makerspace = self._makerspace(request, makerspace_id)
         serializer = PublicImageAttachRequestSerializer(data=request.data)
@@ -256,8 +259,10 @@ class MakerspaceImageView(APIView):
             raise ValidationError(
                 {"object_key": "Uploaded file is not a valid image."}
             )
+        add_storage(makerspace, public_image_storage.object_size(object_key))
         old_key = getattr(makerspace, self.image_field)
         if old_key and old_key != object_key:
+            free_storage(makerspace, public_image_storage.object_size(old_key))
             public_image_storage.delete_object(old_key)
         setattr(makerspace, self.image_field, object_key)
         makerspace.save(update_fields=[self.image_field, "updated_at"])
@@ -274,10 +279,12 @@ class MakerspaceImageView(APIView):
         summary="Clear a makerspace public image",
         responses={200: MakerspaceSerializer},
     )
+    @transaction.atomic
     def delete(self, request, makerspace_id, *args, **kwargs):
         makerspace = self._makerspace(request, makerspace_id)
         old_key = getattr(makerspace, self.image_field)
         if old_key:
+            free_storage(makerspace, public_image_storage.object_size(old_key))
             public_image_storage.delete_object(old_key)
         setattr(makerspace, self.image_field, "")
         makerspace.save(update_fields=[self.image_field, "updated_at"])

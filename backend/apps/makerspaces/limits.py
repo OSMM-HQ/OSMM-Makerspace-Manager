@@ -116,6 +116,63 @@ def _storage(makerspace) -> int:
     return makerspace.storage_bytes_used
 
 
+def add_storage(makerspace, size_bytes) -> None:
+    """Charge managed object storage; raise when over the storage cap.
+
+    Opens its own ``transaction.atomic()`` so the ``select_for_update`` row lock
+    works at every finalize call site regardless of whether the caller already
+    holds a transaction (it degrades to a savepoint when nested). On self-host or
+    unlimited it is a no-op.
+    """
+    if is_self_host() or not size_bytes:
+        return
+    limit = resource_limit(makerspace, "storage")
+    if limit is None:
+        return
+    from django.db import transaction
+    from django.db.models import F
+
+    from apps.makerspaces.models import Makerspace
+
+    with transaction.atomic():
+        locked = Makerspace.objects.select_for_update().get(pk=makerspace.pk)
+        if locked.storage_bytes_used + size_bytes > limit:
+            raise serializers.ValidationError(
+                {
+                    "limit": "You've reached the free storage limit for this space — ask the operator to raise it or self-host."
+                },
+                code="limit_reached",
+            )
+        Makerspace.objects.filter(pk=makerspace.pk).update(
+            storage_bytes_used=F("storage_bytes_used") + size_bytes
+        )
+
+
+def free_storage(makerspace, size_bytes) -> None:
+    """Release managed object storage (never below zero)."""
+    if is_self_host() or not size_bytes:
+        return
+    from apps.makerspaces.models import Makerspace
+    from django.db.models import F, Value
+    from django.db.models.functions import Greatest
+
+    Makerspace.objects.filter(pk=makerspace.pk).update(
+        storage_bytes_used=Greatest(F("storage_bytes_used") - size_bytes, Value(0))
+    )
+
+
+def _emails(makerspace) -> int:
+    from apps.integrations.models import DailyEmailCounter
+
+    today = datetime.now(UTC).date()
+    return (
+        DailyEmailCounter.objects.filter(makerspace=makerspace, day=today)
+        .values_list("count", flat=True)
+        .first()
+        or 0
+    )
+
+
 _COUNTERS: dict[str, Callable[[object], int]] = {
     "products": _products,
     "assets": _assets,
@@ -124,6 +181,7 @@ _COUNTERS: dict[str, Callable[[object], int]] = {
     "api_clients": _api_clients,
     "print": _print_requests,
     "storage": _storage,
+    "email": _emails,
 }
 
 

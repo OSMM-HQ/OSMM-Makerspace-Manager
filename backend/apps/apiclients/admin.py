@@ -2,13 +2,16 @@ import secrets
 
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from django.utils import timezone
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from unfold.admin import ModelAdmin
 from apps.apiclients.models import ApiClient, ApiKeyRequest
 from apps.apiclients.admin_forms import ApiClientAdminForm
 from apps.apiclients.notifications import notify_api_key_request_resolved
 from apps.apiclients.services import sync_makerspace_origins
 from apps.audit import services as audit
+from apps.makerspaces import limits
 from config.admin_access import SuperuserOnlyModelAdmin
 
 
@@ -146,13 +149,26 @@ class ApiKeyRequestAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
                 continue
 
             try:
-                client, raw_secret = ApiClient.issue(
-                    label=api_key_request.label,
-                    makerspace=api_key_request.makerspace,
-                    allowed_origins=api_key_request.allowed_origins or [],
-                    created_by=request.user,
-                    client_type="server",
+                with transaction.atomic():
+                    limits.check_quota(
+                        api_key_request.makerspace,
+                        "api_clients",
+                        adding=1,
+                    )
+                    client, raw_secret = ApiClient.issue(
+                        label=api_key_request.label,
+                        makerspace=api_key_request.makerspace,
+                        allowed_origins=api_key_request.allowed_origins or [],
+                        created_by=request.user,
+                        client_type="server",
+                    )
+            except DRFValidationError as exc:
+                self.message_user(
+                    request,
+                    f"{api_key_request.pk}: {exc.detail}",
+                    level=messages.ERROR,
                 )
+                continue
             except DjangoValidationError as exc:
                 self.message_user(
                     request,

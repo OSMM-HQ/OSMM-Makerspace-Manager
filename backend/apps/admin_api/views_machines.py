@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.db import transaction
 from django.db.models import Q, Sum
 from django.db.models.functions import Coalesce
 from django.shortcuts import get_object_or_404
@@ -16,6 +17,7 @@ from apps.audit import services as audit
 from apps.machines import access
 from apps.machines.models import Machine, MachineType
 from apps.machines.serializers import MachineListResponseSerializer, MachineSerializer
+from apps.makerspaces import limits
 from apps.makerspaces.guards import require_module
 
 
@@ -102,16 +104,18 @@ class MachineListCreateView(APIView):
         )
         if not access.can_create_machine(request.user, makerspace_id, machine_type):
             raise PermissionDenied()
-        machine = Machine.objects.create(
-            makerspace=makerspace,
-            machine_type=machine_type,
-            created_by=request.user,
-            name=data['name'],
-            location=data.get('location', ''),
-            notes=data.get('notes', ''),
-            firmware_version=data.get('firmware_version', ''),
-            camera_feed_url=data.get('camera_feed_url', ''),
-        )
+        with transaction.atomic():
+            limits.check_quota(makerspace, 'machines', adding=1)
+            machine = Machine.objects.create(
+                makerspace=makerspace,
+                machine_type=machine_type,
+                created_by=request.user,
+                name=data['name'],
+                location=data.get('location', ''),
+                notes=data.get('notes', ''),
+                firmware_version=data.get('firmware_version', ''),
+                camera_feed_url=data.get('camera_feed_url', ''),
+            )
         audit.record(
             request.user,
             'machine.created',

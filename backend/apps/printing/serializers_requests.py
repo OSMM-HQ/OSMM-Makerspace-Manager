@@ -1,9 +1,11 @@
 from decimal import Decimal
 
+from django.db import transaction
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.hardware_requests.display import label_from_candidates
+from apps.makerspaces import limits
 from apps.printing.models import PrintBucket, PrintRequest
 from apps.printing.serializers_buckets import PrintBucketSerializer
 from apps.printing.serializers_printers import PrintPrinterSerializer
@@ -44,10 +46,13 @@ class PrintRequestCreateSerializer(serializers.ModelSerializer):
         return value
 
     def create(self, validated_data):
-        return PrintRequest.objects.create(
-            requester=self.context["request"].user,
-            **validated_data,
-        )
+        makerspace = validated_data["bucket"].makerspace
+        with transaction.atomic():
+            limits.check_quota(makerspace, "print", adding=1)
+            return PrintRequest.objects.create(
+                requester=self.context["request"].user,
+                **validated_data,
+            )
 
 
 class PrintRequestFileSummarySerializer(serializers.Serializer):

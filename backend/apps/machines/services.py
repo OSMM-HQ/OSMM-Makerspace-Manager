@@ -11,6 +11,7 @@ from apps.machines import access, storage
 from apps.machines.models import (
     Machine, MachineDocument, MachineErrorLog, MachineOperator, MachineUsageEntry,
 )
+from apps.makerspaces.limits import free_storage
 
 
 def _retired(machine):
@@ -68,6 +69,7 @@ def update_image(machine, actor, object_key):
     )
     old_key = machine.image_key
     if old_key and old_key != object_key:
+        free_storage(machine.makerspace, public_image_storage.object_size(old_key))
         public_image_storage.delete_object(old_key)
     machine.image_key = object_key
     machine.save(update_fields=["image_key", "updated_at"])
@@ -81,6 +83,7 @@ def remove_image(machine, actor):
         pk=machine.pk
     )
     if machine.image_key:
+        free_storage(machine.makerspace, public_image_storage.object_size(machine.image_key))
         public_image_storage.delete_object(machine.image_key)
     machine.image_key = ""
     machine.save(update_fields=["image_key", "updated_at"])

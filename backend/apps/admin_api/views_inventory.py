@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import generics
@@ -33,6 +34,7 @@ from apps.evidence.responses import storage_unavailable_response
 from apps.evidence.storage import StorageUnavailable
 from apps.inventory.models import InventoryProduct
 from apps.makerspaces.guards import require_module
+from apps.makerspaces.limits import add_storage, free_storage
 
 
 @extend_schema(tags=["Admin inventory"], summary="List or create inventory products")
@@ -201,6 +203,7 @@ class InventoryProductImageView(APIView):
             503: OpenApiResponse(description="Public image storage is unavailable."),
         },
     )
+    @transaction.atomic
     def put(self, request, pk, *args, **kwargs):
         product = self._product(request, pk)
         serializer = PublicImageAttachRequestSerializer(data=request.data)
@@ -240,8 +243,10 @@ class InventoryProductImageView(APIView):
             raise ValidationError(
                 {"object_key": "Uploaded file is not a valid image."}
             )
+        add_storage(product.makerspace, public_image_storage.object_size(object_key))
         old_key = product.image_key
         if old_key and old_key != object_key:
+            free_storage(product.makerspace, public_image_storage.object_size(old_key))
             public_image_storage.delete_object(old_key)
         product.image_key = object_key
         product.save(update_fields=["image_key", "updated_at"])
@@ -260,10 +265,12 @@ class InventoryProductImageView(APIView):
             200: InventoryProductAdminSerializer,
         },
     )
+    @transaction.atomic
     def delete(self, request, pk, *args, **kwargs):
         product = self._product(request, pk)
         old_key = product.image_key
         if old_key:
+            free_storage(product.makerspace, public_image_storage.object_size(old_key))
             public_image_storage.delete_object(old_key)
         product.image_key = ""
         product.save(update_fields=["image_key", "updated_at"])

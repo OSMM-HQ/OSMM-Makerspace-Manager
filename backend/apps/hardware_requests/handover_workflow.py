@@ -24,6 +24,7 @@ from apps.hardware_requests.workflow_errors import (
 )
 from apps.hardware_requests.workflow_utils import constraint_name, locked_request
 from apps.inventory import availability
+from apps.makerspaces.limits import add_storage
 
 
 def assign_box(actor, request, box_code):
@@ -118,6 +119,7 @@ def issue_request(actor, request, evidence_id, remark="", asset_qr_payloads=None
                 raise RequestValidationError(
                     "Issue evidence is invalid or exceeds the size limit."
                 )
+            add_storage(locked.makerspace, size)
         try:
             storage.validate_evidence_object(evidence.object_key)
         except storage.EvidenceObjectValidationError as exc:

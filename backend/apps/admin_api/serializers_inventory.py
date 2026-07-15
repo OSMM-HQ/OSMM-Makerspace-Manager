@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.utils.text import slugify
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -11,6 +12,8 @@ from apps.inventory.models import (
     PublicAvailabilityMode,
     TrackingMode,
 )
+from apps.makerspaces import limits
+from apps.makerspaces.models import Makerspace
 
 QUANTITY_BUCKET_FIELDS = (
     "total_quantity",
@@ -116,6 +119,17 @@ class InventoryProductAdminCreateSerializer(InventoryProductAdminSerializer):
                 {"available_quantity": "Available quantity cannot exceed total quantity."}
             )
         return attrs
+
+    def create(self, validated_data):
+        # makerspace is injected by the caller's save(): the admin view passes
+        # makerspace_id, the procurement move-to-inventory path passes a makerspace
+        # instance. Support both so the shared serializer works for either caller.
+        makerspace = validated_data.get("makerspace")
+        if makerspace is None:
+            makerspace = Makerspace.objects.get(pk=validated_data["makerspace_id"])
+        with transaction.atomic():
+            limits.check_quota(makerspace, "products", adding=1)
+            return super().create(validated_data)
 
 
 class InventoryProductAdminUpdateSerializer(InventoryProductAdminSerializer):

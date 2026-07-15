@@ -4,8 +4,9 @@ from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 from django.utils import timezone
 
-from apps.integrations.models import EmailLog
+from apps.integrations.models import DailyEmailCounter, EmailLog
 from apps.integrations.smtp_validation import sanitize_email_error
+from apps.makerspaces import domain_verification, limits
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,44 @@ def dispatch_email(
 ):
     if not persist_body and not sync:
         raise ValueError("persist_body=False requires sync=True")
+
+    if (
+        not domain_verification.is_self_host()
+        and makerspace is not None
+        and connection == "makerspace"
+    ):
+        try:
+            limit = limits.resource_limit(makerspace, "email")
+            if limit is not None:
+                with transaction.atomic():
+                    counter, _ = DailyEmailCounter.objects.get_or_create(
+                        makerspace=makerspace,
+                        day=timezone.now().date(),
+                    )
+                    counter = DailyEmailCounter.objects.select_for_update().get(
+                        pk=counter.pk
+                    )
+                    if counter.count >= limit:
+                        return EmailLog.objects.create(
+                            makerspace=makerspace,
+                            to_email=to_email,
+                            subject=subject,
+                            text_body=text_body if persist_body else "",
+                            html_body=html_body if persist_body else "",
+                            stream=stream,
+                            event=event,
+                            audience=audience,
+                            connection_kind=connection,
+                            status=EmailLog.Status.FAILED,
+                            error="Daily email limit reached for this space.",
+                        )
+                    counter.count = counter.count + 1
+                    counter.save(update_fields=["count"])
+        except Exception:
+            logger.exception(
+                "daily_email_limit_check_failed",
+                extra={"makerspace_id": makerspace.pk},
+            )
 
     # persist_body=False keeps the rendered body OUT of the stored row (e.g. password
     # reset emails embed a live recovery token in the body - persisting it would leave a

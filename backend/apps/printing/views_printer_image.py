@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
@@ -17,6 +18,7 @@ from apps.evidence.responses import storage_unavailable_response
 from apps.evidence.storage import StorageUnavailable
 from apps.inventory import public_image_storage
 from apps.makerspaces.guards import require_module
+from apps.makerspaces.limits import add_storage, free_storage
 from apps.printing.models import PrintPrinter
 from apps.printing.serializers import PrintPrinterSerializer
 
@@ -81,6 +83,7 @@ class PrinterImageView(APIView):
             503: OpenApiResponse(description="Public image storage is unavailable."),
         },
     )
+    @transaction.atomic
     def put(self, request, pk, *args, **kwargs):
         printer = self._printer(request, pk)
         serializer = PublicImageAttachRequestSerializer(data=request.data)
@@ -120,8 +123,10 @@ class PrinterImageView(APIView):
             raise ValidationError(
                 {"object_key": "Uploaded file is not a valid image."}
             )
+        add_storage(printer.makerspace, public_image_storage.object_size(object_key))
         old_key = printer.image_key
         if old_key and old_key != object_key:
+            free_storage(printer.makerspace, public_image_storage.object_size(old_key))
             public_image_storage.delete_object(old_key)
         printer.image_key = object_key
         printer.save(update_fields=["image_key", "updated_at"])
@@ -138,10 +143,12 @@ class PrinterImageView(APIView):
         summary="Clear a printer image",
         responses={200: PrintPrinterSerializer},
     )
+    @transaction.atomic
     def delete(self, request, pk, *args, **kwargs):
         printer = self._printer(request, pk)
         old_key = printer.image_key
         if old_key:
+            free_storage(printer.makerspace, public_image_storage.object_size(old_key))
             public_image_storage.delete_object(old_key)
         printer.image_key = ""
         printer.save(update_fields=["image_key", "updated_at"])

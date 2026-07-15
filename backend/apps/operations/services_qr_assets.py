@@ -6,6 +6,7 @@ from apps.audit import services as audit
 from apps.boxes.models import Box, QrCode
 from apps.inventory import availability
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
+from apps.makerspaces import limits
 from apps.operations.models import QrPrintBatch, QrPrintBatchItem
 
 
@@ -101,6 +102,7 @@ def generate_assets_with_qr(actor, product, data):
             created.append({"asset": asset, "qr": qr})
 
         remaining_count = data["count"] - len(missing_qr_assets)
+        limits.check_quota(product.makerspace, "assets", adding=remaining_count)
         for idx in range(remaining_count):
             next_number = existing_count + idx + 1
             asset_tag = f"{product.slug if hasattr(product, 'slug') else product.id}-{next_number:04d}"
