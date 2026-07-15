@@ -48,15 +48,12 @@ export function MakerspaceSubdomainSettings({ makerspace, settings }: Props) {
   const history = requests.data?.results ?? [];
   const pendingRequest = history.find((request) => request.status === "pending");
   const currentDomain = settings?.frontend_domain ?? makerspace.frontend_domain;
-  const currentStatus = settings?.frontend_domain_status ?? makerspace.frontend_domain_status;
-  const verificationRecord =
-    settings?.domain_verification_record ?? makerspace.domain_verification_record;
-  // Active state derives from the CURRENT hosting state, not request history: a verified
-  // domain with no TXT verification record is a platform-provisioned subdomain (custom
-  // domains always carry a DNS record). A stale approved row must not keep this true after
-  // the domain is cleared, and a pre-feature subdomain has no approved history.
+  // Active state derives from the backend's authoritative is_platform_subdomain flag
+  // (frontend_domain is a VERIFIED platform-suffix subdomain), NOT request history or
+  // the presence of a TXT record — managed mode returns a TXT record for every domain,
+  // so absence-of-record can't distinguish a provisioned subdomain.
   const hasActiveSubdomain =
-    Boolean(currentDomain) && currentStatus === "verified" && !verificationRecord;
+    settings?.is_platform_subdomain ?? makerspace.is_platform_subdomain ?? false;
   const activeSubdomain = currentDomain;
   const submitDisabled =
     requests.isLoading || submitRequest.isPending || Boolean(pendingRequest) || !requestedLabel.trim();

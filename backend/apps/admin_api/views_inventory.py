@@ -244,8 +244,13 @@ class InventoryProductImageView(APIView):
                 {"object_key": "Uploaded file is not a valid image."}
             )
         old_key = product.image_key
-        if object_key != old_key:
-            add_storage(product.makerspace, public_image_storage.object_size(object_key))
+        try:
+            if object_key != old_key:
+                add_storage(product.makerspace, public_image_storage.object_size(object_key))
+        except ValidationError:
+            public_image_storage.delete_object(object_key)
+            public_image_storage.delete_object(public_image_storage.staging_key(object_key))
+            raise
         if old_key and old_key != object_key:
             free_storage(product.makerspace, public_image_storage.object_size(old_key))
             public_image_storage.delete_object(old_key)

@@ -21069,6 +21069,10 @@
                         "type": "boolean",
                         "readOnly": true
                     },
+                    "is_platform_subdomain": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
                     "hidden_from_central_directory": {
                         "type": "boolean"
                     },
@@ -21158,6 +21162,7 @@
                     "domain_verified_at",
                     "frontend_domain_status",
                     "id",
+                    "is_platform_subdomain",
                     "logo_key",
                     "logo_url",
                     "name",
@@ -23545,6 +23550,10 @@
                         "readOnly": true
                     },
                     "platform_hosting": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "is_platform_subdomain": {
                         "type": "boolean",
                         "readOnly": true
                     },

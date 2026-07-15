@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework.response import Response
@@ -17,6 +18,7 @@ from apps.admin_api.serializers_users import (
 )
 from apps.admin_api.services_user_access import reset_user_password
 from apps.audit import services as audit
+from apps.makerspaces import limits
 from apps.openapi import RESTRICT_USER_EXAMPLE
 
 
@@ -77,10 +79,19 @@ class RestoreUserAccessView(APIView):
 
     @extend_schema(tags=["Admin users"], summary="Restore user access", request=None, responses={200: UserSerializer})
     def post(self, request, pk, *args, **kwargs):
-        user = get_object_or_404(User, pk=pk)
-        require_user_access_mutation(request.user, user)
-        user.access_status = User.AccessStatus.ACTIVE
-        user.restriction_reason = ""
-        user.save(update_fields=["access_status", "restriction_reason"])
-        audit.record(request.user, "user.access_restored", target=user)
+        with transaction.atomic():
+            user = get_object_or_404(User.objects.select_for_update(), pk=pk)
+            require_user_access_mutation(request.user, user)
+            if user.access_status != User.AccessStatus.ACTIVE:
+                memberships = user.makerspace_memberships.select_related(
+                    "makerspace"
+                ).order_by("makerspace_id")
+                for membership in memberships:
+                    limits.check_quota(
+                        membership.makerspace, "staff", adding=1
+                    )
+            user.access_status = User.AccessStatus.ACTIVE
+            user.restriction_reason = ""
+            user.save(update_fields=["access_status", "restriction_reason"])
+            audit.record(request.user, "user.access_restored", target=user)
         return Response(UserSerializer(user).data)

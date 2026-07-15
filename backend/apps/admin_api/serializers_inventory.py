@@ -149,6 +149,12 @@ class InventoryProductAdminUpdateSerializer(InventoryProductAdminSerializer):
             raise serializers.ValidationError(rejected)
         return attrs
 
+    def update(self, instance, validated_data):
+        with transaction.atomic():
+            if validated_data.get("is_archived") is False and instance.is_archived:
+                limits.check_quota(instance.makerspace, "products", adding=1)
+            return super().update(instance, validated_data)
+
 
 class CategoryAdminSerializer(serializers.ModelSerializer):
     slug = serializers.SlugField(required=False, allow_blank=True)

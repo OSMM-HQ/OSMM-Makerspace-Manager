@@ -5,6 +5,7 @@ from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib.auth.admin import GroupAdmin as DjangoGroupAdmin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 from django.contrib.auth.models import Group
+from django.db import transaction
 from django.template.response import TemplateResponse
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.forms import AdminPasswordChangeForm, UserChangeForm, UserCreationForm
@@ -13,6 +14,7 @@ from rest_framework.exceptions import APIException
 from apps.accounts.models import User
 from apps.admin_api.services_user_access import reset_user_password
 from apps.audit import services as audit
+from apps.makerspaces import limits
 from apps.makerspaces.models import MakerspaceMembership
 from config.admin_access import SuperuserOnlyModelAdmin
 
@@ -140,11 +142,29 @@ class UserAdmin(SuperuserOnlyModelAdmin, DjangoUserAdmin, ModelAdmin):
     def restore_access(self, request, queryset):
         success_count = 0
         for user in queryset:
-            user.access_status = User.AccessStatus.ACTIVE
-            user.restriction_reason = ""
-            user.save(update_fields=["access_status", "restriction_reason"])
-            audit.record(request.user, "user.access_restored", target=user)
-            success_count += 1
+            try:
+                with transaction.atomic():
+                    locked = User.objects.select_for_update().get(pk=user.pk)
+                    if locked.access_status != User.AccessStatus.ACTIVE:
+                        memberships = MakerspaceMembership.objects.select_related(
+                            "makerspace"
+                        ).filter(user=locked).order_by("makerspace_id")
+                        for membership in memberships:
+                            limits.check_quota(
+                                membership.makerspace, "staff", adding=1
+                            )
+                    locked.access_status = User.AccessStatus.ACTIVE
+                    locked.restriction_reason = ""
+                    locked.save(update_fields=["access_status", "restriction_reason"])
+                    audit.record(request.user, "user.access_restored", target=locked)
+            except APIException as exc:
+                self.message_user(
+                    request,
+                    f"{user.username}: {_api_exception_message(exc)}",
+                    level=messages.ERROR,
+                )
+            else:
+                success_count += 1
 
         if success_count:
             self.message_user(

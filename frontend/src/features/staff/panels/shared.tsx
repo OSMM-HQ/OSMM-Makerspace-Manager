@@ -17,6 +17,7 @@ export type Makerspace = {
   domain_verification_token?: string;
   domain_verification_record?: { host: string; type: "TXT"; value: string } | null;
   platform_hosting?: boolean;
+  is_platform_subdomain?: boolean;
   hidden_from_central_directory: boolean;
   superadmin_access_enabled?: boolean;
   staff_notifications_enabled?: boolean;

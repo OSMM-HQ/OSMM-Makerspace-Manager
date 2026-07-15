@@ -55,6 +55,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
     cover_image_url = serializers.SerializerMethodField()
     domain_verification_record = serializers.SerializerMethodField()
     platform_hosting = serializers.SerializerMethodField()
+    is_platform_subdomain = serializers.SerializerMethodField()
     # Optional public-name override stored under branding_config["display_name"].
     # Blank => public pages fall back to the registered makerspace name. Written
     # through this dedicated, validated field (not the whole branding_config blob)
@@ -92,6 +93,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "domain_verification_token",
             "domain_verification_record",
             "platform_hosting",
+            "is_platform_subdomain",
             "hidden_from_central_directory",
             "public_api_key",
             "cors_allowed_origins",
@@ -127,6 +129,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "domain_verification_token",
             "domain_verification_record",
             "platform_hosting",
+            "is_platform_subdomain",
             "telegram_bot_token_set",
             "smtp_password_set",
             # branding_config is returned (so the settings form can seed the
@@ -168,6 +171,14 @@ class MakerspaceSerializer(serializers.ModelSerializer):
     @extend_schema_field({"type": "boolean"})
     def get_platform_hosting(self, obj) -> bool:
         return not domain_verification.is_self_host()
+
+    @extend_schema_field({"type": "boolean"})
+    def get_is_platform_subdomain(self, obj) -> bool:
+        return (
+            bool(obj.frontend_domain)
+            and domain_verification._is_platform_managed(obj.frontend_domain)
+            and obj.frontend_domain_status == obj.DomainStatus.VERIFIED
+        )
 
     def validate_public_code(self, value):
         return value.upper()

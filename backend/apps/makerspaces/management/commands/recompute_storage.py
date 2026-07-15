@@ -16,6 +16,12 @@ from apps.warranty import storage as warranty_storage
 from apps.warranty.models import WarrantyDocument
 
 
+class StorageReadError(Exception):
+    def __init__(self, object_key):
+        self.object_key = object_key
+        super().__init__(object_key)
+
+
 class Command(BaseCommand):
     help = "Recompute per-makerspace managed object-storage usage from authoritative records."
 
@@ -40,51 +46,60 @@ class Command(BaseCommand):
             makerspaces = makerspaces.filter(archived_at__isnull=True)
 
         for makerspace in makerspaces.order_by("pk"):
-            evidence_bytes = self._sum_observed_sizes(
-                EvidencePhoto.objects.filter(makerspace=makerspace).values_list(
-                    "object_key", "size_bytes"
-                ),
-                evidence_storage.object_size,
-                fallback_to_recorded=True,
-            )
-            print_bytes = self._sum_observed_sizes(
-                PrintRequestFile.objects.filter(
-                    print_request__bucket__makerspace=makerspace
-                ).values_list("object_key", "size_bytes"),
-                printing_storage.print_object_size,
-                fallback_to_recorded=True,
-            )
-            public_bytes = self._sum_observed_sizes(
-                ((key, None) for key in self._public_image_keys(makerspace)),
-                public_image_storage.object_size,
-            )
-            machine_document_bytes = self._sum_observed_sizes(
-                (
-                    (key, None)
-                    for key in MachineDocument.objects.filter(
-                        machine__makerspace=makerspace
-                    ).values_list("object_key", flat=True)
-                ),
-                machine_storage.object_size,
-            )
-            warranty_document_bytes = self._sum_observed_sizes(
-                (
-                    (key, None)
-                    for key in WarrantyDocument.objects.filter(
-                        warranty__makerspace=makerspace
-                    ).values_list("object_key", flat=True)
-                ),
-                warranty_storage.object_size,
-            )
-            receipt_bytes = self._sum_observed_sizes(
-                (
-                    (key, None)
-                    for key in ToBuyReceipt.objects.filter(
-                        to_buy_item__makerspace=makerspace
-                    ).values_list("object_key", flat=True)
-                ),
-                procurement_storage.object_size,
-            )
+            try:
+                evidence_bytes = self._sum_observed_sizes(
+                    EvidencePhoto.objects.filter(makerspace=makerspace).values_list(
+                        "object_key", "size_bytes"
+                    ),
+                    evidence_storage.object_size,
+                    fallback_to_recorded=True,
+                )
+                print_bytes = self._sum_observed_sizes(
+                    PrintRequestFile.objects.filter(
+                        print_request__bucket__makerspace=makerspace
+                    ).values_list("object_key", "size_bytes"),
+                    printing_storage.print_object_size,
+                    fallback_to_recorded=True,
+                )
+                public_bytes = self._sum_observed_sizes(
+                    ((key, None) for key in self._public_image_keys(makerspace)),
+                    public_image_storage.object_size,
+                )
+                machine_document_bytes = self._sum_observed_sizes(
+                    (
+                        (key, None)
+                        for key in MachineDocument.objects.filter(
+                            machine__makerspace=makerspace
+                        ).values_list("object_key", flat=True)
+                    ),
+                    machine_storage.object_size,
+                )
+                warranty_document_bytes = self._sum_observed_sizes(
+                    (
+                        (key, None)
+                        for key in WarrantyDocument.objects.filter(
+                            warranty__makerspace=makerspace
+                        ).values_list("object_key", flat=True)
+                    ),
+                    warranty_storage.object_size,
+                )
+                receipt_bytes = self._sum_observed_sizes(
+                    (
+                        (key, None)
+                        for key in ToBuyReceipt.objects.filter(
+                            to_buy_item__makerspace=makerspace
+                        ).values_list("object_key", flat=True)
+                    ),
+                    procurement_storage.object_size,
+                )
+            except StorageReadError as exc:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"{makerspace.slug}: usage left unchanged due to a storage "
+                        f"read error for {exc.object_key!r}."
+                    )
+                )
+                continue
             total = (
                 evidence_bytes
                 + print_bytes
@@ -115,8 +130,8 @@ class Command(BaseCommand):
                 continue
             try:
                 observed_size = object_size(object_key)
-            except Exception:
-                continue
+            except Exception as exc:
+                raise StorageReadError(object_key) from exc
             if observed_size is None:
                 observed_size = recorded_size if fallback_to_recorded else 0
             total += observed_size or 0

@@ -488,3 +488,131 @@ def test_subdomain_request_status_is_readonly_in_admin():
     assert {"status", "requested_label", "makerspace"} <= set(
         model_admin.get_readonly_fields(None)
     )
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+def test_managed_product_unarchive_respects_cap():
+    makerspace = make_space("limits-product-unarchive-cap")
+    makerspace.resource_limit_overrides = {"products": 1}
+    makerspace.save(update_fields=["resource_limit_overrides"])
+    manager = make_member("limits-product-unarchive-manager", makerspace)
+    InventoryProduct.objects.create(
+        makerspace=makerspace, name="Active product", is_archived=False
+    )
+    archived = InventoryProduct.objects.create(
+        makerspace=makerspace, name="Archived product", is_archived=True
+    )
+    client = authenticated_client(manager)
+    url = reverse("admin-inventory-detail", kwargs={"pk": archived.id})
+
+    response = client.patch(
+        url, {"is_archived": False}, format="json", HTTP_HOST="testserver"
+    )
+
+    assert response.status_code == 400
+    archived.refresh_from_db()
+    assert archived.is_archived is True
+
+    with override_settings(PLATFORM_DOMAIN_SUFFIX=""):
+        response = client.patch(
+            url, {"is_archived": False}, format="json", HTTP_HOST="testserver"
+        )
+
+    assert response.status_code == 200
+    archived.refresh_from_db()
+    assert archived.is_archived is False
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+def test_managed_restore_user_access_respects_staff_cap():
+    makerspace = make_space("limits-restore-user-cap")
+    makerspace.resource_limit_overrides = {"staff": 1}
+    makerspace.save(update_fields=["resource_limit_overrides"])
+    make_member("limits-restore-active-staff", makerspace)
+    restricted_user = make_user(
+        "limits-restore-restricted-staff", access_status="restricted"
+    )
+    MakerspaceMembership.objects.create(
+        user=restricted_user,
+        makerspace=makerspace,
+        role="inventory_manager",
+    )
+    superadmin = make_user(
+        "limits-restore-superadmin",
+        role="superadmin",
+        access_status="active",
+    )
+    client = authenticated_client(superadmin)
+    url = reverse("user-restore-access", kwargs={"pk": restricted_user.id})
+
+    response = client.post(url, HTTP_HOST="testserver")
+
+    assert response.status_code == 400
+    restricted_user.refresh_from_db()
+    assert restricted_user.access_status == "restricted"
+
+    with override_settings(PLATFORM_DOMAIN_SUFFIX=""):
+        response = client.post(url, HTTP_HOST="testserver")
+
+    assert response.status_code == 200
+    restricted_user.refresh_from_db()
+    assert restricted_user.access_status == "active"
+
+
+def test_recompute_storage_leaves_counter_unchanged_on_read_error(monkeypatch):
+    makerspace = make_space("limits-storage-read-error")
+    makerspace.storage_bytes_used = 321
+    makerspace.save(update_fields=["storage_bytes_used"])
+    uploader = make_user("limits-storage-read-error-uploader", access_status="active")
+    EvidencePhoto.objects.create(
+        makerspace=makerspace,
+        evidence_type=EvidencePhoto.EvidenceType.ISSUE,
+        object_key=f"evidence/{makerspace.id}/missing.jpg",
+        uploaded_by=uploader,
+    )
+
+    def raise_read_error(_object_key):
+        raise RuntimeError("storage unavailable")
+
+    monkeypatch.setattr("apps.evidence.storage.object_size", raise_read_error)
+
+    call_command("recompute_storage", makerspace.slug, stdout=StringIO())
+
+    makerspace.refresh_from_db()
+    assert makerspace.storage_bytes_used == 321
+
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+def test_is_platform_subdomain_flag():
+    platform_space = make_space("platform-subdomain-flag")
+    custom_space = make_space("custom-domain-flag")
+    no_domain_space = make_space("no-domain-flag")
+    Makerspace.objects.filter(pk=platform_space.pk).update(
+        frontend_domain="alpha.osmm.me",
+        frontend_domain_status=Makerspace.DomainStatus.VERIFIED,
+    )
+    Makerspace.objects.filter(pk=custom_space.pk).update(
+        frontend_domain="shop.example.com",
+        frontend_domain_status=Makerspace.DomainStatus.VERIFIED,
+    )
+    superadmin = make_user(
+        "platform-subdomain-flag-superadmin",
+        role="superadmin",
+        access_status="active",
+    )
+    client = authenticated_client(superadmin)
+
+    responses = [
+        client.get(
+            reverse("admin-makerspace", kwargs={"pk": makerspace.id}),
+            HTTP_HOST="testserver",
+        )
+        for makerspace in (platform_space, custom_space, no_domain_space)
+    ]
+
+    assert [response.status_code for response in responses] == [200, 200, 200]
+    assert [response.data["is_platform_subdomain"] for response in responses] == [
+        True,
+        False,
+        False,
+    ]
