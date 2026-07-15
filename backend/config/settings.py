@@ -51,6 +51,17 @@ if BEHIND_TRUSTED_PROXY:
     ALLOWED_HOSTS = ["*"]
 PUBLIC_APP_BASE_URL = env("PUBLIC_APP_BASE_URL", default="").rstrip("/")
 MANAGED_POSTGRES = env.bool("MANAGED_POSTGRES", default=False)
+MANAGED_RESOURCE_LIMITS = {
+    "products": 500,
+    "assets": 2000,
+    "machines": 5,
+    "events": 10,
+    "staff": 10,
+    "storage": 1073741824,
+    "print": 200,
+    "email": 100,
+    "api_clients": 1,
+}
 STORAGE_PRESIGN_METHOD = env("STORAGE_PRESIGN_METHOD", default="post")
 CRON_SECRET = env("CRON_SECRET", default="")
 ADMIN_SITE_NAME = env("ADMIN_SITE_NAME", default="OSMM")

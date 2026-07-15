@@ -10,7 +10,7 @@ from apps.accounts.models import User
 from apps.inventory import public_image_storage
 from apps.integrations.email import platform_email_configured
 from apps.integrations.smtp_validation import validate_smtp_settings
-from apps.makerspaces import domain_verification
+from apps.makerspaces import domain_verification, limits
 from apps.makerspaces.hosting import canonical_host
 from apps.makerspaces.models import (
     Makerspace,
@@ -32,6 +32,7 @@ _HOSTNAME_RE = re.compile(
 
 
 class MakerspaceSerializer(serializers.ModelSerializer):
+    resource_limit_overrides = serializers.JSONField(required=False)
     frontend_domain = serializers.CharField(
         required=False,
         allow_blank=True,
@@ -93,6 +94,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "public_api_key",
             "cors_allowed_origins",
             "enabled_modules",
+            "resource_limit_overrides",
             "theme_config",
             "branding_config",
             "public_display_name",
@@ -178,6 +180,23 @@ class MakerspaceSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        if "resource_limit_overrides" in attrs:
+            actor = self.context["request"].user
+            is_superadmin = actor.is_superuser or actor.role == User.Role.SUPERADMIN
+            if not is_superadmin:
+                raise serializers.ValidationError(
+                    {
+                        "resource_limit_overrides": (
+                            "Only a superadmin can set per-space resource limits."
+                        )
+                    }
+                )
+            attrs["resource_limit_overrides"] = (
+                limits.validate_resource_limit_overrides(
+                    attrs["resource_limit_overrides"]
+                )
+            )
+
         if "frontend_domain" in attrs:
             raw_domain = attrs.get("frontend_domain")
             normalized_domain = normalize_frontend_domain(raw_domain)

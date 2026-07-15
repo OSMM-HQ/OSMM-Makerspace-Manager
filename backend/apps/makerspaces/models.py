@@ -154,6 +154,8 @@ class Makerspace(models.Model):
     )
     cors_allowed_origins = models.JSONField(default=list, blank=True)
     enabled_modules = models.JSONField(default=default_enabled_modules, blank=True)
+    resource_limit_overrides = models.JSONField(default=dict, blank=True)
+    storage_bytes_used = models.BigIntegerField(default=0)
     theme_config = models.JSONField(default=default_theme_config, blank=True)
     branding_config = models.JSONField(default=default_branding_config, blank=True)
     telegram_group_chat_id = models.CharField(max_length=64, blank=True)
