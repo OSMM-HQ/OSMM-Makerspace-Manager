@@ -2,6 +2,71 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## IN-PROGRESS batch — self-host-first program, FabLab PARTS C–I (2026-07-16, branch `dev`)
+
+Continuation of the self-host-first + FabLab program (plan gitignored) after Parts A+B shipped. Building
+**C→D→E→F→G→H→I** on `dev` via a **fully-Codex workflow** (Codex writes both the per-Part design specs
+*and* the code; Claude orchestrates, verifies each phase, and commits), using **multiple parallel Codex
+agents** wherever files don't collide (spec-writing + independent reviews parallelize; builds stay
+sequential on shared files like `rbac.py`/`origin_scope.py`/`admin_api/urls.py`/`openapi-schema.json`/
+`api.ts`). Per user instruction, the **single user QA is deferred to the very end** (after all Parts) —
+no per-Part QA gate. Phase-per-commit with the three co-author trailers. Specs live (gitignored) under
+`docs/superpowers/specs/2026-07-16-*`.
+
+**Plan reshapes decided in this batch (override the original A–H plan):**
+- **Part D = "Spaces & Bookings"** (was machine-Reservations): dev-room/bench/meeting-space time-slot
+  booking. **Machines stay service-request style** (Machines + Printing modules) and are NOT part of D.
+- **Part I ADDED = "Dynamic granular roles + per-instance assignment"** (built LAST): a custom
+  per-makerspace `Role` model seeded from today's 4 hardcoded roles as editable defaults; `rbac.can()`
+  resolves via the assigned role; plus per-instance assignment of specific machines/resources/events
+  (operate/manage/book), generalizing today's `MachineOperator`.
+- **Storage = prefix model** (NOT bucket-per-makerspace — S3's ~100-bucket limit would cap the managed
+  platform): two shared buckets per env (private + public-read), isolated by
+  `<module>/<makerspace_id>/<machine_or_resource_id>/<category>/<uuid>` prefixes; applied to NEW files only
+  (Part D space images, Part E maintenance-log attachments), no re-keying of existing objects.
+- **Job Queue** (a generic per-machine service-request queue like 3D-printing's `PrintBucket`) stays
+  OUT of scope unless explicitly opted in. Buckets remain a printing-only concept (`PrintBucket`, per
+  makerspace) — generic machines have no bucket/queue.
+- Security disclosure contact changed to `shaanshoukath4522@gmail.com` (`SECURITY.md`, commit `0509ecc`).
+
+**Part C — Events module (CODE COMPLETE, all 5 phases committed; Stage-4 Codex review pending/in-progress).**
+New `apps/events/` app (per-makerspace `events` module flag, default-on via `makerspaces/0032`). `Event`
+(makerspace FK, title/description/times/location, `capacity` 0=unlimited, `is_public`, `status`
+draft/published/cancelled/completed, `public_token` UUID for opaque public routing, immutable `save()`) +
+`EventRegistration` (name/email/phone identity, status registered/waitlisted/cancelled/attended,
+unique(event,email)). `services.py` is the single mutation source (atomic; **canonical lock order =
+Event row first, then Registration(s)**; FIFO waitlist promotion; publish + all promotion require a
+**non-ended** event; early `complete` allowed). Managed fair-use counter `limits._events` = upcoming
+PUBLISHED events (`ends_at >= now` UTC), checked at publish. Typed workflow errors registered in
+`hardware_requests.exceptions._EXCEPTION_MAP` (EventInvalidTransition/CapacityConflict → **409**,
+DuplicateRegistration → **400**). `Action.MANAGE_EVENTS` → Space Manager + Superadmin only. 9 staff
+endpoints (`admin_api/views_events.py`/`serializers_events.py`, IsActiveStaff + `require_module("events")`
++ 404-before-403 + origin-scope registry wiring). Public: `PublicEventSerializer` strict allowlist (incl.
+`public_token`, never `id`/PII), `GET /api/v1/public/<slug>/events` + `POST …/events/<uuid:public_token>/
+register` (AllowAny, honeypot-before-serializer, `ClientTierRateThrottle` `public_read`/`event_register`,
+module-disabled → **400** matching the printing convention, leak-sweep test). Frontend `eventsApi.ts`
+(local types) + `EventsPanel` + public `PublicEventsPage`/`EventRegistrationForm`; `lib/api.ts` now
+preserves structured `{detail, code}` error bodies. ~61 backend tests; `tsc -b`/build green. Commits
+`260b0c0`(C1)·`8759be0`(C2)·`22212c5`(C3)·`117593c`(C4)·`ec29658`(C5).
+
+**Spec-gate status:** C **APPROVED** (3 rounds). **Part E (Maintenance) APPROVED** (r2 — fixed 5 blockers:
+`performed_by=PROTECT`, purge-aware append-only trigger like `audit/0003`, lifecycle purge collection of
+log-doc keys, `add_storage`/`free_storage` accounting + `size_bytes`, dropped an unrelated machine-image
+retrofit + gated disabled-module dashboard). **Part G (Roadmap) APPROVED** (platform-scoped `RoadmapItem`,
+no makerspace FK, `GLOBAL_ADMIN_MODELS`, public `GET /api/v1/public/roadmap`). **Part D (Spaces & Bookings)
+re-review in progress** (r2 — fixed storage API names, one-txn finalize + compensating cleanup, inactive-space
+guard, reject `ends_at<=now`, public-image purge collection). Not yet spec'd: **F (Analytics — extends the
+reports stack; needs C/D/E), H (scoped PII encryption — highest risk), I (dynamic roles)**. Planned new apps:
+`apps/bookings/` (mig `makerspaces/0033`, `MANAGE_BOOKINGS`, uncapped), `apps/maintenance/` (mig
+`makerspaces/0034` chaining after 0033; `maintenance` flag already in `MODULE_WORKFLOWS`/`platform.py`, add
+to `DEFAULT_ENABLED_MODULES`; reuses Machines access, no new RBAC action), `apps/roadmap/`.
+
+**Harness notes:** local `osmm-db` (:5433), `osmm-redis`, `osmm-minio` (:9100) must be running; run tests
+with `DATABASE_URL="postgres://makerspace:makerspace@localhost:5433/makerspace_manager"`. Pre-existing (NOT
+a regression) failing test `test_machine_image_presign_finalize_delete_and_audit` = MinIO on :9100 vs the
+test's `localhost:9000` default. Codex must run in the **background** (`run_in_background:true`) — the 10-min
+foreground ceiling is too short — with skill-free prompts that skip reading this file.
+
 ## Recent batch — self-host-first program, PART B: managed fair-use limits + subdomain request/approve (2026-07-16)
 
 Second Part of the self-host-first + FabLab program (plan gitignored). Adds **fair-use quotas** and a
