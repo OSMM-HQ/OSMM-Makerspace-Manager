@@ -127,7 +127,7 @@ staff-origin / bootstrap / Host / TLS trust only when `frontend_domain_status=VE
 - **P6 — repo professionalization + AGPL correctness.** Canonical plain `LICENSE` (full GNU AGPLv3 verbatim,
   for a clean GitHub Licensee `AGPL-3.0` chip); the redundant `LICENSE.md` was removed (two root license
   files made GitHub report "Unknown licenses found"); README badge/link + all refs → `LICENSE`.
-  `.github/` community health: `SECURITY.md` (private disclosure → ryyan@lascade.com), `CODE_OF_CONDUCT.md`
+  `.github/` community health: `SECURITY.md` (private disclosure → shaanshoukath4522@gmail.com), `CODE_OF_CONDUCT.md`
   (Contributor Covenant 2.1), issue forms (`bug_report.yml`/`feature_request.yml`/`config.yml`), PR template.
   GitHub About metadata (description/homepage/topics) is a manual `gh`/web step (gh not installed in shell).
 - **Phase 7 (destructive):** `git filter-repo` history rewrite that purges the pre-AGPL noncommercial
