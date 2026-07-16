@@ -147,6 +147,7 @@ def submit_public_print_request(makerspace, data, result):
                         validate_print_model_object(
                             upload.object_key,
                             upload.original_filename,
+                            upload.content_type,
                             size,
                         )
                     except ValueError as exc:

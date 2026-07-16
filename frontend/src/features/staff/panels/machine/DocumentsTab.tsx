@@ -70,6 +70,7 @@ export function DocumentsTab({ machineId, canEdit }: { machineId: number; canEdi
           onSubmit={(event) => { event.preventDefault(); upload.mutate(); }}>
           <label className="grid gap-1 text-xs font-semibold text-muted">File
             <input ref={fileInput} className="desk-input" type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.webp,.stl,.3mf,.step,.stp,.obj,.amf,.ply,.gcode,.gco,.iges,.igs,.dxf"
               onChange={(event) => setFile(event.target.files?.[0] ?? null)} required />
           </label>
           <label className="grid gap-1 text-xs font-semibold text-muted">Document type

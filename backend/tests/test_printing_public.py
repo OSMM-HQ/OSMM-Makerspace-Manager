@@ -629,7 +629,7 @@ def test_submit_attaches_owned_file(monkeypatch):
     monkeypatch.setattr("apps.printing.public_workflow.print_object_size", lambda key: 123)
     monkeypatch.setattr(
         "apps.printing.public_workflow.validate_print_model_object",
-        lambda object_key, filename, size_bytes=None: None,
+        lambda object_key, filename, content_type, size_bytes=None: None,
     )
 
     response = client.post(
@@ -643,6 +643,44 @@ def test_submit_attaches_owned_file(monkeypatch):
     assert upload.attached_at is not None
     assert upload.print_request is not None
     assert upload.size_bytes == 123
+
+
+def test_public_new_cad_format_presign_and_submit(monkeypatch):
+    makerspace = make_space("public-print-dxf")
+    enable_printing(makerspace)
+    bucket = make_bucket(makerspace)
+    mock_upload(monkeypatch)
+    client = public_client()
+
+    presign = client.post(
+        presign_url(makerspace),
+        presign_payload(filename="drawing.dxf", content_type="application/dxf"),
+        format="json",
+    )
+    assert presign.status_code == 201
+    file_id = presign.data["file_id"]
+    monkeypatch.setattr("apps.printing.public_workflow.print_object_size", lambda key: 321)
+    validated = []
+    monkeypatch.setattr(
+        "apps.printing.public_workflow.validate_print_model_object",
+        lambda object_key, filename, content_type, size_bytes=None: validated.append(
+            (object_key, filename, content_type, size_bytes)
+        ),
+    )
+
+    submitted = client.post(
+        submit_url(makerspace),
+        print_submit_payload(bucket_id=bucket.id, file_ids=[file_id]),
+        format="json",
+    )
+
+    assert submitted.status_code == 201
+    upload = PrintRequestFile.objects.get(pk=file_id)
+    assert upload.original_filename == "drawing.dxf"
+    assert upload.content_type == "application/dxf"
+    assert validated == [
+        (upload.object_key, "drawing.dxf", "application/dxf", 321)
+    ]
 
 
 def test_public_submit_rejects_zero_byte_upload(monkeypatch):

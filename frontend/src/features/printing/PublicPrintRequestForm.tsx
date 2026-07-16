@@ -189,9 +189,9 @@ export function PrintDetailsForm({
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <FilePicker
-              accept=".stl,.3mf,.step,.stp,.obj"
+              accept=".stl,.3mf,.step,.stp,.obj,.amf,.ply,.gcode,.gco,.iges,.igs,.dxf"
               files={modelFiles}
-              label="STL/model files"
+              label="Model, CAD, or toolpath files"
               setFiles={setModelFiles}
             />
             <FilePicker

@@ -14,17 +14,18 @@ from botocore.exceptions import BotoCoreError, ClientError
 from django.conf import settings
 from rest_framework.exceptions import ValidationError
 
-from apps.evidence.image_validation import image_mime_from_bytes
 from apps.evidence.storage import StorageUnavailable
+from apps.maker_file_formats import (
+    ALLOWED_EXTENSIONS_BY_MIME,
+    STRICT_MIME_BY_EXTENSION,
+    allowed_pair,
+    extension_from_name,
+    has_required_signature,
+    sniff_pdf_or_image,
+)
 
 logger = logging.getLogger(__name__)
 PDF_CONTENT_TYPE = "application/pdf"
-ALLOWED_EXTENSIONS_BY_MIME = {
-    PDF_CONTENT_TYPE: {"pdf"},
-    "image/jpeg": {"jpg", "jpeg"},
-    "image/png": {"png"},
-    "image/webp": {"webp"},
-}
 
 
 @dataclass(frozen=True)
@@ -72,17 +73,14 @@ def assert_machine_object_key_for_makerspace(object_key, makerspace_id):
 
 
 def ext_for(content_type, filename):
-    allowed_mime = set(settings.MACHINE_DOC_ALLOWED_MIME)
-    allowed_exts = ALLOWED_EXTENSIONS_BY_MIME.get(content_type)
-    if content_type not in allowed_mime or not allowed_exts:
-        raise ValidationError({"content_type": "Unsupported machine document type."})
-
-    safe_name = (filename or "").replace("\\", "/").rsplit("/", 1)[-1]
-    ext = safe_name.rsplit(".", 1)[-1].lower() if "." in safe_name else ""
-    if ext not in allowed_exts:
-        raise ValidationError(
-            {"filename": "Filename extension does not match the content type."}
-        )
+    ext = extension_from_name(filename)
+    if not allowed_pair(
+        ext,
+        content_type,
+        settings.MACHINE_DOC_ALLOWED_EXT,
+        settings.MACHINE_DOC_ALLOWED_MIME,
+    ):
+        raise ValidationError({"filename": "Unsupported document extension or content type."})
     return ext
 
 
@@ -198,17 +196,36 @@ def validate_machine_object(object_key):
             Key=object_key,
         )
         data = response["Body"].read(settings.MACHINE_DOC_MAX_BYTES)
+        stored_content_type = str(response.get("ContentType", "")).lower()
     except (BotoCoreError, ClientError, OSError) as exc:
         raise StorageUnavailable from exc
 
-    content_type = PDF_CONTENT_TYPE if data.startswith(b"%PDF-") else None
-    if content_type is None:
-        image_type = image_mime_from_bytes(data)
-        if image_type and image_type.startswith("image/"):
-            content_type = image_type
-    if content_type not in set(settings.MACHINE_DOC_ALLOWED_MIME):
+    ext = extension_from_name(object_key)
+    if not allowed_pair(
+        ext,
+        stored_content_type,
+        settings.MACHINE_DOC_ALLOWED_EXT,
+        settings.MACHINE_DOC_ALLOWED_MIME,
+    ):
         raise ValidationError(
-            {"object_key": "Machine document is not a valid PDF or image."},
+            {"object_key": "Machine document extension and content type do not match."},
             code="invalid_document",
         )
+
+    sniffed = sniff_pdf_or_image(data)
+    strict_mime = STRICT_MIME_BY_EXTENSION.get(ext)
+    if strict_mime or sniffed:
+        if not strict_mime or stored_content_type != strict_mime or sniffed != strict_mime:
+            raise ValidationError(
+                {"object_key": "Machine document content does not match its extension."},
+                code="invalid_document",
+            )
+        content_type = sniffed
+    else:
+        if not has_required_signature(ext, data):
+            raise ValidationError(
+                {"object_key": "Machine document signature is invalid."},
+                code="invalid_document",
+            )
+        content_type = stored_content_type
     return MachineObjectValidationResult(size=size, content_type=content_type)

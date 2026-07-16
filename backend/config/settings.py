@@ -224,9 +224,26 @@ WARRANTY_DOC_ALLOWED_MIME = env.list(
     default=["application/pdf", "image/jpeg", "image/png", "image/webp"],
 )
 MACHINE_DOC_MAX_BYTES = env.int("MACHINE_DOC_MAX_BYTES", default=10485760)
+MACHINE_DOC_ALLOWED_EXT = env.list(
+    "MACHINE_DOC_ALLOWED_EXT",
+    default=[
+        "pdf", "jpg", "jpeg", "png", "webp", "stl", "3mf", "step", "stp",
+        "obj", "amf", "ply", "gcode", "gco", "iges", "igs", "dxf",
+    ],
+)
 MACHINE_DOC_ALLOWED_MIME = env.list(
     "MACHINE_DOC_ALLOWED_MIME",
-    default=["application/pdf", "image/jpeg", "image/png", "image/webp"],
+    default=[
+        "application/pdf", "image/jpeg", "image/png", "image/webp",
+        "application/octet-stream", "model/stl", "application/sla",
+        "application/vnd.ms-pki.stl", "model/3mf",
+        "application/vnd.ms-package.3dmanufacturing-3dmodel+xml",
+        "application/vnd.ms-3mfdocument", "application/step", "model/step",
+        "model/obj", "application/xml", "text/xml", "application/x-amf",
+        "model/amf", "application/x-ply", "model/ply", "text/x.gcode",
+        "application/x-gcode", "application/iges", "model/iges",
+        "image/vnd.dxf", "application/dxf", "application/x-dxf", "text/plain",
+    ],
 )
 PROCUREMENT_RECEIPT_MAX_BYTES = env.int("PROCUREMENT_RECEIPT_MAX_BYTES", default=10485760)
 PROCUREMENT_RECEIPT_ALLOWED_MIME = env.list(
@@ -244,18 +261,26 @@ PUBLIC_IMAGE_ALLOWED_MIME = {
 }
 PRINT_UPLOAD_MAX_BYTES = env.int("PRINT_UPLOAD_MAX_BYTES", default=104857600)  # 100 MB
 PRINT_URL_TTL_SECONDS = env.int("PRINT_URL_TTL_SECONDS", default=300)
-PRINT_ALLOWED_MODEL_EXT = ["stl", "3mf", "step", "stp", "obj"]
-PRINT_ALLOWED_MODEL_MIME = [
-    "application/octet-stream",
-    "model/stl",
-    "application/sla",
-    "application/vnd.ms-pki.stl",
-    "model/3mf",
-    "application/vnd.ms-package.3dmanufacturing-3dmodel+xml",
-    "application/step",
-    "model/step",
-    "text/plain",
-]
+PRINT_ALLOWED_MODEL_EXT = env.list(
+    "PRINT_ALLOWED_MODEL_EXT",
+    default=[
+        "stl", "3mf", "step", "stp", "obj", "amf", "ply", "gcode", "gco",
+        "iges", "igs", "dxf",
+    ],
+)
+PRINT_ALLOWED_MODEL_MIME = env.list(
+    "PRINT_ALLOWED_MODEL_MIME",
+    default=[
+        "application/octet-stream", "model/stl", "application/sla",
+        "application/vnd.ms-pki.stl", "model/3mf",
+        "application/vnd.ms-package.3dmanufacturing-3dmodel+xml",
+        "application/vnd.ms-3mfdocument", "application/step", "model/step",
+        "model/obj", "application/xml", "text/xml", "application/x-amf",
+        "model/amf", "application/x-ply", "model/ply", "text/x.gcode",
+        "application/x-gcode", "application/iges", "model/iges",
+        "image/vnd.dxf", "application/dxf", "application/x-dxf", "text/plain",
+    ],
+)
 PRINT_ALLOWED_SCREENSHOT_EXT = ["png", "jpg", "jpeg", "webp", "pdf"]
 PRINT_ALLOWED_SCREENSHOT_MIME = [
     "image/png",

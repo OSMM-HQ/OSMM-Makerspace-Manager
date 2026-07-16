@@ -90,7 +90,7 @@ export function MaintenanceDocuments({
               ref={input}
               className="desk-input"
               type="file"
-              accept=".pdf,.jpg,.jpeg,.png,.webp"
+              accept=".pdf,.jpg,.jpeg,.png,.webp,.stl,.3mf,.step,.stp,.obj,.amf,.ply,.gcode,.gco,.iges,.igs,.dxf"
               onChange={(event) => {
                 setFile(event.target.files?.[0] ?? null);
                 setUploadError(null);

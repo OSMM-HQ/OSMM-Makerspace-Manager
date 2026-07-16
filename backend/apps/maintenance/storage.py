@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 import logging
-from pathlib import PurePosixPath
 import uuid
 
 import boto3
@@ -9,18 +8,19 @@ from botocore.exceptions import BotoCoreError, ClientError
 from django.conf import settings
 from rest_framework.exceptions import ValidationError
 
-from apps.evidence.image_validation import image_mime_from_bytes
 from apps.evidence.storage import StorageUnavailable
+from apps.maker_file_formats import (
+    ALLOWED_EXTENSIONS_BY_MIME,
+    STRICT_MIME_BY_EXTENSION,
+    allowed_pair,
+    extension_from_name,
+    has_required_signature,
+    sniff_pdf_or_image,
+)
 
 
 logger = logging.getLogger(__name__)
 PDF_CONTENT_TYPE = "application/pdf"
-ALLOWED_EXTENSIONS_BY_MIME = {
-    PDF_CONTENT_TYPE: {"pdf"},
-    "image/jpeg": {"jpg", "jpeg"},
-    "image/png": {"png"},
-    "image/webp": {"webp"},
-}
 
 
 @dataclass(frozen=True)
@@ -77,16 +77,14 @@ def assert_log_document_object_key(object_key, makerspace_id, machine_id):
 
 
 def ext_for(content_type, filename):
-    allowed = set(settings.MACHINE_DOC_ALLOWED_MIME)
-    extensions = ALLOWED_EXTENSIONS_BY_MIME.get(content_type)
-    if content_type not in allowed or not extensions:
-        raise ValidationError({"content_type": "Unsupported maintenance document type."})
-    safe_name = (filename or "").replace("\\", "/").rsplit("/", 1)[-1]
-    ext = safe_name.rsplit(".", 1)[-1].lower() if "." in safe_name else ""
-    if ext not in extensions:
-        raise ValidationError(
-            {"filename": "Filename extension does not match the content type."}
-        )
+    ext = extension_from_name(filename)
+    if not allowed_pair(
+        ext,
+        content_type,
+        settings.MACHINE_DOC_ALLOWED_EXT,
+        settings.MACHINE_DOC_ALLOWED_MIME,
+    ):
+        raise ValidationError({"filename": "Unsupported document extension or content type."})
     return ext
 
 
@@ -186,19 +184,39 @@ def validate_log_document_object(object_key):
             Key=object_key,
         )
         data = response["Body"].read(settings.MACHINE_DOC_MAX_BYTES)
+        stored_content_type = str(response.get("ContentType", "")).lower()
     except (BotoCoreError, ClientError, OSError) as exc:
         raise StorageUnavailable from exc
-    sniffed = PDF_CONTENT_TYPE if data.startswith(b"%PDF-") else image_mime_from_bytes(data)
-    expected = _mime_for_extension(_extension(object_key))
-    if (
-        sniffed not in set(settings.MACHINE_DOC_ALLOWED_MIME)
-        or sniffed != expected
+
+    ext = _extension(object_key)
+    if not allowed_pair(
+        ext,
+        stored_content_type,
+        settings.MACHINE_DOC_ALLOWED_EXT,
+        settings.MACHINE_DOC_ALLOWED_MIME,
     ):
         raise ValidationError(
-            {"object_key": "Maintenance document content does not match its extension."},
+            {"object_key": "Maintenance document extension and content type do not match."},
             code="invalid_document",
         )
-    return LogDocumentValidationResult(size=size, content_type=sniffed)
+
+    sniffed = sniff_pdf_or_image(data)
+    strict_mime = STRICT_MIME_BY_EXTENSION.get(ext)
+    if strict_mime or sniffed:
+        if not strict_mime or stored_content_type != strict_mime or sniffed != strict_mime:
+            raise ValidationError(
+                {"object_key": "Maintenance document content does not match its extension."},
+                code="invalid_document",
+            )
+        content_type = sniffed
+    else:
+        if not has_required_signature(ext, data):
+            raise ValidationError(
+                {"object_key": "Maintenance document signature is invalid."},
+                code="invalid_document",
+            )
+        content_type = stored_content_type
+    return LogDocumentValidationResult(size=size, content_type=content_type)
 
 
 def presigned_get_url(object_key):
@@ -213,7 +231,7 @@ def presigned_get_url(object_key):
 
 
 def _extension(object_key):
-    return PurePosixPath(str(object_key)).suffix.lower().lstrip(".")
+    return extension_from_name(object_key)
 
 
 def _allowed_extensions():
@@ -222,11 +240,5 @@ def _allowed_extensions():
         for mime, extensions in ALLOWED_EXTENSIONS_BY_MIME.items()
         if mime in set(settings.MACHINE_DOC_ALLOWED_MIME)
         for ext in extensions
+        if ext in set(settings.MACHINE_DOC_ALLOWED_EXT)
     }
-
-
-def _mime_for_extension(ext):
-    return next(
-        (mime for mime, extensions in ALLOWED_EXTENSIONS_BY_MIME.items() if ext in extensions),
-        None,
-    )

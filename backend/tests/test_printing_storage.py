@@ -6,6 +6,7 @@ from apps.printing.models import PrintRequestFile
 from apps.printing.storage import (
     presigned_print_upload,
     print_object_key,
+    validate_print_model_object,
     validate_print_upload,
 )
 from tests.test_printing import make_bucket, make_request, make_space, make_user
@@ -38,6 +39,88 @@ def test_validate_print_upload_accepts_allowed_model_and_screenshot():
 def test_validate_print_upload_rejects_bad_input(kind, filename, content_type):
     with pytest.raises(ValueError):
         validate_print_upload(kind, filename, content_type)
+
+
+NEW_MODEL_PAIRS = [
+    ("amf", "model/amf"),
+    ("ply", "model/ply"),
+    ("gcode", "text/x.gcode"),
+    ("gco", "application/x-gcode"),
+    ("iges", "application/iges"),
+    ("igs", "model/iges"),
+    ("dxf", "application/dxf"),
+]
+
+
+@pytest.mark.parametrize(
+    ("ext", "content_type"),
+    [pair for ext, mime in NEW_MODEL_PAIRS for pair in [(ext, mime), (ext, "application/octet-stream")]],
+)
+def test_validate_print_upload_accepts_new_formats_with_specific_and_fallback_mime(
+    ext, content_type
+):
+    assert validate_print_upload("stl", f"part.{ext}", content_type) == content_type
+
+
+@pytest.mark.parametrize(
+    ("filename", "content_type"),
+    [("part.dxf", "model/stl"), ("part.stl", "application/dxf")],
+)
+def test_validate_print_upload_rejects_cross_format_mime_mismatch(filename, content_type):
+    with pytest.raises(ValueError):
+        validate_print_upload("stl", filename, content_type)
+
+
+@pytest.mark.parametrize(("ext", "content_type"), NEW_MODEL_PAIRS)
+def test_validate_print_model_object_accepts_new_formats(
+    monkeypatch, ext, content_type
+):
+    monkeypatch.setattr("apps.printing.storage._print_object_prefix", lambda key: b"data")
+    validate_print_model_object("object", f"part.{ext}", content_type, 100)
+
+
+@pytest.mark.parametrize(
+    ("ext", "content_type", "data", "size"),
+    [
+        ("stl", "model/stl", b"solid cube", 10),
+        ("stl", "application/octet-stream", b"binary", 84),
+        ("3mf", "model/3mf", b"PK\x03\x04archive", 20),
+        ("step", "application/step", b"ISO-10303-21", 20),
+        ("stp", "model/step", b"iso-10303-21", 20),
+        ("obj", "model/obj", b"v 0 0 0\nf 1 1 1", 20),
+    ],
+)
+def test_validate_print_model_object_preserves_signature_checks(
+    monkeypatch, ext, content_type, data, size
+):
+    monkeypatch.setattr("apps.printing.storage._print_object_prefix", lambda key: data)
+    validate_print_model_object("object", f"part.{ext}", content_type, size)
+
+
+@pytest.mark.parametrize(
+    ("ext", "content_type", "data"),
+    [
+        ("stl", "model/stl", b"not an STL"),
+        ("3mf", "model/3mf", b"not a ZIP"),
+        ("step", "application/step", b"not STEP"),
+        ("obj", "model/obj", b"not OBJ"),
+    ],
+)
+def test_validate_print_model_object_rejects_invalid_signatures(
+    monkeypatch, ext, content_type, data
+):
+    monkeypatch.setattr("apps.printing.storage._print_object_prefix", lambda key: data)
+    with pytest.raises(ValueError):
+        validate_print_model_object("object", f"part.{ext}", content_type, 101)
+
+
+def test_validate_print_model_object_rejects_unknown_extension_before_read(monkeypatch):
+    monkeypatch.setattr(
+        "apps.printing.storage._print_object_prefix",
+        lambda key: pytest.fail("unknown extension must not be read"),
+    )
+    with pytest.raises(ValueError):
+        validate_print_model_object("object", "part.exe", "application/octet-stream", 10)
 
 
 def test_presigned_print_upload_put_mode_returns_method_and_headers(monkeypatch, settings):

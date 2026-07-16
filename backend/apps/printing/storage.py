@@ -13,6 +13,7 @@ from apps.evidence.storage import (
     delete_object,
     staging_key,
 )
+from apps.maker_file_formats import allowed_pair, extension_from_name
 
 
 PRINT_MODEL_SNIFF_BYTES = 8192
@@ -31,7 +32,7 @@ def print_object_key(makerspace_id, kind):
 
 
 def _extension(filename):
-    return filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    return extension_from_name(filename)
 
 
 def validate_print_upload(kind, filename, content_type):
@@ -42,10 +43,13 @@ def validate_print_upload(kind, filename, content_type):
         raise ValueError("Invalid print upload kind.")
 
     if kind == "stl":
-        if ext not in settings.PRINT_ALLOWED_MODEL_EXT:
-            raise ValueError("Unsupported model file extension.")
-        if content_type not in settings.PRINT_ALLOWED_MODEL_MIME:
-            raise ValueError("Unsupported model file content type.")
+        if not allowed_pair(
+            ext,
+            content_type,
+            settings.PRINT_ALLOWED_MODEL_EXT,
+            settings.PRINT_ALLOWED_MODEL_MIME,
+        ):
+            raise ValueError("Unsupported model extension or content type.")
         return content_type
 
     if ext not in settings.PRINT_ALLOWED_SCREENSHOT_EXT:
@@ -95,8 +99,23 @@ _MODEL_EXT_BY_MIME = {
     "application/vnd.ms-pki.stl": ".stl",
     "model/3mf": ".3mf",
     "application/vnd.ms-package.3dmanufacturing-3dmodel+xml": ".3mf",
+    "application/vnd.ms-3mfdocument": ".3mf",
     "application/step": ".step",
     "model/step": ".step",
+    "model/obj": ".obj",
+    "application/xml": ".amf",
+    "text/xml": ".amf",
+    "application/x-amf": ".amf",
+    "model/amf": ".amf",
+    "application/x-ply": ".ply",
+    "model/ply": ".ply",
+    "text/x.gcode": ".gcode",
+    "application/x-gcode": ".gcode",
+    "application/iges": ".iges",
+    "model/iges": ".iges",
+    "image/vnd.dxf": ".dxf",
+    "application/dxf": ".dxf",
+    "application/x-dxf": ".dxf",
 }
 _SCREENSHOT_EXT_BY_MIME = {
     "image/png": ".png",
@@ -176,10 +195,15 @@ def print_object_size(object_key):
     return int(response["ContentLength"])
 
 
-def validate_print_model_object(object_key, filename, size_bytes=None):
+def validate_print_model_object(object_key, filename, content_type, size_bytes=None):
     ext = _extension(filename)
-    if ext not in settings.PRINT_ALLOWED_MODEL_EXT:
-        raise ValueError("Unsupported model file extension.")
+    if not allowed_pair(
+        ext,
+        content_type,
+        settings.PRINT_ALLOWED_MODEL_EXT,
+        settings.PRINT_ALLOWED_MODEL_MIME,
+    ):
+        raise ValueError("Unsupported model extension or content type.")
     data = _print_object_prefix(object_key)
     if ext == "stl" and _looks_like_stl(data, size_bytes):
         return
@@ -189,6 +213,8 @@ def validate_print_model_object(object_key, filename, size_bytes=None):
     if ext in {"step", "stp"} and b"ISO-10303" in upper:
         return
     if ext == "obj" and _looks_like_obj(data):
+        return
+    if ext in {"amf", "ply", "gcode", "gco", "iges", "igs", "dxf"}:
         return
     raise ValueError("Uploaded model file does not match its extension.")
 

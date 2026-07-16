@@ -135,7 +135,28 @@ re-exports for `reports._taken_items`/`_most_lent`/`_top_borrowers` + `_csv_resp
 for CSV/XLSX). Reuses `VIEW_AUDIT` (no new action; Print Manager 404 per `_makerspace_for_inventory_view`).
 Index migrations `machines/0007` (machine,created_at) + `events/0002` (makerspace,starts_at). Frontend FabLab
 report panels (events/bookings/maintenance/machine-usage/health) in the Reports workspace. Full suite
-**1534 pass**; OpenAPI 257 paths; `tsc -b`/build green.
+**1534 pass**; OpenAPI 257 paths; `tsc -b`/build green. **Stage-4 review-fix `c2788e2`:** all four aggregate
+FabLab report panels now group rows by `makerspace_id` via a shared `groupReportByMakerspace` helper
+(`operationsReportsFablabApi.ts`) — per-makerspace `<section>` with its own StatCards + top-10 chart + table,
+replacing the cross-tenant flattening/`PerMakerspaceTables`; plus a parametrized leak sweep + a constant-
+query-count test (`test_reports_fablab_leaks.py`, no N+1 as tenants/children grow).
+
+**Maker-format upload broadening (follow-up; committed on `dev`).** Broadened the PRIVATE-bucket upload
+allowlists to common maker/CAD/mesh formats; the public-image + evidence buckets stay strictly image-only
+(unchanged, with a new boundary-assertion test). New shared `apps/maker_file_formats.py` (86 LOC:
+`ALLOWED_EXTENSIONS_BY_MIME`, `STRICT_MIME_BY_EXTENSION`, `allowed_pair(ext, ct, exts, mimes)`,
+`sniff_pdf_or_image`, `has_required_signature` = 3MF ZIP `PK\x03\x04` / STEP-STP `ISO-10303`). Machine-docs
+(`machines/storage.py`) + maintenance-log docs (`maintenance/storage.py`, shares `MACHINE_DOC_ALLOWED_*`) now
+validate the extension + **S3-stored** ContentType as an allowlisted pair, KEEP strict magic-sniffing for
+PDF/image (and reject a PDF/image disguised with a maker extension), require the 3MF/STEP signature, and
+accept STL/OBJ/AMF/PLY/gcode/IGES/DXF on ext+MIME+size (no reliable magic — the accepted tradeoff for
+private + staff-only + never-parsed-server-side files). Print-model uploads (`printing/storage.py`,
+`validate_print_upload`/`validate_print_model_object(+content_type)`) use the same `allowed_pair` and keep
+their STL/3MF/STEP/OBJ byte heuristics. Settings `MACHINE_DOC_ALLOWED_EXT`/`MACHINE_DOC_ALLOWED_MIME`/
+`PRINT_ALLOWED_MODEL_EXT`/`PRINT_ALLOWED_MODEL_MIME` are now env-overridable (broadened defaults +
+`.env.example`). Frontend `accept` attrs broadened on the machine-doc, maintenance-doc, and public print
+pickers. No migration, no re-keying, existing PDF/image behavior byte-for-byte. Full suite **1753 pass**;
+build green.
 
 **Harness notes:** local `osmm-db` (:5433), `osmm-redis`, `osmm-minio` (:9100) must be running; run tests
 with `DATABASE_URL="postgres://makerspace:makerspace@localhost:5433/makerspace_manager"`. Pre-existing (NOT
