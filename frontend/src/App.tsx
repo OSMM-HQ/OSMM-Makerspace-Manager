@@ -10,6 +10,7 @@ import { Card } from "./components/ui/Card";
 import { Spinner } from "./components/ui/Spinner";
 import { AboutPage } from "./features/AboutPage";
 import { PublicInventoryPage } from "./features/inventory/PublicInventoryPage";
+import { PublicEventsPage } from "./features/inventory/PublicEventsPage";
 import { PublicSelfCheckoutPage } from "./features/inventory/PublicSelfCheckoutPage";
 import { usePublicMakerspaces } from "./features/inventory/usePublicInventory";
 import { PublicPrintRequestPage } from "./features/printing/PublicPrintRequestPage";
@@ -302,6 +303,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<PublicInventoryPage />} />
         <Route path="/checkout" element={<PublicSelfCheckoutPage />} />
+        <Route path="/events" element={<PublicEventsPage />} />
         <Route path="/print" element={<PublicPrintRequestPage />} />
         <Route path="/stats" element={<PublicStatsPage />} />
         <Route path="/about" element={<AboutPage />} />
@@ -320,6 +322,7 @@ export default function App() {
       <Route path="/about" element={<AboutPage />} />
       <Route path="/m/:slug" element={<PublicInventoryPage />} />
       <Route path="/m/:slug/checkout" element={<PublicSelfCheckoutPage />} />
+      <Route path="/m/:slug/events" element={<PublicEventsPage />} />
       <Route path="/m/:slug/admin/*" element={<StaffApp />} />
       <Route path="/m/:slug/print" element={<PublicPrintRequestPage />} />
       <Route path="/m/:slug/stats" element={<PublicStatsPage />} />

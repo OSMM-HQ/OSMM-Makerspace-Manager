@@ -166,6 +166,11 @@ export function PublicInventoryPage() {
                   Request a 3D print
                 </Link>
               ) : null}
+              {modules.has("events") ? (
+                <Link className="desk-button" to={tenantPath("events")}>
+                  Events
+                </Link>
+              ) : null}
               <ThemeToggle />
               <Link className="desk-button" to="/admin">
                 Staff login

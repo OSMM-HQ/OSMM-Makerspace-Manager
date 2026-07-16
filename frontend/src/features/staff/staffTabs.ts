@@ -4,6 +4,7 @@ import { readStorage, removeStorage, writeStorage } from "../../lib/safeStorage"
 const TAB_MODULES: Record<string, string[]> = {
   direct: ["self_checkout"],
   printing: ["printing"],
+  events: ["events"],
   tobuy: ["procurement"],
   transfers: ["stock_transfers"],
   stocktake: ["stocktake"],
