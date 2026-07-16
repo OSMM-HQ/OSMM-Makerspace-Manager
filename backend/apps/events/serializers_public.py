@@ -1,6 +1,7 @@
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from apps.events.capacity import spots_left
 from apps.events.models import Event, EventRegistration
 
 
@@ -35,17 +36,7 @@ class PublicEventSerializer(serializers.Serializer):
         {'type': 'integer', 'nullable': True, 'minimum': 0}
     )
     def get_spots_left(self, obj):
-        if obj.capacity == 0:
-            return None
-        confirmed = getattr(obj, 'confirmed_count', None)
-        if confirmed is None:
-            confirmed = obj.registrations.filter(
-                status__in=(
-                    EventRegistration.Status.REGISTERED,
-                    EventRegistration.Status.ATTENDED,
-                )
-            ).count()
-        return max(obj.capacity - confirmed, 0)
+        return spots_left(obj)
 
 
 class PublicEventRegistrationInputSerializer(serializers.Serializer):

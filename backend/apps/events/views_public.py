@@ -112,9 +112,9 @@ class PublicEventRegistrationView(APIView):
                 actor=None,
                 **serializer.validated_data,
             )
-        except DuplicateRegistration:
+        except DuplicateRegistration as exc:
             return Response(
-                {'status': EventRegistration.Status.REGISTERED},
+                {'status': exc.fresh_status},
                 status=status.HTTP_201_CREATED,
             )
         return Response(

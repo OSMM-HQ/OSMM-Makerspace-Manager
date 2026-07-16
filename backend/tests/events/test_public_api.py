@@ -238,7 +238,7 @@ def test_registration_targets_are_slug_scoped_and_public_open_only():
 
 def test_duplicate_normalized_email_matches_generic_new_registration_response():
     space = make_space()
-    event = make_event(space)
+    event = make_event(space, capacity=3)
     make_registration(event, 'guest@example.com')
 
     client = APIClient()
@@ -256,6 +256,31 @@ def test_duplicate_normalized_email_matches_generic_new_registration_response():
     assert duplicate.status_code == fresh.status_code == 201
     assert duplicate.data == fresh.data == {
         'status': EventRegistration.Status.REGISTERED,
+    }
+    assert set(duplicate.data) == {'status'}
+    assert 'guest@example.com' not in str(duplicate.data).lower()
+
+
+def test_duplicate_on_full_event_matches_fresh_waitlisted_response():
+    space = make_space()
+    event = make_event(space, capacity=1)
+    make_registration(event, 'guest@example.com')
+
+    client = APIClient()
+    fresh = client.post(
+        register_url(space.slug, event),
+        identity('new@example.com'),
+        format='json',
+    )
+    duplicate = client.post(
+        register_url(space.slug, event),
+        identity(' Guest@Example.com '),
+        format='json',
+    )
+
+    assert duplicate.status_code == fresh.status_code == 201
+    assert duplicate.data == fresh.data == {
+        'status': EventRegistration.Status.WAITLISTED,
     }
     assert set(duplicate.data) == {'status'}
     assert 'guest@example.com' not in str(duplicate.data).lower()

@@ -6,6 +6,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.audit import services as audit
+from apps.events.capacity import CONFIRMED_STATUSES, fresh_registration_status
 from apps.events.exceptions import (
     CapacityConflict,
     DuplicateRegistration,
@@ -17,10 +18,6 @@ from apps.makerspaces.models import Makerspace
 
 EVENT_FIELDS = frozenset(
     {"title", "description", "starts_at", "ends_at", "location", "capacity", "is_public"}
-)
-CONFIRMED_STATUSES = (
-    EventRegistration.Status.REGISTERED,
-    EventRegistration.Status.ATTENDED,
 )
 
 
@@ -203,19 +200,14 @@ def register(event, *, name, email, phone, actor=None):
     ):
         raise EventInvalidTransition("This event is not open for registration.")
     normalized_email = (email or "").strip().lower()
+    status = fresh_registration_status(locked)
     if EventRegistration.objects.filter(
         event=locked, email=normalized_email
     ).exists():
-        raise DuplicateRegistration("A registration already exists for this email.")
-
-    confirmed = EventRegistration.objects.filter(
-        event=locked, status__in=CONFIRMED_STATUSES
-    ).count()
-    status = (
-        EventRegistration.Status.REGISTERED
-        if locked.capacity == 0 or confirmed < locked.capacity
-        else EventRegistration.Status.WAITLISTED
-    )
+        raise DuplicateRegistration(
+            "A registration already exists for this email.",
+            fresh_status=status,
+        )
     registration = EventRegistration(
         event=locked,
         name=(name or "").strip(),
