@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import exception_handler
 from drf_spectacular.utils import extend_schema_serializer
 
+from apps.bookings.exceptions import BookingConflict, BookingInvalidTransition
 from apps.checkin.client import CheckinDenied, CheckinUnavailable
 from apps.evidence.storage import StorageUnavailable
 from apps.events.exceptions import (
@@ -53,6 +54,16 @@ _EXCEPTION_MAP = {
         status.HTTP_409_CONFLICT,
         "invalid_transition",
         "Invalid event transition.",
+    ),
+    BookingInvalidTransition: (
+        status.HTTP_409_CONFLICT,
+        "invalid_transition",
+        "Invalid booking transition.",
+    ),
+    BookingConflict: (
+        status.HTTP_409_CONFLICT,
+        "booking_conflict",
+        "This space is already booked for that time.",
     ),
     CapacityConflict: (
         status.HTTP_409_CONFLICT,
