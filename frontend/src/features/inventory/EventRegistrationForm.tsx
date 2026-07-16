@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type { ApiPath } from "../../generated/api";
 import { StructuredApiError, tenantPublicRequest } from "../../lib/api";
@@ -26,6 +26,7 @@ function fieldError(error: unknown, field: keyof RegistrationIdentity) {
 export function EventRegistrationForm({ makerspaceSlug, publicToken, waitlist }: {
   makerspaceSlug: string; publicToken: string; waitlist: boolean;
 }) {
+  const queryClient = useQueryClient();
   const [identity, setIdentity] = useState<RegistrationIdentity>({ name: "", email: "", phone: "" });
   const [website, setWebsite] = useState("");
   const successRef = useRef<HTMLDivElement>(null);
@@ -39,6 +40,7 @@ export function EventRegistrationForm({ makerspaceSlug, publicToken, waitlist }:
         method: "POST", body: JSON.stringify(rawTransportBody),
       });
     },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["public-events", makerspaceSlug] }),
   });
   useEffect(() => { if (registration.data) successRef.current?.focus(); }, [registration.data]);
 

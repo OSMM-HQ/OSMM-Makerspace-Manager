@@ -84,7 +84,8 @@ function EventFields({ values, setValues, disabled = false }: {
 }
 
 export function EventsPanel({ makerspaceId }: { makerspaceId: number }) {
-  const events = useEvents(makerspaceId);
+  const [page, setPage] = useState(1);
+  const events = useEvents(makerspaceId, page);
   const create = useCreateEvent(makerspaceId);
   const [values, setValues] = useState(emptyForm);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -125,6 +126,11 @@ export function EventsPanel({ makerspaceId }: { makerspaceId: number }) {
           </table>
         </div>
       ) : null}
+      {events.data ? <div className="mt-3 flex items-center justify-between gap-3 text-sm">
+        <button className="desk-button" type="button" disabled={!events.data.previous} onClick={() => setPage((current) => Math.max(1, current - 1))}>Previous</button>
+        <span className="text-muted">Page {page}{" - "}{events.data.count} total</span>
+        <button className="desk-button" type="button" disabled={!events.data.next} onClick={() => setPage((current) => current + 1)}>Next</button>
+      </div> : null}
       {selectedId !== null ? <EventDrawer key={selectedId} eventId={selectedId} makerspaceId={makerspaceId} onClose={() => setSelectedId(null)} /> : null}
     </Panel>
   );

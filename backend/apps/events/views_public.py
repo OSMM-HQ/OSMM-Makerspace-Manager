@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 
 from apps.apiclients.throttling import ClientTierRateThrottle
 from apps.events import services
+from apps.events.exceptions import DuplicateRegistration
 from apps.events.models import Event, EventRegistration
 from apps.events.serializers_public import (
     PublicEventRegistrationInputSerializer,
@@ -20,11 +21,16 @@ from apps.makerspaces.guards import require_module
 from apps.makerspaces.lookup import get_public_makerspace
 
 
+LOOSE_ERROR_SCHEMA = {'type': 'object', 'additionalProperties': {}}
+
 PUBLIC_EVENT_ERRORS = {
-    400: OpenApiResponse(ErrorSerializer, description='Invalid registration.'),
-    404: OpenApiResponse(ErrorSerializer, description='Event not found.'),
+    400: OpenApiResponse(LOOSE_ERROR_SCHEMA, description='Invalid request.'),
+    404: OpenApiResponse(LOOSE_ERROR_SCHEMA, description='Event not found.'),
+    429: OpenApiResponse(LOOSE_ERROR_SCHEMA, description='Rate limit exceeded.'),
+}
+PUBLIC_EVENT_REGISTRATION_ERRORS = {
+    **PUBLIC_EVENT_ERRORS,
     409: OpenApiResponse(ErrorSerializer, description='Event state conflict.'),
-    429: OpenApiResponse(ErrorSerializer, description='Rate limit exceeded.'),
 }
 
 
@@ -80,7 +86,7 @@ class PublicEventRegistrationView(APIView):
         request=PublicEventRegistrationInputSerializer,
         responses={
             201: PublicEventRegistrationResponseSerializer,
-            **PUBLIC_EVENT_ERRORS,
+            **PUBLIC_EVENT_REGISTRATION_ERRORS,
         },
     )
     def post(self, request, makerspace_slug, public_token):
@@ -100,11 +106,17 @@ class PublicEventRegistrationView(APIView):
 
         serializer = PublicEventRegistrationInputSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        registration = services.register(
-            event,
-            actor=None,
-            **serializer.validated_data,
-        )
+        try:
+            registration = services.register(
+                event,
+                actor=None,
+                **serializer.validated_data,
+            )
+        except DuplicateRegistration:
+            return Response(
+                {'status': EventRegistration.Status.REGISTERED},
+                status=status.HTTP_201_CREATED,
+            )
         return Response(
             PublicEventRegistrationResponseSerializer(registration).data,
             status=status.HTTP_201_CREATED,

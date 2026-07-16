@@ -1,4 +1,3 @@
-from django.utils.html import escape
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
@@ -21,7 +20,7 @@ PUBLIC_EVENT_FIELDS = (
 class PublicEventSerializer(serializers.Serializer):
     public_token = serializers.UUIDField(read_only=True)
     title = serializers.CharField(read_only=True)
-    description = serializers.SerializerMethodField()
+    description = serializers.CharField(read_only=True)
     starts_at = serializers.DateTimeField(read_only=True)
     ends_at = serializers.DateTimeField(read_only=True)
     location = serializers.CharField(read_only=True)
@@ -31,10 +30,6 @@ class PublicEventSerializer(serializers.Serializer):
         choices=[Event.Status.PUBLISHED],
         read_only=True,
     )
-
-    @extend_schema_field(serializers.CharField())
-    def get_description(self, obj):
-        return escape(obj.description)
 
     @extend_schema_field(
         {'type': 'integer', 'nullable': True, 'minimum': 0}

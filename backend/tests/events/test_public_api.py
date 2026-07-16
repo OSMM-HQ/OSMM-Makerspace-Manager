@@ -236,23 +236,29 @@ def test_registration_targets_are_slug_scoped_and_public_open_only():
     assert client.post(missing_url, identity(), format='json').status_code == 404
 
 
-def test_duplicate_normalized_email_is_typed_and_does_not_echo_pii():
+def test_duplicate_normalized_email_matches_generic_new_registration_response():
     space = make_space()
     event = make_event(space)
     make_registration(event, 'guest@example.com')
 
-    response = APIClient().post(
+    client = APIClient()
+    fresh = client.post(
+        register_url(space.slug, event),
+        identity('new@example.com'),
+        format='json',
+    )
+    duplicate = client.post(
         register_url(space.slug, event),
         identity(' Guest@Example.com '),
         format='json',
     )
 
-    assert response.status_code == 400
-    assert response.data == {
-        'detail': 'A registration already exists for this email.',
-        'code': 'duplicate_registration',
+    assert duplicate.status_code == fresh.status_code == 201
+    assert duplicate.data == fresh.data == {
+        'status': EventRegistration.Status.REGISTERED,
     }
-    assert 'guest@example.com' not in str(response.data).lower()
+    assert set(duplicate.data) == {'status'}
+    assert 'guest@example.com' not in str(duplicate.data).lower()
 
 
 def test_public_registration_audit_is_actorless_and_pii_free():
@@ -295,4 +301,3 @@ def test_eleventh_hourly_registration_is_throttled_but_listing_is_unaffected():
         url, identity('guest-11@example.com'), format='json'
     ).status_code == 429
     assert client.get(list_url(space.slug)).status_code == 200
-

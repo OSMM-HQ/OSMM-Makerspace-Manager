@@ -16228,37 +16228,30 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                    "type": "object",
+                                    "additionalProperties": {}
                                 }
                             }
                         },
-                        "description": "Invalid registration."
+                        "description": "Invalid request."
                     },
                     "404": {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                    "type": "object",
+                                    "additionalProperties": {}
                                 }
                             }
                         },
                         "description": "Event not found."
                     },
-                    "409": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
-                                }
-                            }
-                        },
-                        "description": "Event state conflict."
-                    },
                     "429": {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                    "type": "object",
+                                    "additionalProperties": {}
                                 }
                             }
                         },
@@ -16327,21 +16320,34 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                    "type": "object",
+                                    "additionalProperties": {}
                                 }
                             }
                         },
-                        "description": "Invalid registration."
+                        "description": "Invalid request."
                     },
                     "404": {
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                    "type": "object",
+                                    "additionalProperties": {}
                                 }
                             }
                         },
                         "description": "Event not found."
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": "Rate limit exceeded."
                     },
                     "409": {
                         "content": {
@@ -16352,16 +16358,6 @@
                             }
                         },
                         "description": "Event state conflict."
-                    },
-                    "429": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
-                                }
-                            }
-                        },
-                        "description": "Rate limit exceeded."
                     }
                 }
             }

@@ -107,7 +107,7 @@ def test_public_event_exact_allowlist_and_recursive_sentinel_leak_sweep():
     assert set(PublicEventSerializer().fields) == EXPECTED_FIELDS
     assert set(row) == EXPECTED_FIELDS
     assert row['public_token'] == str(event.public_token)
-    assert row['description'] == '&lt;script&gt;alert(1)&lt;/script&gt;'
+    assert row['description'] == '<script>alert(1)</script>'
     assert_no_public_leak(response.data, sentinels)
 
 
@@ -137,11 +137,18 @@ def test_openapi_has_exact_public_contracts_and_documented_errors():
     ]['post']
     assert list_operation.get('security', []) == []
     assert register_operation.get('security', []) == []
-    assert {'201', '400', '409', '429'} <= set(register_operation['responses'])
+    assert {'201', '400', '404', '409', '429'} <= set(
+        register_operation['responses']
+    )
     assert register_operation['responses']['201']['content'][
         'application/json'
     ]['schema']['$ref'].endswith('/PublicEventRegistrationResponse')
-    for code in ('400', '409'):
-        assert register_operation['responses'][code]['content'][
+    assert register_operation['responses']['409']['content'][
+        'application/json'
+    ]['schema']['$ref'].endswith('/HardwareRequestError')
+    for code in ('400', '404', '429'):
+        error_schema = register_operation['responses'][code]['content'][
             'application/json'
-        ]['schema']['$ref'].endswith('/HardwareRequestError')
+        ]['schema']
+        assert error_schema == {'type': 'object', 'additionalProperties': {}}
+    assert '409' not in list_operation['responses']

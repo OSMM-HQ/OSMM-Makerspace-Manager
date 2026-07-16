@@ -45,7 +45,7 @@ export type EventPayload = {
 };
 
 export type EventPatch = Partial<EventPayload>;
-export type Paginated<T> = { count: number; next?: string | null; previous?: string | null; results: T[] };
+export type Paginated<T> = { count: number; next: string | null; previous: string | null; results: T[] };
 
 const EVENT_LIST_PATH: ApiPath = "/api/v1/admin/makerspaces/{makerspace_id}/events/";
 const EVENT_DETAIL_PATH: ApiPath = "/api/v1/admin/events/{id}/";
@@ -69,9 +69,11 @@ export const eventKeys = {
   registrations: (eventId: number) => ["event", eventId, "registrations"] as const,
 };
 
-export function useEvents(makerspaceId: number) {
-  return useQuery({ queryKey: eventKeys.list(makerspaceId), queryFn: () =>
-    staffRequest<Paginated<StaffEvent>>(staffPath(EVENT_LIST_PATH, { makerspace_id: makerspaceId })) });
+export function useEvents(makerspaceId: number, page = 1) {
+  return useQuery({ queryKey: [...eventKeys.list(makerspaceId), page], queryFn: () =>
+    staffRequest<Paginated<StaffEvent>>(
+      `${staffPath(EVENT_LIST_PATH, { makerspace_id: makerspaceId })}?page=${page}`,
+    ) });
 }
 
 export function useEvent(eventId: number) {
