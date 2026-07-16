@@ -43,6 +43,7 @@ from apps.admin_api.views_user_access import (
 from apps.admin_api.views_users import (
     AuditLogListView,
     AuditLogPagination,
+    MembershipRevokeView,
     StaffListCreateView,
     _can_create_staff_role,
     _global_role_for_membership,
@@ -77,6 +78,7 @@ __all__ = [
     "MakerspaceListCreateView",
     "MakerspaceVerifyDomainView",
     "MakerspaceLogoImageView",
+    "MembershipRevokeView",
     "ResetUserPasswordView",
     "RestoreUserAccessView",
     "RestrictUserView",

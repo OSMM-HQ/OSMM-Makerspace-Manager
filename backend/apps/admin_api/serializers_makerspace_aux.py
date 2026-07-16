@@ -14,6 +14,10 @@ class MakerspaceSwitcherSerializer(serializers.ModelSerializer):
             "public_code",
             "slug",
             "telegram_group_chat_id",
+            # Module flags are frontend-safe (already in the public bootstrap) and are
+            # required so the console can gate module tabs (Machines, Events, ...) for a
+            # switcher-slim role such as machine_manager / print_manager.
+            "enabled_modules",
         ]
         read_only_fields = fields
 

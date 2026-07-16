@@ -572,6 +572,17 @@ urlpatterns = [
         {"role": MakerspaceMembership.Role.PRINT_MANAGER},
         name="admin-users-print-managers",
     ),
+    path(
+        "users/machine-managers",
+        views.StaffListCreateView.as_view(),
+        {"role": MakerspaceMembership.Role.MACHINE_MANAGER},
+        name="admin-users-machine-managers",
+    ),
+    path(
+        "memberships/<int:pk>",
+        views.MembershipRevokeView.as_view(),
+        name="admin-membership-revoke",
+    ),
     path("users/<int:pk>/restrict", views.RestrictUserView.as_view(), name="user-restrict"),
     path(
         "users/<int:pk>/reset-password",

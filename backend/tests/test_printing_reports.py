@@ -339,8 +339,10 @@ def test_admin_makerspaces_list_includes_a_print_managers_makerspace():
     # (public_api_key, CORS origins, SMTP host/username) the settings views gate
     # behind MANAGE_MAKERSPACE.
     row = rows[space.id]
-    assert set(row) == {"id", "name", "public_code", "slug", "telegram_group_chat_id"}
-    for leaked in ("public_api_key", "cors_allowed_origins", "smtp_host", "smtp_username", "enabled_modules"):
+    # Slim row includes enabled_modules (frontend-safe module flags, also in the public
+    # bootstrap) so the console can gate module tabs for a switcher-slim role (Part I).
+    assert set(row) == {"id", "name", "public_code", "slug", "telegram_group_chat_id", "enabled_modules"}
+    for leaked in ("public_api_key", "cors_allowed_origins", "smtp_host", "smtp_username"):
         assert leaked not in row
 
 
@@ -369,8 +371,10 @@ def test_admin_makerspaces_list_is_slim_only_for_print_only_rows_of_mixed_role_u
     assert set(rows) == {space_a.id, space_b.id}
     # Full row for the VIEW_INVENTORY makerspace.
     assert "public_api_key" in rows[space_a.id]
-    # Slim row for the print-only makerspace — no leaked config.
-    assert set(rows[space_b.id]) == {"id", "name", "public_code", "slug", "telegram_group_chat_id"}
+    # Slim row for the print-only makerspace — module flags only, no leaked config.
+    assert set(rows[space_b.id]) == {
+        "id", "name", "public_code", "slug", "telegram_group_chat_id", "enabled_modules",
+    }
     assert "public_api_key" not in rows[space_b.id]
 
 

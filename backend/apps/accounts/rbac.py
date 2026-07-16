@@ -63,6 +63,12 @@ _GUEST_ADMIN_ACTIONS = {
 _PRINT_MANAGER_ACTIONS = {
     Action.MANAGE_PRINTING,
 }
+# Machine Manager: makerspace-wide machine authority. MANAGE_MACHINES alone unlocks the
+# full machine lifecycle plus maintenance/warranty/usage/docs, which already gate on
+# machine access — so no extra action is required (Part I).
+_MACHINE_MANAGER_ACTIONS = {
+    Action.MANAGE_MACHINES,
+}
 _INVENTORY_MANAGER_ACTIONS = {
     Action.VIEW_INVENTORY, Action.EDIT_INVENTORY, Action.ACCEPT_REQUEST,
     Action.REJECT_REQUEST, Action.ASSIGN_BOX, Action.ISSUE_REQUEST,
@@ -77,6 +83,7 @@ _MEMBERSHIP_ROLE_ACTIONS = {
     MakerspaceMembership.Role.GUEST_ADMIN: _GUEST_ADMIN_ACTIONS,
     MakerspaceMembership.Role.INVENTORY_MANAGER: _INVENTORY_MANAGER_ACTIONS,
     MakerspaceMembership.Role.PRINT_MANAGER: _PRINT_MANAGER_ACTIONS,
+    MakerspaceMembership.Role.MACHINE_MANAGER: _MACHINE_MANAGER_ACTIONS,
 }
 
 

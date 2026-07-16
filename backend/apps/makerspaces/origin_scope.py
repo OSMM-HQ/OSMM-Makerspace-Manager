@@ -161,6 +161,8 @@ def _model_for_path(model_path):
         from apps.bookings import models
     elif app_label == "maintenance":
         from apps.maintenance import models
+    elif app_label == "makerspaces":
+        from apps.makerspaces import models
     else:
         raise LookupError(model_path)
     return getattr(models, model_name)
@@ -187,6 +189,10 @@ _PRINT_ACTIONS = {
     "managed-request-reprint",
 }
 _MODEL_LOOKUPS = {
+    "admin-membership-revoke": (
+        "makerspaces.MakerspaceMembership",
+        "makerspace_id",
+    ),
     "admin-maintenance-schedule-detail": (
         "maintenance.MaintenanceSchedule",
         "machine__makerspace_id",

@@ -11180,6 +11180,36 @@
                 }
             }
         },
+        "/api/v1/admin/memberships/{id}": {
+            "delete": {
+                "operationId": "api_v1_admin_memberships_destroy",
+                "description": "Remove a single makerspace membership (un-assign a delegable role).\n\nScope contract (mirrors the create path's non-escalation model): a Space Manager may\nrevoke ONLY delegable-role memberships within their MANAGE_MAKERSPACE scope; a superadmin\nmay revoke any, except inside a superadmin-hidden makerspace (governance hard-block ->\n404). 404-before-403: out-of-scope existence is hidden as 404, a delegable-scope actor\naiming at a SPACE_MANAGER gets 403.",
+                "summary": "Revoke a staff membership",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin users"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    }
+                }
+            }
+        },
         "/api/v1/admin/platform/email-settings": {
             "get": {
                 "operationId": "api_v1_admin_platform_email_settings_retrieve",
@@ -14197,6 +14227,87 @@
             },
             "post": {
                 "operationId": "api_v1_admin_users_inventory_managers_create",
+                "summary": "List or create staff memberships",
+                "tags": [
+                    "Admin users"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StaffMembership"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StaffMembership"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/StaffMembership"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StaffMembership"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/users/machine-managers": {
+            "get": {
+                "operationId": "api_v1_admin_users_machine_managers_list",
+                "summary": "List or create staff memberships",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "Admin users"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedStaffMembershipList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_admin_users_machine_managers_create",
                 "summary": "List or create staff memberships",
                 "tags": [
                     "Admin users"
@@ -32685,10 +32796,11 @@
                     "space_manager",
                     "guest_admin",
                     "inventory_manager",
-                    "print_manager"
+                    "print_manager",
+                    "machine_manager"
                 ],
                 "type": "string",
-                "description": "* `space_manager` - Space Manager\n* `guest_admin` - Guest Admin\n* `inventory_manager` - Inventory Manager\n* `print_manager` - Print Manager"
+                "description": "* `space_manager` - Space Manager\n* `guest_admin` - Guest Admin\n* `inventory_manager` - Inventory Manager\n* `print_manager` - Print Manager\n* `machine_manager` - Machine Manager"
             },
             "Status83eEnum": {
                 "enum": [

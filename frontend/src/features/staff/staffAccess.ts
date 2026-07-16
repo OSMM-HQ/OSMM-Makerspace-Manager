@@ -9,6 +9,10 @@ export const STAFF_TAB_KEYS: readonly string[] = ALL_TABS;
 const FULL_ACCESS_ROLES = ["space_manager", "inventory_manager"];
 const PRINTING_TABS = ["dashboard", "notifications", "requests", "printing", "machines", "tobuy", "reports", "warranty", "api", "emailtemplates"];
 const GUEST_ADMIN_TABS = ["requests", "direct"];
+// Machine Manager: makerspace-wide machine authority (machines + maintenance/warranty/usage
+// live inside the Machines drawer). Deliberately narrow — no Dashboard (DashboardView requires
+// VIEW_INVENTORY/MANAGE_PRINTING/MANAGE_MAKERSPACE, none of which this role holds).
+const MACHINE_MANAGER_TABS = ["machines"];
 
 export const TAB_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
@@ -54,7 +58,8 @@ export const TAB_GROUPS: { label: string; tabs: string[] }[] = [
 export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boolean, singleTenantLocked: boolean, enabledModules: readonly string[] = []) {
   const fullAccess = isSuperadmin || (!!activeRole && FULL_ACCESS_ROLES.includes(activeRole));
   const handoutOnly = activeRole === "guest_admin" && !isSuperadmin;
-  const printingOnly = !fullAccess && !handoutOnly;
+  const machineOnly = activeRole === "machine_manager" && !isSuperadmin;
+  const printingOnly = !fullAccess && !handoutOnly && !machineOnly;
   const canSeeHardware = isSuperadmin || ["space_manager", "inventory_manager", "guest_admin"].includes(activeRole ?? "");
   const canSeePrinting = isSuperadmin || ["space_manager", "print_manager"].includes(activeRole ?? "");
   const canUseToBuy = isSuperadmin || ["space_manager", "inventory_manager", "print_manager"].includes(activeRole ?? "");
@@ -63,10 +68,16 @@ export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boo
   const canViewAudit = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
   const canManageQr = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
   const canManageMakerspace = isSuperadmin || activeRole === "space_manager";
-  const canManageMachines = isSuperadmin || activeRole === "space_manager";
+  const canManageMachines = isSuperadmin || ["space_manager", "machine_manager"].includes(activeRole ?? "");
   const canManageEvents = isSuperadmin || activeRole === "space_manager";
   const canChooseToBuyKind = isSuperadmin || activeRole === "space_manager";
-  const baseTabs = handoutOnly ? GUEST_ADMIN_TABS : fullAccess ? ALL_TABS : PRINTING_TABS;
+  const baseTabs = handoutOnly
+    ? GUEST_ADMIN_TABS
+    : machineOnly
+      ? MACHINE_MANAGER_TABS
+      : fullAccess
+        ? ALL_TABS
+        : PRINTING_TABS;
   const allowedTabs: readonly string[] = baseTabs.filter((tabName) => {
     if (tabName === "dashboard") return !handoutOnly;
     if (tabName === "notifications") return !handoutOnly && enabledModules.includes("notifications");
@@ -112,6 +123,6 @@ export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boo
     canManageEvents,
     canChooseToBuyKind,
     allowedTabs,
-    defaultTab: handoutOnly ? "requests" : "dashboard",
+    defaultTab: handoutOnly ? "requests" : machineOnly ? "machines" : "dashboard",
   };
 }

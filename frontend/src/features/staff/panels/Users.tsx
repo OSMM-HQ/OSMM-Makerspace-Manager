@@ -16,7 +16,7 @@ import {
   type StaffForm,
 } from "./UsersModals";
 
-type RoleValue = "space_manager" | "inventory_manager" | "guest_admin" | "print_manager";
+type RoleValue = "space_manager" | "inventory_manager" | "guest_admin" | "print_manager" | "machine_manager";
 type User = { id: number; username: string; email: string; access_status: "active" | "restricted" | "suspended" | string };
 type StaffMembership = {
   id: number;
@@ -32,7 +32,11 @@ const roles: { value: RoleValue; label: string; path: string }[] = [
   { value: "inventory_manager", label: "Inventory Managers", path: "/admin/users/inventory-managers" },
   { value: "guest_admin", label: "Guest Admins", path: "/admin/users/guest-admins" },
   { value: "print_manager", label: "Print Managers", path: "/admin/users/print-managers" },
+  { value: "machine_manager", label: "Machine Managers", path: "/admin/users/machine-managers" },
 ];
+// A Space Manager may assign/list/revoke only the delegable roles; Space Manager itself is
+// superadmin-only (non-escalation guard, enforced server-side).
+const DELEGABLE_ROLES: RoleValue[] = ["inventory_manager", "guest_admin", "print_manager", "machine_manager"];
 
 const staffKeys = roles.map((role) => ["staff", "users", role.value]);
 const emptyStaffForm: StaffForm = {
@@ -56,7 +60,8 @@ const emptyResetPasswordForm: ResetPasswordForm = { password: "" };
 
 export function Users({ makerspaces, isSuperadmin }: { makerspaces: Makerspace[]; isSuperadmin: boolean }) {
   const queryClient = useQueryClient();
-  const [activeRole, setActiveRole] = useState<RoleValue>("space_manager");
+  const [activeRole, setActiveRole] = useState<RoleValue>(isSuperadmin ? "space_manager" : "inventory_manager");
+  const [revokeTarget, setRevokeTarget] = useState<StaffMembership | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [makerspaceOpen, setMakerspaceOpen] = useState(false);
   const [staffForm, setStaffForm] = useState<StaffForm>(emptyStaffForm);
@@ -72,7 +77,10 @@ export function Users({ makerspaces, isSuperadmin }: { makerspaces: Makerspace[]
   const inventoryManagers = useStaffGet<StaffListResponse>(["staff", "users", "inventory_manager"], "/admin/users/inventory-managers");
   const guestAdmins = useStaffGet<StaffListResponse>(["staff", "users", "guest_admin"], "/admin/users/guest-admins");
   const printManagers = useStaffGet<StaffListResponse>(["staff", "users", "print_manager"], "/admin/users/print-managers");
-  const lists = [spaceManagers, inventoryManagers, guestAdmins, printManagers];
+  const machineManagers = useStaffGet<StaffListResponse>(["staff", "users", "machine_manager"], "/admin/users/machine-managers");
+  const lists = [spaceManagers, inventoryManagers, guestAdmins, printManagers, machineManagers];
+  // Space Managers may only manage delegable roles; hide the Space Manager tab for them.
+  const visibleRoles = isSuperadmin ? roles : roles.filter((role) => DELEGABLE_ROLES.includes(role.value));
   const activeIndex = roles.findIndex((role) => role.value === activeRole);
   const activeRows = staffResults(lists[activeIndex]?.data);
   const makerspaceNames = useMemo(
@@ -113,6 +121,14 @@ export function Users({ makerspaces, isSuperadmin }: { makerspaces: Makerspace[]
       staffRequest(`/admin/users/${membership.user.id}/restore-access`, { method: "POST" }),
     onSuccess: () => {
       setRestoreTarget(null);
+      invalidateStaff();
+    },
+  });
+  const revoke = useMutation({
+    mutationFn: (membership: StaffMembership) =>
+      staffRequest(`/admin/memberships/${membership.id}`, { method: "DELETE" }),
+    onSuccess: () => {
+      setRevokeTarget(null);
       invalidateStaff();
     },
   });
@@ -172,16 +188,19 @@ export function Users({ makerspaces, isSuperadmin }: { makerspaces: Makerspace[]
       <div className="grid gap-4">
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex flex-wrap gap-2">
-            {roles.map((role, index) => (
-              <button
-                key={role.value}
-                className={`desk-button ${activeRole === role.value ? "border-accent text-accent-ink" : ""}`}
-                type="button"
-                onClick={() => setActiveRole(role.value)}
-              >
-                {role.label} ({staffResults(lists[index].data).length})
-              </button>
-            ))}
+            {visibleRoles.map((role) => {
+              const list = lists[roles.findIndex((item) => item.value === role.value)];
+              return (
+                <button
+                  key={role.value}
+                  className={`desk-button ${activeRole === role.value ? "border-accent text-accent-ink" : ""}`}
+                  type="button"
+                  onClick={() => setActiveRole(role.value)}
+                >
+                  {role.label} ({staffResults(list?.data).length})
+                </button>
+              );
+            })}
           </div>
           <div className="desk-actions ml-auto flex flex-wrap gap-2">
             <button className="desk-button-primary" type="button" onClick={openAdd}>
@@ -203,6 +222,7 @@ export function Users({ makerspaces, isSuperadmin }: { makerspaces: Makerspace[]
           onRestrict={openRestrict}
           onRestore={setRestoreTarget}
           onResetPassword={openResetPassword}
+          onRevoke={setRevokeTarget}
         />
       </div>
 
@@ -212,6 +232,7 @@ export function Users({ makerspaces, isSuperadmin }: { makerspaces: Makerspace[]
         makerspaces={makerspaces}
         pending={createStaff.isPending}
         error={createStaff.error}
+        isSuperadmin={isSuperadmin}
         onChange={setStaffForm}
         onClose={() => setAddOpen(false)}
         onSubmit={() => createStaff.mutate()}
@@ -257,17 +278,33 @@ export function Users({ makerspaces, isSuperadmin }: { makerspaces: Makerspace[]
           if (restoreTarget) restore.mutate(restoreTarget);
         }}
       />
+      <ConfirmDialog
+        open={Boolean(revokeTarget)}
+        title="Revoke role"
+        message={
+          revokeTarget
+            ? `Remove ${revokeTarget.user.username}'s "${revokeTarget.role.replace(/_/g, " ")}" role in ${makerspaceNames.get(revokeTarget.makerspace_id) ?? revokeTarget.makerspace_slug}? Their account is not deleted.`
+            : ""
+        }
+        confirmLabel="Revoke"
+        pending={revoke.isPending}
+        onCancel={() => setRevokeTarget(null)}
+        onConfirm={() => {
+          if (revokeTarget) revoke.mutate(revokeTarget);
+        }}
+      />
     </Panel>
   );
 }
 
-function StaffTable({ rows, makerspaceNames, loading, onRestrict, onRestore, onResetPassword }: {
+function StaffTable({ rows, makerspaceNames, loading, onRestrict, onRestore, onResetPassword, onRevoke }: {
   rows: StaffMembership[];
   makerspaceNames: Map<number, string>;
   loading: boolean;
   onRestrict: (membership: StaffMembership) => void;
   onRestore: (membership: StaffMembership) => void;
   onResetPassword: (membership: StaffMembership) => void;
+  onRevoke: (membership: StaffMembership) => void;
 }) {
   if (loading) return <p className="text-sm text-muted">Loading staff...</p>;
   if (!rows.length) return <EmptyState title="No staff" description="No memberships exist for this role." />;
@@ -307,6 +344,9 @@ function StaffTable({ rows, makerspaceNames, loading, onRestrict, onRestore, onR
                     onClick={() => onRestore(membership)}
                   >
                     Restore
+                  </button>
+                  <button className="desk-button text-danger" type="button" onClick={() => onRevoke(membership)}>
+                    Revoke
                   </button>
                 </div>
               </td>

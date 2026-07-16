@@ -253,6 +253,11 @@ class MakerspaceMembership(models.Model):
         GUEST_ADMIN = "guest_admin", "Guest Admin"
         INVENTORY_MANAGER = "inventory_manager", "Inventory Manager"
         PRINT_MANAGER = "print_manager", "Print Manager"
+        # Makerspace-wide machine authority: manages assigned machines end-to-end
+        # (the machine + usage/cycle + warranty + maintenance). Action set is exactly
+        # {MANAGE_MACHINES}; every machine sub-feature already gates on machine access,
+        # so no new RBAC action is needed. Delegable by a Space Manager (Part I).
+        MACHINE_MANAGER = "machine_manager", "Machine Manager"
 
     makerspace = models.ForeignKey(
         Makerspace,

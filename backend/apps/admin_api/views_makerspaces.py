@@ -59,6 +59,7 @@ class MakerspaceListCreateView(generics.ListCreateAPIView):
             actor,
             rbac.Action.VIEW_INVENTORY,
             rbac.Action.MANAGE_PRINTING,
+            rbac.Action.MANAGE_MACHINES,
         )
         if not scope:
             return queryset.none()

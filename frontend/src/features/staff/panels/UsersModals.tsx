@@ -9,7 +9,7 @@ export type StaffForm = {
   first_name: string;
   last_name: string;
   password: string;
-  role: "space_manager" | "inventory_manager" | "guest_admin" | "print_manager";
+  role: "space_manager" | "inventory_manager" | "guest_admin" | "print_manager" | "machine_manager";
   makerspace_id: string;
 };
 export type RestrictForm = { status: "restricted" | "suspended"; reason: string };
@@ -28,6 +28,7 @@ const roleOptions = [
   ["inventory_manager", "Inventory Manager"],
   ["guest_admin", "Guest Admin"],
   ["print_manager", "Print Manager"],
+  ["machine_manager", "Machine Manager"],
 ] as const;
 
 export function AddStaffModal({
@@ -36,6 +37,7 @@ export function AddStaffModal({
   makerspaces,
   pending,
   error,
+  isSuperadmin = false,
   onChange,
   onClose,
   onSubmit,
@@ -45,11 +47,17 @@ export function AddStaffModal({
   makerspaces: Makerspace[];
   pending: boolean;
   error: unknown;
+  isSuperadmin?: boolean;
   onChange: (form: StaffForm) => void;
   onClose: () => void;
   onSubmit: () => void;
 }) {
   const errors = validationErrors(error);
+  // A Space Manager may assign only the delegable roles; only a superadmin can create
+  // another Space Manager (non-escalation guard, enforced server-side too).
+  const availableRoles = isSuperadmin
+    ? roleOptions
+    : roleOptions.filter(([value]) => value !== "space_manager");
   // Password is required: the API does not return an auto-generated one, so a
   // blank password would create an account nobody can sign into.
   const disabled = pending || !form.username.trim() || !form.makerspace_id || !form.password;
@@ -76,7 +84,7 @@ export function AddStaffModal({
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Role" error={errors.role}>
             <select className="desk-input w-full" value={form.role} onChange={(event) => onChange({ ...form, role: event.target.value as StaffForm["role"] })}>
-              {roleOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              {availableRoles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </select>
           </Field>
           <Field label="Makerspace" error={errors.makerspace_id}>

@@ -158,6 +158,34 @@ their STL/3MF/STEP/OBJ byte heuristics. Settings `MACHINE_DOC_ALLOWED_EXT`/`MACH
 pickers. No migration, no re-keying, existing PDF/image behavior byte-for-byte. Full suite **1753 pass**;
 build green.
 
+**Part I — Machine Manager role + Space-Manager-delegated role assignment (COMPLETE + Stage-4-fixed; on `dev`).** New `MakerspaceMembership.Role.MACHINE_MANAGER` (migration `makerspaces/0035`) whose action set is
+**exactly `{MANAGE_MACHINES}`** (`rbac._MACHINE_MANAGER_ACTIONS`) — maintenance/warranty/usage/docs already gate
+on machine access, so NO new RBAC action. **Space Managers can now delegate the 4 delegable roles**
+(`_SM_DELEGABLE_ROLES` = machine/print/inventory manager + guest admin) within their `MANAGE_MAKERSPACE` scope:
+`_can_create_staff_role` + `StaffListCreateView.get_queryset` extended off that set; `StaffCreateSerializer`
+role choices gained `machine_manager`. **Non-escalation guards (tested):** an SM can NEVER create/assign
+SPACE_MANAGER or superadmin, NEVER overwrite an existing SPACE_MANAGER membership (create() re-checks the
+target's CURRENT role before `update_or_create`), and restrict/restore/reset existential guards stay
+superadmin-only. New `MembershipRevokeView` (`DELETE /admin/memberships/<pk>`, `admin-membership-revoke`,
+`responses={204:None}`) un-assigns a membership with the same scope contract (SM: delegable-role + in-scope,
+404-before-403, never a SPACE_MANAGER; superadmin: any except superadmin-hidden→404); audited
+`staff.membership_revoked`. `origin_scope._MODEL_LOOKUPS` + a new `makerspaces` app branch resolve the revoke
+endpoint's makerspace for single-tenant staff origins. `/auth/me` already lists all memberships (incl. the new
+role) → switcher + `activeRole` resolve `machine_manager` with no backend change. Frontend: Users panel gains a
+Machine Managers tab + Revoke action; `AddStaffModal` hides SPACE_MANAGER for non-superadmins; `staffAccess.ts`
+gives `machine_manager` its own narrow tab set (Machines only) with `canManageMachines`. **Stage-4 fixes
+(Codex, 5 findings):** (P1) `MakerspaceListCreateView` switcher scope now unions `MANAGE_MACHINES` + the slim
+`MakerspaceSwitcherSerializer` exposes `enabled_modules`, so a machine-manager-only account resolves its tenant
+and keeps the Machines tab; (P2) dropped the machine-manager Dashboard tab (`DashboardView` requires
+VIEW_INVENTORY/MANAGE_PRINTING/MANAGE_MAKERSPACE) — lands on Machines; (P2) `MembershipRevokeView` delete runs
+the locked read + authorize + delete + audit in one `transaction.atomic()`/`select_for_update`; (P2) the
+create() overwrite guard moved INSIDE the txn with a `select_for_update` lock on the existing membership (no
+race past the non-escalation check); (P2) `StaffListCreateView.create` declares
+`@extend_schema(request=StaffCreateSerializer, responses=StaffMembershipSerializer)` (correct OpenAPI contract
+for all 5 role-create endpoints). 11 `test_part_i_machine_manager.py` tests; `tsc -b`/build green; OpenAPI + TS
+client regenerated. **Part L (below, LATER) will generalize ALL these hardcoded roles into editable
+per-makerspace custom roles, seeding machine_manager as one default.**
+
 **Harness notes:** local `osmm-db` (:5433), `osmm-redis`, `osmm-minio` (:9100) must be running; run tests
 with `DATABASE_URL="postgres://makerspace:makerspace@localhost:5433/makerspace_manager"`. Pre-existing (NOT
 a regression) failing test `test_machine_image_presign_finalize_delete_and_audit` = MinIO on :9100 vs the
