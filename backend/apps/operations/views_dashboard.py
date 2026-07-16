@@ -18,6 +18,7 @@ from apps.hardware_requests.models import (
 from apps.integrations.models import EmailLog
 from apps.inventory.models import InventoryProduct
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.makerspaces.platform import module_enabled
 from apps.operations.models import StocktakeSession
 from apps.printing.models import PrintRequest
 from apps.warranty.models import Warranty
@@ -35,6 +36,7 @@ class DashboardSerializer(serializers.Serializer):
     failed_emails = serializers.IntegerField(required=False, default=0)
     stocktakes_awaiting_approval = serializers.IntegerField(required=False, default=0)
     warranty_expiring = serializers.IntegerField(required=False, default=0)
+    maintenance_overdue = serializers.IntegerField(required=False, default=0)
 
 
 @extend_schema(
@@ -165,6 +167,17 @@ def build_dashboard(makerspace):
         ).count()
     except Exception:
         pass
+    if module_enabled(makerspace, "maintenance"):
+        try:
+            from apps.maintenance.models import MaintenanceSchedule
+
+            counts["maintenance_overdue"] = MaintenanceSchedule.objects.filter(
+                machine__makerspace=makerspace,
+                is_active=True,
+                next_due__lt=today,
+            ).count()
+        except Exception:
+            pass
 
     return counts
 

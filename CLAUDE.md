@@ -91,7 +91,26 @@ models)·`e6922e3`(D2 workflows). **D3 fix this session:** bookings `/control/` 
 bare `ModelAdmin` (missing the mandatory `SuperuserOnlyModelAdmin` first base) → hidden-scope drift-guard
 failed; fixed by adding `SuperuserOnlyModelAdmin` to both admins + `bookings.booking` →
 `space__makerspace_id` in `config.admin_access.NESTED_MAKERSPACE_LOOKUPS` (`BookableSpace` auto-resolves via
-its direct `makerspace` FK). 38 bookings + 9 lifecycle tests pass; full suite green.
+its direct `makerspace` FK). 38 bookings + 9 lifecycle tests pass; full suite green. Stage-4 review + fixes
+committed (`99801f2` build, `f79221e` review-fix: read-only admins, finalize-race compensation, error schemas).
+
+**Part E — Maintenance module (CODE COMPLETE; committed on `dev`; Stage-4 review pending).** New
+`apps/maintenance/` app: `MaintenanceSchedule` (machine FK CASCADE, interval_days/next_due, is_active,
+created_by SET_NULL), `MaintenanceLog` (machine FK CASCADE, **performed_by=PROTECT**, append-only immutability
+trigger in the purge-aware `audit/0003` style — DELETE only under GUC `app.allow_immutable_delete`, UPDATE
+always blocked), `MaintenanceLogDocument` (log FK CASCADE, private-bucket attachment, size_bytes). Migration
+`makerspaces/0034` enables the module (added to `DEFAULT_ENABLED_MODULES`). Reuses Machines access (no new RBAC
+action): view/log gated on operate, schedules/completion/doc-delete on manage/edit; retired machines read-only.
+Private attachments via prefix storage `maintenance/<makerspace_id>/<machine_id>/…/<uuid>` (mirrors
+`warranty/storage.py`) + `add_storage`/`free_storage` accounting; lifecycle purge collects the log-doc keys.
+Staff REST split across `admin_api/views_maintenance{,_logs,_schedules,_documents,_shared}.py` +
+`serializers_maintenance.py` (IsActiveStaff + `require_module("maintenance")` + 404-before-403 + origin-scope).
+Frontend `MaintenanceTab` (schedules + manual log + expandable history + documents) wired into `MachineDrawer`.
+**Finish-fixes this session (build was killed mid-way):** added missing `MaintenanceLogDocument` import + moved
+its storage-key collection from the public to the PRIVATE collector; purge `_delete_object_graph` now deletes
+the makerspace's Machines + custom MachineTypes (makerspace-scoped `MachineType.makerspace` PROTECT was blocking
+`makerspace.delete()`); wired the orphaned Maintenance frontend tab. **1482 backend tests pass**, `tsc -b`/build
+green, OpenAPI 251 paths.
 
 **Harness notes:** local `osmm-db` (:5433), `osmm-redis`, `osmm-minio` (:9100) must be running; run tests
 with `DATABASE_URL="postgres://makerspace:makerspace@localhost:5433/makerspace_manager"`. Pre-existing (NOT

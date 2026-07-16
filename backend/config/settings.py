@@ -101,6 +101,7 @@ INSTALLED_APPS = [
     "apps.machines",
     "apps.events",
     "apps.bookings",
+    "apps.maintenance",
 ]
 
 MIDDLEWARE = [
@@ -170,6 +171,9 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
+# PostgreSQL supports 63-character identifiers. The approved Maintenance schema
+# intentionally uses a 32-character descriptive index name.
+SILENCED_SYSTEM_CHECKS = ["models.E034"]
 
 AUTHENTICATION_BACKENDS = [
     "axes.backends.AxesStandaloneBackend",

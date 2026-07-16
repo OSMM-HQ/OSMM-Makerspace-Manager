@@ -21,6 +21,11 @@ from apps.hardware_requests.workflow import (
     ReturnValidationError,
 )
 from apps.inventory.availability import InsufficientStock
+from apps.maintenance.exceptions import (
+    InactiveMaintenanceSchedule,
+    MaintenanceStatusConflict,
+    RetiredMachineMaintenance,
+)
 
 
 @extend_schema_serializer(component_name="HardwareRequestError")
@@ -30,6 +35,21 @@ class ErrorSerializer(serializers.Serializer):
 
 
 _EXCEPTION_MAP = {
+    RetiredMachineMaintenance: (
+        status.HTTP_409_CONFLICT,
+        "machine_retired",
+        "Machine is retired.",
+    ),
+    InactiveMaintenanceSchedule: (
+        status.HTTP_409_CONFLICT,
+        "maintenance_schedule_inactive",
+        "Maintenance schedule is inactive.",
+    ),
+    MaintenanceStatusConflict: (
+        status.HTTP_409_CONFLICT,
+        "maintenance_status_conflict",
+        "Only a machine in maintenance can be set to idle.",
+    ),
     RequesterBlocked: (
         status.HTTP_403_FORBIDDEN,
         "requester_blocked",

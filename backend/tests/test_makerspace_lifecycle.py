@@ -26,6 +26,8 @@ from apps.integrations.models import EmailTemplate
 from apps.inventory.models import Category, InventoryAsset, InventoryProduct
 from apps.makerspaces import lifecycle
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.machines.models import Machine, MachineType
+from apps.maintenance.models import MaintenanceLog, MaintenanceLogDocument
 from apps.operations.models import (
     InventoryAdjustment,
     QrPrintBatch,
@@ -408,9 +410,57 @@ def populate_full_purge_graph(makerspace, survivor, actor):
         makerspace=makerspace,
     )
 
+    machine_type = MachineType.objects.create(
+        makerspace=makerspace,
+        slug=f"maintenance-{makerspace.id}",
+        name="Maintenance Machine",
+    )
+    machine = Machine.objects.create(
+        makerspace=makerspace,
+        machine_type=machine_type,
+        name="Doomed Maintenance Machine",
+    )
+    maintenance_log = MaintenanceLog.objects.create(
+        machine=machine,
+        performed_by=actor,
+        summary="Private purge fixture",
+    )
+    maintenance_key = f"machines/{makerspace.id}/{machine.id}/logs/doomed.pdf"
+    MaintenanceLogDocument.objects.create(
+        log=maintenance_log,
+        object_key=maintenance_key,
+        size_bytes=123,
+        uploaded_by=actor,
+    )
+    survivor_type = MachineType.objects.create(
+        makerspace=survivor,
+        slug=f"maintenance-{survivor.id}",
+        name="Survivor Maintenance Machine",
+    )
+    survivor_machine = Machine.objects.create(
+        makerspace=survivor,
+        machine_type=survivor_type,
+        name="Survivor Maintenance Machine",
+    )
+    survivor_log = MaintenanceLog.objects.create(
+        machine=survivor_machine,
+        performed_by=actor,
+        summary="Survivor purge fixture",
+    )
+    survivor_key = f"machines/{survivor.id}/{survivor_machine.id}/logs/survivor.pdf"
+    survivor_document = MaintenanceLogDocument.objects.create(
+        log=survivor_log,
+        object_key=survivor_key,
+        size_bytes=456,
+        uploaded_by=actor,
+    )
+
     return {
         "survivor_adjustment": survivor_adjustment,
         "cross_transfer": cross_transfer,
+        "maintenance_key": maintenance_key,
+        "survivor_document": survivor_document,
+        "survivor_key": survivor_key,
     }
 
 
@@ -453,6 +503,10 @@ def assert_purged_makerspace_graph(space_id):
     assert EmailTemplate.objects.filter(makerspace_id=space_id).count() == 0
     assert MakerspaceMembership.objects.filter(makerspace_id=space_id).count() == 0
     assert AuditLog.objects.filter(makerspace_id=space_id).count() == 0
+    assert MaintenanceLog.objects.filter(machine__makerspace_id=space_id).count() == 0
+    assert MaintenanceLogDocument.objects.filter(
+        log__machine__makerspace_id=space_id
+    ).count() == 0
 
 
 @pytest.mark.django_db(transaction=True)
@@ -464,7 +518,8 @@ def test_comprehensive_purge_removes_entire_makerspace_graph_and_preserves_survi
     space_id = makerspace.id
     survivor_id = survivor.id
     survivor_adjustment_id = refs["survivor_adjustment"].id
-    monkeypatch.setattr(lifecycle, "_delete_storage_keys", lambda keys: None)
+    deleted_keys = []
+    monkeypatch.setattr(lifecycle, "_delete_storage_keys", deleted_keys.extend)
 
     archived = archive_space(makerspace, actor)
     lifecycle.purge(archived, actor)
@@ -472,6 +527,11 @@ def test_comprehensive_purge_removes_entire_makerspace_graph_and_preserves_survi
     assert_purged_makerspace_graph(space_id)
     assert not Makerspace.objects.filter(pk=space_id).exists()
     assert Makerspace.objects.filter(pk=survivor_id).exists()
+    assert refs["maintenance_key"] in deleted_keys
+    assert refs["survivor_key"] not in deleted_keys
+    assert MaintenanceLogDocument.objects.filter(
+        pk=refs["survivor_document"].pk
+    ).exists()
 
     survivor_adjustment = InventoryAdjustment.objects.get(pk=survivor_adjustment_id)
     assert survivor_adjustment.makerspace_id == survivor_id
@@ -493,7 +553,8 @@ def test_comprehensive_purge_under_managed_postgres(monkeypatch):
     space_id = makerspace.id
     survivor_id = survivor.id
     survivor_adjustment_id = refs["survivor_adjustment"].id
-    monkeypatch.setattr(lifecycle, "_delete_storage_keys", lambda keys: None)
+    deleted_keys = []
+    monkeypatch.setattr(lifecycle, "_delete_storage_keys", deleted_keys.extend)
 
     archived = archive_space(makerspace, actor)
     lifecycle.purge(archived, actor)
@@ -501,6 +562,11 @@ def test_comprehensive_purge_under_managed_postgres(monkeypatch):
     assert_purged_makerspace_graph(space_id)
     assert not Makerspace.objects.filter(pk=space_id).exists()
     assert Makerspace.objects.filter(pk=survivor_id).exists()
+    assert refs["maintenance_key"] in deleted_keys
+    assert refs["survivor_key"] not in deleted_keys
+    assert MaintenanceLogDocument.objects.filter(
+        pk=refs["survivor_document"].pk
+    ).exists()
 
     survivor_adjustment = InventoryAdjustment.objects.get(pk=survivor_adjustment_id)
     assert survivor_adjustment.makerspace_id == survivor_id

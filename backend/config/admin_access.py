@@ -10,6 +10,9 @@ from django.urls import reverse
 # Models whose makerspace is reached via a nested relation (no direct `makerspace` FK).
 # Keyed by "app_label.model_name" (lowercase) -> ORM lookup ending in _id.
 NESTED_MAKERSPACE_LOOKUPS = {
+    "maintenance.maintenanceschedule": "machine__makerspace_id",
+    "maintenance.maintenancelog": "machine__makerspace_id",
+    "maintenance.maintenancelogdocument": "log__machine__makerspace_id",
     "hardware_requests.hardwarerequestitemasset": "asset__makerspace_id",
     "printing.printrequest": "bucket__makerspace_id",
     "warranty.warrantydocument": "warranty__makerspace_id",

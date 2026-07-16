@@ -9,6 +9,8 @@ from apps.makerspaces.platform import makerspace_staff_origins
 NO_STAFF_ORIGIN_SCOPE = object()
 AMBIGUOUS_STAFF_ORIGIN_SCOPE = object()
 _MAKERSPACE_KWARG_ROUTES = {
+    'admin-maintenance-schedule-list-create': 'makerspace_id',
+    'admin-maintenance-log-list-create': 'makerspace_id',
     'admin-bookable-space-list-create': 'makerspace_id',
     'admin-event-list-create': 'makerspace_id',
     "admin-machine-types": "makerspace_id",
@@ -157,6 +159,8 @@ def _model_for_path(model_path):
         from apps.events import models
     elif app_label == 'bookings':
         from apps.bookings import models
+    elif app_label == "maintenance":
+        from apps.maintenance import models
     else:
         raise LookupError(model_path)
     return getattr(models, model_name)
@@ -183,6 +187,30 @@ _PRINT_ACTIONS = {
     "managed-request-reprint",
 }
 _MODEL_LOOKUPS = {
+    "admin-maintenance-schedule-detail": (
+        "maintenance.MaintenanceSchedule",
+        "machine__makerspace_id",
+    ),
+    "admin-maintenance-schedule-deactivate": (
+        "maintenance.MaintenanceSchedule",
+        "machine__makerspace_id",
+    ),
+    "admin-maintenance-log-document-presign": (
+        "maintenance.MaintenanceLog",
+        "machine__makerspace_id",
+    ),
+    "admin-maintenance-log-document-finalize": (
+        "maintenance.MaintenanceLog",
+        "machine__makerspace_id",
+    ),
+    "admin-maintenance-log-document-url": (
+        "maintenance.MaintenanceLogDocument",
+        "log__machine__makerspace_id",
+    ),
+    "admin-maintenance-log-document-detail": (
+        "maintenance.MaintenanceLogDocument",
+        "log__machine__makerspace_id",
+    ),
     'admin-bookable-space-detail': ('bookings.BookableSpace', 'makerspace_id'),
     'admin-bookable-space-deactivate': (
         'bookings.BookableSpace',

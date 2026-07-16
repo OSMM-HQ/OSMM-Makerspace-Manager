@@ -7,6 +7,8 @@ from apps.accounts.models import User
 from apps.hardware_requests.models import HardwareRequest, PublicProblemReport, PublicToolLoan
 from apps.integrations.models import EmailLog
 from apps.makerspaces.models import MakerspaceMembership
+from apps.machines.models import Machine, MachineType
+from apps.maintenance.models import MaintenanceSchedule
 from apps.operations import views_dashboard
 from apps.operations.models import StocktakeSession
 from apps.printing.models import PrintBucket, PrintRequest
@@ -209,3 +211,74 @@ def test_build_dashboard_is_fail_safe(monkeypatch):
     assert counts["overdue_loans"] == 0
     assert counts["pending_requests"] == 0
     assert counts["awaiting_issue"] == 0
+
+
+def test_dashboard_counts_only_tenant_active_strictly_overdue_maintenance():
+    makerspace = make_space("ops-dashboard-maintenance")
+    other = make_space("ops-dashboard-maintenance-other")
+    today = timezone.localdate()
+    machine_type = MachineType.objects.create(
+        makerspace=makerspace, slug="dashboard-maintenance", name="Maintenance",
+    )
+    other_type = MachineType.objects.create(
+        makerspace=other, slug="dashboard-maintenance-other", name="Maintenance",
+    )
+    machine = Machine.objects.create(
+        makerspace=makerspace, machine_type=machine_type, name="Machine",
+    )
+    other_machine = Machine.objects.create(
+        makerspace=other, machine_type=other_type, name="Other Machine",
+    )
+    for due, active in (
+        (today - timedelta(days=1), True),
+        (today, True),
+        (today + timedelta(days=1), True),
+        (today - timedelta(days=1), False),
+    ):
+        MaintenanceSchedule.objects.create(
+            machine=machine, description="Schedule", interval_days=1,
+            next_due=due, is_active=active,
+        )
+    MaintenanceSchedule.objects.create(
+        machine=other_machine, description="Foreign", interval_days=1,
+        next_due=today - timedelta(days=1),
+    )
+    assert views_dashboard.build_dashboard(makerspace)["maintenance_overdue"] == 1
+
+
+def test_disabled_maintenance_dashboard_does_not_query(monkeypatch):
+    makerspace = make_space("ops-dashboard-maintenance-disabled")
+    makerspace.enabled_modules = [
+        name for name in makerspace.enabled_modules if name != "maintenance"
+    ]
+    makerspace.save(update_fields=["enabled_modules"])
+
+    class BrokenSchedule:
+        class BrokenManager:
+            def filter(self, *args, **kwargs):
+                raise AssertionError("maintenance query must stay gated")
+
+        objects = BrokenManager()
+
+    import apps.maintenance.models as maintenance_models
+
+    monkeypatch.setattr(maintenance_models, "MaintenanceSchedule", BrokenSchedule)
+    assert views_dashboard.build_dashboard(makerspace)["maintenance_overdue"] == 0
+
+
+def test_enabled_maintenance_query_failure_is_isolated(monkeypatch):
+    makerspace = make_space("ops-dashboard-maintenance-failure")
+
+    class BrokenSchedule:
+        class BrokenManager:
+            def filter(self, *args, **kwargs):
+                raise RuntimeError("maintenance table unavailable")
+
+        objects = BrokenManager()
+
+    import apps.maintenance.models as maintenance_models
+
+    monkeypatch.setattr(maintenance_models, "MaintenanceSchedule", BrokenSchedule)
+    counts = views_dashboard.build_dashboard(makerspace)
+    assert counts["maintenance_overdue"] == 0
+    assert set(counts) == set(views_dashboard.DashboardSerializer().fields)

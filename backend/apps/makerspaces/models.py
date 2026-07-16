@@ -60,6 +60,7 @@ DEFAULT_ENABLED_MODULES = [
     "machines",
     "events",
     "bookings",
+    "maintenance",
 ]
 
 

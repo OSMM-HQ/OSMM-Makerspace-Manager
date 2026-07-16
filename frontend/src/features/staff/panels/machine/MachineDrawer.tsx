@@ -6,12 +6,15 @@ import { getMachine, machineKeys } from "../../machinesApi";
 import { ConsumablesTab } from "./ConsumablesTab";
 import { DocumentsTab } from "./DocumentsTab";
 import { ErrorsTab } from "./ErrorsTab";
+import { MaintenanceTab } from "./MaintenanceTab";
 import { OperatorsTab } from "./OperatorsTab";
 import { OverviewTab } from "./OverviewTab";
 import { UsageTab } from "./UsageTab";
 import { WarrantyTab } from "./WarrantyTab";
 
-const BASE_TABS = ["Overview", "Operators", "Consumables", "Usage", "Documents", "Errors"] as const;
+const BASE_TABS = [
+  "Overview", "Operators", "Consumables", "Usage", "Maintenance", "Documents", "Errors",
+] as const;
 type MachineTab = (typeof BASE_TABS)[number] | "Warranty";
 
 export function MachineDrawer({ machineId, makerspaceId, canManageMachines, onClose }: {
@@ -91,6 +94,15 @@ export function MachineDrawer({ machineId, makerspaceId, canManageMachines, onCl
             ) : null}
             {activeTab === "Usage" ? (
               <UsageTab machineId={machineId} makerspaceId={makerspaceId} canOperate={details.can_operate} />
+            ) : null}
+            {activeTab === "Maintenance" ? (
+              <MaintenanceTab
+                makerspaceId={makerspaceId}
+                machineId={machineId}
+                canEdit={details.can_edit}
+                canOperate={details.can_operate}
+                retired={!details.is_active}
+              />
             ) : null}
             {activeTab === "Documents" ? (
               <DocumentsTab machineId={machineId} canEdit={details.can_edit} />
