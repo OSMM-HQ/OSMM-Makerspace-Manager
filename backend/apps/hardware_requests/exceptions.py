@@ -5,6 +5,11 @@ from drf_spectacular.utils import extend_schema_serializer
 
 from apps.checkin.client import CheckinDenied, CheckinUnavailable
 from apps.evidence.storage import StorageUnavailable
+from apps.events.exceptions import (
+    CapacityConflict,
+    DuplicateRegistration,
+    EventInvalidTransition,
+)
 from apps.hardware_requests.workflow import (
     BoxUnavailable,
     BoxValidationError,
@@ -43,6 +48,21 @@ _EXCEPTION_MAP = {
         status.HTTP_409_CONFLICT,
         "invalid_transition",
         "Invalid request transition.",
+    ),
+    EventInvalidTransition: (
+        status.HTTP_409_CONFLICT,
+        "invalid_transition",
+        "Invalid event transition.",
+    ),
+    CapacityConflict: (
+        status.HTTP_409_CONFLICT,
+        "capacity_conflict",
+        "Event capacity conflicts with confirmed registrations.",
+    ),
+    DuplicateRegistration: (
+        status.HTTP_400_BAD_REQUEST,
+        "duplicate_registration",
+        "A registration already exists for this email.",
     ),
     InsufficientStock: (
         status.HTTP_409_CONFLICT,

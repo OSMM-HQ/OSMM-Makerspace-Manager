@@ -79,6 +79,17 @@ def _machines(makerspace) -> int:
     return Machine.objects.filter(makerspace=makerspace, is_active=True).count()
 
 
+def _events(makerspace) -> int:
+    from apps.events.models import Event
+
+    now = datetime.now(UTC)
+    return Event.objects.filter(
+        makerspace=makerspace,
+        status=Event.Status.PUBLISHED,
+        ends_at__gte=now,
+    ).count()
+
+
 def _staff(makerspace) -> int:
     from apps.accounts.models import User
     from apps.makerspaces.models import MakerspaceMembership
@@ -177,6 +188,7 @@ _COUNTERS: dict[str, Callable[[object], int]] = {
     "products": _products,
     "assets": _assets,
     "machines": _machines,
+    "events": _events,
     "staff": _staff,
     "api_clients": _api_clients,
     "print": _print_requests,
