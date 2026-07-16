@@ -157,6 +157,12 @@ class MachineUsageEntry(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["machine", "created_at"],
+                name="usage_machine_created_idx",
+            ),
+        ]
         constraints = [
             models.CheckConstraint(
                 condition=Q(hours__gt=0),

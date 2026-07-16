@@ -1,12 +1,5 @@
 from rest_framework import serializers
-
-
-class TypedReportBaseSerializer(serializers.Serializer):
-    makerspace_id = serializers.IntegerField(required=False)
-
-
-class ReportRowsFieldMixin(serializers.Serializer):
-    rows = serializers.ListField(child=serializers.ListField(child=serializers.JSONField()))
+from apps.operations.serializers_reports_base import ReportRowsFieldMixin, TypedReportBaseSerializer
 
 
 class TakenItemsReportRowSerializer(TypedReportBaseSerializer):
@@ -97,3 +90,13 @@ class TopBorrowersReportSerializer(ReportRowsFieldMixin):
 
 class RecentlyAddedReportSerializer(ReportRowsFieldMixin):
     typed_rows = RecentlyAddedReportRowSerializer(many=True)
+
+
+from apps.operations.serializers_reports_fablab import (  # noqa: E402
+    BookingUtilizationReportSerializer,
+    EventAttendanceReportSerializer,
+    FabLabHealthReportSerializer,
+    MachineUsageReportSerializer,
+    MaintenanceActivityReportSerializer,
+    ReportErrorSerializer,
+)

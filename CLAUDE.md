@@ -118,7 +118,24 @@ with a **platform-scoped** `RoadmapItem` (NO makerspace FK — global) registere
 `GLOBAL_ADMIN_MODELS` (so the hidden-scope drift-guard stays green). Public `GET /api/v1/public/roadmap`
 (AllowAny, allowlist serializer, no module flag / no cap) + superadmin `/control/` CRUD (`SuperuserOnlyModelAdmin`)
 + Unfold sidebar entry. Frontend public roadmap page wired into public routes/nav. Migration `roadmap/0001`.
-29 roadmap+drift tests; full suite **1503 pass**; OpenAPI 252 paths; `tsc -b`/build green.
+29 roadmap+drift tests; full suite **1503 pass**; OpenAPI 252 paths; `tsc -b`/build green. Stage-4 review CLEAN
+(no findings; committed `3312e8e`).
+
+**Part F — Analytics (CODE COMPLETE; committed on `dev`; Stage-4 review pending).** EXTENDS the existing
+reports stack (no parallel system). New `apps/operations/report_registry.py` (canonical builder registry;
+unknown/non-exportable key → typed 400/404 before any builder), `report_scope.py` (aggregate eligibility —
+excludes reports-disabled + superadmin-hidden + archived makerspaces), `report_exports.py`, five domain
+builders (`reports_events`/`reports_bookings`/`reports_maintenance`/`reports_machine_usage`/`reports_inventory`)
++ `reports_health.py` (fail-safe `fablab-health`; each section's grouped queryset evaluated inside its own
+try/except; lazy imports so a disabled module never breaks it), split serializers
+(`serializers_reports_base`/`serializers_reports_fablab`). **Non-breaking facade preserved** — compat
+re-exports for `reports._taken_items`/`_most_lent`/`_top_borrowers` + `_csv_response`/`_xlsx_response` via
+`views_reports`/`views` + ledger export helpers all still resolve. Runtime contract matches the real
+`AnalyticsView` (returns `report_data()` directly; concrete serializers OpenAPI-only; native Decimal preserved
+for CSV/XLSX). Reuses `VIEW_AUDIT` (no new action; Print Manager 404 per `_makerspace_for_inventory_view`).
+Index migrations `machines/0007` (machine,created_at) + `events/0002` (makerspace,starts_at). Frontend FabLab
+report panels (events/bookings/maintenance/machine-usage/health) in the Reports workspace. Full suite
+**1534 pass**; OpenAPI 257 paths; `tsc -b`/build green.
 
 **Harness notes:** local `osmm-db` (:5433), `osmm-redis`, `osmm-minio` (:9100) must be running; run tests
 with `DATABASE_URL="postgres://makerspace:makerspace@localhost:5433/makerspace_manager"`. Pre-existing (NOT

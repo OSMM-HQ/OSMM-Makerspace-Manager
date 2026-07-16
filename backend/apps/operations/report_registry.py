@@ -1,0 +1,79 @@
+from dataclasses import dataclass
+from typing import Callable
+
+from django.utils.module_loading import import_string
+from rest_framework.exceptions import APIException
+
+
+@dataclass(frozen=True)
+class ReportResult:
+    field_order: tuple[str, ...]
+    records: list[dict[str, object]]
+
+
+@dataclass(frozen=True)
+class ReportDefinition:
+    key: str
+    builder_path: str
+    fields: tuple[str, ...]
+    required_modules: tuple[str, ...] = ()
+    exportable: bool = True
+    summary: bool = False
+
+    def builder(self) -> Callable:
+        return import_string(self.builder_path)
+
+
+class ReportNotFound(APIException):
+    status_code = 404
+
+    def __init__(self):
+        self.detail = {"detail": "Unknown report key.", "code": "report_not_found"}
+
+
+class ReportNotExportable(APIException):
+    status_code = 400
+
+    def __init__(self):
+        self.detail = {"detail": "Report is not exportable.", "code": "report_not_exportable"}
+
+
+def _legacy(key, fields, *, exportable=True, summary=False):
+    path = f"apps.operations.reports_inventory.build_{key.replace('-', '_')}"
+    return ReportDefinition(key, path, fields, exportable=exportable, summary=summary)
+
+
+REPORT_DEFINITIONS = (
+    _legacy("summary", (), exportable=False, summary=True),
+    _legacy("taken-items", ("product", "issued_quantity")),
+    _legacy("active-loans", ("id", "requester", "status", "issued_at")),
+    _legacy("returns", ("id", "requester", "status", "closed_at")),
+    _legacy("damaged-missing", ("product", "damaged_quantity", "missing_quantity")),
+    _legacy("damaged-lost", ("product_name", "damaged_quantity", "lost_quantity")),
+    _legacy("qr-scans", ("context", "count")),
+    _legacy("most-lent", ("product_name", "times_lent", "total_quantity_lent")),
+    _legacy("top-borrowers", ("holder", "requests", "items_borrowed")),
+    _legacy("recently-added", ("product_name", "created_at", "total_quantity")),
+    ReportDefinition("machine-usage", "apps.operations.reports_machine_usage.build_machine_usage", ("machine_id", "machine_name", "machine_type", "is_active", "usage_entries", "usage_hours"), ("machines",)),
+    ReportDefinition("event-attendance", "apps.operations.reports_events.build_event_attendance", ("event_id", "title", "starts_at", "status", "capacity", "registrations", "confirmed", "registered", "waitlisted", "cancelled", "attended", "attendance_rate_percent"), ("events",)),
+    ReportDefinition("booking-utilization", "apps.operations.reports_bookings.build_booking_utilization", ("space_id", "space_name", "kind", "is_active", "booked", "completed", "no_show", "cancelled", "upcoming", "reserved_hours", "completed_hours", "window_hours", "reservation_utilization_percent", "no_show_rate_percent"), ("bookings",)),
+    ReportDefinition("maintenance-activity", "apps.operations.reports_maintenance.build_maintenance_activity", ("machine_id", "machine_name", "machine_type", "is_active", "log_count", "costed_log_count", "total_cost", "average_cost", "last_performed_at", "average_interval_days", "active_schedules", "overdue_schedules"), ("machines", "maintenance")),
+    ReportDefinition("fablab-health", "apps.operations.reports_health.build_fablab_health", (
+        "events_enabled", "events_available", "events_in_period", "events_registrations", "events_attended", "events_completed_attendance_rate_percent",
+        "bookings_enabled", "bookings_available", "bookings_active_spaces", "bookings_non_cancelled", "bookings_reserved_hours", "bookings_upcoming", "bookings_no_shows", "bookings_reservation_utilization_percent",
+        "machines_enabled", "machines_available", "machines_active", "machines_usage_hours",
+        "maintenance_enabled", "maintenance_available", "maintenance_logs", "maintenance_total_cost", "maintenance_overdue_schedules",
+    )),
+)
+
+REPORT_REGISTRY = {definition.key: definition for definition in REPORT_DEFINITIONS}
+REPORT_KEYS = [definition.key for definition in REPORT_DEFINITIONS]
+
+
+def report_definition(report_key, *, for_export=False):
+    definition = REPORT_REGISTRY.get(report_key)
+    if definition is None:
+        raise ReportNotFound()
+    if for_export and not definition.exportable:
+        raise ReportNotExportable()
+    return definition

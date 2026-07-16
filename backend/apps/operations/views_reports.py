@@ -1,15 +1,10 @@
-import csv
-from io import BytesIO, StringIO
-
 from datetime import datetime, time, timedelta
 
-from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, extend_schema
-from openpyxl import Workbook
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -19,16 +14,31 @@ from apps.admin_api.permissions import IsActiveStaff, require_action
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.models import Makerspace
 from apps.operations import accountability, reports
+from apps.operations.report_exports import _csv_response, _xlsx_cell, _xlsx_response
 from apps.operations.schemas_reports import ANALYTICS_REPORT_RESPONSE
-from apps.operations.serializers import (
-    EmptySerializer,
-    GenericObjectSerializer,
-)
+from apps.operations.serializers import EmptySerializer, GenericObjectSerializer
+from apps.operations.serializers_reports import ReportErrorSerializer
+
 
 DATE_RANGE_PARAMETERS = [
     OpenApiParameter("start", OpenApiTypes.DATE, OpenApiParameter.QUERY),
     OpenApiParameter("end", OpenApiTypes.DATE, OpenApiParameter.QUERY),
 ]
+PREVIEW_PARAMETERS = [
+    OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY),
+    *DATE_RANGE_PARAMETERS,
+]
+ERROR_RESPONSES = {
+    400: OpenApiResponse(ReportErrorSerializer, description="Invalid report request."),
+    401: OpenApiResponse(ReportErrorSerializer, description="Authentication required."),
+    403: OpenApiResponse(ReportErrorSerializer, description="Permission denied."),
+    404: OpenApiResponse(ReportErrorSerializer, description="Makerspace or report not found."),
+}
+EXPORT_RESPONSES = {
+    (200, "text/csv"): OpenApiTypes.STR,
+    (200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"): OpenApiTypes.BINARY,
+    **ERROR_RESPONSES,
+}
 
 
 class AnalyticsView(APIView):
@@ -36,17 +46,20 @@ class AnalyticsView(APIView):
     serializer_class = GenericObjectSerializer
 
     @extend_schema(
-        tags=["Analytics"],
-        summary="Get analytics report",
-        request=None,
-        parameters=[OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY), *DATE_RANGE_PARAMETERS],
-        responses={200: ANALYTICS_REPORT_RESPONSE},
+        tags=["Analytics"], summary="Get analytics report", request=None,
+        parameters=PREVIEW_PARAMETERS,
+        responses={200: ANALYTICS_REPORT_RESPONSE, **ERROR_RESPONSES},
     )
     def get(self, request, makerspace_id, report_key="summary", *args, **kwargs):
         makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
         require_action(request.user, rbac.Action.VIEW_AUDIT, makerspace.id)
         require_module(makerspace, "reports")
-        return Response(reports.report_data(report_key, makerspace.id, limit=_limit_param(request), date_range=_date_range(request)))
+        definition = reports.validate_report_key(report_key)
+        _require_source_modules(makerspace, definition.required_modules)
+        return Response(reports.report_data(
+            report_key, makerspace.id,
+            limit=_limit_param(request), date_range=_date_range(request),
+        ))
 
 
 class AccountabilityReportView(APIView):
@@ -54,10 +67,8 @@ class AccountabilityReportView(APIView):
     serializer_class = GenericObjectSerializer
 
     @extend_schema(
-        tags=["Analytics"],
-        summary="Requester accountability dashboard",
-        request=None,
-        responses={200: OpenApiTypes.OBJECT},
+        tags=["Analytics"], summary="Requester accountability dashboard",
+        request=None, responses={200: OpenApiTypes.OBJECT, **ERROR_RESPONSES},
     )
     def get(self, request, makerspace_id, *args, **kwargs):
         makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
@@ -71,19 +82,19 @@ class AggregateAnalyticsView(APIView):
     serializer_class = GenericObjectSerializer
 
     @extend_schema(
-        tags=["Analytics"],
-        summary="Get aggregate analytics report",
-        request=None,
+        tags=["Analytics"], summary="Get aggregate analytics report", request=None,
         parameters=[
             OpenApiParameter("report_key", OpenApiTypes.STR, OpenApiParameter.PATH, enum=reports.REPORT_KEYS),
-            OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY),
-            *DATE_RANGE_PARAMETERS,
+            *PREVIEW_PARAMETERS,
         ],
-        responses={200: ANALYTICS_REPORT_RESPONSE},
+        responses={200: ANALYTICS_REPORT_RESPONSE, **ERROR_RESPONSES},
     )
     def get(self, request, report_key="summary", *args, **kwargs):
         _require_superadmin(request.user)
-        return Response(reports.report_data(report_key, limit=_limit_param(request), date_range=_date_range(request)))
+        reports.validate_report_key(report_key)
+        return Response(reports.report_data(
+            report_key, limit=_limit_param(request), date_range=_date_range(request),
+        ))
 
 
 class ReportExportView(APIView):
@@ -91,28 +102,23 @@ class ReportExportView(APIView):
     serializer_class = EmptySerializer
 
     @extend_schema(
-        tags=["Reports"],
-        summary="Export report",
-        request=None,
+        tags=["Reports"], summary="Export report", request=None,
         parameters=[
             OpenApiParameter("report_key", OpenApiTypes.STR, OpenApiParameter.PATH, enum=reports.REPORT_KEYS),
             OpenApiParameter("format", OpenApiTypes.STR, OpenApiParameter.QUERY, enum=["csv", "xlsx"]),
             *DATE_RANGE_PARAMETERS,
         ],
-        responses={
-            (200, "text/csv"): OpenApiTypes.STR,
-            (200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"): OpenApiTypes.BINARY,
-        },
+        responses=EXPORT_RESPONSES,
     )
     def get(self, request, makerspace_id, report_key, *args, **kwargs):
         makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
         require_action(request.user, rbac.Action.VIEW_AUDIT, makerspace.id)
         require_module(makerspace, "reports")
+        definition = reports.validate_report_key(report_key, for_export=True)
+        _require_source_modules(makerspace, definition.required_modules)
         fmt = _export_format(request)
         rows = reports.report_rows(report_key, makerspace.id, date_range=_date_range(request))
-        if fmt == "xlsx":
-            return _xlsx_response(rows, f"{report_key}.xlsx")
-        return _csv_response(rows, f"{report_key}.csv")
+        return _xlsx_response(rows, f"{report_key}.xlsx") if fmt == "xlsx" else _csv_response(rows, f"{report_key}.csv")
 
 
 class AggregateReportExportView(APIView):
@@ -120,26 +126,20 @@ class AggregateReportExportView(APIView):
     serializer_class = EmptySerializer
 
     @extend_schema(
-        tags=["Reports"],
-        summary="Export aggregate report",
-        request=None,
+        tags=["Reports"], summary="Export aggregate report", request=None,
         parameters=[
             OpenApiParameter("report_key", OpenApiTypes.STR, OpenApiParameter.PATH, enum=reports.REPORT_KEYS),
             OpenApiParameter("format", OpenApiTypes.STR, OpenApiParameter.QUERY, enum=["csv", "xlsx"]),
             *DATE_RANGE_PARAMETERS,
         ],
-        responses={
-            (200, "text/csv"): OpenApiTypes.STR,
-            (200, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"): OpenApiTypes.BINARY,
-        },
+        responses=EXPORT_RESPONSES,
     )
     def get(self, request, report_key, *args, **kwargs):
         _require_superadmin(request.user)
+        reports.validate_report_key(report_key, for_export=True)
         fmt = _export_format(request)
         rows = reports.report_rows(report_key, date_range=_date_range(request))
-        if fmt == "xlsx":
-            return _xlsx_response(rows, f"{report_key}.xlsx")
-        return _csv_response(rows, f"{report_key}.csv")
+        return _xlsx_response(rows, f"{report_key}.xlsx") if fmt == "xlsx" else _csv_response(rows, f"{report_key}.csv")
 
 
 def report_data(makerspace_id, report_key):
@@ -148,6 +148,11 @@ def report_data(makerspace_id, report_key):
 
 def report_rows(makerspace_id, report_key):
     return reports.report_rows(report_key, makerspace_id)
+
+
+def _require_source_modules(makerspace, modules):
+    for module in modules:
+        require_module(makerspace, module)
 
 
 def _date_range(request):
@@ -172,9 +177,6 @@ def _date_param(request, name):
 
 def _makerspace_for_inventory_view(user, makerspace_id):
     queryset = rbac.scope_by_action(user, rbac.Action.VIEW_INVENTORY, Makerspace.objects.all(), field="id")
-    # Soft-hide: a superadmin must not reach a makerspace that turned off superadmin
-    # access by querying it directly by id (the aggregate paths already exclude it).
-    # No-op for non-superadmins, so a hidden space's own staff keep their reports.
     queryset = rbac.hide_from_superadmin(user, queryset, field="id")
     return get_object_or_404(queryset, pk=makerspace_id)
 
@@ -203,49 +205,8 @@ def _positive_int_param(request, name, default, maximum):
 
 
 def _page_params(request):
-    return (
-        _positive_int_param(request, "page", 1, 1000000),
-        _positive_int_param(request, "page_size", 100, 500),
-    )
+    return (_positive_int_param(request, "page", 1, 1000000), _positive_int_param(request, "page_size", 100, 500))
 
 
 def _limit_param(request):
     return _positive_int_param(request, "limit", reports.DEFAULT_REPORT_LIMIT, reports.MAX_REPORT_LIMIT)
-
-
-def _csv_response(rows, filename):
-    buffer = StringIO()
-    writer = csv.writer(buffer)
-    writer.writerows([[_export_cell(value) for value in row] for row in rows])
-    response = HttpResponse(buffer.getvalue(), content_type="text/csv")
-    response["Content-Disposition"] = f'attachment; filename="{filename}"'
-    return response
-
-
-def _xlsx_response(rows, filename):
-    wb = Workbook()
-    ws = wb.active
-    for row in rows:
-        # openpyxl raises on tz-aware datetimes ("Excel does not support timezones");
-        # report rows (e.g. active-loans issued_at, returns closed_at) carry aware
-        # datetimes, so drop tzinfo before writing the cell.
-        ws.append([_xlsx_cell(value) for value in row])
-    buffer = BytesIO()
-    wb.save(buffer)
-    response = HttpResponse(buffer.getvalue(), content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    response["Content-Disposition"] = f'attachment; filename="{filename}"'
-    return response
-
-
-def _xlsx_cell(value):
-    from datetime import datetime as _dt
-
-    if isinstance(value, _dt) and value.tzinfo is not None:
-        return value.replace(tzinfo=None)
-    return _export_cell(value)
-
-
-def _export_cell(value):
-    if isinstance(value, str) and value.startswith(("=", "+", "-", "@", "\t", "\r")):
-        return f"'{value}"
-    return value

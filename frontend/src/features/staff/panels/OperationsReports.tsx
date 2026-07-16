@@ -2,27 +2,16 @@ import { useEffect, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 
 import { downloadStaffFile } from "../../../lib/api";
-import {
-  BarChart,
-  DataState,
-  PerMakerspaceTables,
-  ReportTable,
-  StatCards,
-  chartRows,
-  reportRows,
-  type ReportRows,
-} from "./OperationsReportsParts";
+import { DataState, StatCards } from "./OperationsReportsParts";
+import { OperationsReportsFablab } from "./OperationsReportsFablab";
+import { OperationsReportsHardware } from "./OperationsReportsHardware";
 import { PrintingReportSection } from "./OperationsReportsPrinting";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 
 type Summary = {
-  products: number;
-  assets: number;
-  active_loans: number;
-  available_quantity: number;
-  issued_quantity: number;
-  damaged_quantity: number;
-  missing_quantity: number;
+  products: number; assets: number; active_loans: number;
+  available_quantity: number; issued_quantity: number;
+  damaged_quantity: number; missing_quantity: number;
 };
 
 const reportDefinitions = [
@@ -36,22 +25,29 @@ const reportDefinitions = [
   { key: "most-lent", title: "Most lent" },
   { key: "top-borrowers", title: "Top borrowers" },
   { key: "recently-added", title: "Recently added" },
+  { key: "machine-usage", title: "Machine usage" },
+  { key: "event-attendance", title: "Event attendance" },
+  { key: "booking-utilization", title: "Booking utilization" },
+  { key: "maintenance-activity", title: "Maintenance activity" },
+  { key: "fablab-health", title: "FabLab health" },
 ] as const;
 
 type ReportKey = (typeof reportDefinitions)[number]["key"];
 
 type SavedReportView = {
-  id: string;
-  name: string;
-  startDate: string;
-  endDate: string;
-  scope: "all" | `makerspace:${number}`;
-  scopeLabel: string;
+  id: string; name: string; startDate: string; endDate: string;
+  scope: "all" | `makerspace:${number}`; scopeLabel: string;
   selectedReport: ReportKey;
 };
 
 const savedViewsStorageKey = "operations-reports-saved-views-v1";
-const exportReports = reportDefinitions.map((report) => report.key);
+const exportReports = reportDefinitions.map((report) => report.key).filter((key) => key !== "summary");
+function sourceModule(key: ReportKey) {
+  if (key === "machine-usage" || key === "maintenance-activity") return "machines";
+  if (key === "event-attendance") return "events";
+  if (key === "booking-utilization") return "bookings";
+  return null;
+}
 function isReportKey(value: string): value is ReportKey {
   return reportDefinitions.some((report) => report.key === value);
 }
@@ -119,24 +115,19 @@ export function OperationsReports({
   const reportsBase = aggregate ? "/admin/reports" : `/admin/makerspace/${makerspace.id}/reports`;
   const dateQuery = [startDate ? `start=${encodeURIComponent(startDate)}` : "", endDate ? `end=${encodeURIComponent(endDate)}` : ""].filter(Boolean).join("&");
   const dateSuffix = dateQuery ? `&${dateQuery}` : "";
-  const analyticsPreview = (report: string) => `${analyticsBase}/${report}?limit=100${dateSuffix}`;
-
-  // Hardware report data contains borrower PII and requires VIEW_AUDIT; print-only
-  // users keep this tab for printing reports without firing hardware queries.
-  const hardwareEnabled = canViewAudit;
+  const reportsEnabled = aggregate || (makerspace.enabled_modules ?? []).includes("reports");
+  const hardwareEnabled = canViewAudit && reportsEnabled;
   const summary = useStaffGet<Summary>(["operations-report", "summary", scopeKey, startDate, endDate], `${analyticsBase}/summary?${dateQuery}`, hardwareEnabled);
-  const mostLent = useStaffGet<ReportRows>(["operations-report", "most-lent", scopeKey, startDate, endDate], analyticsPreview("most-lent"), hardwareEnabled);
-  const topBorrowers = useStaffGet<ReportRows>(["operations-report", "top-borrowers", scopeKey, startDate, endDate], analyticsPreview("top-borrowers"), hardwareEnabled);
-  const damagedLost = useStaffGet<ReportRows>(["operations-report", "damaged-lost", scopeKey, startDate, endDate], analyticsPreview("damaged-lost"), hardwareEnabled);
-  const recentlyAdded = useStaffGet<ReportRows>(["operations-report", "recently-added", scopeKey, startDate, endDate], analyticsPreview("recently-added"), hardwareEnabled);
-  const takenItems = useStaffGet<ReportRows>(["operations-report", "taken-items", scopeKey, startDate, endDate], analyticsPreview("taken-items"), hardwareEnabled);
-  const activeLoans = useStaffGet<ReportRows>(["operations-report", "active-loans", scopeKey, startDate, endDate], analyticsPreview("active-loans"), hardwareEnabled);
-  const returns = useStaffGet<ReportRows>(["operations-report", "returns", scopeKey, startDate, endDate], analyticsPreview("returns"), hardwareEnabled);
-  const qrScans = useStaffGet<ReportRows>(["operations-report", "qr-scans", scopeKey, startDate, endDate], analyticsPreview("qr-scans"), hardwareEnabled);
 
   const scopeLabel = aggregate ? "all makerspaces" : makerspace.name;
   const currentScope: SavedReportView["scope"] = aggregate ? "all" : `makerspace:${makerspace.id}`;
   const makerspaceName = (id: number) => makerspaces.find((space) => space.id === id)?.name ?? `#${id}`;
+  const availableExports = exportReports.filter((key) => {
+    if (!reportsEnabled) return false;
+    const module = sourceModule(key);
+    if (key === "maintenance-activity" && !aggregate && !(makerspace.enabled_modules ?? []).includes("maintenance")) return false;
+    return aggregate || module === null || (makerspace.enabled_modules ?? []).includes(module);
+  });
   const saveCurrentView = () => {
     const name = presetName.trim() || `${reportTitle(selectedReport)} - ${scopeLabel}`;
     const view: SavedReportView = {
@@ -250,7 +241,7 @@ export function OperationsReports({
             </div>
           ) : null}
         </div>
-        {!printingOnly ? (
+        {!printingOnly && reportsEnabled ? (
           <DataState loading={summary.isLoading} error={summary.error} empty={!summary.data}>
             <StatCards
               stats={[
@@ -264,14 +255,14 @@ export function OperationsReports({
               ]}
             />
           </DataState>
-        ) : null}
+        ) : !printingOnly ? <p className="mt-3 text-sm text-muted">Module disabled</p> : null}
       </Panel>
 
       {!printingOnly ? (
       <>
       <Panel title="Exports">
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {exportReports.map((report) => (
+          {availableExports.map((report) => (
             <div key={report} className={`rounded-md border p-3 ${selectedReport === report ? "border-accent bg-accent/10" : "border-line bg-bg"}`}>
               <p className="text-sm font-semibold text-ink">{reportTitle(report)}</p>
               <div className="mt-3 flex gap-2">
@@ -292,71 +283,11 @@ export function OperationsReports({
         ) : null}
       </Panel>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Panel title="Most lent">
-          <DataState loading={mostLent.isLoading} error={mostLent.error} empty={!reportRows(mostLent.data).length}>
-            <BarChart rows={chartRows(mostLent.data, "product_name", "times_lent")} valueLabel="loans" />
-            <ReportTable data={mostLent.data} />
-          </DataState>
-        </Panel>
-
-        <Panel title="Top borrowers">
-          <DataState loading={topBorrowers.isLoading} error={topBorrowers.error} empty={!reportRows(topBorrowers.data).length}>
-            {aggregate ? (
-              <PerMakerspaceTables data={topBorrowers.data} nameOf={makerspaceName} />
-            ) : (
-              <>
-                <BarChart rows={chartRows(topBorrowers.data, "holder", "requests")} valueLabel="requests" />
-                <ReportTable data={topBorrowers.data} />
-              </>
-            )}
-          </DataState>
-        </Panel>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Panel title="Damaged / lost">
-          <DataState loading={damagedLost.isLoading} error={damagedLost.error} empty={!reportRows(damagedLost.data).length}>
-            <ReportTable data={damagedLost.data} />
-          </DataState>
-        </Panel>
-
-        <Panel title="Recently added">
-          <DataState loading={recentlyAdded.isLoading} error={recentlyAdded.error} empty={!reportRows(recentlyAdded.data).length}>
-            <ReportTable data={recentlyAdded.data} />
-          </DataState>
-        </Panel>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Panel title="Taken items">
-          <DataState loading={takenItems.isLoading} error={takenItems.error} empty={!reportRows(takenItems.data).length}>
-            <ReportTable data={takenItems.data} />
-          </DataState>
-        </Panel>
-
-        <Panel title="Active loans">
-          <DataState loading={activeLoans.isLoading} error={activeLoans.error} empty={!reportRows(activeLoans.data).length}>
-            <ReportTable data={activeLoans.data} />
-          </DataState>
-        </Panel>
-      </div>
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <Panel title="Returns">
-          <DataState loading={returns.isLoading} error={returns.error} empty={!reportRows(returns.data).length}>
-            <ReportTable data={returns.data} />
-          </DataState>
-        </Panel>
-
-        <Panel title="QR scans">
-          <DataState loading={qrScans.isLoading} error={qrScans.error} empty={!reportRows(qrScans.data).length}>
-            <ReportTable data={qrScans.data} />
-          </DataState>
-        </Panel>
-      </div>
+      <OperationsReportsHardware analyticsBase={analyticsBase} scopeKey={scopeKey} startDate={startDate} endDate={endDate} enabled={hardwareEnabled} aggregate={aggregate} makerspaceName={makerspaceName} />
       </>
       ) : null}
+
+      {!printingOnly ? <OperationsReportsFablab makerspace={makerspace} aggregate={aggregate} canViewAudit={canViewAudit} startDate={startDate} endDate={endDate} makerspaceName={makerspaceName} /> : null}
 
       {canSeePrinting ? (
         <PrintingReportSection makerspace={makerspace} aggregate={aggregate} makerspaceName={makerspaceName} startDate={startDate} endDate={endDate} />

@@ -59,6 +59,10 @@ class Event(models.Model):
         ]
         indexes = [
             models.Index(
+                fields=["makerspace", "starts_at"],
+                name="event_ms_starts_idx",
+            ),
+            models.Index(
                 fields=["makerspace", "status", "starts_at"],
                 name="event_ms_status_start_idx",
             ),

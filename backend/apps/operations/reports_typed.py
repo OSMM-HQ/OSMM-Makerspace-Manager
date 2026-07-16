@@ -54,3 +54,14 @@ def typed_report_rows(report_key, rows):
                 item[field] = raw_row[header.index(column)]
         typed.append(item)
     return typed
+
+
+def typed_result_rows(result, value_adapter=lambda value: value):
+    """Project a canonical ReportResult without duplicating per-report field maps."""
+    return [
+        {
+            field: value_adapter(record.get(field))
+            for field in result.field_order
+        }
+        for record in result.records
+    ]
