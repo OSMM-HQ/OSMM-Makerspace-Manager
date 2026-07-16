@@ -1,0 +1,111 @@
+from django.db.models import Count, Q
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from drf_spectacular.utils import OpenApiResponse, extend_schema
+from rest_framework import status
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from apps.apiclients.throttling import ClientTierRateThrottle
+from apps.events import services
+from apps.events.models import Event, EventRegistration
+from apps.events.serializers_public import (
+    PublicEventRegistrationInputSerializer,
+    PublicEventRegistrationResponseSerializer,
+    PublicEventSerializer,
+)
+from apps.hardware_requests.exceptions import ErrorSerializer
+from apps.makerspaces.guards import require_module
+from apps.makerspaces.lookup import get_public_makerspace
+
+
+PUBLIC_EVENT_ERRORS = {
+    400: OpenApiResponse(ErrorSerializer, description='Invalid registration.'),
+    404: OpenApiResponse(ErrorSerializer, description='Event not found.'),
+    409: OpenApiResponse(ErrorSerializer, description='Event state conflict.'),
+    429: OpenApiResponse(ErrorSerializer, description='Rate limit exceeded.'),
+}
+
+
+def _public_events(makerspace):
+    return Event.objects.filter(
+        makerspace=makerspace,
+        is_public=True,
+        status=Event.Status.PUBLISHED,
+        ends_at__gte=timezone.now(),
+    )
+
+
+class PublicEventListView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [ClientTierRateThrottle]
+    throttle_scope = 'public_read'
+
+    @extend_schema(
+        tags=['Public events'],
+        auth=[],
+        request=None,
+        responses={200: PublicEventSerializer(many=True), **PUBLIC_EVENT_ERRORS},
+    )
+    def get(self, request, makerspace_slug):
+        makerspace = get_public_makerspace(makerspace_slug)
+        require_module(makerspace, 'events')
+        events = (
+            _public_events(makerspace)
+            .annotate(
+                confirmed_count=Count(
+                    'registrations',
+                    filter=Q(
+                        registrations__status__in=(
+                            EventRegistration.Status.REGISTERED,
+                            EventRegistration.Status.ATTENDED,
+                        )
+                    ),
+                )
+            )
+            .order_by('starts_at', 'id')
+        )
+        return Response(PublicEventSerializer(events, many=True).data)
+
+
+class PublicEventRegistrationView(APIView):
+    permission_classes = [AllowAny]
+    throttle_classes = [ClientTierRateThrottle]
+    throttle_scope = 'event_register'
+
+    @extend_schema(
+        tags=['Public events'],
+        auth=[],
+        request=PublicEventRegistrationInputSerializer,
+        responses={
+            201: PublicEventRegistrationResponseSerializer,
+            **PUBLIC_EVENT_ERRORS,
+        },
+    )
+    def post(self, request, makerspace_slug, public_token):
+        makerspace = get_public_makerspace(makerspace_slug)
+        require_module(makerspace, 'events')
+        event = get_object_or_404(
+            _public_events(makerspace),
+            public_token=public_token,
+        )
+
+        website = request.data.get('website')
+        if website and str(website).strip():
+            return Response(
+                {'status': EventRegistration.Status.REGISTERED},
+                status=status.HTTP_201_CREATED,
+            )
+
+        serializer = PublicEventRegistrationInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        registration = services.register(
+            event,
+            actor=None,
+            **serializer.validated_data,
+        )
+        return Response(
+            PublicEventRegistrationResponseSerializer(registration).data,
+            status=status.HTTP_201_CREATED,
+        )
