@@ -10,6 +10,7 @@ from apps.accounts.models import User
 from apps.inventory import public_image_storage
 from apps.integrations.email import platform_email_configured
 from apps.integrations.smtp_validation import validate_smtp_settings
+from apps.integrations.webhook_validation import validate_webhook_url
 from apps.makerspaces import domain_verification, limits
 from apps.makerspaces.hosting import canonical_host
 from apps.makerspaces.models import (
@@ -51,6 +52,14 @@ class MakerspaceSerializer(serializers.ModelSerializer):
     )
     telegram_bot_token_set = serializers.SerializerMethodField()
     smtp_password_set = serializers.SerializerMethodField()
+    slack_webhook_url = serializers.CharField(
+        write_only=True, required=False, allow_blank=True, max_length=2048
+    )
+    mattermost_webhook_url = serializers.CharField(
+        write_only=True, required=False, allow_blank=True, max_length=2048
+    )
+    slack_webhook_url_set = serializers.SerializerMethodField()
+    mattermost_webhook_url_set = serializers.SerializerMethodField()
     logo_url = serializers.SerializerMethodField()
     cover_image_url = serializers.SerializerMethodField()
     domain_verification_record = serializers.SerializerMethodField()
@@ -114,6 +123,10 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "smtp_use_tls",
             "smtp_use_ssl",
             "smtp_from_email",
+            "slack_webhook_url",
+            "slack_webhook_url_set",
+            "mattermost_webhook_url",
+            "mattermost_webhook_url_set",
             "default_loan_days",
             "created_at",
             "updated_at",
@@ -133,6 +146,8 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "is_platform_subdomain",
             "telegram_bot_token_set",
             "smtp_password_set",
+            "slack_webhook_url_set",
+            "mattermost_webhook_url_set",
             # branding_config is returned (so the settings form can seed the
             # current display-name override) but only written via the validated
             # public_display_name field, never as an unchecked whole-blob PATCH.
@@ -146,6 +161,18 @@ class MakerspaceSerializer(serializers.ModelSerializer):
 
     def get_smtp_password_set(self, obj) -> bool:
         return bool(obj.smtp_password)
+
+    def get_slack_webhook_url_set(self, obj) -> bool:
+        return bool(obj.slack_webhook_url)
+
+    def get_mattermost_webhook_url_set(self, obj) -> bool:
+        return bool(obj.mattermost_webhook_url)
+
+    def validate_slack_webhook_url(self, value):
+        return validate_webhook_url(value)
+
+    def validate_mattermost_webhook_url(self, value):
+        return validate_webhook_url(value)
 
     @extend_schema_field({"type": "string", "format": "uri", "nullable": True})
     def get_logo_url(self, obj):
@@ -345,6 +372,8 @@ class MakerspaceSerializer(serializers.ModelSerializer):
         missing = object()
         telegram_bot_token = validated_data.pop("telegram_bot_token", missing)
         smtp_password = validated_data.pop("smtp_password", missing)
+        slack_webhook_url = validated_data.pop("slack_webhook_url", missing)
+        mattermost_webhook_url = validated_data.pop("mattermost_webhook_url", missing)
         public_display_name = validated_data.pop("public_display_name", missing)
         new_flag = validated_data.pop("superadmin_access_enabled", None)
         with transaction.atomic():
@@ -408,5 +437,9 @@ class MakerspaceSerializer(serializers.ModelSerializer):
                 locked.set_telegram_bot_token(telegram_bot_token)
             if smtp_password is not missing:
                 locked.set_smtp_password(smtp_password)
+            if slack_webhook_url is not missing:
+                locked.set_slack_webhook_url(slack_webhook_url)
+            if mattermost_webhook_url is not missing:
+                locked.set_mattermost_webhook_url(mattermost_webhook_url)
             locked.save()
             return locked

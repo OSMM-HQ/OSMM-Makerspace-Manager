@@ -21450,6 +21450,24 @@
                         "format": "email",
                         "maxLength": 254
                     },
+                    "slack_webhook_url": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 2048
+                    },
+                    "slack_webhook_url_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "mattermost_webhook_url": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 2048
+                    },
+                    "mattermost_webhook_url_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
                     "default_loan_days": {
                         "type": "integer",
                         "maximum": 2147483647,
@@ -21458,8 +21476,10 @@
                 },
                 "required": [
                     "cors_allowed_origins",
+                    "mattermost_webhook_url_set",
                     "public_api_key",
                     "public_code",
+                    "slack_webhook_url_set",
                     "smtp_password_set",
                     "telegram_bot_token_set"
                 ]
@@ -26723,6 +26743,24 @@
                         "format": "email",
                         "maxLength": 254
                     },
+                    "slack_webhook_url": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 2048
+                    },
+                    "slack_webhook_url_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "mattermost_webhook_url": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 2048
+                    },
+                    "mattermost_webhook_url_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
                     "default_loan_days": {
                         "type": "integer",
                         "maximum": 2147483647,
@@ -26752,9 +26790,11 @@
                     "is_platform_subdomain",
                     "logo_key",
                     "logo_url",
+                    "mattermost_webhook_url_set",
                     "name",
                     "platform_hosting",
                     "public_api_key",
+                    "slack_webhook_url_set",
                     "slug",
                     "smtp_password_set",
                     "telegram_bot_token_set",
@@ -28562,6 +28602,24 @@
                         "format": "email",
                         "maxLength": 254
                     },
+                    "slack_webhook_url": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 2048
+                    },
+                    "slack_webhook_url_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "mattermost_webhook_url": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 2048
+                    },
+                    "mattermost_webhook_url_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
                     "default_loan_days": {
                         "type": "integer",
                         "maximum": 2147483647,
@@ -29336,6 +29394,24 @@
                         "type": "string",
                         "format": "email",
                         "maxLength": 254
+                    },
+                    "slack_webhook_url": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 2048
+                    },
+                    "slack_webhook_url_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "mattermost_webhook_url": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 2048
+                    },
+                    "mattermost_webhook_url_set": {
+                        "type": "boolean",
+                        "readOnly": true
                     },
                     "default_loan_days": {
                         "type": "integer",
