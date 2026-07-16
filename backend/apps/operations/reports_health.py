@@ -126,12 +126,16 @@ def _booking_rows(ids, date_range, now):
     clipped_start = Greatest(F(f"{path}__starts_at"), Value(start)) if start else F(f"{path}__starts_at")
     clipped_end = Least(F(f"{path}__ends_at"), Value(end)) if end else F(f"{path}__ends_at")
     duration = ExpressionWrapper(clipped_end - clipped_start, output_field=DurationField())
-    active = (Booking.Status.BOOKED, Booking.Status.COMPLETED, Booking.Status.NO_SHOW)
+    active = (
+        Booking.Status.CONFIRMED,
+        Booking.Status.COMPLETED,
+        Booking.Status.NO_SHOW,
+    )
     rows = list(Makerspace.objects.filter(id__in=ids).values("id").annotate(
         spaces=Count("bookable_spaces", filter=Q(bookable_spaces__is_active=True), distinct=True),
         bookings=Count(path, filter=overlap & Q(**{f"{path}__status__in": active})),
         reserved=Sum(duration, filter=overlap & Q(**{f"{path}__status__in": active})),
-        upcoming=Count(path, filter=overlap & Q(**{f"{path}__status": Booking.Status.BOOKED, f"{path}__starts_at__gte": now})),
+        upcoming=Count(path, filter=overlap & Q(**{f"{path}__status": Booking.Status.CONFIRMED, f"{path}__starts_at__gte": now})),
         no_shows=Count(path, filter=overlap & Q(**{f"{path}__status": Booking.Status.NO_SHOW})),
     ))
     window = _hours(end - start) if start and end else None

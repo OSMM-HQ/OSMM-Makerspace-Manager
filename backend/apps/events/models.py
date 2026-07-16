@@ -4,6 +4,8 @@ from django.conf import settings
 from django.db import models
 from django.db.models import F, Q
 
+from apps.forms_schema.validation import validate_form_schema
+
 
 class Event(models.Model):
     class Status(models.TextChoices):
@@ -11,6 +13,11 @@ class Event(models.Model):
         PUBLISHED = "published", "Published"
         CANCELLED = "cancelled", "Cancelled"
         COMPLETED = "completed", "Completed"
+
+    class LocationKind(models.TextChoices):
+        INDOOR = 'indoor', 'Indoor'
+        OUTDOOR = 'outdoor', 'Outdoor'
+        OTHER = 'other', 'Other'
 
     public_token = models.UUIDField(
         default=uuid4,
@@ -28,6 +35,17 @@ class Event(models.Model):
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField()
     location = models.CharField(max_length=255, blank=True)
+    location_kind = models.CharField(
+        max_length=8,
+        choices=LocationKind.choices,
+        default=LocationKind.OTHER,
+    )
+    custom_form = models.JSONField(
+        null=True,
+        blank=True,
+        default=None,
+        validators=[validate_form_schema],
+    )
     capacity = models.PositiveIntegerField(default=0)
     is_public = models.BooleanField(default=False)
     status = models.CharField(
@@ -98,6 +116,7 @@ class EventRegistration(models.Model):
     name = models.CharField(max_length=200)
     email = models.EmailField(max_length=254)
     phone = models.CharField(max_length=32)
+    custom_answers = models.JSONField(null=True, blank=True, default=None)
     status = models.CharField(
         max_length=16,
         choices=Status.choices,

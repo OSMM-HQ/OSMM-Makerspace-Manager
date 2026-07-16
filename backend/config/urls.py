@@ -35,6 +35,7 @@ def docs_root(_request):
 urlpatterns = [
     path('api/v1/', include('apps.machines.urls')),
     path('api/v1/public/', include('apps.events.urls_public')),
+    path('api/v1/public/', include('apps.bookings.urls_public')),
     path("api/v1/", include("apps.roadmap.urls")),
     path(
         "api/v1/internal/tls-check",

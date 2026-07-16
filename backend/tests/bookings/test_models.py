@@ -48,6 +48,17 @@ def test_space_defaults_are_other_unlimited_private_active_and_image_null():
     assert space.show_public_booker_names is False
     assert space.is_active is True
     assert space.image_key is None
+    assert space.approval_mode == BookableSpace.ApprovalMode.INSTANT
+    assert space.custom_form is None
+    assert space.requester_notifications_enabled is None
+    assert space.makerspace.booking_requester_notifications_enabled is False
+
+
+def test_booking_defaults_to_confirmed_with_no_custom_answers():
+    booking = make_booking(make_space(make_makerspace('booking-answer-defaults')))
+
+    assert booking.status == Booking.Status.CONFIRMED
+    assert booking.custom_answers is None
 
 
 def test_all_space_kinds_and_booking_statuses_round_trip():
@@ -204,3 +215,28 @@ def test_new_makerspaces_enable_bookings_by_default_after_events():
     assert makerspace.enabled_modules.index("bookings") == (
         makerspace.enabled_modules.index("events") + 1
     )
+
+
+def test_booking_status_data_migration_and_lossy_reverse():
+    migration = import_module(
+        'apps.bookings.migrations.0003_public_booking_custom_forms'
+    )
+    space = make_space(make_makerspace('booking-status-migration'))
+    confirmed = make_booking(space, email='confirmed@example.com')
+    pending = make_booking(space, email='pending@example.com')
+    rejected = make_booking(space, email='rejected@example.com')
+
+    Booking.objects.filter(pk=confirmed.pk).update(status='booked')
+    migration.booked_to_confirmed(django_apps, None)
+    confirmed.refresh_from_db()
+    assert confirmed.status == Booking.Status.CONFIRMED
+
+    Booking.objects.filter(pk=pending.pk).update(status=Booking.Status.PENDING)
+    Booking.objects.filter(pk=rejected.pk).update(status=Booking.Status.REJECTED)
+    migration.confirmed_to_booked(django_apps, None)
+    confirmed.refresh_from_db()
+    pending.refresh_from_db()
+    rejected.refresh_from_db()
+    assert confirmed.status == 'booked'
+    assert pending.status == Booking.Status.CANCELLED
+    assert rejected.status == Booking.Status.CANCELLED

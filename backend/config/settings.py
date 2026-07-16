@@ -56,6 +56,7 @@ MANAGED_RESOURCE_LIMITS = {
     "assets": 2000,
     "machines": 5,
     "events": 10,
+    "bookings": 500,
     "staff": 10,
     "storage": 1073741824,
     "print": 200,
@@ -414,6 +415,7 @@ REST_FRAMEWORK = {
         "client_public": env("THROTTLE_CLIENT_PUBLIC", default="30/min"),
         "client_standard": env("THROTTLE_CLIENT_STANDARD", default="120/min"),
         "client_trusted": env("THROTTLE_CLIENT_TRUSTED", default="600/min"),
+        'booking_submit': env('THROTTLE_BOOKING_SUBMIT', default='10/hour'),
     },
     # Proxy-aware client IP for throttling. Default None = DRF's legacy behavior
     # (REMOTE_ADDR, or the raw X-Forwarded-For string if present). Behind a CDN/reverse

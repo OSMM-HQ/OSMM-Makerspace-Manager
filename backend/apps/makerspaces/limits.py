@@ -4,6 +4,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 
 from django.conf import settings
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.makerspaces.domain_verification import is_self_host
@@ -14,6 +15,7 @@ NUMERIC_LIMIT_KEYS = frozenset(
         "assets",
         "machines",
         "events",
+        "bookings",
         "staff",
         "storage",
         "print",
@@ -29,6 +31,7 @@ RESOURCE_LABELS = {
     "assets": "assets",
     "machines": "machines",
     "events": "events",
+    "bookings": "active bookings",
     "staff": "staff members",
     "storage": "storage",
     "print": "monthly print requests",
@@ -98,6 +101,16 @@ def _staff(makerspace) -> int:
         makerspace=makerspace,
         user__is_active=True,
         user__access_status=User.AccessStatus.ACTIVE,
+    ).count()
+
+
+def _bookings(makerspace) -> int:
+    from apps.bookings.models import Booking
+
+    return Booking.objects.filter(
+        space__makerspace=makerspace,
+        status__in=(Booking.Status.PENDING, Booking.Status.CONFIRMED),
+        ends_at__gt=timezone.now(),
     ).count()
 
 
@@ -189,6 +202,7 @@ _COUNTERS: dict[str, Callable[[object], int]] = {
     "assets": _assets,
     "machines": _machines,
     "events": _events,
+    "bookings": _bookings,
     "staff": _staff,
     "api_clients": _api_clients,
     "print": _print_requests,

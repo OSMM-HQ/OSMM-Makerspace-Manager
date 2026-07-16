@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from apps.events.capacity import availability_label
 from apps.events.models import Event, EventRegistration
+from apps.forms_schema.serializers import CustomFormSubmissionMixin
 
 
 PUBLIC_EVENT_FIELDS = (
@@ -12,6 +13,8 @@ PUBLIC_EVENT_FIELDS = (
     'starts_at',
     'ends_at',
     'location',
+    'location_kind',
+    'custom_form',
     'capacity',
     'availability',
     'status',
@@ -25,6 +28,11 @@ class PublicEventSerializer(serializers.Serializer):
     starts_at = serializers.DateTimeField(read_only=True)
     ends_at = serializers.DateTimeField(read_only=True)
     location = serializers.CharField(read_only=True)
+    location_kind = serializers.ChoiceField(
+        choices=Event.LocationKind.choices,
+        read_only=True,
+    )
+    custom_form = serializers.JSONField(allow_null=True, read_only=True)
     capacity = serializers.IntegerField(min_value=0, read_only=True)
     availability = serializers.SerializerMethodField()
     status = serializers.ChoiceField(
@@ -42,10 +50,16 @@ class PublicEventSerializer(serializers.Serializer):
         return availability_label(obj)
 
 
-class PublicEventRegistrationInputSerializer(serializers.Serializer):
+class PublicEventRegistrationInputSerializer(
+    CustomFormSubmissionMixin,
+    serializers.Serializer,
+):
     name = serializers.CharField(max_length=200, write_only=True)
     email = serializers.EmailField(max_length=254, write_only=True)
     phone = serializers.CharField(max_length=32, write_only=True)
+
+    def custom_form_schema(self):
+        return self.context['event'].custom_form
 
 
 class PublicEventRegistrationResponseSerializer(serializers.Serializer):

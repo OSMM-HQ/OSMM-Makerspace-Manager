@@ -21,6 +21,8 @@ EXPECTED_FIELDS = {
     'starts_at',
     'ends_at',
     'location',
+    'location_kind',
+    'custom_form',
     'capacity',
     'availability',
     'status',
@@ -46,13 +48,18 @@ FORBIDDEN_KEYS = {
     'name',
     'organizer',
     'waitlisted',
+    'custom_answers',
 }
 
 
 def assert_no_public_leak(value, sentinels):
     if isinstance(value, dict):
+        is_schema_question = set(value) == {
+            'id', 'label', 'type', 'options', 'required',
+        }
         for key, nested in value.items():
-            assert key.lower() not in FORBIDDEN_KEYS
+            if not is_schema_question:
+                assert key.lower() not in FORBIDDEN_KEYS
             assert_no_public_leak(nested, sentinels)
     elif isinstance(value, list):
         for nested in value:
@@ -70,6 +77,7 @@ def test_public_event_exact_allowlist_and_recursive_sentinel_leak_sweep():
         'Sentinel Registration Name',
         'registration-sentinel@example.com',
         '+919999999999',
+        'Sentinel private answer',
     }
     creator = User.objects.create_user(
         username='sentinel-creator',
@@ -85,6 +93,14 @@ def test_public_event_exact_allowlist_and_recursive_sentinel_leak_sweep():
         starts_at=start,
         ends_at=start + timedelta(hours=2),
         location='Main hall',
+        location_kind=Event.LocationKind.INDOOR,
+        custom_form=[{
+            'id': 'private_note',
+            'label': 'Private note',
+            'type': 'short_text',
+            'options': [],
+            'required': False,
+        }],
         capacity=10,
         is_public=True,
         status=Event.Status.PUBLISHED,
@@ -94,6 +110,15 @@ def test_public_event_exact_allowlist_and_recursive_sentinel_leak_sweep():
         name='Sentinel Registration Name',
         email='registration-sentinel@example.com',
         phone='+919999999999',
+        custom_answers={
+            'version': 1,
+            'answers': [{
+                'id': 'private_note',
+                'label': 'Private note',
+                'type': 'short_text',
+                'value': 'Sentinel private answer',
+            }],
+        },
         status=EventRegistration.Status.WAITLISTED,
     )
 
@@ -112,8 +137,31 @@ def test_public_event_exact_allowlist_and_recursive_sentinel_leak_sweep():
     assert set(row) == EXPECTED_FIELDS
     assert row['public_token'] == str(event.public_token)
     assert row['description'] == '<script>alert(1)</script>'
+    assert row['location_kind'] == Event.LocationKind.INDOOR
+    assert row['custom_form'] == event.custom_form
     assert row['availability'] in {'Available', 'Limited', 'Full'}
     assert_no_public_leak(response.data, sentinels)
+    assert_no_public_leak(PublicEventSerializer(event).data, sentinels)
+
+    registration_response = APIClient().post(
+        reverse(
+            'public-event-register',
+            kwargs={
+                'makerspace_slug': space.slug,
+                'public_token': event.public_token,
+            },
+        ),
+        {
+            'name': 'Another guest',
+            'email': 'another@example.com',
+            'phone': '1234567890',
+            'custom_answers': {'private_note': 'Sentinel private answer'},
+        },
+        format='json',
+    )
+    assert registration_response.status_code == 201
+    assert set(registration_response.data) == {'status'}
+    assert_no_public_leak(registration_response.data, sentinels)
 
 
 def test_openapi_has_exact_public_contracts_and_documented_errors():
@@ -136,7 +184,9 @@ def test_openapi_has_exact_public_contracts_and_documented_errors():
     assert {'id', 'pk', 'makerspace', 'created_by'} & set(
         event_schema['properties']
     ) == set()
-    assert set(input_schema['properties']) == {'name', 'email', 'phone'}
+    assert set(input_schema['properties']) == {
+        'name', 'email', 'phone', 'custom_answers',
+    }
     assert set(input_schema['required']) == {'name', 'email', 'phone'}
     assert all(
         field['writeOnly'] for field in input_schema['properties'].values()

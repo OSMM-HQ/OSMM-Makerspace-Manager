@@ -4,6 +4,7 @@ from rest_framework import serializers
 from apps.bookings import storage
 from apps.bookings.exceptions import BookerNamesRequiresAvailability
 from apps.bookings.models import BookableSpace, Booking
+from apps.forms_schema.serializers import CustomFormSchemaField
 
 
 class BookableSpaceWriteSerializer(serializers.Serializer):
@@ -24,6 +25,20 @@ class BookableSpaceWriteSerializer(serializers.Serializer):
     is_public = serializers.BooleanField(default=False, required=False)
     show_public_availability = serializers.BooleanField(default=False, required=False)
     show_public_booker_names = serializers.BooleanField(default=False, required=False)
+    approval_mode = serializers.ChoiceField(
+        choices=BookableSpace.ApprovalMode.choices,
+        default=BookableSpace.ApprovalMode.INSTANT,
+        required=False,
+    )
+    custom_form = CustomFormSchemaField(
+        allow_null=True,
+        required=False,
+    )
+    requester_notifications_enabled = serializers.BooleanField(
+        allow_null=True,
+        default=None,
+        required=False,
+    )
 
     def validate(self, attrs):
         availability = attrs.get(
@@ -43,6 +58,7 @@ class BookableSpaceAdminSerializer(serializers.ModelSerializer):
     makerspace_id = serializers.IntegerField(read_only=True)
     created_by_id = serializers.IntegerField(allow_null=True, read_only=True)
     image_url = serializers.SerializerMethodField()
+    effective_requester_notifications_enabled = serializers.SerializerMethodField()
 
     class Meta:
         model = BookableSpace
@@ -59,6 +75,10 @@ class BookableSpaceAdminSerializer(serializers.ModelSerializer):
             'is_public',
             'show_public_availability',
             'show_public_booker_names',
+            'approval_mode',
+            'custom_form',
+            'requester_notifications_enabled',
+            'effective_requester_notifications_enabled',
             'is_active',
             'created_by_id',
             'created_at',
@@ -69,6 +89,13 @@ class BookableSpaceAdminSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.CharField(allow_blank=True))
     def get_image_url(self, obj):
         return storage.public_url(obj.image_key)
+
+    @extend_schema_field(serializers.BooleanField())
+    def get_effective_requester_notifications_enabled(self, obj):
+        override = obj.requester_notifications_enabled
+        if override is not None:
+            return override
+        return obj.makerspace.booking_requester_notifications_enabled
 
 
 class BookingAdminSerializer(serializers.ModelSerializer):
@@ -87,6 +114,7 @@ class BookingAdminSerializer(serializers.ModelSerializer):
             'ends_at',
             'status',
             'note',
+            'custom_answers',
             'created_at',
         )
         read_only_fields = fields

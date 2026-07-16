@@ -83,6 +83,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "filament_low_stock_threshold_grams",
             "superadmin_access_enabled",
             "staff_notifications_enabled",
+            "booking_requester_notifications_enabled",
             "logo_key",
             "logo_url",
             "cover_image_key",

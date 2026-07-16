@@ -104,13 +104,18 @@ class PublicEventRegistrationView(APIView):
                 status=status.HTTP_201_CREATED,
             )
 
-        serializer = PublicEventRegistrationInputSerializer(data=request.data)
+        serializer = PublicEventRegistrationInputSerializer(
+            data=request.data,
+            context={'event': event},
+        )
         serializer.is_valid(raise_exception=True)
+        registration_data = dict(serializer.validated_data)
+        registration_data['custom_answers'] = request.data.get('custom_answers')
         try:
             registration = services.register(
                 event,
                 actor=None,
-                **serializer.validated_data,
+                **registration_data,
             )
         except DuplicateRegistration as exc:
             return Response(

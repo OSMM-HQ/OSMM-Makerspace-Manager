@@ -5,6 +5,8 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F, Q
 
+from apps.forms_schema.validation import validate_form_schema
+
 
 class BookableSpace(models.Model):
     class Kind(models.TextChoices):
@@ -12,6 +14,10 @@ class BookableSpace(models.Model):
         BENCH = "bench", "Bench"
         MEETING = "meeting", "Meeting room"
         OTHER = "other", "Other"
+
+    class ApprovalMode(models.TextChoices):
+        INSTANT = 'instant', 'Instant confirmation'
+        APPROVE = 'approve', 'Staff approval required'
 
     public_token = models.UUIDField(
         default=uuid4,
@@ -42,6 +48,22 @@ class BookableSpace(models.Model):
     is_public = models.BooleanField(default=False)
     show_public_availability = models.BooleanField(default=False)
     show_public_booker_names = models.BooleanField(default=False)
+    approval_mode = models.CharField(
+        max_length=16,
+        choices=ApprovalMode.choices,
+        default=ApprovalMode.INSTANT,
+    )
+    custom_form = models.JSONField(
+        null=True,
+        blank=True,
+        default=None,
+        validators=[validate_form_schema],
+    )
+    requester_notifications_enabled = models.BooleanField(
+        null=True,
+        blank=True,
+        default=None,
+    )
     is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -87,7 +109,9 @@ class BookableSpace(models.Model):
 
 class Booking(models.Model):
     class Status(models.TextChoices):
-        BOOKED = "booked", "Booked"
+        PENDING = "pending", "Pending"
+        CONFIRMED = "confirmed", "Confirmed"
+        REJECTED = "rejected", "Rejected"
         CANCELLED = "cancelled", "Cancelled"
         COMPLETED = "completed", "Completed"
         NO_SHOW = "no_show", "No-show"
@@ -111,9 +135,10 @@ class Booking(models.Model):
     status = models.CharField(
         max_length=16,
         choices=Status.choices,
-        default=Status.BOOKED,
+        default=Status.CONFIRMED,
     )
     note = models.TextField(blank=True)
+    custom_answers = models.JSONField(null=True, blank=True, default=None)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

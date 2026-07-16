@@ -15,7 +15,11 @@ FIELDS = (
     "no_show", "cancelled", "upcoming", "reserved_hours", "completed_hours",
     "window_hours", "reservation_utilization_percent", "no_show_rate_percent",
 )
-NON_CANCELLED = (Booking.Status.BOOKED, Booking.Status.COMPLETED, Booking.Status.NO_SHOW)
+NON_CANCELLED = (
+    Booking.Status.CONFIRMED,
+    Booking.Status.COMPLETED,
+    Booking.Status.NO_SHOW,
+)
 CENT = Decimal("0.01")
 
 
@@ -36,11 +40,11 @@ def build_booking_utilization(makerspace_id, *, limit=None, date_range=None):
     qs = BookableSpace.objects.filter(
         makerspace_id__in=scoped_ids(makerspace_id, "bookings")
     ).values("id", "makerspace_id", "name", "kind", "is_active").annotate(
-        booked_count=Count("bookings", filter=overlap & Q(bookings__status=Booking.Status.BOOKED)),
+        booked_count=Count("bookings", filter=overlap & Q(bookings__status=Booking.Status.CONFIRMED)),
         completed_count=Count("bookings", filter=overlap & Q(bookings__status=Booking.Status.COMPLETED)),
         no_show_count=Count("bookings", filter=overlap & Q(bookings__status=Booking.Status.NO_SHOW)),
         cancelled_count=Count("bookings", filter=overlap & Q(bookings__status=Booking.Status.CANCELLED)),
-        upcoming_count=Count("bookings", filter=overlap & Q(bookings__status=Booking.Status.BOOKED, bookings__starts_at__gte=now)),
+        upcoming_count=Count("bookings", filter=overlap & Q(bookings__status=Booking.Status.CONFIRMED, bookings__starts_at__gte=now)),
         reserved_duration=Sum(duration, filter=overlap & Q(bookings__status__in=NON_CANCELLED)),
         completed_duration=Sum(duration, filter=overlap & Q(bookings__status=Booking.Status.COMPLETED)),
     )

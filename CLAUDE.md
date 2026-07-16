@@ -186,6 +186,33 @@ for all 5 role-create endpoints). 11 `test_part_i_machine_manager.py` tests; `ts
 client regenerated. **Part L (below, LATER) will generalize ALL these hardcoded roles into editable
 per-makerspace custom roles, seeding machine_manager as one default.**
 
+**Part J — Public self-booking + shared custom forms + structured event location (CODE COMPLETE; on `dev`;
+Stage-4 pending).** Built J1–J5 (Codex per-step, Claude-verified). New shared **`apps/forms_schema/`** (build-once
+form contract: `validate_form_schema` + `validate_answers`; question types short_text/paragraph/number/date/
+single_choice/multi_choice/dropdown/yes_no; NO branching/sections/file-upload) reused by BOTH bookings + events.
+**Bookings:** `BookableSpace.approval_mode` (instant|approve) + `custom_form` (schema) +
+`requester_notifications_enabled` (nullable per-space override); `Booking` statuses **renamed BOOKED→CONFIRMED**
++ added PENDING/REJECTED (+ `custom_answers`); migration `bookings/0003` data-migrates `booked`→`confirmed`
+(reversible). `services_bookings.create_booking` locks the space first, sets status by approval_mode, validates
+answers against the space's `custom_form`, checks the managed **bookings quota** (`limits.py` `_bookings` counter
+= PENDING+CONFIRMED active, cap 500, dormant on self-host), and overlaps **only against CONFIRMED** (PENDING
+doesn't hold the slot); `approve_booking` re-checks overlap under lock before confirming. Single fail-safe
+notification seam **`apps/bookings/notifications.notify_booking_status(booking, event)`** (`on_commit`, emails the
+booker via `dispatch_email` when the per-space/makerspace toggle is on) — **the seam Phase K extends to all
+channels**. Public API `apps/bookings/{views_public,urls_public,serializers_public}.py` (AllowAny + honeypot-
+before-serializer + `ClientTierRateThrottle` `public_read`/`booking_submit`, module-disabled→400): list public
+spaces, availability (CONFIRMED-only, booker name gated on `show_public_booker_names`), submit by `public_token`.
+**Events:** wired the same `custom_form`/`custom_answers` + a **structured location** (`location` +
+`location_kind` indoor/outdoor/other) end-to-end; registration validates + stores answers; public serializers
+expose the schema + location but **never `custom_answers`/registrant PII** (leak sweeps extended). Migrations
+`events/0003`, `makerspaces/0036` (`booking_requester_notifications_enabled`). **Frontend:** shared
+`features/forms/` (CustomFormBuilder/CustomFormFields/CustomAnswersView), public `features/bookings/`
+(PublicBookingsPage/PublicBookingForm/AvailabilityCalendar), staff BookingsPanel/BookingDrawer/BookableSpaceForm/
+MakerspaceBookingSettings, new **Bookings** tab (module + MANAGE_BOOKINGS) + `/bookings` + `/m/:slug/bookings`
+routes. **PII note:** `custom_answers` (bookings + events) is private/staff-only, never in public payloads → to be
+covered by Part H encryption + leak-sweep. Full suite **1836 pass**; `tsc -b`/build green; OpenAPI + TS client
+regenerated.
+
 **Harness notes:** local `osmm-db` (:5433), `osmm-redis`, `osmm-minio` (:9100) must be running; run tests
 with `DATABASE_URL="postgres://makerspace:makerspace@localhost:5433/makerspace_manager"`. Pre-existing (NOT
 a regression) failing test `test_machine_image_presign_finalize_delete_and_audit` = MinIO on :9100 vs the

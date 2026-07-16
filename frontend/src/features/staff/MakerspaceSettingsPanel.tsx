@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "../../components/ui";
 import { staffRequest } from "../../lib/api";
 import { MakerspaceBrandingSettings } from "./MakerspaceBrandingSettings";
+import { MakerspaceBookingSettings } from "./MakerspaceBookingSettings";
 import { MakerspaceCustomDomainSettings } from "./MakerspaceCustomDomainSettings";
 import { MakerspaceEmailSettings } from "./MakerspaceEmailSettings";
 import { MakerspaceFilamentSettings } from "./MakerspaceFilamentSettings";
@@ -222,6 +223,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
             </select>
           </div>
         </div>
+        <MakerspaceBookingSettings makerspace={makerspace} settings={settings.data} loading={settings.isLoading} />
         <MakerspaceFilamentSettings makerspace={makerspace} settings={settings.data} loading={settings.isLoading} />
         <MakerspaceEmailSettings makerspace={makerspace} />
         {settings.data?.platform_hosting === true ? (

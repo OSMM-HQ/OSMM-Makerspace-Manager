@@ -47,6 +47,14 @@ def test_event_defaults_are_draft_private_and_unlimited():
     assert event.status == Event.Status.DRAFT
     assert event.is_public is False
     assert event.capacity == 0
+    assert event.location_kind == Event.LocationKind.OTHER
+    assert event.custom_form is None
+
+
+def test_registration_custom_answers_default_to_null():
+    event = make_event(make_space('event-answer-defaults'))
+
+    assert make_registration(event).custom_answers is None
 
 
 def test_all_event_and_registration_statuses_round_trip():

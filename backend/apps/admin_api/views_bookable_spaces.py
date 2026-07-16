@@ -105,7 +105,9 @@ class BookableSpaceListCreateView(APIView):
         queryset = rbac.scope_by_action(
             request.user,
             rbac.Action.MANAGE_BOOKINGS,
-            BookableSpace.objects.filter(makerspace=makerspace),
+            BookableSpace.objects.select_related('makerspace').filter(
+                makerspace=makerspace
+            ),
             field='makerspace_id',
         ).order_by('name', 'id')
         paginator = _SpacePagination()

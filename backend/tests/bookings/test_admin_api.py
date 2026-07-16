@@ -72,6 +72,8 @@ def urls(makerspace, bookable_space, row):
         ('post', reverse('admin-bookable-space-image-finalize', kwargs={'pk': bookable_space.pk}), {'object_key': 'x'}),
         ('delete', reverse('admin-bookable-space-image-delete', kwargs={'pk': bookable_space.pk}), None),
         ('get', reverse('admin-space-booking-list', kwargs={'pk': bookable_space.pk}), None),
+        ('post', reverse('admin-booking-approve', kwargs={'pk': row.pk}), {}),
+        ('post', reverse('admin-booking-reject', kwargs={'pk': row.pk}), {}),
         ('post', reverse('admin-booking-cancel', kwargs={'pk': row.pk}), {}),
         ('post', reverse('admin-booking-complete', kwargs={'pk': row.pk}), {}),
         ('post', reverse('admin-booking-no-show', kwargs={'pk': row.pk}), {}),
@@ -195,6 +197,8 @@ def test_space_crud_allowlist_flags_and_validation():
         'id', 'public_token', 'makerspace_id', 'name', 'kind', 'description',
         'capacity', 'location', 'image_url', 'is_public',
         'show_public_availability', 'show_public_booker_names', 'is_active',
+        'approval_mode', 'custom_form', 'requester_notifications_enabled',
+        'effective_requester_notifications_enabled',
         'created_by_id', 'created_at', 'updated_at',
     }
     assert 'image_key' not in created.data and created.data['is_active'] is True
@@ -321,6 +325,8 @@ def test_staff_urls_origin_registry_and_openapi():
         '/api/v1/admin/spaces/{id}/image/finalize/': {'post'},
         '/api/v1/admin/spaces/{id}/image/': {'delete'},
         '/api/v1/admin/spaces/{id}/bookings/': {'get'},
+        '/api/v1/admin/bookings/{id}/approve/': {'post'},
+        '/api/v1/admin/bookings/{id}/reject/': {'post'},
         '/api/v1/admin/bookings/{id}/cancel/': {'post'},
         '/api/v1/admin/bookings/{id}/complete/': {'post'},
         '/api/v1/admin/bookings/{id}/no-show/': {'post'},
@@ -352,6 +358,12 @@ def test_staff_urls_origin_registry_and_openapi():
         },
         '/api/v1/admin/spaces/{id}/bookings/': {
             'get': {'400', '403', '404'},
+        },
+        '/api/v1/admin/bookings/{id}/approve/': {
+            'post': {'400', '403', '404', '409'},
+        },
+        '/api/v1/admin/bookings/{id}/reject/': {
+            'post': {'400', '403', '404', '409'},
         },
         '/api/v1/admin/bookings/{id}/cancel/': {
             'post': {'400', '403', '404', '409'},

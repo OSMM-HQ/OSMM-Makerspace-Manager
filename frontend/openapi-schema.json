@@ -985,6 +985,82 @@
                 }
             }
         },
+        "/api/v1/admin/bookings/{id}/approve/": {
+            "post": {
+                "operationId": "api_v1_admin_bookings_approve_create",
+                "summary": "Approve a pending booking",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin bookings"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookingAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Workflow conflict."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/bookings/{id}/cancel/": {
             "post": {
                 "operationId": "api_v1_admin_bookings_cancel_create",
@@ -1141,6 +1217,82 @@
             "post": {
                 "operationId": "api_v1_admin_bookings_no_show_create",
                 "summary": "Mark a booking as no-show",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin bookings"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookingAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Workflow conflict."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/bookings/{id}/reject/": {
+            "post": {
+                "operationId": "api_v1_admin_bookings_reject_create",
+                "summary": "Reject a pending booking",
                 "parameters": [
                     {
                         "in": "path",
@@ -13127,7 +13279,9 @@
                         "name": "status",
                         "schema": {
                             "enum": [
-                                "booked",
+                                "pending",
+                                "confirmed",
+                                "rejected",
                                 "cancelled",
                                 "completed",
                                 "no_show"
@@ -13135,7 +13289,7 @@
                             "type": "string",
                             "minLength": 1
                         },
-                        "description": "* `booked` - Booked\n* `cancelled` - Cancelled\n* `completed` - Completed\n* `no_show` - No-show"
+                        "description": "* `pending` - Pending\n* `confirmed` - Confirmed\n* `rejected` - Rejected\n* `cancelled` - Cancelled\n* `completed` - Completed\n* `no_show` - No-show"
                     }
                 ],
                 "tags": [
@@ -19892,6 +20046,264 @@
                 }
             }
         },
+        "/api/v1/public/{makerspace_slug}/spaces/": {
+            "get": {
+                "operationId": "api_v1_public_spaces_list",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Public bookings"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PublicBookableSpace"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": "Space not found."
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": "Rate limit exceeded."
+                    }
+                }
+            }
+        },
+        "/api/v1/public/{makerspace_slug}/spaces/{public_token}/availability/": {
+            "get": {
+                "operationId": "api_v1_public_spaces_availability_retrieve",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "ends_at",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "public_token",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "starts_at",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Public bookings"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PublicSpaceAvailability"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": "Space not found."
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": "Rate limit exceeded."
+                    }
+                }
+            }
+        },
+        "/api/v1/public/{makerspace_slug}/spaces/{public_token}/book/": {
+            "post": {
+                "operationId": "api_v1_public_spaces_book_create",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "public_token",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Public bookings"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicBookingInput"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicBookingInput"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicBookingInput"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PublicBookingResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": "Space not found."
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": "Rate limit exceeded."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Booking conflict."
+                    }
+                }
+            }
+        },
         "/api/v1/public/{makerspace_slug}/stats/": {
             "get": {
                 "operationId": "api_v1_public_stats_retrieve",
@@ -21110,6 +21522,14 @@
                     "status"
                 ]
             },
+            "ApprovalModeEnum": {
+                "enum": [
+                    "instant",
+                    "approve"
+                ],
+                "type": "string",
+                "description": "* `instant` - Instant confirmation\n* `approve` - Staff approval required"
+            },
             "AssetChainGroup": {
                 "type": "object",
                 "properties": {
@@ -21403,6 +21823,27 @@
                         "type": "boolean",
                         "readOnly": true
                     },
+                    "approval_mode": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApprovalModeEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "custom_form": {
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "requester_notifications_enabled": {
+                        "type": "boolean",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "effective_requester_notifications_enabled": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
                     "is_active": {
                         "type": "boolean",
                         "readOnly": true
@@ -21424,10 +21865,13 @@
                     }
                 },
                 "required": [
+                    "approval_mode",
                     "capacity",
                     "created_at",
                     "created_by_id",
+                    "custom_form",
                     "description",
+                    "effective_requester_notifications_enabled",
                     "id",
                     "image_url",
                     "is_active",
@@ -21437,6 +21881,7 @@
                     "makerspace_id",
                     "name",
                     "public_token",
+                    "requester_notifications_enabled",
                     "show_public_availability",
                     "show_public_booker_names",
                     "updated_at"
@@ -21508,6 +21953,21 @@
                     "show_public_booker_names": {
                         "type": "boolean",
                         "default": false
+                    },
+                    "approval_mode": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApprovalModeEnum"
+                            }
+                        ],
+                        "default": "instant"
+                    },
+                    "custom_form": {
+                        "nullable": true
+                    },
+                    "requester_notifications_enabled": {
+                        "type": "boolean",
+                        "nullable": true
                     }
                 },
                 "required": [
@@ -21565,6 +22025,10 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "custom_answers": {
+                        "readOnly": true,
+                        "nullable": true
+                    },
                     "created_at": {
                         "type": "string",
                         "format": "date-time",
@@ -21573,6 +22037,7 @@
                 },
                 "required": [
                     "created_at",
+                    "custom_answers",
                     "email",
                     "ends_at",
                     "id",
@@ -21587,13 +22052,15 @@
             },
             "BookingAdminStatusEnum": {
                 "enum": [
-                    "booked",
+                    "pending",
+                    "confirmed",
+                    "rejected",
                     "cancelled",
                     "completed",
                     "no_show"
                 ],
                 "type": "string",
-                "description": "* `booked` - Booked\n* `cancelled` - Cancelled\n* `completed` - Completed\n* `no_show` - No-show"
+                "description": "* `pending` - Pending\n* `confirmed` - Confirmed\n* `rejected` - Rejected\n* `cancelled` - Cancelled\n* `completed` - Completed\n* `no_show` - No-show"
             },
             "BookingListResponse": {
                 "type": "object",
@@ -23070,6 +23537,18 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "location_kind": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LocationKindEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "custom_form": {
+                        "readOnly": true,
+                        "nullable": true
+                    },
                     "capacity": {
                         "type": "integer",
                         "readOnly": true
@@ -23114,11 +23593,13 @@
                     "capacity",
                     "created_at",
                     "created_by_id",
+                    "custom_form",
                     "description",
                     "ends_at",
                     "id",
                     "is_public",
                     "location",
+                    "location_kind",
                     "makerspace_id",
                     "registration_counts",
                     "starts_at",
@@ -23270,6 +23751,10 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "custom_answers": {
+                        "readOnly": true,
+                        "nullable": true
+                    },
                     "status": {
                         "allOf": [
                             {
@@ -23286,6 +23771,7 @@
                 },
                 "required": [
                     "created_at",
+                    "custom_answers",
                     "email",
                     "event_id",
                     "id",
@@ -23380,6 +23866,17 @@
                         "type": "string",
                         "default": "",
                         "maxLength": 255
+                    },
+                    "location_kind": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LocationKindEnum"
+                            }
+                        ],
+                        "default": "other"
+                    },
+                    "custom_form": {
+                        "nullable": true
                     },
                     "capacity": {
                         "type": "integer",
@@ -24979,6 +25476,15 @@
                     "measurement"
                 ]
             },
+            "LocationKindEnum": {
+                "enum": [
+                    "indoor",
+                    "outdoor",
+                    "other"
+                ],
+                "type": "string",
+                "description": "* `indoor` - Indoor\n* `outdoor` - Outdoor\n* `other` - Other"
+            },
             "LogError": {
                 "type": "object",
                 "properties": {
@@ -26082,6 +26588,9 @@
                         "type": "boolean"
                     },
                     "staff_notifications_enabled": {
+                        "type": "boolean"
+                    },
+                    "booking_requester_notifications_enabled": {
                         "type": "boolean"
                     },
                     "logo_key": {
@@ -28112,6 +28621,21 @@
                     "show_public_booker_names": {
                         "type": "boolean",
                         "default": false
+                    },
+                    "approval_mode": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApprovalModeEnum"
+                            }
+                        ],
+                        "default": "instant"
+                    },
+                    "custom_form": {
+                        "nullable": true
+                    },
+                    "requester_notifications_enabled": {
+                        "type": "boolean",
+                        "nullable": true
                     }
                 }
             },
@@ -28250,6 +28774,17 @@
                         "type": "string",
                         "default": "",
                         "maxLength": 255
+                    },
+                    "location_kind": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LocationKindEnum"
+                            }
+                        ],
+                        "default": "other"
+                    },
+                    "custom_form": {
+                        "nullable": true
                     },
                     "capacity": {
                         "type": "integer",
@@ -28667,6 +29202,9 @@
                         "type": "boolean"
                     },
                     "staff_notifications_enabled": {
+                        "type": "boolean"
+                    },
+                    "booking_requester_notifications_enabled": {
                         "type": "boolean"
                     },
                     "logo_key": {
@@ -30373,6 +30911,31 @@
                     "label"
                 ]
             },
+            "PublicAvailabilityInterval": {
+                "type": "object",
+                "properties": {
+                    "starts_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "ends_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "booker_name": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "booker_name",
+                    "ends_at",
+                    "starts_at"
+                ]
+            },
             "PublicAvailabilityModeFc2Enum": {
                 "enum": [
                     "exact_count",
@@ -30381,6 +30944,144 @@
                 ],
                 "type": "string",
                 "description": "* `exact_count` - Exact Count\n* `status_only` - Status Only\n* `hidden` - Hidden"
+            },
+            "PublicBookableSpace": {
+                "type": "object",
+                "properties": {
+                    "public_token": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "kind": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Kind3bfEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "capacity": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "readOnly": true
+                    },
+                    "location": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "image_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "approval_mode": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ApprovalModeEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "custom_form": {
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "show_public_availability": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "show_public_booker_names": {
+                        "type": "boolean",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "approval_mode",
+                    "capacity",
+                    "custom_form",
+                    "description",
+                    "image_url",
+                    "kind",
+                    "location",
+                    "name",
+                    "public_token",
+                    "show_public_availability",
+                    "show_public_booker_names"
+                ]
+            },
+            "PublicBookingInput": {
+                "type": "object",
+                "properties": {
+                    "starts_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "writeOnly": true
+                    },
+                    "ends_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "writeOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 200
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "writeOnly": true,
+                        "maxLength": 254
+                    },
+                    "phone": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 32
+                    },
+                    "custom_answers": {
+                        "writeOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "email",
+                    "ends_at",
+                    "name",
+                    "phone",
+                    "starts_at"
+                ]
+            },
+            "PublicBookingResponse": {
+                "type": "object",
+                "properties": {
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PublicBookingResponseStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "status"
+                ]
+            },
+            "PublicBookingResponseStatusEnum": {
+                "enum": [
+                    "pending",
+                    "confirmed"
+                ],
+                "type": "string",
+                "description": "* `pending` - pending\n* `confirmed` - confirmed"
             },
             "PublicCategory": {
                 "type": "object",
@@ -30465,6 +31166,18 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "location_kind": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/LocationKindEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "custom_form": {
+                        "readOnly": true,
+                        "nullable": true
+                    },
                     "capacity": {
                         "type": "integer",
                         "minimum": 0,
@@ -30490,9 +31203,11 @@
                 "required": [
                     "availability",
                     "capacity",
+                    "custom_form",
                     "description",
                     "ends_at",
                     "location",
+                    "location_kind",
                     "public_token",
                     "starts_at",
                     "status",
@@ -30502,6 +31217,10 @@
             "PublicEventRegistrationInput": {
                 "type": "object",
                 "properties": {
+                    "custom_answers": {
+                        "writeOnly": true,
+                        "nullable": true
+                    },
                     "name": {
                         "type": "string",
                         "writeOnly": true,
@@ -31078,6 +31797,40 @@
                 ],
                 "type": "string",
                 "description": "* `shipped` - Shipped\n* `in_progress` - In progress\n* `planned` - Planned"
+            },
+            "PublicSpaceAvailability": {
+                "type": "object",
+                "properties": {
+                    "public_token": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true
+                    },
+                    "starts_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "ends_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "availability": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PublicAvailabilityInterval"
+                        },
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "availability",
+                    "ends_at",
+                    "public_token",
+                    "starts_at"
+                ]
             },
             "PublicStats": {
                 "type": "object",

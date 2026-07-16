@@ -132,6 +132,40 @@ class BookingCancelView(_BookingActionView):
         return self.execute(request, pk)
 
 
+class BookingApproveView(_BookingActionView):
+    operation = staticmethod(services.approve_booking)
+
+    @extend_schema(
+        tags=['Admin bookings'],
+        summary='Approve a pending booking',
+        request=EmptyActionSerializer,
+        responses={
+            200: BookingAdminSerializer,
+            **VALIDATED_ERROR_RESPONSES,
+            409: ERROR_409,
+        },
+    )
+    def post(self, request, pk, *args, **kwargs):
+        return self.execute(request, pk)
+
+
+class BookingRejectView(_BookingActionView):
+    operation = staticmethod(services.reject_booking)
+
+    @extend_schema(
+        tags=['Admin bookings'],
+        summary='Reject a pending booking',
+        request=EmptyActionSerializer,
+        responses={
+            200: BookingAdminSerializer,
+            **VALIDATED_ERROR_RESPONSES,
+            409: ERROR_409,
+        },
+    )
+    def post(self, request, pk, *args, **kwargs):
+        return self.execute(request, pk)
+
+
 class BookingCompleteView(_BookingActionView):
     operation = staticmethod(services.complete_booking)
 

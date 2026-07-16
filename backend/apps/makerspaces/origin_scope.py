@@ -161,8 +161,6 @@ def _model_for_path(model_path):
         from apps.bookings import models
     elif app_label == "maintenance":
         from apps.maintenance import models
-    elif app_label == "makerspaces":
-        from apps.makerspaces import models
     else:
         raise LookupError(model_path)
     return getattr(models, model_name)
@@ -235,6 +233,8 @@ _MODEL_LOOKUPS = {
         'makerspace_id',
     ),
     'admin-space-booking-list': ('bookings.BookableSpace', 'makerspace_id'),
+    'admin-booking-approve': ('bookings.Booking', 'space__makerspace_id'),
+    'admin-booking-reject': ('bookings.Booking', 'space__makerspace_id'),
     'admin-booking-cancel': ('bookings.Booking', 'space__makerspace_id'),
     'admin-booking-complete': ('bookings.Booking', 'space__makerspace_id'),
     'admin-booking-no-show': ('bookings.Booking', 'space__makerspace_id'),

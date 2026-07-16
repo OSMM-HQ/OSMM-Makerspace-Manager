@@ -9,7 +9,7 @@ from rest_framework.serializers import ValidationError
 
 from apps.accounts.models import User
 from apps.audit.models import AuditLog
-from apps.bookings import services
+from apps.bookings import services, services_bookings
 from apps.bookings.exceptions import (
     BookerNamesRequiresAvailability,
     BookingConflict,
@@ -49,7 +49,7 @@ def book(space, start=None, **overrides):
     return services.create_booking(space, **values)
 
 
-def direct_booking(space, status=Booking.Status.BOOKED, **overrides):
+def direct_booking(space, status=Booking.Status.CONFIRMED, **overrides):
     start = overrides.pop('starts_at', timezone.now() - timedelta(hours=2))
     values = dict(
         space=space, name='Guest', email='guest@example.com', phone='123',
@@ -125,7 +125,7 @@ def test_inactive_space_is_terminal_and_preserves_bookings():
             operation()
         assert_error(caught.value, 'invalid_transition')
     existing.refresh_from_db()
-    assert existing.status == Booking.Status.BOOKED
+    assert existing.status == Booking.Status.CONFIRMED
     assert AuditLog.objects.count() == before
 
 
@@ -137,7 +137,7 @@ def test_booking_normalizes_identity_and_has_pii_free_exact_audit_target():
     )
     log = AuditLog.objects.get(action='booking.created')
     assert (booking.name, booking.email, booking.phone, booking.status) == (
-        'Ada Lovelace', 'ada@example.com', '123', Booking.Status.BOOKED,
+        'Ada Lovelace', 'ada@example.com', '123', Booking.Status.CONFIRMED,
     )
     assert (log.target_type, log.makerspace) == ('bookings.booking', space.makerspace)
     serialized = str(log.meta).lower()
@@ -162,7 +162,7 @@ def test_overlap_conflict_response_has_no_row_or_audit_and_adjacency_works():
     ):
         with pytest.raises(BookingConflict):
             book(space, starts_at, ends_at=ends_at)
-    assert adjacent.status == Booking.Status.BOOKED
+    assert adjacent.status == Booking.Status.CONFIRMED
 
 def test_terminal_rows_do_not_block_interval_reuse():
     start = timezone.now() + timedelta(hours=1)
@@ -171,7 +171,7 @@ def test_terminal_rows_do_not_block_interval_reuse():
     ):
         space = make_space(make_makerspace(f'terminal-{index}'))
         direct_booking(space, status, starts_at=start, ends_at=start + timedelta(hours=1))
-        assert book(space, start).status == Booking.Status.BOOKED
+        assert book(space, start).status == Booking.Status.CONFIRMED
 
 
 @pytest.mark.django_db(transaction=True)
@@ -228,7 +228,7 @@ def test_deactivation_and_create_serialize_on_the_space():
 def test_frozen_clock_booking_and_lifecycle_boundaries(monkeypatch):
     now = timezone.now()
     current = [now]
-    monkeypatch.setattr(services.timezone, 'now', lambda: current[0])
+    monkeypatch.setattr(services_bookings.timezone, 'now', lambda: current[0])
     space = make_space()
     before = AuditLog.objects.count()
     with pytest.raises(ValidationError):
@@ -315,9 +315,18 @@ def test_mocked_audit_failure_rolls_back_every_mutation(monkeypatch, operation):
         calls[operation]()
     space.refresh_from_db(); row.refresh_from_db()
     assert (BookableSpace.objects.count(), Booking.objects.count()) == before
-    assert (space.name, space.is_active, row.status) == ('Development Room', True, 'booked')
+    assert (space.name, space.is_active, row.status) == (
+        'Development Room', True, 'confirmed',
+    )
 
 
-def test_bookings_have_no_dedicated_quota_counter():
+def test_bookings_have_dedicated_quota_counter():
     from apps.makerspaces import limits
-    assert all('bookings' not in mapping for mapping in (limits.KNOWN_LIMIT_KEYS, limits.RESOURCE_LABELS, limits._COUNTERS))
+    assert all(
+        'bookings' in mapping
+        for mapping in (
+            limits.KNOWN_LIMIT_KEYS,
+            limits.RESOURCE_LABELS,
+            limits._COUNTERS,
+        )
+    )

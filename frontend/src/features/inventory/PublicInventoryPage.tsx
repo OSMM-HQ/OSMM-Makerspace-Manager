@@ -174,6 +174,11 @@ export function PublicInventoryPage() {
                   Events
                 </Link>
               ) : null}
+              {modules.has("bookings") ? (
+                <Link className="desk-button" to={tenantPath("bookings")}>
+                  Book a space
+                </Link>
+              ) : null}
               <ThemeToggle />
               <Link className="desk-button" to="/admin">
                 Staff login

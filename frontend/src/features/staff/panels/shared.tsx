@@ -21,6 +21,7 @@ export type Makerspace = {
   hidden_from_central_directory: boolean;
   superadmin_access_enabled?: boolean;
   staff_notifications_enabled?: boolean;
+  booking_requester_notifications_enabled?: boolean;
   public_stats_enabled?: boolean;
   public_print_status_lookup_policy?: "token_only" | "email_unverified" | "checkin_verified";
   filament_low_stock_threshold_grams?: string | number;

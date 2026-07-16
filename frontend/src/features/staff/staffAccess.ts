@@ -1,5 +1,5 @@
 const ALL_TABS = [
-  "dashboard", "notifications", "requests", "direct", "inventory", "needsfix", "categories", "printing", "machines", "events", "tobuy", "transfers",
+  "dashboard", "notifications", "requests", "direct", "inventory", "needsfix", "categories", "printing", "machines", "events", "bookings", "tobuy", "transfers",
   "stocktake", "containers", "ledger", "reports", "accountability", "warranty", "bulk", "qr", "scanner", "api", "settings", "emailtemplates", "users", "platform", "audit",
   "email-logs",
 ] as const;
@@ -32,6 +32,7 @@ export const TAB_LABELS: Record<string, string> = {
   printing: "3D Printing",
   machines: "Machines",
   events: "Events",
+  bookings: "Bookings",
   tobuy: "To Buy",
   reports: "Reports",
   accountability: "Accountability",
@@ -51,6 +52,7 @@ export const TAB_GROUPS: { label: string; tabs: string[] }[] = [
   { label: "3D Printing", tabs: ["printing"] },
   { label: "Machines", tabs: ["machines"] },
   { label: "Events", tabs: ["events"] },
+  { label: "Bookings", tabs: ["bookings"] },
   { label: "Insights", tabs: ["reports", "accountability", "warranty", "audit"] },
   { label: "Admin", tabs: ["users", "settings", "emailtemplates", "email-logs", "api", "platform"] },
 ];
@@ -70,6 +72,7 @@ export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boo
   const canManageMakerspace = isSuperadmin || activeRole === "space_manager";
   const canManageMachines = isSuperadmin || ["space_manager", "machine_manager"].includes(activeRole ?? "");
   const canManageEvents = isSuperadmin || activeRole === "space_manager";
+  const canManageBookings = isSuperadmin || activeRole === "space_manager";
   const canChooseToBuyKind = isSuperadmin || activeRole === "space_manager";
   const baseTabs = handoutOnly
     ? GUEST_ADMIN_TABS
@@ -105,6 +108,7 @@ export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boo
     if (tabName === "printing") return canSeePrinting;
     if (tabName === "machines") return enabledModules.includes("machines") && (canManageMachines || canSeePrinting);
     if (tabName === "events") return enabledModules.includes("events") && canManageEvents;
+    if (tabName === "bookings") return enabledModules.includes("bookings") && canManageBookings;
     if (tabName === "requests") return canSeeHardware || canSeePrinting;
     return true;
   });
@@ -121,6 +125,7 @@ export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boo
     canManageMakerspace,
     canManageMachines,
     canManageEvents,
+    canManageBookings,
     canChooseToBuyKind,
     allowedTabs,
     defaultTab: handoutOnly ? "requests" : machineOnly ? "machines" : "dashboard",

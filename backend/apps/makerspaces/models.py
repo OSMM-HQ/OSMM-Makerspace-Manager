@@ -128,6 +128,7 @@ class Makerspace(models.Model):
     )
     superadmin_access_enabled = models.BooleanField(default=True)
     staff_notifications_enabled = models.BooleanField(default=True)
+    booking_requester_notifications_enabled = models.BooleanField(default=False)
     logo_key = models.CharField(max_length=300, blank=True, default="")
     cover_image_key = models.CharField(max_length=300, blank=True, default="")
     # Case-insensitive uniqueness is enforced by the Lower() UniqueConstraint in Meta

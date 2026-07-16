@@ -3,6 +3,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.events.models import Event, EventRegistration
+from apps.forms_schema.serializers import CustomFormSchemaField
 
 
 class EventWriteSerializer(serializers.Serializer):
@@ -16,6 +17,12 @@ class EventWriteSerializer(serializers.Serializer):
         max_length=255,
         required=False,
     )
+    location_kind = serializers.ChoiceField(
+        choices=Event.LocationKind.choices,
+        default=Event.LocationKind.OTHER,
+        required=False,
+    )
+    custom_form = CustomFormSchemaField(allow_null=True, required=False)
     capacity = serializers.IntegerField(default=0, min_value=0, required=False)
     is_public = serializers.BooleanField(default=False, required=False)
 
@@ -51,6 +58,8 @@ class EventAdminSerializer(serializers.ModelSerializer):
             'starts_at',
             'ends_at',
             'location',
+            'location_kind',
+            'custom_form',
             'capacity',
             'is_public',
             'status',
@@ -82,7 +91,10 @@ class EventRegistrationAdminSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = EventRegistration
-        fields = ('id', 'event_id', 'name', 'email', 'phone', 'status', 'created_at')
+        fields = (
+            'id', 'event_id', 'name', 'email', 'phone', 'custom_answers',
+            'status', 'created_at',
+        )
         read_only_fields = fields
 
 

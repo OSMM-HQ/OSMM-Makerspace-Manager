@@ -13,18 +13,18 @@ from apps.events.exceptions import (
     EventInvalidTransition,
 )
 from apps.events.models import Event, EventRegistration
+from apps.forms_schema.validation import validate_answers, validate_form_schema
 from apps.makerspaces import limits
 from apps.makerspaces.models import Makerspace
 
-EVENT_FIELDS = frozenset(
-    {"title", "description", "starts_at", "ends_at", "location", "capacity", "is_public"}
-)
+EVENT_FIELDS = frozenset({
+    'title', 'description', 'starts_at', 'ends_at', 'location',
+    'location_kind', 'custom_form', 'capacity', 'is_public',
+})
 
 
 def _locked_event(event_id):
-    return Event.objects.select_for_update().select_related("makerspace").get(
-        pk=event_id
-    )
+    return Event.objects.select_for_update().select_related("makerspace").get(pk=event_id)
 
 
 def _validate(instance):
@@ -36,6 +36,13 @@ def _validate(instance):
     if isinstance(instance, Event) and instance.ends_at < instance.starts_at:
         detail = {"ends_at": "End time must be at or after start time."}
         raise serializers.ValidationError(detail)
+
+
+def _canonical_form(value):
+    try:
+        return validate_form_schema(value)
+    except DjangoValidationError as exc:
+        raise serializers.ValidationError({'custom_form': exc.messages}) from exc
 
 
 def _audit(event, actor, action, target, meta=None):
@@ -73,7 +80,7 @@ def _promote(event, actor, waiters, count=None):
 @transaction.atomic
 def create_event(
     *, makerspace, actor, title, description, starts_at, ends_at, location,
-    capacity, is_public
+    capacity, is_public, location_kind=Event.LocationKind.OTHER, custom_form=None,
 ):
     locked_space = Makerspace.objects.select_for_update().get(pk=makerspace.pk)
     event = Event(
@@ -84,6 +91,8 @@ def create_event(
         starts_at=starts_at,
         ends_at=ends_at,
         location=location,
+        location_kind=location_kind,
+        custom_form=_canonical_form(custom_form),
         capacity=capacity,
         is_public=is_public,
     )
@@ -103,6 +112,9 @@ def update_event(event, *, actor, **changes):
         raise serializers.ValidationError(
             {field: "This field cannot be updated." for field in sorted(unknown)}
         )
+
+    if 'custom_form' in changes:
+        changes['custom_form'] = _canonical_form(changes['custom_form'])
 
     now = timezone.now()
     old_capacity, old_ends_at = locked.capacity, locked.ends_at
@@ -195,7 +207,7 @@ def complete(event, *, actor):
 
 
 @transaction.atomic
-def register(event, *, name, email, phone, actor=None):
+def register(event, *, name, email, phone, custom_answers=None, actor=None):
     locked = _locked_event(event.pk)
     if (
         not locked.is_public
@@ -204,14 +216,22 @@ def register(event, *, name, email, phone, actor=None):
     ):
         raise EventInvalidTransition("This event is not open for registration.")
     normalized_email = (email or "").strip().lower()
+    custom_answers = validate_answers(locked.custom_form, custom_answers)
     status = fresh_registration_status(locked)
     existing = EventRegistration.objects.select_for_update().filter(
         event=locked, email=normalized_email
     ).first()
     if existing and existing.status == EventRegistration.Status.CANCELLED:
+        existing.name = (name or '').strip()
+        existing.email = normalized_email
+        existing.phone = (phone or '').strip()
+        existing.custom_answers = custom_answers
         existing.status = status
         existing.created_at = timezone.now()
-        existing.save(update_fields=["status", "created_at"])
+        _validate(existing)
+        existing.save(update_fields=[
+            'name', 'email', 'phone', 'custom_answers', 'status', 'created_at',
+        ])
         meta = {"registration_id": existing.pk, "status": status}
         _audit(locked, actor, "event.registration_created", existing, meta)
         return _refresh(existing)
@@ -225,6 +245,7 @@ def register(event, *, name, email, phone, actor=None):
         name=(name or "").strip(),
         email=normalized_email,
         phone=(phone or "").strip(),
+        custom_answers=custom_answers,
         status=status,
     )
     _validate(registration)

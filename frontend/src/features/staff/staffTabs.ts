@@ -5,6 +5,7 @@ const TAB_MODULES: Record<string, string[]> = {
   direct: ["self_checkout"],
   printing: ["printing"],
   events: ["events"],
+  bookings: ["bookings"],
   tobuy: ["procurement"],
   transfers: ["stock_transfers"],
   stocktake: ["stocktake"],
