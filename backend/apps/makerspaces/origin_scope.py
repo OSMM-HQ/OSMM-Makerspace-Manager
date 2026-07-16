@@ -9,6 +9,7 @@ from apps.makerspaces.platform import makerspace_staff_origins
 NO_STAFF_ORIGIN_SCOPE = object()
 AMBIGUOUS_STAFF_ORIGIN_SCOPE = object()
 _MAKERSPACE_KWARG_ROUTES = {
+    'admin-bookable-space-list-create': 'makerspace_id',
     'admin-event-list-create': 'makerspace_id',
     "admin-machine-types": "makerspace_id",
     "admin-machine-type-detail": "makerspace_id",
@@ -154,6 +155,8 @@ def _model_for_path(model_path):
         from apps.machines import models
     elif app_label == 'events':
         from apps.events import models
+    elif app_label == 'bookings':
+        from apps.bookings import models
     else:
         raise LookupError(model_path)
     return getattr(models, model_name)
@@ -180,6 +183,27 @@ _PRINT_ACTIONS = {
     "managed-request-reprint",
 }
 _MODEL_LOOKUPS = {
+    'admin-bookable-space-detail': ('bookings.BookableSpace', 'makerspace_id'),
+    'admin-bookable-space-deactivate': (
+        'bookings.BookableSpace',
+        'makerspace_id',
+    ),
+    'admin-bookable-space-image-presign': (
+        'bookings.BookableSpace',
+        'makerspace_id',
+    ),
+    'admin-bookable-space-image-finalize': (
+        'bookings.BookableSpace',
+        'makerspace_id',
+    ),
+    'admin-bookable-space-image-delete': (
+        'bookings.BookableSpace',
+        'makerspace_id',
+    ),
+    'admin-space-booking-list': ('bookings.BookableSpace', 'makerspace_id'),
+    'admin-booking-cancel': ('bookings.Booking', 'space__makerspace_id'),
+    'admin-booking-complete': ('bookings.Booking', 'space__makerspace_id'),
+    'admin-booking-no-show': ('bookings.Booking', 'space__makerspace_id'),
     'admin-event-detail': ('events.Event', 'makerspace_id'),
     'admin-event-publish': ('events.Event', 'makerspace_id'),
     'admin-event-cancel': ('events.Event', 'makerspace_id'),

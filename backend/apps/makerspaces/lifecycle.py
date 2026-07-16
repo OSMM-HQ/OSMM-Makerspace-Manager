@@ -118,6 +118,7 @@ def _collect_storage_keys(makerspace):
 
 
 def _collect_public_image_keys(makerspace):
+    from apps.bookings.models import BookableSpace
     from apps.inventory.models import InventoryProduct
     from apps.machines.models import Machine
     from apps.printing.models import PrintPrinter
@@ -132,6 +133,11 @@ def _collect_public_image_keys(makerspace):
 
     add(makerspace.logo_key)
     add(makerspace.cover_image_key)
+    for key in BookableSpace.objects.filter(makerspace=makerspace).values_list(
+        'image_key',
+        flat=True,
+    ):
+        add(key)
     for key in InventoryProduct.objects.filter(makerspace=makerspace).values_list(
         "image_key",
         flat=True,

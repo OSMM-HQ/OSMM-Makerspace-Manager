@@ -40,6 +40,8 @@ class BookableSpace(models.Model):
         default=None,
     )
     is_public = models.BooleanField(default=False)
+    show_public_availability = models.BooleanField(default=False)
+    show_public_booker_names = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

@@ -10,7 +10,11 @@ from rest_framework.serializers import ValidationError
 from apps.accounts.models import User
 from apps.audit.models import AuditLog
 from apps.bookings import services
-from apps.bookings.exceptions import BookingConflict, BookingInvalidTransition
+from apps.bookings.exceptions import (
+    BookerNamesRequiresAvailability,
+    BookingConflict,
+    BookingInvalidTransition,
+)
 from apps.bookings.models import BookableSpace, Booking
 from apps.hardware_requests.exceptions import workflow_exception_handler
 from apps.makerspaces.models import Makerspace
@@ -85,6 +89,27 @@ def test_space_workflows_allow_only_contract_fields_and_audit():
     assert set(AuditLog.objects.values_list('target_type', flat=True)) == {
         'bookings.bookablespace'
     }
+
+
+def test_public_booker_names_require_public_availability_in_service():
+    makerspace = make_makerspace('booking-visibility-service')
+    with pytest.raises(BookerNamesRequiresAvailability):
+        make_space(
+            makerspace=makerspace,
+            show_public_availability=False,
+            show_public_booker_names=True,
+        )
+    target = make_space(
+        makerspace=makerspace,
+        show_public_availability=True,
+        show_public_booker_names=True,
+    )
+    with pytest.raises(BookerNamesRequiresAvailability):
+        services.update_space(
+            target,
+            actor=None,
+            show_public_availability=False,
+        )
 
 def test_inactive_space_is_terminal_and_preserves_bookings():
     space, actor = make_space(), make_actor()
@@ -293,8 +318,6 @@ def test_mocked_audit_failure_rolls_back_every_mutation(monkeypatch, operation):
     assert (space.name, space.is_active, row.status) == ('Development Room', True, 'booked')
 
 
-def test_bookings_have_no_quota_or_image_service_code():
+def test_bookings_have_no_dedicated_quota_counter():
     from apps.makerspaces import limits
-    source = open(services.__file__, encoding='utf-8').read()
-    assert all(term not in source for term in ('check_quota', 'limits', 'image'))
     assert all('bookings' not in mapping for mapping in (limits.KNOWN_LIMIT_KEYS, limits.RESOURCE_LABELS, limits._COUNTERS))

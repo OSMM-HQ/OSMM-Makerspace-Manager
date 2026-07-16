@@ -6,12 +6,21 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from apps.audit import services as audit
-from apps.bookings.exceptions import BookingConflict, BookingInvalidTransition
+from apps.bookings import services_images, storage
+from apps.bookings.exceptions import (
+    BookerNamesRequiresAvailability,
+    BookingConflict,
+    BookingInvalidTransition,
+)
 from apps.bookings.models import BookableSpace, Booking
+from apps.makerspaces import limits
 from apps.makerspaces.models import Makerspace
 
 SPACE_FIELDS = frozenset(
-    {'name', 'kind', 'description', 'capacity', 'location', 'is_public'}
+    {
+        'name', 'kind', 'description', 'capacity', 'location', 'is_public',
+        'show_public_availability', 'show_public_booker_names',
+    }
 )
 
 
@@ -50,9 +59,18 @@ def _refresh(instance):
     return instance
 
 
+def _validate_public_visibility(instance):
+    if (
+        instance.show_public_booker_names
+        and not instance.show_public_availability
+    ):
+        raise BookerNamesRequiresAvailability()
+
+
 @transaction.atomic
 def create_space(
-    *, makerspace, actor, name, kind, description, capacity, location, is_public
+    *, makerspace, actor, name, kind, description, capacity, location, is_public,
+    show_public_availability=False, show_public_booker_names=False,
 ):
     locked_makerspace = Makerspace.objects.select_for_update().get(pk=makerspace.pk)
     space = BookableSpace(
@@ -64,8 +82,11 @@ def create_space(
         capacity=capacity,
         location=location,
         is_public=is_public,
+        show_public_availability=show_public_availability,
+        show_public_booker_names=show_public_booker_names,
         is_active=True,
     )
+    _validate_public_visibility(space)
     _validate(space)
     space.save()
     _audit(space, actor, 'booking.space_created', space)
@@ -85,6 +106,7 @@ def update_space(space, *, actor, **changes):
 
     for field, value in changes.items():
         setattr(locked, field, value)
+    _validate_public_visibility(locked)
     _validate(locked)
     if changes:
         locked.save(update_fields=[*sorted(changes), 'updated_at'])
@@ -217,4 +239,32 @@ def mark_no_show(booking, *, actor):
         Booking.Status.NO_SHOW,
         'booking.no_show_marked',
         require_ended=True,
+    )
+
+
+def validate_space_image_key(space, object_key):
+    services_images.validate_space_image_key(space, object_key, storage)
+
+
+@transaction.atomic
+def set_space_image(space, *, actor, object_key, size_bytes):
+    return services_images.set_space_image(
+        space,
+        actor=actor,
+        object_key=object_key,
+        size_bytes=size_bytes,
+        audit=audit,
+        limits=limits,
+        storage=storage,
+    )
+
+
+@transaction.atomic
+def remove_space_image(space, *, actor):
+    return services_images.remove_space_image(
+        space,
+        actor=actor,
+        audit=audit,
+        limits=limits,
+        storage=storage,
     )

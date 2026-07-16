@@ -18,6 +18,20 @@ from apps.admin_api.views_events import (
     EventRegistrationListView,
     EventRegistrationMarkAttendedView,
 )
+from apps.admin_api.views_bookable_spaces import (
+    BookableSpaceDeactivateView,
+    BookableSpaceDetailView,
+    BookableSpaceImageDeleteView,
+    BookableSpaceImageFinalizeView,
+    BookableSpaceImagePresignView,
+    BookableSpaceListCreateView,
+)
+from apps.admin_api.views_bookings import (
+    BookingCancelView,
+    BookingCompleteView,
+    BookingNoShowView,
+    SpaceBookingListView,
+)
 from apps.admin_api.views_hosting import MakerspaceProvisionSubdomainView
 from apps.admin_api.views_machine_documents import (
     MachineDocumentDeleteView,
@@ -70,6 +84,56 @@ from apps.makerspaces.models import MakerspaceMembership
 from apps.printing.views_printer_image import PrinterImageView
 
 urlpatterns = [
+    path(
+        'makerspaces/<int:makerspace_id>/spaces/',
+        BookableSpaceListCreateView.as_view(),
+        name='admin-bookable-space-list-create',
+    ),
+    path(
+        'spaces/<int:pk>/',
+        BookableSpaceDetailView.as_view(),
+        name='admin-bookable-space-detail',
+    ),
+    path(
+        'spaces/<int:pk>/deactivate/',
+        BookableSpaceDeactivateView.as_view(),
+        name='admin-bookable-space-deactivate',
+    ),
+    path(
+        'spaces/<int:pk>/image/presign/',
+        BookableSpaceImagePresignView.as_view(),
+        name='admin-bookable-space-image-presign',
+    ),
+    path(
+        'spaces/<int:pk>/image/finalize/',
+        BookableSpaceImageFinalizeView.as_view(),
+        name='admin-bookable-space-image-finalize',
+    ),
+    path(
+        'spaces/<int:pk>/image/',
+        BookableSpaceImageDeleteView.as_view(),
+        name='admin-bookable-space-image-delete',
+    ),
+    path(
+        'spaces/<int:pk>/bookings/',
+        SpaceBookingListView.as_view(),
+        name='admin-space-booking-list',
+    ),
+    path(
+        'bookings/<int:pk>/cancel/',
+        BookingCancelView.as_view(),
+        name='admin-booking-cancel',
+    ),
+    path(
+        'bookings/<int:pk>/complete/',
+        BookingCompleteView.as_view(),
+        name='admin-booking-complete',
+    ),
+    path(
+        'bookings/<int:pk>/no-show/',
+        BookingNoShowView.as_view(),
+        name='admin-booking-no-show',
+    ),
     path(
         'makerspaces/<int:makerspace_id>/events/',
         EventListCreateView.as_view(),

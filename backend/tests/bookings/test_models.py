@@ -44,6 +44,8 @@ def test_space_defaults_are_other_unlimited_private_active_and_image_null():
     assert space.kind == BookableSpace.Kind.OTHER
     assert space.capacity == 0
     assert space.is_public is False
+    assert space.show_public_availability is False
+    assert space.show_public_booker_names is False
     assert space.is_active is True
     assert space.image_key is None
 

@@ -19,6 +19,7 @@ NESTED_MAKERSPACE_LOOKUPS = {
     "machines.machinedocument": "machine__makerspace_id",
     "machines.machineerrorlog": "machine__makerspace_id",
     "machines.machineconsumable": "machine__makerspace_id",
+    "bookings.booking": "space__makerspace_id",
 }
 
 # Registered admin models that are intentionally NOT makerspace-scoped (account/global).

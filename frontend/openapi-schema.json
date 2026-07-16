@@ -940,6 +940,144 @@
                 }
             }
         },
+        "/api/v1/admin/bookings/{id}/cancel/": {
+            "post": {
+                "operationId": "api_v1_admin_bookings_cancel_create",
+                "summary": "Cancel a booking",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin bookings"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookingAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid booking state transition."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/bookings/{id}/complete/": {
+            "post": {
+                "operationId": "api_v1_admin_bookings_complete_create",
+                "summary": "Complete a booking",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin bookings"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookingAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid booking state transition."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/bookings/{id}/no-show/": {
+            "post": {
+                "operationId": "api_v1_admin_bookings_no_show_create",
+                "summary": "Mark a booking as no-show",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin bookings"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookingAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid booking state transition."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/categories/{id}": {
             "get": {
                 "operationId": "api_v1_admin_categories_retrieve",
@@ -1504,11 +1642,12 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                    "type": "object",
+                                    "additionalProperties": {}
                                 }
                             }
                         },
-                        "description": "Event operation failed with a typed workflow error."
+                        "description": "Invalid event details."
                     },
                     "409": {
                         "content": {
@@ -1652,11 +1791,12 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                    "type": "object",
+                                    "additionalProperties": {}
                                 }
                             }
                         },
-                        "description": "Event operation failed with a typed workflow error."
+                        "description": "Invalid event details."
                     },
                     "409": {
                         "content": {
@@ -8718,7 +8858,115 @@
                         "description": ""
                     },
                     "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
                         "description": "Invalid event details."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspaces/{makerspace_id}/spaces/": {
+            "get": {
+                "operationId": "api_v1_admin_makerspaces_spaces_retrieve",
+                "summary": "List bookable spaces in a makerspace",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin bookings"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookableSpaceListResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_admin_makerspaces_spaces_create",
+                "summary": "Create a bookable space",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin bookings"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BookableSpaceWrite"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BookableSpaceWrite"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/BookableSpaceWrite"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookableSpaceAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid booking operation."
                     }
                 }
             }
@@ -10562,6 +10810,405 @@
                             }
                         },
                         "description": "Workflow conflict."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/spaces/{id}/": {
+            "get": {
+                "operationId": "api_v1_admin_spaces_retrieve",
+                "summary": "Retrieve a bookable space",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin bookings"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookableSpaceAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "api_v1_admin_spaces_partial_update",
+                "summary": "Update a bookable space",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin bookings"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedBookableSpaceWrite"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedBookableSpaceWrite"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedBookableSpaceWrite"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookableSpaceAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid booking operation."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid booking state."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/spaces/{id}/bookings/": {
+            "get": {
+                "operationId": "api_v1_admin_spaces_bookings_retrieve",
+                "summary": "List bookings for a space",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "ends_at",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "starts_at",
+                        "schema": {
+                            "type": "string",
+                            "format": "date-time"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "enum": [
+                                "booked",
+                                "cancelled",
+                                "completed",
+                                "no_show"
+                            ],
+                            "type": "string",
+                            "minLength": 1
+                        },
+                        "description": "* `booked` - Booked\n* `cancelled` - Cancelled\n* `completed` - Completed\n* `no_show` - No-show"
+                    }
+                ],
+                "tags": [
+                    "Admin bookings"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookingListResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/spaces/{id}/deactivate/": {
+            "post": {
+                "operationId": "api_v1_admin_spaces_deactivate_create",
+                "summary": "Deactivate a bookable space",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin bookings"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookableSpaceAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid booking state."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/spaces/{id}/image/": {
+            "delete": {
+                "operationId": "api_v1_admin_spaces_image_destroy",
+                "summary": "Delete a space image",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin bookings"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid booking operation."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/spaces/{id}/image/finalize/": {
+            "post": {
+                "operationId": "api_v1_admin_spaces_image_finalize_create",
+                "summary": "Finalize and attach a space image",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin bookings"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SpaceImageFinalizeRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SpaceImageFinalizeRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SpaceImageFinalizeRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookableSpaceAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid booking operation."
+                    },
+                    "503": {
+                        "description": "Public image storage is unavailable."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/spaces/{id}/image/presign/": {
+            "post": {
+                "operationId": "api_v1_admin_spaces_image_presign_create",
+                "summary": "Create a space image upload URL",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin bookings"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SpaceImagePresignRequest"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SpaceImagePresignRequest"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SpaceImagePresignRequest"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SpaceImagePresignResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid booking operation."
+                    },
+                    "503": {
+                        "description": "Public image storage is unavailable."
                     }
                 }
             }
@@ -18252,9 +18899,291 @@
                     "username"
                 ]
             },
+            "AvailabilityEnum": {
+                "type": "string",
+                "enum": [
+                    "Available",
+                    "Limited",
+                    "Full"
+                ]
+            },
             "BlankEnum": {
                 "enum": [
                     ""
+                ]
+            },
+            "BookableSpaceAdmin": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "public_token": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true
+                    },
+                    "makerspace_id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "kind": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Kind3bfEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "capacity": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "location": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "image_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "is_public": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "show_public_availability": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "show_public_booker_names": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "created_by_id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "capacity",
+                    "created_at",
+                    "created_by_id",
+                    "description",
+                    "id",
+                    "image_url",
+                    "is_active",
+                    "is_public",
+                    "kind",
+                    "location",
+                    "makerspace_id",
+                    "name",
+                    "public_token",
+                    "show_public_availability",
+                    "show_public_booker_names",
+                    "updated_at"
+                ]
+            },
+            "BookableSpaceListResponse": {
+                "type": "object",
+                "properties": {
+                    "count": {
+                        "type": "integer"
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BookableSpaceAdmin"
+                        }
+                    }
+                },
+                "required": [
+                    "count",
+                    "results"
+                ]
+            },
+            "BookableSpaceWrite": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "kind": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Kind3bfEnum"
+                            }
+                        ],
+                        "default": "other"
+                    },
+                    "description": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "capacity": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "default": 0
+                    },
+                    "location": {
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 255
+                    },
+                    "is_public": {
+                        "type": "boolean",
+                        "default": false
+                    },
+                    "show_public_availability": {
+                        "type": "boolean",
+                        "default": false
+                    },
+                    "show_public_booker_names": {
+                        "type": "boolean",
+                        "default": false
+                    }
+                },
+                "required": [
+                    "name"
+                ]
+            },
+            "BookingAdmin": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "public_token": {
+                        "type": "string",
+                        "format": "uuid",
+                        "readOnly": true
+                    },
+                    "space_id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "readOnly": true
+                    },
+                    "phone": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "starts_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "ends_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/BookingAdminStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "note": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "email",
+                    "ends_at",
+                    "id",
+                    "name",
+                    "note",
+                    "phone",
+                    "public_token",
+                    "space_id",
+                    "starts_at",
+                    "status"
+                ]
+            },
+            "BookingAdminStatusEnum": {
+                "enum": [
+                    "booked",
+                    "cancelled",
+                    "completed",
+                    "no_show"
+                ],
+                "type": "string",
+                "description": "* `booked` - Booked\n* `cancelled` - Cancelled\n* `completed` - Completed\n* `no_show` - No-show"
+            },
+            "BookingListResponse": {
+                "type": "object",
+                "properties": {
+                    "count": {
+                        "type": "integer"
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/BookingAdmin"
+                        }
+                    }
+                },
+                "required": [
+                    "count",
+                    "results"
                 ]
             },
             "Box": {
@@ -21033,6 +21962,16 @@
                     "evidence_id"
                 ]
             },
+            "Kind3bfEnum": {
+                "enum": [
+                    "dev_room",
+                    "bench",
+                    "meeting",
+                    "other"
+                ],
+                "type": "string",
+                "description": "* `dev_room` - Development room\n* `bench` - Bench\n* `meeting` - Meeting room\n* `other` - Other"
+            },
             "LedgerResponse": {
                 "type": "object",
                 "properties": {
@@ -22491,6 +23430,13 @@
                 "type": "string",
                 "description": "* `count` - Count\n* `grams` - Grams"
             },
+            "MethodEnum": {
+                "enum": [
+                    "PUT"
+                ],
+                "type": "string",
+                "description": "* `PUT` - PUT"
+            },
             "Mode087Enum": {
                 "enum": [
                     "preview",
@@ -23861,6 +24807,49 @@
                     "access_level": {
                         "type": "string",
                         "maxLength": 16
+                    }
+                }
+            },
+            "PatchedBookableSpaceWrite": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "kind": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Kind3bfEnum"
+                            }
+                        ],
+                        "default": "other"
+                    },
+                    "description": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "capacity": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "default": 0
+                    },
+                    "location": {
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 255
+                    },
+                    "is_public": {
+                        "type": "boolean",
+                        "default": false
+                    },
+                    "show_public_availability": {
+                        "type": "boolean",
+                        "default": false
+                    },
+                    "show_public_booker_names": {
+                        "type": "boolean",
+                        "default": false
                     }
                 }
             },
@@ -26203,10 +27192,12 @@
                         "minimum": 0,
                         "readOnly": true
                     },
-                    "spots_left": {
-                        "type": "integer",
-                        "nullable": true,
-                        "minimum": 0,
+                    "availability": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AvailabilityEnum"
+                            }
+                        ],
                         "readOnly": true
                     },
                     "status": {
@@ -26219,12 +27210,12 @@
                     }
                 },
                 "required": [
+                    "availability",
                     "capacity",
                     "description",
                     "ends_at",
                     "location",
                     "public_token",
-                    "spots_left",
                     "starts_at",
                     "status",
                     "title"
@@ -28336,6 +29327,73 @@
                 ],
                 "type": "string",
                 "description": "* `info` - Info\n* `warning` - Warning\n* `error` - Error\n* `critical` - Critical"
+            },
+            "SpaceImageFinalizeRequest": {
+                "type": "object",
+                "properties": {
+                    "object_key": {
+                        "type": "string",
+                        "maxLength": 500
+                    }
+                },
+                "required": [
+                    "object_key"
+                ]
+            },
+            "SpaceImagePresignRequest": {
+                "type": "object",
+                "properties": {
+                    "filename": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "content_type": {
+                        "type": "string",
+                        "maxLength": 100
+                    }
+                },
+                "required": [
+                    "content_type",
+                    "filename"
+                ]
+            },
+            "SpaceImagePresignResponse": {
+                "type": "object",
+                "properties": {
+                    "object_key": {
+                        "type": "string"
+                    },
+                    "upload": {
+                        "$ref": "#/components/schemas/SpaceImageUpload"
+                    }
+                },
+                "required": [
+                    "object_key",
+                    "upload"
+                ]
+            },
+            "SpaceImageUpload": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "method": {
+                        "$ref": "#/components/schemas/MethodEnum"
+                    },
+                    "fields": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    },
+                    "headers": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                },
+                "required": [
+                    "url"
+                ]
             },
             "StaffCheckinVerifyRequest": {
                 "type": "object",
