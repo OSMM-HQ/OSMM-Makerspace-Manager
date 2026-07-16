@@ -32,6 +32,16 @@ def _active_space(space_id):
     return locked
 
 
+@transaction.atomic
+def cleanup_unattached_space_image(space, *, object_key, storage):
+    _locked_space(space.pk)
+    if not BookableSpace.objects.filter(image_key=object_key).exists():
+        storage.delete_object(object_key)
+    staging_key = storage.staging_key(object_key)
+    if staging_key != object_key:
+        storage.delete_object(staging_key)
+
+
 def set_space_image(
     space,
     *,

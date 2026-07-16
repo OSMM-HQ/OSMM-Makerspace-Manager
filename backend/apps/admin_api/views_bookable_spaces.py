@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.pagination import PageNumberPagination
@@ -17,17 +17,24 @@ from apps.admin_api.serializers_bookings import (
     SpaceImagePresignRequestSerializer,
     SpaceImagePresignResponseSerializer,
 )
-from apps.bookings import services, storage
+from apps.bookings import services, services_images, storage
 from apps.bookings.models import BookableSpace
 from apps.evidence.responses import storage_unavailable_response
 from apps.evidence.storage import StorageUnavailable
-from apps.hardware_requests.exceptions import ErrorSerializer
+from apps.hardware_requests.view_helpers import (
+    ERROR_400,
+    ERROR_403,
+    ERROR_404,
+    ERROR_409,
+    ERROR_503,
+)
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.models import Makerspace
 
 
-ERROR_400 = OpenApiResponse(ErrorSerializer, description='Invalid booking operation.')
-ERROR_409 = OpenApiResponse(ErrorSerializer, description='Invalid booking state.')
+SCOPED_ERROR_RESPONSES = {403: ERROR_403, 404: ERROR_404}
+VALIDATED_ERROR_RESPONSES = {400: ERROR_400, **SCOPED_ERROR_RESPONSES}
+IMAGE_ERROR_RESPONSES = {**VALIDATED_ERROR_RESPONSES, 503: ERROR_503}
 
 
 class _SpacePagination(PageNumberPagination):
@@ -91,7 +98,7 @@ class BookableSpaceListCreateView(APIView):
         tags=['Admin bookings'],
         summary='List bookable spaces in a makerspace',
         request=None,
-        responses={200: BookableSpaceListResponseSerializer},
+        responses={200: BookableSpaceListResponseSerializer, **SCOPED_ERROR_RESPONSES},
     )
     def get(self, request, makerspace_id, *args, **kwargs):
         makerspace = _visible_makerspace(request.user, makerspace_id)
@@ -109,7 +116,7 @@ class BookableSpaceListCreateView(APIView):
         tags=['Admin bookings'],
         summary='Create a bookable space',
         request=BookableSpaceWriteSerializer,
-        responses={201: BookableSpaceAdminSerializer, 400: ERROR_400},
+        responses={201: BookableSpaceAdminSerializer, **VALIDATED_ERROR_RESPONSES},
     )
     def post(self, request, makerspace_id, *args, **kwargs):
         makerspace = _visible_makerspace(request.user, makerspace_id)
@@ -133,7 +140,7 @@ class BookableSpaceDetailView(APIView):
         tags=['Admin bookings'],
         summary='Retrieve a bookable space',
         request=None,
-        responses={200: BookableSpaceAdminSerializer},
+        responses={200: BookableSpaceAdminSerializer, **SCOPED_ERROR_RESPONSES},
     )
     def get(self, request, pk, *args, **kwargs):
         return Response(
@@ -144,7 +151,11 @@ class BookableSpaceDetailView(APIView):
         tags=['Admin bookings'],
         summary='Update a bookable space',
         request=BookableSpaceWriteSerializer,
-        responses={200: BookableSpaceAdminSerializer, 400: ERROR_400, 409: ERROR_409},
+        responses={
+            200: BookableSpaceAdminSerializer,
+            **VALIDATED_ERROR_RESPONSES,
+            409: ERROR_409,
+        },
     )
     def patch(self, request, pk, *args, **kwargs):
         space = manageable_space(request.user, pk)
@@ -169,7 +180,11 @@ class BookableSpaceDeactivateView(APIView):
         tags=['Admin bookings'],
         summary='Deactivate a bookable space',
         request=EmptyActionSerializer,
-        responses={200: BookableSpaceAdminSerializer, 409: ERROR_409},
+        responses={
+            200: BookableSpaceAdminSerializer,
+            **VALIDATED_ERROR_RESPONSES,
+            409: ERROR_409,
+        },
     )
     def post(self, request, pk, *args, **kwargs):
         space = manageable_space(request.user, pk)
@@ -186,11 +201,7 @@ class BookableSpaceImagePresignView(APIView):
         tags=['Admin bookings'],
         summary='Create a space image upload URL',
         request=SpaceImagePresignRequestSerializer,
-        responses={
-            201: SpaceImagePresignResponseSerializer,
-            400: ERROR_400,
-            503: OpenApiResponse(description='Public image storage is unavailable.'),
-        },
+        responses={201: SpaceImagePresignResponseSerializer, **IMAGE_ERROR_RESPONSES},
     )
     def post(self, request, pk, *args, **kwargs):
         space = manageable_space(request.user, pk)
@@ -211,9 +222,12 @@ class BookableSpaceImagePresignView(APIView):
         )
 
 
-def _cleanup_new_upload(object_key):
-    storage.delete_object(object_key)
-    storage.delete_object(storage.staging_key(object_key))
+def _cleanup_new_upload(space, object_key):
+    services_images.cleanup_unattached_space_image(
+        space,
+        object_key=object_key,
+        storage=storage,
+    )
 
 
 class BookableSpaceImageFinalizeView(APIView):
@@ -223,11 +237,7 @@ class BookableSpaceImageFinalizeView(APIView):
         tags=['Admin bookings'],
         summary='Finalize and attach a space image',
         request=SpaceImageFinalizeRequestSerializer,
-        responses={
-            200: BookableSpaceAdminSerializer,
-            400: ERROR_400,
-            503: OpenApiResponse(description='Public image storage is unavailable.'),
-        },
+        responses={200: BookableSpaceAdminSerializer, **IMAGE_ERROR_RESPONSES},
     )
     def post(self, request, pk, *args, **kwargs):
         space = manageable_space(request.user, pk)
@@ -241,20 +251,20 @@ class BookableSpaceImageFinalizeView(APIView):
         try:
             result = storage.finalize_upload(object_key)
         except StorageUnavailable:
-            _cleanup_new_upload(object_key)
+            _cleanup_new_upload(space, object_key)
             return storage_unavailable_response()
         if result.status != 'ok':
-            _cleanup_new_upload(object_key)
+            _cleanup_new_upload(space, object_key)
             raise ValidationError(
                 {'object_key': storage.finalize_error_message(result)}
             )
         try:
             valid_image = storage.sniff_is_valid_image(object_key)
         except StorageUnavailable:
-            _cleanup_new_upload(object_key)
+            _cleanup_new_upload(space, object_key)
             return storage_unavailable_response()
         if not valid_image:
-            _cleanup_new_upload(object_key)
+            _cleanup_new_upload(space, object_key)
             raise ValidationError({'object_key': 'Uploaded file is not a valid image.'})
         try:
             space = services.set_space_image(
@@ -264,7 +274,7 @@ class BookableSpaceImageFinalizeView(APIView):
                 size_bytes=result.size,
             )
         except Exception:
-            _cleanup_new_upload(object_key)
+            _cleanup_new_upload(space, object_key)
             raise
         return Response(BookableSpaceAdminSerializer(space).data)
 
@@ -276,7 +286,7 @@ class BookableSpaceImageDeleteView(APIView):
         tags=['Admin bookings'],
         summary='Delete a space image',
         request=None,
-        responses={204: None, 400: ERROR_400},
+        responses={204: None, **IMAGE_ERROR_RESPONSES},
     )
     def delete(self, request, pk, *args, **kwargs):
         space = manageable_space(request.user, pk)

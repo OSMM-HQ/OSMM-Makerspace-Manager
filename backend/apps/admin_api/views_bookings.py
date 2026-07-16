@@ -1,5 +1,5 @@
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import OpenApiResponse, extend_schema
+from drf_spectacular.utils import extend_schema
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
@@ -16,14 +16,23 @@ from apps.admin_api.serializers_bookings import (
 from apps.admin_api.views_bookable_spaces import manageable_space
 from apps.bookings import services
 from apps.bookings.models import Booking
-from apps.hardware_requests.exceptions import ErrorSerializer
+from apps.hardware_requests.view_helpers import (
+    ERROR_400,
+    ERROR_403,
+    ERROR_404,
+    ERROR_409,
+)
 from apps.makerspaces.guards import require_module
 
 
-ERROR_409 = OpenApiResponse(
-    ErrorSerializer,
-    description='Invalid booking state transition.',
-)
+SCOPED_ERROR_RESPONSES = {
+    403: ERROR_403,
+    404: ERROR_404,
+}
+VALIDATED_ERROR_RESPONSES = {
+    400: ERROR_400,
+    **SCOPED_ERROR_RESPONSES,
+}
 
 
 class _BookingPagination(PageNumberPagination):
@@ -59,7 +68,10 @@ class SpaceBookingListView(APIView):
         summary='List bookings for a space',
         request=None,
         parameters=[BookingListFilterSerializer],
-        responses={200: BookingListResponseSerializer},
+        responses={
+            200: BookingListResponseSerializer,
+            **VALIDATED_ERROR_RESPONSES,
+        },
     )
     def get(self, request, pk, *args, **kwargs):
         space = manageable_space(request.user, pk)
@@ -110,7 +122,11 @@ class BookingCancelView(_BookingActionView):
         tags=['Admin bookings'],
         summary='Cancel a booking',
         request=EmptyActionSerializer,
-        responses={200: BookingAdminSerializer, 409: ERROR_409},
+        responses={
+            200: BookingAdminSerializer,
+            **VALIDATED_ERROR_RESPONSES,
+            409: ERROR_409,
+        },
     )
     def post(self, request, pk, *args, **kwargs):
         return self.execute(request, pk)
@@ -123,7 +139,11 @@ class BookingCompleteView(_BookingActionView):
         tags=['Admin bookings'],
         summary='Complete a booking',
         request=EmptyActionSerializer,
-        responses={200: BookingAdminSerializer, 409: ERROR_409},
+        responses={
+            200: BookingAdminSerializer,
+            **VALIDATED_ERROR_RESPONSES,
+            409: ERROR_409,
+        },
     )
     def post(self, request, pk, *args, **kwargs):
         return self.execute(request, pk)
@@ -136,7 +156,11 @@ class BookingNoShowView(_BookingActionView):
         tags=['Admin bookings'],
         summary='Mark a booking as no-show',
         request=EmptyActionSerializer,
-        responses={200: BookingAdminSerializer, 409: ERROR_409},
+        responses={
+            200: BookingAdminSerializer,
+            **VALIDATED_ERROR_RESPONSES,
+            409: ERROR_409,
+        },
     )
     def post(self, request, pk, *args, **kwargs):
         return self.execute(request, pk)

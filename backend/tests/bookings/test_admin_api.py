@@ -1,15 +1,19 @@
 from datetime import timedelta
 
 import pytest
+from django.contrib import admin
 from django.urls import resolve, reverse
 from django.utils import timezone
 from drf_spectacular.generators import SchemaGenerator
+from rest_framework.exceptions import ValidationError
 from rest_framework.test import APIClient, APIRequestFactory
 
 from apps.accounts import rbac
 from apps.accounts.models import User
+from apps.bookings import services, storage
 from apps.bookings.models import BookableSpace, Booking
 from apps.makerspaces import origin_scope
+from apps.makerspaces import limits
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 
 pytestmark = pytest.mark.django_db
@@ -91,19 +95,27 @@ def test_manage_bookings_grant_delta_is_exact():
     assert rbac.can(root, rbac.Action.MANAGE_BOOKINGS, makerspace.pk)
 
 
-def test_every_endpoint_enforces_active_staff_module_and_404_before_403():
+def test_every_endpoint_enforces_active_staff_and_module():
     makerspace = tenant('booking-guards')
     bookable_space, row = space(makerspace), None
     row = booking(bookable_space)
-    for actor in (
-        None,
-        user('booking-inactive', is_active=False),
-        user('booking-suspended', access_status=User.AccessStatus.SUSPENDED),
-        user('booking-outsider'),
-    ):
-        client = APIClient() if actor is None else client_for(actor)
+    cases = (
+        (APIClient(), 401),
+        (client_for(user('booking-inactive', is_active=False)), 403),
+        (
+            client_for(
+                user(
+                    'booking-suspended',
+                    access_status=User.AccessStatus.SUSPENDED,
+                )
+            ),
+            403,
+        ),
+        (client_for(user('booking-outsider')), 404),
+    )
+    for client, expected_status in cases:
         assert all(
-            call(client, method, url, data).status_code in {401, 403, 404}
+            call(client, method, url, data).status_code == expected_status
             for method, url, data in urls(makerspace, bookable_space, row)
         )
     manager = user('booking-module-manager')
@@ -114,6 +126,35 @@ def test_every_endpoint_enforces_active_staff_module_and_404_before_403():
         call(client_for(manager), method, url, data).status_code == 400
         for method, url, data in urls(makerspace, bookable_space, row)
     )
+
+
+def test_invisible_object_scopes_return_404_before_permission():
+    cross_target = tenant('booking-cross-target')
+    cross_actor = user('booking-cross-manager')
+    grant(cross_actor, tenant('booking-cross-own'))
+    archived = tenant('booking-archived', archived_at=timezone.now())
+    archived_actor = user('booking-archived-manager')
+    grant(archived_actor, archived)
+    hidden = tenant(
+        'booking-hidden',
+        superadmin_access_enabled=False,
+    )
+    hidden_actor = user(
+        'booking-hidden-root',
+        role=User.Role.SUPERADMIN,
+        is_superuser=True,
+    )
+    for makerspace, actor in (
+        (cross_target, cross_actor),
+        (archived, archived_actor),
+        (hidden, hidden_actor),
+    ):
+        target = space(makerspace)
+        row = booking(target)
+        assert all(
+            call(client_for(actor), method, url, data).status_code == 404
+            for method, url, data in urls(makerspace, target, row)
+        )
 
 
 @pytest.mark.parametrize(
@@ -164,6 +205,72 @@ def test_space_crud_allowlist_flags_and_validation():
     )
     assert invalid.status_code == 400
     assert invalid.data['code'] == 'booker_names_requires_availability'
+
+
+def test_booking_control_admins_are_read_only():
+    for model in (BookableSpace, Booking):
+        model_admin = admin.site._registry[model]
+        assert model_admin.has_add_permission(None) is False
+        assert model_admin.has_change_permission(None) is False
+        assert model_admin.has_delete_permission(None) is False
+        assert set(model_admin.readonly_fields) == {
+            field.name for field in model._meta.fields
+        }
+
+
+def test_duplicate_finalize_loser_preserves_winner_object_and_accounting(
+    monkeypatch,
+):
+    makerspace = tenant(
+        'booking-finalize-race',
+        resource_limit_overrides={'storage': 1000},
+    )
+    actor = user('booking-finalize-race-manager')
+    grant(actor, makerspace)
+    target = space(makerspace)
+    object_key = (
+        f'spaces/{makerspace.pk}/{target.pk}/images/concurrent.png'
+    )
+    staging_key = storage.staging_key(object_key)
+    live_objects = {object_key, staging_key}
+    original_set_space_image = services.set_space_image
+
+    monkeypatch.setattr(limits, 'is_self_host', lambda: False)
+    monkeypatch.setattr(
+        storage,
+        'finalize_upload',
+        lambda key: storage.FinalizeResult('ok', 25),
+    )
+    monkeypatch.setattr(storage, 'sniff_is_valid_image', lambda key: True)
+    monkeypatch.setattr(storage, 'delete_object', live_objects.discard)
+
+    def winner_attaches_before_loser(*args, **kwargs):
+        original_set_space_image(*args, **kwargs)
+        raise ValidationError(
+            {'object_key': 'This image was attached by another request.'}
+        )
+
+    monkeypatch.setattr(
+        services,
+        'set_space_image',
+        winner_attaches_before_loser,
+    )
+    response = client_for(actor).post(
+        reverse(
+            'admin-bookable-space-image-finalize',
+            kwargs={'pk': target.pk},
+        ),
+        {'object_key': object_key},
+        format='json',
+    )
+
+    target.refresh_from_db()
+    makerspace.refresh_from_db()
+    assert response.status_code == 400
+    assert target.image_key == object_key
+    assert object_key in live_objects
+    assert staging_key not in live_objects
+    assert makerspace.storage_bytes_used == 25
 
 
 def test_booking_list_is_space_scoped_and_lifecycle_is_typed():
@@ -222,3 +329,46 @@ def test_staff_urls_origin_registry_and_openapi():
     fields = schema['components']['schemas']['BookableSpaceAdmin']['properties']
     assert 'image_key' not in fields
     assert {'show_public_availability', 'show_public_booker_names'} <= fields.keys()
+    expected_errors = {
+        '/api/v1/admin/makerspaces/{makerspace_id}/spaces/': {
+            'get': {'403', '404'},
+            'post': {'400', '403', '404'},
+        },
+        '/api/v1/admin/spaces/{id}/': {
+            'get': {'403', '404'},
+            'patch': {'400', '403', '404', '409'},
+        },
+        '/api/v1/admin/spaces/{id}/deactivate/': {
+            'post': {'400', '403', '404', '409'},
+        },
+        '/api/v1/admin/spaces/{id}/image/presign/': {
+            'post': {'400', '403', '404', '503'},
+        },
+        '/api/v1/admin/spaces/{id}/image/finalize/': {
+            'post': {'400', '403', '404', '503'},
+        },
+        '/api/v1/admin/spaces/{id}/image/': {
+            'delete': {'400', '403', '404', '503'},
+        },
+        '/api/v1/admin/spaces/{id}/bookings/': {
+            'get': {'400', '403', '404'},
+        },
+        '/api/v1/admin/bookings/{id}/cancel/': {
+            'post': {'400', '403', '404', '409'},
+        },
+        '/api/v1/admin/bookings/{id}/complete/': {
+            'post': {'400', '403', '404', '409'},
+        },
+        '/api/v1/admin/bookings/{id}/no-show/': {
+            'post': {'400', '403', '404', '409'},
+        },
+    }
+    for path, methods in expected_errors.items():
+        for method, codes in methods.items():
+            responses = schema['paths'][path][method]['responses']
+            assert codes <= responses.keys()
+            for code in codes:
+                error_schema = responses[code]['content']['application/json'][
+                    'schema'
+                ]
+                assert error_schema['$ref'].endswith('/HardwareRequestError')

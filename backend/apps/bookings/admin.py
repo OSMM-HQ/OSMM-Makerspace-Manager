@@ -21,11 +21,31 @@ class BookableSpaceAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         'show_public_availability',
         'show_public_booker_names',
     )
-    readonly_fields = ('public_token', 'image_key', 'created_at', 'updated_at')
+    readonly_fields = tuple(field.name for field in BookableSpace._meta.fields)
+    fields = readonly_fields
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Booking)
 class BookingAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     list_display = ('name', 'space', 'starts_at', 'ends_at', 'status')
     list_filter = ('status',)
-    readonly_fields = ('public_token', 'created_at')
+    readonly_fields = tuple(field.name for field in Booking._meta.fields)
+    fields = readonly_fields
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
