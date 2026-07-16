@@ -26,6 +26,7 @@ def scope_by_makerspace(actor, queryset, makerspace_field="makerspace_id"):
 
 
 class Action:
+    MANAGE_EVENTS = 'manage_events'
     VIEW_INVENTORY = "view_inventory"
     EDIT_INVENTORY = "edit_inventory"
     ACCEPT_REQUEST = "accept_request"
@@ -49,7 +50,7 @@ _SPACE_MANAGER_ACTIONS = {
     Action.REJECT_REQUEST, Action.ASSIGN_BOX, Action.ISSUE_REQUEST,
     Action.ISSUE_DIRECT_LOAN, Action.RETURN_REQUEST, Action.UPLOAD_EVIDENCE,
     Action.MANAGE_QR, Action.MANAGE_PRINTING, Action.VIEW_AUDIT,
-    Action.MANAGE_MAKERSPACE, Action.MANAGE_MACHINES,
+    Action.MANAGE_MAKERSPACE, Action.MANAGE_MACHINES, Action.MANAGE_EVENTS,
 }
 # Guest admins are handout-only: accepted request handovers, direct handout, returns,
 # and evidence upload. They still cannot review requests or edit inventory setup.

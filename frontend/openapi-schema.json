@@ -1368,6 +1368,345 @@
                 }
             }
         },
+        "/api/v1/admin/event-registrations/{id}/mark-attended/": {
+            "post": {
+                "operationId": "api_v1_admin_event_registrations_mark_attended_create",
+                "summary": "Mark an event registration attended",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin events"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventRegistrationAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Event state or capacity conflict."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/events/{id}/": {
+            "get": {
+                "operationId": "api_v1_admin_events_retrieve",
+                "summary": "Retrieve an event",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin events"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "api_v1_admin_events_partial_update",
+                "summary": "Update an event",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin events"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedEventWrite"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedEventWrite"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedEventWrite"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Event operation failed with a typed workflow error."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Event state or capacity conflict."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/events/{id}/cancel/": {
+            "post": {
+                "operationId": "api_v1_admin_events_cancel_create",
+                "summary": "Cancel an event",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin events"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Event state or capacity conflict."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/events/{id}/complete/": {
+            "post": {
+                "operationId": "api_v1_admin_events_complete_create",
+                "summary": "Complete an event",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin events"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Event state or capacity conflict."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/events/{id}/publish/": {
+            "post": {
+                "operationId": "api_v1_admin_events_publish_create",
+                "summary": "Publish an event",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin events"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Event operation failed with a typed workflow error."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Event state or capacity conflict."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/events/{id}/registrations/": {
+            "get": {
+                "operationId": "api_v1_admin_events_registrations_retrieve",
+                "summary": "List event registrations",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin events"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventRegistrationListResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/evidence/{id}": {
             "get": {
                 "operationId": "api_v1_admin_evidence_retrieve",
@@ -8287,6 +8626,99 @@
                             }
                         },
                         "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspaces/{makerspace_id}/events/": {
+            "get": {
+                "operationId": "api_v1_admin_makerspaces_events_retrieve",
+                "summary": "List events in a makerspace",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin events"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventListResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_admin_makerspaces_events_create",
+                "summary": "Create a draft event",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin events"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EventWrite"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EventWrite"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EventWrite"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/EventAdmin"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid event details."
                     }
                 }
             }
@@ -18970,6 +19402,283 @@
                     "detail"
                 ]
             },
+            "EventAdmin": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "makerspace_id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "starts_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "ends_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "location": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "capacity": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "is_public": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/EventAdminStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "created_by_id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "registration_counts": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/EventRegistrationCounts"
+                            }
+                        ],
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "capacity",
+                    "created_at",
+                    "created_by_id",
+                    "description",
+                    "ends_at",
+                    "id",
+                    "is_public",
+                    "location",
+                    "makerspace_id",
+                    "registration_counts",
+                    "starts_at",
+                    "status",
+                    "title",
+                    "updated_at"
+                ]
+            },
+            "EventAdminStatusEnum": {
+                "enum": [
+                    "draft",
+                    "published",
+                    "cancelled",
+                    "completed"
+                ],
+                "type": "string",
+                "description": "* `draft` - Draft\n* `published` - Published\n* `cancelled` - Cancelled\n* `completed` - Completed"
+            },
+            "EventListResponse": {
+                "type": "object",
+                "properties": {
+                    "count": {
+                        "type": "integer"
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/EventAdmin"
+                        }
+                    }
+                },
+                "required": [
+                    "count",
+                    "results"
+                ]
+            },
+            "EventRegistrationAdmin": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "event_id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "readOnly": true
+                    },
+                    "phone": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/EventRegistrationAdminStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "email",
+                    "event_id",
+                    "id",
+                    "name",
+                    "phone",
+                    "status"
+                ]
+            },
+            "EventRegistrationAdminStatusEnum": {
+                "enum": [
+                    "registered",
+                    "waitlisted",
+                    "cancelled",
+                    "attended"
+                ],
+                "type": "string",
+                "description": "* `registered` - Registered\n* `waitlisted` - Waitlisted\n* `cancelled` - Cancelled\n* `attended` - Attended"
+            },
+            "EventRegistrationCounts": {
+                "type": "object",
+                "properties": {
+                    "registered": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "waitlisted": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "cancelled": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "attended": {
+                        "type": "integer",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "attended",
+                    "cancelled",
+                    "registered",
+                    "waitlisted"
+                ]
+            },
+            "EventRegistrationListResponse": {
+                "type": "object",
+                "properties": {
+                    "count": {
+                        "type": "integer"
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/EventRegistrationAdmin"
+                        }
+                    }
+                },
+                "required": [
+                    "count",
+                    "results"
+                ]
+            },
+            "EventWrite": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "description": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "starts_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "ends_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "location": {
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 255
+                    },
+                    "capacity": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "default": 0
+                    },
+                    "is_public": {
+                        "type": "boolean",
+                        "default": false
+                    }
+                },
+                "required": [
+                    "ends_at",
+                    "starts_at",
+                    "title"
+                ]
+            },
             "EvidenceGetResponse": {
                 "type": "object",
                 "properties": {
@@ -23096,6 +23805,41 @@
                     },
                     "is_active": {
                         "type": "boolean"
+                    }
+                }
+            },
+            "PatchedEventWrite": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "description": {
+                        "type": "string",
+                        "default": ""
+                    },
+                    "starts_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "ends_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "location": {
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 255
+                    },
+                    "capacity": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "default": 0
+                    },
+                    "is_public": {
+                        "type": "boolean",
+                        "default": false
                     }
                 }
             },

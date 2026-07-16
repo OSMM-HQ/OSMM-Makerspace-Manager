@@ -9,6 +9,7 @@ from apps.makerspaces.platform import makerspace_staff_origins
 NO_STAFF_ORIGIN_SCOPE = object()
 AMBIGUOUS_STAFF_ORIGIN_SCOPE = object()
 _MAKERSPACE_KWARG_ROUTES = {
+    'admin-event-list-create': 'makerspace_id',
     "admin-machine-types": "makerspace_id",
     "admin-machine-type-detail": "makerspace_id",
     "admin-makerspace-provision-subdomain": "makerspace_id",
@@ -151,6 +152,8 @@ def _model_for_path(model_path):
         from apps.warranty import models
     elif app_label == "machines":
         from apps.machines import models
+    elif app_label == 'events':
+        from apps.events import models
     else:
         raise LookupError(model_path)
     return getattr(models, model_name)
@@ -177,6 +180,15 @@ _PRINT_ACTIONS = {
     "managed-request-reprint",
 }
 _MODEL_LOOKUPS = {
+    'admin-event-detail': ('events.Event', 'makerspace_id'),
+    'admin-event-publish': ('events.Event', 'makerspace_id'),
+    'admin-event-cancel': ('events.Event', 'makerspace_id'),
+    'admin-event-complete': ('events.Event', 'makerspace_id'),
+    'admin-event-registration-list': ('events.Event', 'makerspace_id'),
+    'admin-event-registration-mark-attended': (
+        'events.EventRegistration',
+        'event__makerspace_id',
+    ),
     'admin-machine-operator-candidates': ('machines.Machine', 'makerspace_id'),
     'admin-machine-publicity': ('machines.Machine', 'makerspace_id'),
     "makerspace-verify-domain": ("makerspaces.Makerspace", "id"),
