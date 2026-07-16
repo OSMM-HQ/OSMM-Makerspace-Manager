@@ -8,6 +8,7 @@ import { MakerspaceEmailSettings } from "./MakerspaceEmailSettings";
 import { MakerspaceFilamentSettings } from "./MakerspaceFilamentSettings";
 import { IntegrationHealthPanel } from "./IntegrationHealthPanel";
 import { MakerspaceLocationSettings } from "./MakerspaceLocationSettings";
+import { MakerspaceSubdomainSettings } from "./MakerspaceSubdomainSettings";
 import { NotificationMuteMatrix } from "./NotificationMuteMatrix";
 import { Panel, type Makerspace, useStaffGet } from "./StaffPanels";
 
@@ -223,6 +224,9 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
         </div>
         <MakerspaceFilamentSettings makerspace={makerspace} settings={settings.data} loading={settings.isLoading} />
         <MakerspaceEmailSettings makerspace={makerspace} />
+        {settings.data?.platform_hosting === true ? (
+          <MakerspaceSubdomainSettings makerspace={makerspace} settings={settings.data} />
+        ) : null}
         <MakerspaceCustomDomainSettings
           makerspace={makerspace}
           settings={settings.data}

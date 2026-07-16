@@ -98,6 +98,11 @@ export function MakerspaceCustomDomainSettings({ makerspace, settings, loading }
     loading || updateCustomDomain.isPending || (!domainChanged && !hiddenChanged);
   const verifyDisabled = loading || verifyDomain.isPending || !currentDomain || domainChanged;
   const visibleRecord = domainChanged ? null : record;
+  // Self-host mode returns no DNS verification record; a VERIFIED domain with no
+  // record is trusted automatically, so show a compact "Active" state and hide the
+  // TXT-record instructions + Verify button (managed domains keep the DNS/verify UI).
+  const isSelfHostActive =
+    Boolean(currentDomain) && !record && status === "verified" && !domainChanged;
 
   return (
     <div className="min-w-0 rounded-md border border-line bg-bg p-4">
@@ -114,7 +119,9 @@ export function MakerspaceCustomDomainSettings({ makerspace, settings, loading }
           <div className="grid min-w-0 max-w-2xl gap-2">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-base font-semibold text-ink">Custom domain</h3>
-              <Badge tone={domainStatusTone(status)}>{domainStatusLabel(status)}</Badge>
+              <Badge tone={isSelfHostActive ? "success" : domainStatusTone(status)}>
+                {isSelfHostActive ? "Active" : domainStatusLabel(status)}
+              </Badge>
             </div>
             <p className="text-sm text-muted">
               Route this makerspace&apos;s public and staff surfaces through a dedicated domain.
@@ -177,17 +184,24 @@ export function MakerspaceCustomDomainSettings({ makerspace, settings, loading }
               TLS and reverse proxy routing must terminate HTTPS for this hostname and forward both
               the public site and <code>/admin</code> staff console to this deployment.
             </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                className="desk-button w-full max-w-full sm:w-auto"
-                type="button"
-                disabled={verifyDisabled}
-                onClick={() => verifyDomain.mutate()}
-              >
-                {verifyDomain.isPending ? "Checking..." : "Verify domain"}
-              </button>
-              {token ? <span className="break-all text-xs text-muted">Token: {token}</span> : null}
-            </div>
+            {isSelfHostActive ? (
+              <p className="text-sm text-ink">
+                This custom domain is active. Staff and public traffic on this hostname are
+                trusted automatically on a self-hosted instance.
+              </p>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  className="desk-button w-full max-w-full sm:w-auto"
+                  type="button"
+                  disabled={verifyDisabled}
+                  onClick={() => verifyDomain.mutate()}
+                >
+                  {verifyDomain.isPending ? "Checking..." : "Verify domain"}
+                </button>
+                {token ? <span className="break-all text-xs text-muted">Token: {token}</span> : null}
+              </div>
+            )}
           </div>
         ) : null}
         {domainChanged && currentDomain ? (

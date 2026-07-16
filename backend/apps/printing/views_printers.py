@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Prefetch, Q
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import generics, status
@@ -7,6 +8,7 @@ from rest_framework.response import Response
 from apps.accounts import rbac
 from apps.audit import services as audit
 from apps.inventory import public_image_storage
+from apps.makerspaces import limits
 from apps.makerspaces.guards import require_module
 from apps.printing.models import FilamentSpool, PrintPrinter, PrintRequest
 from apps.printing.permissions import CanManagePrinting
@@ -45,9 +47,10 @@ class ManagedPrinterMixin:
         return qs
 
     def assert_can_manage_makerspace(self, makerspace_id):
-        require_module(makerspace_id, "printing")
+        makerspace = require_module(makerspace_id, "printing")
         if not rbac.can(self.request.user, rbac.Action.MANAGE_PRINTING, makerspace_id):
             raise ValidationError({"makerspace": "You cannot manage printing here."})
+        return makerspace
 
 
 @extend_schema(tags=["Printing"], summary="List or create managed 3D printers")
@@ -59,8 +62,10 @@ class ManagedPrinterListCreateView(ManagedPrinterMixin, generics.ListCreateAPIVi
 
     def perform_create(self, serializer):
         makerspace_id = serializer.validated_data["makerspace_id"]
-        self.assert_can_manage_makerspace(makerspace_id)
-        printer = serializer.save()
+        makerspace = self.assert_can_manage_makerspace(makerspace_id)
+        with transaction.atomic():
+            limits.check_quota(makerspace, "machines", adding=1)
+            printer = serializer.save()
         audit.record(
             self.request.user,
             "printing.printer_created",

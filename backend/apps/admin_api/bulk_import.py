@@ -9,6 +9,7 @@ from apps.admin_api.bulk_import_parsers import (
     rows_from_upload,
 )
 from apps.inventory.models import Category, InventoryProduct, PublicAvailabilityMode, TrackingMode
+from apps.makerspaces import limits
 
 
 REQUIRED_FIELDS = {"name", "total_quantity", "available_quantity"}
@@ -84,6 +85,22 @@ def apply_import(actor, makerspace, rows, mapping, progress_callback=None, allow
     created = 0
     updated = 0
     with transaction.atomic():
+        import_names = {
+            item["data"]["name"]
+            for item in preview["rows"]
+            if item["action"] != "error"
+        }
+        existing_names = set(
+            InventoryProduct.objects.filter(
+                makerspace=makerspace,
+                name__in=import_names,
+            ).values_list("name", flat=True)
+        )
+        limits.check_quota(
+            makerspace,
+            "products",
+            adding=len(import_names - existing_names),
+        )
         for item in preview["rows"]:
             if item["action"] == "error":
                 continue

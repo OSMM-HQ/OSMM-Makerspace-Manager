@@ -17,6 +17,7 @@ from apps.admin_api.serializers_users import (
 )
 from apps.audit import services as audit
 from apps.audit.models import AuditLog
+from apps.makerspaces import limits
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 
 
@@ -96,6 +97,7 @@ class StaffListCreateView(generics.ListCreateAPIView):
                 if errors:
                     raise ValidationError(errors)
                 user = User.objects.create(username=data["username"], **user_defaults)
+                limits.check_quota(makerspace, "staff", adding=1)
                 membership = MakerspaceMembership.objects.create(
                     user=user,
                     makerspace=makerspace,
@@ -107,6 +109,16 @@ class StaffListCreateView(generics.ListCreateAPIView):
                     username=data["username"],
                     defaults=user_defaults,
                 )
+                has_active_membership = MakerspaceMembership.objects.filter(
+                    user=user,
+                    makerspace=makerspace,
+                    user__is_active=True,
+                    user__access_status=User.AccessStatus.ACTIVE,
+                ).exists()
+                if not has_active_membership and user.is_active and (
+                    user.access_status == User.AccessStatus.ACTIVE
+                ):
+                    limits.check_quota(makerspace, "staff", adding=1)
                 membership, _ = MakerspaceMembership.objects.update_or_create(
                     user=user,
                     makerspace_id=makerspace_id,

@@ -156,6 +156,49 @@ passwords) live only in the backend. `API_CLIENT_ENC_KEY` is the Fernet key that
 per-makerspace integration secrets at rest — **back it up and do not rotate it casually**, or
 previously stored tokens/passwords can no longer be decrypted.
 
+## Custom domain (self-host)
+
+On a self-hosted instance (the default — `PLATFORM_DOMAIN_SUFFIX` is **blank**) you own both DNS and
+the server, so a makerspace's custom domain is **trusted the moment a superadmin sets it** — there is
+no DNS TXT challenge. (The TXT-verification flow only exists to defend the shared managed `osmm.me`
+box; it stays dormant here.) End-to-end:
+
+1. **Point DNS at the server.** Create an `A`/`AAAA` record for the hostname (for example
+   `tools.example.org`) pointing at this deployment's public IP.
+2. **Enable automatic HTTPS.** Staff login on a custom domain requires HTTPS — the staff-auth
+   allowlist only trusts the `https://` origin (localhost dev is the sole `http` exception). Set the
+   TLS env and bring up the Caddy overlay:
+
+   ```env
+   PUBLIC_DOMAIN=tools.example.org
+   CSRF_TRUSTED_ORIGINS=https://tools.example.org
+   # Django's own host check (CommonMiddleware) is separate from the tenant host
+   # middleware — add every custom hostname here or requests 400 with DisallowedHost.
+   ALLOWED_HOSTS=localhost,127.0.0.1,tools.example.org
+   ```
+
+   ```bash
+   docker compose -f docker-compose.prod.yml -f docker/compose.tls.yml --profile tls up -d
+   ```
+
+   Caddy (`deploy/Caddyfile`) terminates HTTPS and forwards both the public site and the `/admin`
+   staff console to this deployment.
+3. **Set the domain in Settings.** As a **superadmin**, open the makerspace's Settings → **Custom
+   domain**, enter the hostname, and Save. It shows **Active** immediately (no TXT record, no Verify
+   step). Only a superadmin may set it — the staff-auth/CORS allowlist is process-global (not
+   tenant-scoped), so on a multi-makerspace box an untrusted Space Manager must never be able to inject
+   a globally-trusted origin. This holds even for a makerspace hidden from the superadmin
+   (`superadmin_access_enabled=False`): to set its domain, have its Space Manager re-enable superadmin
+   access, set the domain as the superadmin, then re-hide it.
+4. **Point the branded frontend at this backend.** Set the frontend container's
+   `TENANT_ORIGIN_BOOTSTRAP=true` (resolve the makerspace by request origin) **or**
+   `TENANT_TOKEN=<public_code>`, plus `TENANT_API_URL=/api`. See
+   [single-tenant-frontend.md](single-tenant-frontend.md).
+
+If an instance flips from managed → self-host after deploy, run
+`python manage.py reconcile_selfhost_domains` once to promote any existing custom domains to trusted
+(the migration does this automatically on a fresh self-host deploy).
+
 ## Environment reference
 
 | Variable | Required | Purpose |

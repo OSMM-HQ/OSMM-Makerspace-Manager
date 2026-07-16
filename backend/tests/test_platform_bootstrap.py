@@ -130,10 +130,15 @@ def test_disabled_request_module_blocks_public_submit():
     assert "request_workflow" in str(response.data)
 
 
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
 def test_space_manager_can_update_frontend_domain_for_superadmin_hidden_makerspace():
+    # Self-serve custom-domain governance for a hidden makerspace lives in MANAGED mode.
+    # On self-host, setting frontend_domain is strictly superadmin-only (no injection of a
+    # process-global staff origin), so this self-governance path is exercised under a suffix.
     makerspace = make_space("platform-hidden-self-serve")
+    makerspace.resource_limit_overrides = {"custom_domain": True}
     makerspace.superadmin_access_enabled = False
-    makerspace.save(update_fields=["superadmin_access_enabled"])
+    makerspace.save(update_fields=["superadmin_access_enabled", "resource_limit_overrides"])
     manager = make_member("hidden-frontend-manager", makerspace)
     client = APIClient()
     client.force_authenticate(manager)
@@ -145,6 +150,7 @@ def test_space_manager_can_update_frontend_domain_for_superadmin_hidden_makerspa
             "hidden_from_central_directory": True,
         },
         format="json",
+        HTTP_HOST="localhost",
     )
 
     assert response.status_code == 200

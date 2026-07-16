@@ -9,6 +9,7 @@ export const openApiInfo = {
 export const openApiTags = [
   "API clients",
   "API key requests",
+  "Admin hosting",
   "Admin inventory",
   "Admin machines",
   "Admin makerspaces",
@@ -154,6 +155,7 @@ export const openApiPaths = [
   "/api/v1/admin/makerspace/{makerspace_id}/return-policy",
   "/api/v1/admin/makerspace/{makerspace_id}/stock-transfers",
   "/api/v1/admin/makerspace/{makerspace_id}/stocktakes",
+  "/api/v1/admin/makerspace/{makerspace_id}/subdomain-request",
   "/api/v1/admin/makerspace/{makerspace_id}/verify-domain",
   "/api/v1/admin/makerspace/{makerspace_id}/warranties",
   "/api/v1/admin/makerspaces",

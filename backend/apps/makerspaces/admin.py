@@ -5,6 +5,7 @@ from django.template.response import TemplateResponse
 from unfold.admin import ModelAdmin, TabularInline
 
 from apps.makerspaces.admin_images import MakerspaceAdminForm, MakerspaceImageAdminMixin
+from apps.makerspaces.admin_subdomains import SubdomainRequestAdmin
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 from config.admin_access import SuperuserOnlyModelAdmin
 

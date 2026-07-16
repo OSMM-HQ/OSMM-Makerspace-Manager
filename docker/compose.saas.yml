@@ -36,6 +36,24 @@ services:
       AWS_S3_PUBLIC_ENDPOINT_URL: https://files.osmm.me
       PUBLIC_IMAGE_BASE_URL: https://files.osmm.me/public-images
 
+  # migrate/worker/beat reference the base &backend-env anchor, which does NOT pick up
+  # the backend override above. They must still know this is a MANAGED instance:
+  #   - migrate runs 0029_reconcile_selfhost_domains (self-host branch must stay dormant), and
+  #   - worker/beat load AppConfig.ready(), whose reconcile post_save signal branches on it.
+  # Without the suffix these processes would treat the managed box as self-host and
+  # auto-verify unproven custom domains. Keep in sync with backend's PLATFORM_DOMAIN_SUFFIX.
+  migrate:
+    environment:
+      PLATFORM_DOMAIN_SUFFIX: ${PLATFORM_DOMAIN_SUFFIX:-.osmm.me}
+
+  worker:
+    environment:
+      PLATFORM_DOMAIN_SUFFIX: ${PLATFORM_DOMAIN_SUFFIX:-.osmm.me}
+
+  beat:
+    environment:
+      PLATFORM_DOMAIN_SUFFIX: ${PLATFORM_DOMAIN_SUFFIX:-.osmm.me}
+
   frontend:
     ports: !reset []
     environment:

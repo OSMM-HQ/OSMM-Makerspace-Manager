@@ -10,7 +10,7 @@ from apps.accounts.models import User
 from apps.inventory import public_image_storage
 from apps.integrations.email import platform_email_configured
 from apps.integrations.smtp_validation import validate_smtp_settings
-from apps.makerspaces import domain_verification
+from apps.makerspaces import domain_verification, limits
 from apps.makerspaces.hosting import canonical_host
 from apps.makerspaces.models import (
     Makerspace,
@@ -32,6 +32,7 @@ _HOSTNAME_RE = re.compile(
 
 
 class MakerspaceSerializer(serializers.ModelSerializer):
+    resource_limit_overrides = serializers.JSONField(required=False)
     frontend_domain = serializers.CharField(
         required=False,
         allow_blank=True,
@@ -53,6 +54,8 @@ class MakerspaceSerializer(serializers.ModelSerializer):
     logo_url = serializers.SerializerMethodField()
     cover_image_url = serializers.SerializerMethodField()
     domain_verification_record = serializers.SerializerMethodField()
+    platform_hosting = serializers.SerializerMethodField()
+    is_platform_subdomain = serializers.SerializerMethodField()
     # Optional public-name override stored under branding_config["display_name"].
     # Blank => public pages fall back to the registered makerspace name. Written
     # through this dedicated, validated field (not the whole branding_config blob)
@@ -89,10 +92,13 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "domain_verified_at",
             "domain_verification_token",
             "domain_verification_record",
+            "platform_hosting",
+            "is_platform_subdomain",
             "hidden_from_central_directory",
             "public_api_key",
             "cors_allowed_origins",
             "enabled_modules",
+            "resource_limit_overrides",
             "theme_config",
             "branding_config",
             "public_display_name",
@@ -122,6 +128,8 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "domain_verified_at",
             "domain_verification_token",
             "domain_verification_record",
+            "platform_hosting",
+            "is_platform_subdomain",
             "telegram_bot_token_set",
             "smtp_password_set",
             # branding_config is returned (so the settings form can seed the
@@ -160,6 +168,18 @@ class MakerspaceSerializer(serializers.ModelSerializer):
     def get_domain_verification_record(self, obj):
         return domain_verification.expected_record(obj)
 
+    @extend_schema_field({"type": "boolean"})
+    def get_platform_hosting(self, obj) -> bool:
+        return not domain_verification.is_self_host()
+
+    @extend_schema_field({"type": "boolean"})
+    def get_is_platform_subdomain(self, obj) -> bool:
+        return (
+            bool(obj.frontend_domain)
+            and domain_verification._is_platform_managed(obj.frontend_domain)
+            and obj.frontend_domain_status == obj.DomainStatus.VERIFIED
+        )
+
     def validate_public_code(self, value):
         return value.upper()
 
@@ -178,6 +198,23 @@ class MakerspaceSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        if "resource_limit_overrides" in attrs:
+            actor = self.context["request"].user
+            is_superadmin = actor.is_superuser or actor.role == User.Role.SUPERADMIN
+            if not is_superadmin:
+                raise serializers.ValidationError(
+                    {
+                        "resource_limit_overrides": (
+                            "Only a superadmin can set per-space resource limits."
+                        )
+                    }
+                )
+            attrs["resource_limit_overrides"] = (
+                limits.validate_resource_limit_overrides(
+                    attrs["resource_limit_overrides"]
+                )
+            )
+
         if "frontend_domain" in attrs:
             raw_domain = attrs.get("frontend_domain")
             normalized_domain = normalize_frontend_domain(raw_domain)
@@ -201,6 +238,26 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             canonical = canonical_host(normalized_domain)
             current_domain = self.instance.frontend_domain if self.instance is not None else None
             domain_is_changing = normalized_domain != current_domain
+
+            # Self-host auto-trust is superadmin-only. The staff-origin/CSRF allowlist is
+            # process-global (NOT tenant-scoped), so on a multi-makerspace self-host box a
+            # Space Manager who could set an arbitrary frontend_domain would inject an origin
+            # into the global credentialed staff-auth allowlist — a cross-tenant token-theft
+            # vector — without proving domain control. No self-governed carve-out: delegating
+            # one makerspace does not license adding a process-global trusted origin. Clearing
+            # a domain returns earlier (de-escalation), so only setting/changing is gated.
+            if domain_is_changing and domain_verification.is_self_host():
+                actor = self.context["request"].user
+                is_superadmin = actor.is_superuser or actor.role == User.Role.SUPERADMIN
+                if not is_superadmin:
+                    raise serializers.ValidationError(
+                        {
+                            "frontend_domain": (
+                                "Only a superadmin can set the custom domain on a "
+                                "self-hosted instance."
+                            )
+                        }
+                    )
             # Reject a tenant claiming a platform host — BOTH the apex (osmm.me) and any
             # subdomain (*.osmm.me). Only when the value is actually changing, so a no-op
             # PATCH that resends an already-provisioned platform domain (e.g. toggling
@@ -219,6 +276,23 @@ class MakerspaceSerializer(serializers.ModelSerializer):
                         )
                     }
                 )
+
+            # Managed free tier: a custom (non-platform) domain requires a superadmin, or a
+            # superadmin-granted per-space override (resource_limit_overrides["custom_domain"]).
+            # Self-host is unaffected (is_self_host() short-circuits the whole managed program).
+            if platform_suffix and domain_is_changing and not domain_verification.is_self_host():
+                actor = self.context["request"].user
+                is_superadmin = actor.is_superuser or actor.role == User.Role.SUPERADMIN
+                override_ok = self.instance is not None and limits.custom_domain_allowed(self.instance)
+                if not (is_superadmin or override_ok):
+                    raise serializers.ValidationError(
+                        {
+                            "frontend_domain": (
+                                "Custom domains aren't available on free managed hosting; "
+                                "self-host to use your own domain."
+                            )
+                        }
+                    )
 
             queryset = Makerspace.objects.filter(frontend_domain__iexact=normalized_domain)
             if self.instance is not None:
@@ -252,15 +326,19 @@ class MakerspaceSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        # public_display_name is a non-model write field; the default
-        # ModelSerializer.create would pass it to Makerspace.objects.create and
-        # 500. Fold it into branding_config["display_name"] instead.
         public_display_name = validated_data.pop("public_display_name", None)
         if public_display_name is not None:
             branding = default_branding_config()
             branding["display_name"] = public_display_name
             validated_data["branding_config"] = branding
-        return super().create(validated_data)
+        instance = super().create(validated_data)
+        # Self-host: a set custom domain is trusted immediately (same auto-trust as
+        # update()); the superadmin-only gate is enforced in validate().
+        if domain_verification.is_self_host() and instance.frontend_domain:
+            instance.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
+            instance.domain_verified_at = timezone.now()
+            instance.save(update_fields=["frontend_domain_status", "domain_verified_at", "updated_at"])
+        return instance
 
     def update(self, instance, validated_data):
         missing = object()
@@ -295,9 +373,30 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             for field, value in validated_data.items():
                 setattr(locked, field, value)
             if "frontend_domain" in validated_data and validated_data["frontend_domain"] != old_domain:
-                locked.frontend_domain_status = Makerspace.DomainStatus.PENDING
-                locked.domain_verified_at = None
+                # Re-check the self-host superadmin gate UNDER THE ROW LOCK. validate() compared
+                # the incoming value against a possibly-stale instance, so a concurrent superadmin
+                # change between validate() and this lock could turn a non-superadmin's apparent
+                # no-op PATCH into a real (auto-verified) change to the trusted origin.
+                if (
+                    domain_verification.is_self_host()
+                    and validated_data["frontend_domain"]
+                    and not is_superadmin
+                ):
+                    raise serializers.ValidationError(
+                        {
+                            "frontend_domain": (
+                                "Only a superadmin can set the custom domain on a "
+                                "self-hosted instance."
+                            )
+                        }
+                    )
                 locked.frontend_domain_changed_at = timezone.now()
+                if domain_verification.is_self_host() and validated_data["frontend_domain"]:
+                    locked.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
+                    locked.domain_verified_at = timezone.now()
+                else:
+                    locked.frontend_domain_status = Makerspace.DomainStatus.PENDING
+                    locked.domain_verified_at = None
             if public_display_name is not missing:
                 # Merge into the FRESH locked row's branding_config so we never
                 # overwrite support_email/support_url from a stale client copy.

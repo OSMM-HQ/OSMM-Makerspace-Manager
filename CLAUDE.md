@@ -2,6 +2,78 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Recent batch — self-host-first program, PART B: managed fair-use limits + subdomain request/approve (2026-07-16)
+
+Second Part of the self-host-first + FabLab program (plan gitignored). Adds **fair-use quotas** and a
+**Space-Manager-requests → superadmin-approves → auto-provision** subdomain flow to the FREE managed
+`osmm.me` box. **Entirely dormant on self-host** (`is_self_host()` / blank `PLATFORM_DOMAIN_SUFFIX` ⇒ every
+quota check no-ops, every managed UI hides), so self-host stays byte-for-byte unchanged. Built phase-per-commit
+on `dev` (`88a334c` B1 · `d07c423` B2 · `05dd227` B3 · `53b237b` B4 · `b992ad0` B5 + close-out fixes). Codex
+Stage-4 review → 6 findings, all fixed. **1347 backend tests pass**, `tsc -b`/`build` green. Migrations
+`makerspaces/0030` (limit fields), `integrations/0010` (DailyEmailCounter), `makerspaces/0031` (SubdomainRequest).
+
+- **B1 — quota service.** `apps/makerspaces/limits.py`: `resource_limit(ms, key)` (self-host→None; per-space
+  `resource_limit_overrides` JSON, presence-checked, `null`/`-1`=unlimited; else `settings.MANAGED_RESOURCE_LIMITS`),
+  `custom_domain_allowed(ms)` (boolean feature-flag), `check_quota(ms, key, *, adding)` (self-locks the makerspace
+  row via `select_for_update`; caller opens the txn; raises DRF `ValidationError({"limit": …})`→400 at cap),
+  `validate_resource_limit_overrides` (superadmin-only, numeric keys accept int≥0/`-1`/`null`, `custom_domain`
+  bool-only). `_COUNTERS` for products/assets/machines/staff/api_clients/print(UTC-month)/storage/email. Caps:
+  products 500, assets 2000, machines 5, events 10, staff 10, storage 1 GiB, print 200/mo, email 100/day,
+  api_clients 1. Makerspace `resource_limit_overrides` + `storage_bytes_used` fields; superadmin-only
+  `resource_limit_overrides` write in `MakerspaceSerializer`.
+- **B2 — enforce at creation boundaries.** `check_quota` inside each creation service's `transaction.atomic()`
+  (auto-dormant on self-host): product create (`serializers_inventory` — handles both `makerspace_id` admin +
+  `makerspace` instance procurement paths), asset bulk-QR (`services_qr_assets`, `adding=count`), bulk-import
+  (`apply_import`, `adding=`new-name count, atomic no-partial-write), machine create, staff create+reactivate,
+  api-client issuance (self-serve + Django-admin approve) **and** reactivation PATCH, print submit (public +
+  authenticated), printer create (counts the auto-linked machine), machine unretire. **Email daily cap:**
+  `integrations.DailyEmailCounter` (UTC-day rows, no reset cron) enforced in `dispatch_email` (managed + tenant
+  connection only → over cap creates a FAILED `EmailLog`, no delivery; fail-safe). **Storage counter:**
+  `limits.add_storage` (self-contained atomic, cap-check + `F()+size`)/`free_storage` (clamp≥0); charged at
+  evidence (PUT-mode size, no extra HEAD) + print + public-image finalizes, freed at image replace/delete;
+  **`recompute_storage` management command is the authoritative figure** (observes real object sizes across
+  evidence/print/images/machine-docs/warranty-docs/procurement-receipts) — run it before enabling managed on an
+  existing DB + periodically (live deltas are best-effort by design).
+- **B3 — subdomain request.** `SubdomainRequest` model (partial-unique 1-pending/makerspace via `Q` condition,
+  `save()` normalizes label) + `POST/GET /admin/makerspace/<id>/subdomain-request` (`IsActiveStaff` +
+  `MANAGE_MAKERSPACE`, managed-only→400 self-host, reuses `provisioning.LABEL_RE`/`RESERVED_LABELS`, guards
+  reserved/invalid/taken/already-provisioned/dup-pending→400, 404-before-403, audited).
+- **B4 — superadmin approve/reject.** `admin_subdomains.SubdomainRequestAdmin` (`/control/`) Approve&provision +
+  Reject actions: one outer atomic locks **both** request + makerspace, rechecks pending+unprovisioned, calls
+  `provision_subdomain(actor=superadmin)`, flips approved; `ValidationError`→message + request stays pending (no
+  half-approve). `status`/`requested_label`/`makerspace` are **read-only** so approval only happens via the actions
+  (no direct-edit bypass). Fail-safe `subdomain_notifications` (email + Telegram). Sidebar entry added.
+- **B5 — managed custom-domain gate + UI.** `MakerspaceSerializer.validate` rejects a tenant setting a **custom**
+  (non-platform) `frontend_domain` in managed mode unless superadmin OR `custom_domain_allowed` override; read-only
+  `platform_hosting` (=`not is_self_host()`) field gates the frontend. `MakerspaceSubdomainSettings.tsx`
+  (managed-only, request history + status badges + cap-error toasts; active state derives from the server
+  `is_platform_subdomain` flag — managed mode returns a TXT record for every domain, so absence-of-record can't
+  detect a provisioned subdomain). Self-host custom-domain (Part A) unaffected. OpenAPI + TS client regen.
+- **Stage-4 review (3 rounds, 15 findings, all fixed except accepted fair-use edges):** quota bypasses closed on
+  printer-create/unretire/api-client-reactivate/product-unarchive/staff-restore (staff-restore gated on
+  `user.is_active` so it only charges when the restore actually makes memberships count); storage charged in both
+  presign modes (no extra HEAD); image replace guards idempotent double-charge; `recompute_storage` skips
+  overwriting a space's counter on a storage read error (no outage-time corruption) — it is the authoritative
+  reconciler; subdomain admin `status`/`requested_label`/`makerspace` read-only (approval only via the action);
+  frontend active-subdomain uses the server `is_platform_subdomain` flag. **Accepted (documented) fair-use edges —
+  superadmin-overridable, reconciled by `recompute_storage`, not security/data-loss:** (1) a rejected image upload
+  while a space is *exactly* at the storage cap can leave an uncounted orphan object (deleting it was reverted
+  because a concurrent same-key attach made the cleanup race-delete a just-committed image — data loss is worse);
+  (2) an image *replacement* charges gross-before-net so a space *exactly* at the cap can't swap an equal/smaller
+  image; (3) the printer→`Machine` auto-link runs in a `transaction.on_commit` signal after the quota lock
+  releases, so two *simultaneous* printer creates at exactly `machines_limit-1` can both pass.
+
+## Recent batch — self-host-first program, PART A: self-host custom-domain auto-trust (2026-07-15)
+
+First Part of the self-host-first + FabLab program plan (`docs/superpowers/plans/2026-07-15-selfhost-first-hosting-and-fablab-program.md`, gitignored). Makes a self-hosted instance trust a superadmin-set custom domain **immediately, with no DNS TXT challenge** — the challenge only ever defended the shared managed `osmm.me` box. **Entirely gated on `is_self_host()`** (blank `PLATFORM_DOMAIN_SUFFIX`), so managed behavior is byte-for-byte unchanged. Codex Stage-4 clean after 2 fix rounds; **1277 backend tests pass**, `tsc -b`/`build` green. No model change / no new fields (migration `makerspaces/0029` is data-only).
+
+- **A1 — `is_self_host()` + self-host branch.** `domain_verification.is_self_host()` (True when `PLATFORM_DOMAIN_SUFFIX` blank/whitespace) short-circuits `verify_domain` → auto-`VERIFIED` ("Self-hosted custom domain — trusted automatically.") and `expected_record` → `None`. `config/settings.normalize_platform_domain_suffix()` canonicalizes the suffix to leading-dot lowercase at load (so `osmm.me` and `.osmm.me` both store as `.osmm.me`, satisfying provisioning's leading-dot requirement). `middleware.TenantHostValidationMiddleware` dormancy now keyed on `is_self_host()` (whitespace-safe).
+- **A2 — superadmin-only, auto-verified on save.** `MakerspaceSerializer.validate()` rejects a non-superadmin setting/changing `frontend_domain` in self-host mode (clearing is de-escalation → allowed); `update()`/`create()` mark a self-host non-empty domain `VERIFIED` + stamp `domain_verified_at` immediately. **Strict superadmin-only, no self-governed carve-out** — the staff-origin/CORS allowlist is process-global (not tenant-scoped), so letting any tenant set an arbitrary `frontend_domain` would inject a globally-trusted credentialed origin (cross-tenant token-theft vector via `/auth/refresh`). The superadmin gate is **re-checked under the row lock in `update()`** (validate() runs against a possibly-stale instance — a concurrent superadmin change could otherwise let a non-superadmin no-op PATCH land as an auto-verified write).
+- **A2b — staff-CSRF trust (regression only).** `auth_cookies._origin_allowed` already routes non-static origins through `makerspaces.cors.staff_origin_is_registered` (which requires `VERIFIED`), so an auto-verified self-host origin passes `/auth/refresh` CSRF with no code change; a regression test guards it.
+- **A2c — reconcile across all write paths.** `apps.py` now (1) has an **unconditional, commit-scheduled** `invalidate()` on every Makerspace save/delete, and (2) a `post_save` reconcile that promotes any self-host non-`VERIFIED` `frontend_domain` via a queryset `.update()` (bypasses signals) + its own `on_commit(invalidate)`. This signal runs in **every** process (web/worker/beat/migrate), so the SaaS overlay (`docker/compose.saas.yml`) must set `PLATFORM_DOMAIN_SUFFIX` on `migrate`/`worker`/`beat` too (they reference the base `&backend-env` anchor, which the backend-only override does NOT reach) — otherwise a managed box would treat itself as self-host and auto-verify unproven domains. Data migration `makerspaces/0029` (self-host-only, no-op on managed) + `reconcile_selfhost_domains` management command promote pre-existing rows for a managed→self-host flip.
+- **A3 — frontend.** `MakerspaceCustomDomainSettings.tsx`: when `domain_verification_record` is null and status is `verified` (self-host), shows an **Active** badge + note and hides the TXT-record instructions and Verify button; managed keeps the DNS/verify UI.
+- **A4 — docs.** `docs/self-hosting.md` "Custom domain (self-host)" runbook (DNS → Caddy TLS overlay → superadmin sets domain in Settings → `TENANT_ORIGIN_BOOTSTRAP`); notes staff login needs HTTPS, that the custom hostname must be added to `ALLOWED_HOSTS` (Django's `CommonMiddleware` is separate from the tenant host middleware), and the un-hide→set→re-hide path for a superadmin-hidden makerspace.
+
 ## Recent batch — osmm.me multi-tenant SaaS hosting (2026-07-15)
 
 Serve many makerspaces from ONE shared instance at superadmin-provisioned `<slug>.osmm.me` **and** tenant

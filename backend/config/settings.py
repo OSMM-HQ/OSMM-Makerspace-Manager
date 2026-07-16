@@ -17,7 +17,26 @@ from config.unfold import UNFOLD
 SECRET_KEY = env("SECRET_KEY")
 DEBUG = env("DEBUG")
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
-PLATFORM_DOMAIN_SUFFIX = env("PLATFORM_DOMAIN_SUFFIX", default="")
+
+
+def normalize_platform_domain_suffix(raw):
+    """Canonicalize the platform suffix to the leading-dot lowercase form.
+
+    Blank/whitespace/None => "" (self-host). Otherwise lowercase + strip and
+    prepend a leading "." if missing, so an operator may set PLATFORM_DOMAIN_SUFFIX
+    as either "osmm.me" or ".osmm.me" and the stored value is always ".osmm.me".
+    The leading dot is what makes endswith(suffix) reject look-alikes (evilosmm.me)
+    and what provisioning.provision_subdomain requires.
+    """
+    value = str(raw or "").strip().lower()
+    if not value:
+        return ""
+    return value if value.startswith(".") else "." + value
+
+
+PLATFORM_DOMAIN_SUFFIX = normalize_platform_domain_suffix(
+    env("PLATFORM_DOMAIN_SUFFIX", default="")
+)
 INFRA_HOSTS = set(
     env.list(
         "INFRA_HOSTS",
@@ -32,6 +51,17 @@ if BEHIND_TRUSTED_PROXY:
     ALLOWED_HOSTS = ["*"]
 PUBLIC_APP_BASE_URL = env("PUBLIC_APP_BASE_URL", default="").rstrip("/")
 MANAGED_POSTGRES = env.bool("MANAGED_POSTGRES", default=False)
+MANAGED_RESOURCE_LIMITS = {
+    "products": 500,
+    "assets": 2000,
+    "machines": 5,
+    "events": 10,
+    "staff": 10,
+    "storage": 1073741824,
+    "print": 200,
+    "email": 100,
+    "api_clients": 1,
+}
 STORAGE_PRESIGN_METHOD = env("STORAGE_PRESIGN_METHOD", default="post")
 CRON_SECRET = env("CRON_SECRET", default="")
 ADMIN_SITE_NAME = env("ADMIN_SITE_NAME", default="OSMM")

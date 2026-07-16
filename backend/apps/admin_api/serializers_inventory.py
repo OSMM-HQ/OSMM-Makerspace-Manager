@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.utils.text import slugify
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -11,6 +12,8 @@ from apps.inventory.models import (
     PublicAvailabilityMode,
     TrackingMode,
 )
+from apps.makerspaces import limits
+from apps.makerspaces.models import Makerspace
 
 QUANTITY_BUCKET_FIELDS = (
     "total_quantity",
@@ -117,6 +120,17 @@ class InventoryProductAdminCreateSerializer(InventoryProductAdminSerializer):
             )
         return attrs
 
+    def create(self, validated_data):
+        # makerspace is injected by the caller's save(): the admin view passes
+        # makerspace_id, the procurement move-to-inventory path passes a makerspace
+        # instance. Support both so the shared serializer works for either caller.
+        makerspace = validated_data.get("makerspace")
+        if makerspace is None:
+            makerspace = Makerspace.objects.get(pk=validated_data["makerspace_id"])
+        with transaction.atomic():
+            limits.check_quota(makerspace, "products", adding=1)
+            return super().create(validated_data)
+
 
 class InventoryProductAdminUpdateSerializer(InventoryProductAdminSerializer):
     class Meta(InventoryProductAdminSerializer.Meta):
@@ -134,6 +148,12 @@ class InventoryProductAdminUpdateSerializer(InventoryProductAdminSerializer):
         if rejected:
             raise serializers.ValidationError(rejected)
         return attrs
+
+    def update(self, instance, validated_data):
+        with transaction.atomic():
+            if validated_data.get("is_archived") is False and instance.is_archived:
+                limits.check_quota(instance.makerspace, "products", adding=1)
+            return super().update(instance, validated_data)
 
 
 class CategoryAdminSerializer(serializers.ModelSerializer):

@@ -332,7 +332,7 @@ def test_tls_check_denials_are_non_enumerable():
     }
 
 
-@override_settings(PLATFORM_ORIGIN_HOST='origin.osmm.me')
+@override_settings(PLATFORM_DOMAIN_SUFFIX='.osmm.me', PLATFORM_ORIGIN_HOST='origin.osmm.me')
 @pytest.mark.django_db
 def test_verify_domain_fails_when_txt_matches_but_origin_does_not(monkeypatch):
     makerspace = make_space('origin-gate-failed')
@@ -354,7 +354,7 @@ def test_verify_domain_fails_when_txt_matches_but_origin_does_not(monkeypatch):
     assert makerspace.frontend_domain_status == Makerspace.DomainStatus.FAILED
 
 
-@override_settings(PLATFORM_ORIGIN_HOST='origin.osmm.me')
+@override_settings(PLATFORM_DOMAIN_SUFFIX='.osmm.me', PLATFORM_ORIGIN_HOST='origin.osmm.me')
 @pytest.mark.django_db
 def test_verify_domain_succeeds_when_txt_and_origin_match(monkeypatch):
     makerspace = make_space('origin-gate-verified')
@@ -374,7 +374,7 @@ def test_verify_domain_succeeds_when_txt_and_origin_match(monkeypatch):
     assert detail == 'Domain verified.'
 
 
-@override_settings(PLATFORM_ORIGIN_HOST='')
+@override_settings(PLATFORM_DOMAIN_SUFFIX='.osmm.me', PLATFORM_ORIGIN_HOST='')
 @pytest.mark.django_db
 def test_verify_domain_keeps_legacy_txt_only_behavior_when_origin_is_blank(monkeypatch):
     makerspace = make_space('origin-gate-dormant')
@@ -401,6 +401,8 @@ def test_verify_domain_keeps_legacy_txt_only_behavior_when_origin_is_blank(monke
 @pytest.mark.django_db
 def test_domain_change_cooldown_rejects_a_second_change():
     makerspace = make_space('domain-cooldown-rejected')
+    makerspace.resource_limit_overrides = {"custom_domain": True}
+    makerspace.save(update_fields=["resource_limit_overrides"])
     manager = make_member('domain-cooldown-rejected-manager', makerspace)
     client = authenticated_client(manager)
     url = f'/api/v1/admin/makerspaces/{makerspace.id}'
@@ -435,6 +437,8 @@ def test_domain_change_cooldown_rejects_a_second_change():
 @pytest.mark.django_db
 def test_domain_change_is_allowed_after_cooldown_passes():
     makerspace = make_space('domain-cooldown-expired')
+    makerspace.resource_limit_overrides = {"custom_domain": True}
+    makerspace.save(update_fields=["resource_limit_overrides"])
     makerspace.frontend_domain = 'old.example.com'
     makerspace.frontend_domain_changed_at = timezone.now() - timedelta(hours=2)
     makerspace.save()
@@ -461,6 +465,8 @@ def test_domain_change_is_allowed_after_cooldown_passes():
 @pytest.mark.django_db
 def test_domain_change_cooldown_is_dormant_when_zero():
     makerspace = make_space('domain-cooldown-dormant')
+    makerspace.resource_limit_overrides = {"custom_domain": True}
+    makerspace.save(update_fields=["resource_limit_overrides"])
     makerspace.frontend_domain = 'old-zero.example.com'
     makerspace.frontend_domain_changed_at = timezone.now()
     makerspace.save()

@@ -8,6 +8,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from apps.accounts.models import User
 from apps.audit import services as audit
 from apps.hardware_requests.workflow_utils import get_or_create_requester
+from apps.makerspaces import limits
 from apps.printing.emails import queue_print_email, queue_staff_print_email
 from apps.printing.models import (
     FilamentSpool,
@@ -83,6 +84,7 @@ def submit_public_print_request(makerspace, data, result):
         if requested_grams is None:
             requested_grams = Decimal("0.00")
 
+        limits.check_quota(makerspace, "print", adding=1)
         request = PrintRequest.objects.create(
             bucket=bucket,
             requester=requester,
@@ -139,6 +141,7 @@ def submit_public_print_request(makerspace, data, result):
                     raise ValidationError(
                         {"file_ids": "An uploaded file exceeds the size limit."}
                     )
+                limits.add_storage(makerspace, size)
                 if upload.kind == PrintRequestFile.Kind.STL:
                     try:
                         validate_print_model_object(

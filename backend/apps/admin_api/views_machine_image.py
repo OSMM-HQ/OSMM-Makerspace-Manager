@@ -1,3 +1,4 @@
+from django.db import transaction
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -17,6 +18,7 @@ from apps.inventory import public_image_storage
 from apps.machines import access, services
 from apps.machines.serializers import MachineSerializer
 from apps.makerspaces.guards import require_module
+from apps.makerspaces.limits import add_storage
 
 
 class MachineImageView(APIView):
@@ -79,6 +81,7 @@ class MachineImageView(APIView):
             503: OpenApiResponse(description="Public image storage is unavailable."),
         },
     )
+    @transaction.atomic
     def put(self, request, pk, *args, **kwargs):
         machine = self._machine(request, pk)
         serializer = PublicImageAttachRequestSerializer(data=request.data)
@@ -117,6 +120,9 @@ class MachineImageView(APIView):
             public_image_storage.delete_object(object_key)
             public_image_storage.delete_object(public_image_storage.staging_key(object_key))
             raise ValidationError({"object_key": "Uploaded file is not a valid image."})
+        old_key = machine.image_key
+        if object_key != old_key:
+            add_storage(machine.makerspace, public_image_storage.object_size(object_key))
         machine = services.update_image(machine, request.user, object_key)
         return self._response(request, machine)
 

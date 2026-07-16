@@ -118,6 +118,24 @@ class EmailLog(models.Model):
     def __str__(self):
         return f"{self.to_email} {self.subject} [{self.status}]"
 
+class DailyEmailCounter(models.Model):
+    makerspace = models.ForeignKey(
+        "makerspaces.Makerspace",
+        on_delete=models.CASCADE,
+        related_name="daily_email_counters",
+    )
+    day = models.DateField()
+    count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["makerspace", "day"],
+                name="uniq_daily_email_counter",
+            )
+        ]
+
+
 class EmailNotificationMute(models.Model):
     makerspace = models.ForeignKey(
         "makerspaces.Makerspace",

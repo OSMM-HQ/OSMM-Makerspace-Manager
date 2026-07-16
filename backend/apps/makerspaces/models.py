@@ -154,6 +154,8 @@ class Makerspace(models.Model):
     )
     cors_allowed_origins = models.JSONField(default=list, blank=True)
     enabled_modules = models.JSONField(default=default_enabled_modules, blank=True)
+    resource_limit_overrides = models.JSONField(default=dict, blank=True)
+    storage_bytes_used = models.BigIntegerField(default=0)
     theme_config = models.JSONField(default=default_theme_config, blank=True)
     branding_config = models.JSONField(default=default_branding_config, blank=True)
     telegram_group_chat_id = models.CharField(max_length=64, blank=True)
@@ -283,3 +285,57 @@ class MakerspaceMembership(models.Model):
 
     def __str__(self):
         return f"{self.user} @ {self.makerspace.slug} ({self.role})"
+
+
+class SubdomainRequest(models.Model):
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    makerspace = models.ForeignKey(
+        Makerspace,
+        on_delete=models.CASCADE,
+        related_name="subdomain_requests",
+    )
+    requested_label = models.CharField(max_length=63)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PENDING,
+    )
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="subdomain_requests",
+    )
+    decided_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="decided_subdomain_requests",
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["makerspace"],
+                condition=Q(status="pending"),
+                name="uniq_pending_subdomain_request",
+            ),
+        ]
+        ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        self.requested_label = (self.requested_label or "").strip().lower()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.requested_label} ({self.status})"

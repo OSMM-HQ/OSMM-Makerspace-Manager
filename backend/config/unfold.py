@@ -137,6 +137,7 @@ UNFOLD = {
                 "items": [
                     _item("API clients", "vpn_key", "admin:apiclients_apiclient_changelist"),
                     _item("API key requests", "approval", "admin:apiclients_apikeyrequest_changelist"),
+                    _item("Subdomain requests", "dns", "admin:makerspaces_subdomainrequest_changelist"),
                     _item("Platform email", "mail", "admin:integrations_platformemailsettings_changelist"),
                     _item("Email templates", "mail", "admin:integrations_emailtemplate_changelist"),
                     _item("Email logs", "mark_email_read", "admin:integrations_emaillog_changelist"),

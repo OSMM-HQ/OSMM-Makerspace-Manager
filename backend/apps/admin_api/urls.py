@@ -44,6 +44,7 @@ from apps.admin_api.views_machines_actions import (
 from apps.admin_api.views_notification_recipients import NotificationRecipientsView
 from apps.admin_api.views_notification_rules import NotificationRulesView
 from apps.admin_api.views_platform import PlatformEmailSettingsView
+from apps.admin_api.views_subdomain_requests import SubdomainRequestListCreateView
 from apps.admin_api.views_warranty import (
     AssetWarrantyView,
     MachineWarrantyView,
@@ -186,6 +187,11 @@ urlpatterns = [
         "makerspace/<int:makerspace_id>/provision-subdomain",
         MakerspaceProvisionSubdomainView.as_view(),
         name="admin-makerspace-provision-subdomain",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/subdomain-request",
+        SubdomainRequestListCreateView.as_view(),
+        name="admin-makerspace-subdomain-request",
     ),
     path(
         "makerspace/<int:makerspace_id>/verify-domain",
