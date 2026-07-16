@@ -99,6 +99,7 @@ INSTALLED_APPS = [
     "apps.procurement",
     "apps.notifications",
     "apps.machines",
+    "apps.events",
 ]
 
 MIDDLEWARE = [
