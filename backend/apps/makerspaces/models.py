@@ -59,6 +59,7 @@ DEFAULT_ENABLED_MODULES = [
     "procurement",
     "machines",
     "events",
+    "bookings",
 ]
 
 

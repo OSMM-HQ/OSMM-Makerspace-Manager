@@ -100,6 +100,7 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.machines",
     "apps.events",
+    "apps.bookings",
 ]
 
 MIDDLEWARE = [
