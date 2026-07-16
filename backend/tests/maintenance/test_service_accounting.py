@@ -63,4 +63,3 @@ def test_quota_failure_cleans_objects_and_creates_no_metadata(monkeypatch):
         services.finalize_log_document(log, actor=manager, object_key=key)
     cleanup.assert_called_once_with(key)
     assert not MaintenanceLogDocument.objects.exists()
-

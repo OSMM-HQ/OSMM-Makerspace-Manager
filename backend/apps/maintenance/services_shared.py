@@ -22,6 +22,11 @@ def lock_machine(machine):
 
 def prepare_machine(machine, actor, *, manage):
     require_module(machine.makerspace, "maintenance")
+    # Archived makerspaces are soft-deleted for everyone; reject after the row lock
+    # reloads the makerspace so a per-machine operator can't complete an in-flight
+    # mutation (and finalize an attachment) during the archive->purge window.
+    if machine.makerspace.archived_at is not None:
+        raise PermissionDenied()
     if not machine.is_active:
         raise RetiredMachineMaintenance("Machine is retired.")
     allowed = (

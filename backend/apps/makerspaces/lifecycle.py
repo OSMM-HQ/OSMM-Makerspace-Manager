@@ -83,6 +83,7 @@ def _collect_storage_keys(makerspace):
     from apps.procurement.models import ToBuyReceipt
     from apps.warranty.models import WarrantyDocument
     from apps.maintenance.models import MaintenanceLogDocument
+    from apps.machines.models import MachineDocument
 
     keys = []
     seen = set()
@@ -110,6 +111,11 @@ def _collect_storage_keys(makerspace):
 
     for key in MaintenanceLogDocument.objects.filter(
         log__machine__makerspace=makerspace
+    ).values_list("object_key", flat=True):
+        add(key)
+
+    for key in MachineDocument.objects.filter(
+        machine__makerspace=makerspace
     ).values_list("object_key", flat=True):
         add(key)
 
@@ -230,16 +236,18 @@ def _delete_object_graph(makerspace):
         HardwareRequest.objects.filter(makerspace=makerspace).delete()
         EvidencePhoto.objects.filter(makerspace=makerspace).delete()
         QrCode.objects.filter(makerspace=makerspace).delete()
+
+        # Machines + their maintenance/children/consumables cascade from the Machine
+        # delete (triggers suspended above). Do this BEFORE InventoryProduct because
+        # MachineConsumable.product is PROTECT; and clear the makerspace-scoped custom
+        # MachineType (PROTECT makerspace FK) before makerspace.delete().
+        Machine.objects.filter(makerspace=makerspace).delete()
+        MachineType.objects.filter(makerspace=makerspace).delete()
+
         InventoryAsset.objects.filter(makerspace=makerspace).delete()
         InventoryProduct.objects.filter(makerspace=makerspace).delete()
         Category.objects.filter(makerspace=makerspace).delete()
         Box.objects.filter(makerspace=makerspace).delete()
-
-        # Machines + their maintenance/children cascade from the Machine delete
-        # (triggers suspended above); the makerspace-scoped custom MachineType has a
-        # PROTECT makerspace FK, so it must be cleared explicitly before makerspace.delete().
-        Machine.objects.filter(makerspace=makerspace).delete()
-        MachineType.objects.filter(makerspace=makerspace).delete()
 
         EmailTemplate.objects.filter(makerspace=makerspace).delete()
         ApiClient.objects.filter(makerspace=makerspace).delete()

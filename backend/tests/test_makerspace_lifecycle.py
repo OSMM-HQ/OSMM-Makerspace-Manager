@@ -26,7 +26,7 @@ from apps.integrations.models import EmailTemplate
 from apps.inventory.models import Category, InventoryAsset, InventoryProduct
 from apps.makerspaces import lifecycle
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
-from apps.machines.models import Machine, MachineType
+from apps.machines.models import Machine, MachineConsumable, MachineDocument, MachineType
 from apps.maintenance.models import MaintenanceLog, MaintenanceLogDocument
 from apps.operations.models import (
     InventoryAdjustment,
@@ -432,6 +432,23 @@ def populate_full_purge_graph(makerspace, survivor, actor):
         size_bytes=123,
         uploaded_by=actor,
     )
+    machine_doc_key = f"machines/{makerspace.id}/{machine.id}/docs/manual.pdf"
+    MachineDocument.objects.create(
+        machine=machine,
+        doc_type=MachineDocument.DocType.MANUAL,
+        object_key=machine_doc_key,
+        original_filename="manual.pdf",
+        content_type="application/pdf",
+        size_bytes=321,
+    )
+    # COUNT consumable links the machine to a makerspace product via a PROTECT FK;
+    # purge must delete the machine (cascading the consumable) BEFORE the product.
+    MachineConsumable.objects.create(
+        machine=machine,
+        measurement=MachineConsumable.Measurement.COUNT,
+        product=product,
+        remaining=5,
+    )
     survivor_type = MachineType.objects.create(
         makerspace=survivor,
         slug=f"maintenance-{survivor.id}",
@@ -459,6 +476,7 @@ def populate_full_purge_graph(makerspace, survivor, actor):
         "survivor_adjustment": survivor_adjustment,
         "cross_transfer": cross_transfer,
         "maintenance_key": maintenance_key,
+        "machine_doc_key": machine_doc_key,
         "survivor_document": survivor_document,
         "survivor_key": survivor_key,
     }
@@ -528,6 +546,7 @@ def test_comprehensive_purge_removes_entire_makerspace_graph_and_preserves_survi
     assert not Makerspace.objects.filter(pk=space_id).exists()
     assert Makerspace.objects.filter(pk=survivor_id).exists()
     assert refs["maintenance_key"] in deleted_keys
+    assert refs["machine_doc_key"] in deleted_keys
     assert refs["survivor_key"] not in deleted_keys
     assert MaintenanceLogDocument.objects.filter(
         pk=refs["survivor_document"].pk
@@ -563,6 +582,7 @@ def test_comprehensive_purge_under_managed_postgres(monkeypatch):
     assert not Makerspace.objects.filter(pk=space_id).exists()
     assert Makerspace.objects.filter(pk=survivor_id).exists()
     assert refs["maintenance_key"] in deleted_keys
+    assert refs["machine_doc_key"] in deleted_keys
     assert refs["survivor_key"] not in deleted_keys
     assert MaintenanceLogDocument.objects.filter(
         pk=refs["survivor_document"].pk

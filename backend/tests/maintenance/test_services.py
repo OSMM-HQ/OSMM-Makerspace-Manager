@@ -114,3 +114,10 @@ def test_status_conflict_retired_and_inactive_fail_without_partial_writes():
     with pytest.raises(RetiredMachineMaintenance):
         services.log_maintenance(machine, actor=manager, summary="No")
 
+
+def test_archived_makerspace_rejects_maintenance_mutation():
+    makerspace, manager, machine, _ = make_machine_setup("maintenance-archived")
+    makerspace.archived_at = timezone.now()
+    makerspace.save(update_fields=["archived_at"])
+    with pytest.raises(PermissionDenied):
+        services.log_maintenance(machine, actor=manager, summary="After archive")

@@ -51,4 +51,3 @@ class MaintenanceLogDocumentAdmin(_ReadOnlyMaintenanceAdmin):
     @admin.display(description="Machine")
     def machine(self, obj):
         return obj.log.machine
-

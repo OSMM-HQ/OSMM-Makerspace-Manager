@@ -35,4 +35,3 @@ def test_overdue_is_strict_active_scoped_and_ordered():
             MaintenanceSchedule.objects.filter(pk=recent.pk), today=today,
         )
     ) == [recent]
-

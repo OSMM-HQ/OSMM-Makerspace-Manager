@@ -29,4 +29,3 @@ def test_control_plane_maintenance_models_are_view_only(admin_class, model):
     assert model_admin.has_add_permission(request) is False
     assert model_admin.has_change_permission(request) is False
     assert model_admin.has_delete_permission(request) is False
-

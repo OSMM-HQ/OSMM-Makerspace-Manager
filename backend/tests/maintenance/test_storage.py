@@ -40,4 +40,3 @@ def test_finalize_sniffs_bytes_and_rejects_extension_mismatch(monkeypatch, setti
         storage.validate_log_document_object(
             "machines/1/2/logs/file.png",
         )
-

@@ -230,4 +230,3 @@ def _mime_for_extension(ext):
         (mime for mime, extensions in ALLOWED_EXTENSIONS_BY_MIME.items() if ext in extensions),
         None,
     )
-

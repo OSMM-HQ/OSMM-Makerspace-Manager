@@ -79,4 +79,3 @@ class MaintenanceLogListCreateView(APIView):
             MaintenanceLogSerializer(log).data,
             status=status.HTTP_201_CREATED,
         )
-

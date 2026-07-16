@@ -121,4 +121,3 @@ class MaintenanceLogDocumentDetailView(APIView):
         except StorageUnavailable:
             return storage_unavailable_response()
         return Response(status=status.HTTP_204_NO_CONTENT)
-

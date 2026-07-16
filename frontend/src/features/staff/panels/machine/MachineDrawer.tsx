@@ -12,15 +12,16 @@ import { OverviewTab } from "./OverviewTab";
 import { UsageTab } from "./UsageTab";
 import { WarrantyTab } from "./WarrantyTab";
 
-const BASE_TABS = [
-  "Overview", "Operators", "Consumables", "Usage", "Maintenance", "Documents", "Errors",
-] as const;
-type MachineTab = (typeof BASE_TABS)[number] | "Warranty";
+const BASE_TABS = ["Overview", "Operators", "Consumables", "Usage", "Documents", "Errors"] as const;
+type MachineTab = (typeof BASE_TABS)[number] | "Maintenance" | "Warranty";
 
-export function MachineDrawer({ machineId, makerspaceId, canManageMachines, onClose }: {
+export function MachineDrawer({
+  machineId, makerspaceId, canManageMachines, maintenanceEnabled, onClose,
+}: {
   machineId: number;
   makerspaceId: number;
   canManageMachines: boolean;
+  maintenanceEnabled: boolean;
   onClose: () => void;
 }) {
   const [activeTab, setActiveTab] = useState<MachineTab>("Overview");
@@ -29,9 +30,13 @@ export function MachineDrawer({ machineId, makerspaceId, canManageMachines, onCl
     queryFn: () => getMachine(machineId),
   });
   const details = machine.data;
-  const tabs: readonly MachineTab[] = details?.can_edit
-    ? [...BASE_TABS, "Warranty"]
-    : BASE_TABS;
+  const maintenanceAllowed = maintenanceEnabled && details?.can_operate === true;
+  const tabs: readonly MachineTab[] = [
+    ...BASE_TABS.slice(0, 4),
+    ...(maintenanceAllowed ? ["Maintenance" as const] : []),
+    ...BASE_TABS.slice(4),
+    ...(details?.can_edit ? ["Warranty" as const] : []),
+  ];
 
   return (
     <DetailDrawer open title={details?.name ?? "Machine details"} onClose={onClose}>
@@ -95,12 +100,13 @@ export function MachineDrawer({ machineId, makerspaceId, canManageMachines, onCl
             {activeTab === "Usage" ? (
               <UsageTab machineId={machineId} makerspaceId={makerspaceId} canOperate={details.can_operate} />
             ) : null}
-            {activeTab === "Maintenance" ? (
+            {activeTab === "Maintenance" && maintenanceAllowed ? (
               <MaintenanceTab
                 makerspaceId={makerspaceId}
                 machineId={machineId}
                 canEdit={details.can_edit}
                 canOperate={details.can_operate}
+                enabled={activeTab === "Maintenance" && maintenanceAllowed}
                 retired={!details.is_active}
               />
             ) : null}

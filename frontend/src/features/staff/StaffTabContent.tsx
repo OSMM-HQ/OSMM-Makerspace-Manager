@@ -102,7 +102,14 @@ export function StaffTabContent({
       {activeTab === "needsfix" && canEditInventory ? <NeedsFixShelf key={makerspaceKey} makerspace={activeMakerspace} /> : null}
       {activeTab === "categories" && canEditInventory ? <Categories key={makerspaceKey} makerspace={activeMakerspace} /> : null}
       {activeTab === "printing" ? <PrintingPanel key={makerspaceKey} makerspace={activeMakerspace} /> : null}
-      {activeTab === "machines" ? <MachinesPanel key={makerspaceKey} makerspaceId={activeMakerspace.id} canManage={canManageMachines} /> : null}
+      {activeTab === "machines" ? (
+        <MachinesPanel
+          key={makerspaceKey}
+          makerspaceId={activeMakerspace.id}
+          canManage={canManageMachines}
+          maintenanceEnabled={activeMakerspace.enabled_modules?.includes("maintenance") ?? false}
+        />
+      ) : null}
       {activeTab === "events" && canManageEvents ? <EventsPanel key={makerspaceKey} makerspaceId={activeMakerspace.id} /> : null}
       {activeTab === "tobuy" ? (
         <ProcurementPanel

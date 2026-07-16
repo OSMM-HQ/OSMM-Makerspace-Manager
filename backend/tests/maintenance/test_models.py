@@ -115,4 +115,3 @@ def test_performer_is_protected_and_document_metadata_is_required():
         MaintenanceLogDocument.objects.create(
             log=log, object_key=document.object_key, size_bytes=1,
         )
-

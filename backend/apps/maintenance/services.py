@@ -21,4 +21,3 @@ __all__ = [
     "overdue_schedules",
     "update_schedule",
 ]
-

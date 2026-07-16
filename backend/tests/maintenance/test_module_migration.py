@@ -34,4 +34,3 @@ def test_new_makerspaces_and_platform_workflow_include_maintenance():
     assert "maintenance" in DEFAULT_ENABLED_MODULES
     assert "maintenance" in makerspace.enabled_modules
     assert MODULE_WORKFLOWS["maintenance"] == ["maintenance"]
-

@@ -10,7 +10,11 @@ import { Panel } from "./shared";
 
 type StatusFilter = "all" | MachineStatus;
 
-export function MachinesPanel({ makerspaceId, canManage }: { makerspaceId: number; canManage: boolean }) {
+export function MachinesPanel({ makerspaceId, canManage, maintenanceEnabled }: {
+  makerspaceId: number;
+  canManage: boolean;
+  maintenanceEnabled: boolean;
+}) {
   const queryClient = useQueryClient();
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -112,6 +116,7 @@ export function MachinesPanel({ makerspaceId, canManage }: { makerspaceId: numbe
       {selectedId !== null ? (
         <MachineDrawer key={selectedId} machineId={selectedId} makerspaceId={makerspaceId}
           canManageMachines={canManage}
+          maintenanceEnabled={maintenanceEnabled}
           onClose={() => setSelectedId(null)} />
       ) : null}
     </Panel>

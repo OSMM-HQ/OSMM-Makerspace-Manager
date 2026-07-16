@@ -115,4 +115,3 @@ class MaintenanceScheduleDeactivateView(APIView):
         return Response(MaintenanceScheduleSerializer(
             schedule, context={"today": timezone.localdate()},
         ).data)
-

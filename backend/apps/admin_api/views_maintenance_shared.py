@@ -100,4 +100,3 @@ def page_response(paginator, page, serializer, *, context=None):
         "previous": paginator.get_previous_link(),
         "results": serializer(page, many=True, context=context or {}).data,
     })
-

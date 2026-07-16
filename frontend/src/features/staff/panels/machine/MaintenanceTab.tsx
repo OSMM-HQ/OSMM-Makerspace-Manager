@@ -16,20 +16,16 @@ type MaintenanceTabProps = {
   machineId: number;
   canEdit: boolean;
   canOperate: boolean;
+  enabled: boolean;
   retired: boolean;
 };
 
 export function MaintenanceTab({
-  makerspaceId, machineId, canEdit, canOperate, retired,
+  makerspaceId, machineId, canEdit, canOperate, enabled, retired,
 }: MaintenanceTabProps) {
-  const schedules = useMaintenanceSchedules(makerspaceId, machineId, true);
-  const logs = useMaintenanceLogs(makerspaceId, machineId, true);
-  const complete = useLogMaintenance(makerspaceId, machineId);
-
-  const completeSchedule = (schedule: MaintenanceSchedule) => {
-    if (!window.confirm(`Record "${schedule.description}" as completed now?`)) return;
-    complete.mutate({ summary: schedule.description, schedule_id: schedule.id });
-  };
+  const [completing, setCompleting] = useState<MaintenanceSchedule | null>(null);
+  const schedules = useMaintenanceSchedules(makerspaceId, machineId, enabled);
+  const logs = useMaintenanceLogs(makerspaceId, machineId, enabled);
 
   if (schedules.isLoading || logs.isLoading) {
     return (
@@ -56,10 +52,17 @@ export function MaintenanceTab({
         schedules={scheduleRows}
         canEdit={canEdit}
         retired={retired}
-        onComplete={completeSchedule}
+        onComplete={setCompleting}
       />
-      {complete.error instanceof Error ? (
-        <p className="text-sm text-danger" role="alert">{complete.error.message}</p>
+      {completing ? (
+        <ScheduleCompletionForm
+          key={completing.id}
+          makerspaceId={makerspaceId}
+          machineId={machineId}
+          schedule={completing}
+          onCancel={() => setCompleting(null)}
+          onCompleted={() => setCompleting(null)}
+        />
       ) : null}
       {canOperate && !retired ? (
         <MaintenanceLogForm makerspaceId={makerspaceId} machineId={machineId} />
@@ -99,6 +102,81 @@ export function MaintenanceTab({
         ))}
       </section>
     </div>
+  );
+}
+
+function ScheduleCompletionForm({ makerspaceId, machineId, schedule, onCancel, onCompleted }: {
+  makerspaceId: number;
+  machineId: number;
+  schedule: MaintenanceSchedule;
+  onCancel: () => void;
+  onCompleted: () => void;
+}) {
+  const [summary, setSummary] = useState(schedule.description);
+  const [performedAt, setPerformedAt] = useState("");
+  const [cost, setCost] = useState("");
+  const [partsNote, setPartsNote] = useState("");
+  const [setIdle, setSetIdle] = useState(false);
+  const complete = useLogMaintenance(makerspaceId, machineId);
+
+  return (
+    <section aria-labelledby={`complete-maintenance-${schedule.id}`}>
+      <h3 id={`complete-maintenance-${schedule.id}`} className="mb-3 text-sm font-semibold text-ink">
+        Complete scheduled maintenance
+      </h3>
+      <form
+        className="grid gap-2 rounded-lg border border-line bg-surface p-3 sm:grid-cols-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          complete.mutate({
+            summary: summary.trim(),
+            performed_at: performedAt ? new Date(performedAt).toISOString() : undefined,
+            cost: cost.trim() || null,
+            parts_note: partsNote.trim(),
+            set_idle: setIdle,
+            schedule_id: schedule.id,
+          }, { onSuccess: onCompleted });
+        }}
+      >
+        <label className="grid gap-1 text-xs font-semibold text-muted sm:col-span-2">
+          Summary
+          <input className="desk-input" value={summary}
+            onChange={(event) => setSummary(event.target.value)} required />
+        </label>
+        <label className="grid gap-1 text-xs font-semibold text-muted">
+          Performed at (optional)
+          <input className="desk-input" type="datetime-local" value={performedAt}
+            onChange={(event) => setPerformedAt(event.target.value)} />
+        </label>
+        <label className="grid gap-1 text-xs font-semibold text-muted">
+          Cost (optional)
+          <input className="desk-input" type="number" min="0" step="0.01" value={cost}
+            onChange={(event) => setCost(event.target.value)} />
+        </label>
+        <label className="grid gap-1 text-xs font-semibold text-muted sm:col-span-2">
+          Parts and notes (optional)
+          <textarea className="desk-input min-h-20" value={partsNote}
+            onChange={(event) => setPartsNote(event.target.value)} />
+        </label>
+        <label className="flex items-center gap-2 text-sm text-muted sm:col-span-2">
+          <input type="checkbox" checked={setIdle}
+            onChange={(event) => setSetIdle(event.target.checked)} />
+          Set machine status to idle
+        </label>
+        <div className="flex gap-2 sm:col-span-2">
+          <button className="desk-button-primary" type="submit"
+            disabled={complete.isPending || !summary.trim()}>
+            {complete.isPending ? "Completing..." : "Complete maintenance"}
+          </button>
+          <button className="desk-button" type="button" onClick={onCancel} disabled={complete.isPending}>
+            Cancel
+          </button>
+        </div>
+      </form>
+      {complete.error instanceof Error ? (
+        <p className="mt-2 text-sm text-danger" role="alert">{complete.error.message}</p>
+      ) : null}
+    </section>
   );
 }
 

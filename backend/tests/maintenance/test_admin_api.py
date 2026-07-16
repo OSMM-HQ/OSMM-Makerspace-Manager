@@ -145,4 +145,3 @@ def test_service_owned_and_unexpected_fields_are_rejected():
     )
     assert response.status_code == 400
     assert not MaintenanceLog.objects.exists()
-

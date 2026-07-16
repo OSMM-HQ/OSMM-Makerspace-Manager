@@ -8,4 +8,3 @@ class InactiveMaintenanceSchedule(Exception):
 
 class MaintenanceStatusConflict(Exception):
     pass
-

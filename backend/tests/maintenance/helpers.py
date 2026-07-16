@@ -36,4 +36,3 @@ def make_machine_setup(slug, *, operator_level=None):
             access_level=operator_level,
         )
     return makerspace, manager, machine, operator
-

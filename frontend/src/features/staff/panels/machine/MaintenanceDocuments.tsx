@@ -21,6 +21,7 @@ export function MaintenanceDocuments({
   const input = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [pendingKey, setPendingKey] = useState("");
+  const [uploadError, setUploadError] = useState<Error | null>(null);
   const presign = usePresignMaintenanceDocument(logId);
   const finalize = useFinalizeMaintenanceDocument(machineId, logId);
   const view = useMaintenanceDocumentUrl();
@@ -34,12 +35,25 @@ export function MaintenanceDocuments({
   };
   const upload = async () => {
     if (!file) return;
-    const contract = await presign.mutateAsync(file);
-    await uploadToContract(file, contract);
-    setPendingKey(contract.object_key);
-    await finish(contract.object_key);
+    setUploadError(null);
+    try {
+      const contract = await presign.mutateAsync(file);
+      await uploadToContract(file, contract);
+      setPendingKey(contract.object_key);
+      await finish(contract.object_key);
+    } catch (caught) {
+      setUploadError(caught instanceof Error ? caught : new Error("Unable to upload document."));
+    }
   };
-  const error = presign.error ?? finalize.error ?? view.error ?? remove.error;
+  const retryFinalize = async () => {
+    setUploadError(null);
+    try {
+      await finish(pendingKey);
+    } catch (caught) {
+      setUploadError(caught instanceof Error ? caught : new Error("Unable to finalize document."));
+    }
+  };
+  const error = uploadError ?? presign.error ?? finalize.error ?? view.error ?? remove.error;
 
   return (
     <div className="mt-3 grid gap-2 border-t border-line pt-3">
@@ -77,7 +91,10 @@ export function MaintenanceDocuments({
               className="desk-input"
               type="file"
               accept=".pdf,.jpg,.jpeg,.png,.webp"
-              onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+              onChange={(event) => {
+                setFile(event.target.files?.[0] ?? null);
+                setUploadError(null);
+              }}
             />
           </label>
           <button
@@ -89,7 +106,7 @@ export function MaintenanceDocuments({
             {presign.isPending || finalize.isPending ? "Uploading..." : "Upload"}
           </button>
           {pendingKey && finalize.isError ? (
-            <button className="desk-button-primary" type="button" onClick={() => void finish(pendingKey)}>
+            <button className="desk-button-primary" type="button" onClick={() => void retryFinalize()}>
               Retry finalize
             </button>
           ) : null}
@@ -107,4 +124,3 @@ function formatBytes(value: number) {
   if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
   return `${(value / (1024 * 1024)).toFixed(1)} MB`;
 }
-

@@ -230,4 +230,3 @@ export async function uploadToContract(file: File, contract: UploadContract) {
   const response = await fetch(contract.upload.url, { method: "POST", body });
   if (!response.ok) throw new Error(`Storage upload failed (${response.status})`);
 }
-
