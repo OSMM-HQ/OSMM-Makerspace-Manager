@@ -110,7 +110,15 @@ Frontend `MaintenanceTab` (schedules + manual log + expandable history + documen
 its storage-key collection from the public to the PRIVATE collector; purge `_delete_object_graph` now deletes
 the makerspace's Machines + custom MachineTypes (makerspace-scoped `MachineType.makerspace` PROTECT was blocking
 `makerspace.delete()`); wired the orphaned Maintenance frontend tab. **1482 backend tests pass**, `tsc -b`/build
-green, OpenAPI 251 paths.
+green, OpenAPI 251 paths. **Stage-4 reviewed + fixed** (`ad5040e`: purge-order/MachineDocument-key/archived-guard
++ fixture, tab gating on module+can_operate, upload-error handling, completion form); 1483 tests.
+
+**Part G — Public Roadmap (CODE COMPLETE; committed on `dev`; Stage-4 review pending).** New `apps/roadmap/`
+with a **platform-scoped** `RoadmapItem` (NO makerspace FK — global) registered in `config.admin_access`
+`GLOBAL_ADMIN_MODELS` (so the hidden-scope drift-guard stays green). Public `GET /api/v1/public/roadmap`
+(AllowAny, allowlist serializer, no module flag / no cap) + superadmin `/control/` CRUD (`SuperuserOnlyModelAdmin`)
++ Unfold sidebar entry. Frontend public roadmap page wired into public routes/nav. Migration `roadmap/0001`.
+29 roadmap+drift tests; full suite **1503 pass**; OpenAPI 252 paths; `tsc -b`/build green.
 
 **Harness notes:** local `osmm-db` (:5433), `osmm-redis`, `osmm-minio` (:9100) must be running; run tests
 with `DATABASE_URL="postgres://makerspace:makerspace@localhost:5433/makerspace_manager"`. Pre-existing (NOT

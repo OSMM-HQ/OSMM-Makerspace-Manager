@@ -19187,6 +19187,31 @@
                     }
                 }
             }
+        },
+        "/api/v1/public/roadmap": {
+            "get": {
+                "operationId": "api_v1_public_roadmap_list",
+                "description": "List the platform roadmap and changelog items that are published for public viewing. Descriptions are returned as plain text.",
+                "summary": "List public roadmap items",
+                "tags": [
+                    "Public roadmap"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PublicRoadmap"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -29334,6 +29359,53 @@
                     "rejection_reason",
                     "status"
                 ]
+            },
+            "PublicRoadmap": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PublicRoadmapStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "category": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "published_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "category",
+                    "description",
+                    "published_at",
+                    "status",
+                    "title"
+                ]
+            },
+            "PublicRoadmapStatusEnum": {
+                "enum": [
+                    "shipped",
+                    "in_progress",
+                    "planned"
+                ],
+                "type": "string",
+                "description": "* `shipped` - Shipped\n* `in_progress` - In progress\n* `planned` - Planned"
             },
             "PublicStats": {
                 "type": "object",

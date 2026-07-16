@@ -102,6 +102,7 @@ INSTALLED_APPS = [
     "apps.events",
     "apps.bookings",
     "apps.maintenance",
+    "apps.roadmap",
 ]
 
 MIDDLEWARE = [

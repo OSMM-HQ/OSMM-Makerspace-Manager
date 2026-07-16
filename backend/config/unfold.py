@@ -145,6 +145,17 @@ UNFOLD = {
                 ],
             },
             {
+                "title": _("Public site"),
+                "separator": True,
+                "items": [
+                    _item(
+                        "Roadmap / Changelog",
+                        "route",
+                        "admin:roadmap_roadmapitem_changelist",
+                    ),
+                ],
+            },
+            {
                 "title": _("Audit & evidence"),
                 "separator": True,
                 "items": [
