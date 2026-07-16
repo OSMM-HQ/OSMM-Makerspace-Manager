@@ -123,11 +123,14 @@ def update_event(event, *, actor, **changes):
 
     promoted = []
     capacity_changed = "capacity" in changes and locked.capacity != old_capacity
-    if capacity_changed and _may_promote(locked, now):
+    if (
+        _may_promote(locked, now)
+        and (locked.capacity == 0 or locked.capacity > confirmed)
+    ):
         waiters = _lock_waiters(locked)
         if locked.capacity == 0:
             promoted = _promote(locked, actor, waiters)
-        elif locked.capacity > old_capacity:
+        else:
             promoted = _promote(
                 locked, actor, waiters, locked.capacity - confirmed
             )
@@ -139,8 +142,9 @@ def update_event(event, *, actor, **changes):
         meta.update(
             old_capacity=old_capacity,
             new_capacity=locked.capacity,
-            promoted_registration_ids=[row.pk for row in promoted],
         )
+    if capacity_changed or promoted:
+        meta["promoted_registration_ids"] = [row.pk for row in promoted]
     _audit(locked, actor, "event.updated", locked, meta)
     return _refresh(locked)
 
@@ -201,9 +205,17 @@ def register(event, *, name, email, phone, actor=None):
         raise EventInvalidTransition("This event is not open for registration.")
     normalized_email = (email or "").strip().lower()
     status = fresh_registration_status(locked)
-    if EventRegistration.objects.filter(
+    existing = EventRegistration.objects.select_for_update().filter(
         event=locked, email=normalized_email
-    ).exists():
+    ).first()
+    if existing and existing.status == EventRegistration.Status.CANCELLED:
+        existing.status = status
+        existing.created_at = timezone.now()
+        existing.save(update_fields=["status", "created_at"])
+        meta = {"registration_id": existing.pk, "status": status}
+        _audit(locked, actor, "event.registration_created", existing, meta)
+        return _refresh(existing)
+    if existing:
         raise DuplicateRegistration(
             "A registration already exists for this email.",
             fresh_status=status,

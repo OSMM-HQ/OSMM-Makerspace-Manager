@@ -24,9 +24,10 @@ from apps.makerspaces.guards import require_module
 from apps.makerspaces.models import Makerspace
 
 
+EVENT_VALIDATION_ERROR_SCHEMA = {'type': 'object', 'additionalProperties': {}}
 EVENT_ERROR_400 = OpenApiResponse(
-    ErrorSerializer,
-    description='Event operation failed with a typed workflow error.',
+    EVENT_VALIDATION_ERROR_SCHEMA,
+    description='Invalid event details.',
 )
 EVENT_ERROR_409 = OpenApiResponse(
     ErrorSerializer,
@@ -151,7 +152,7 @@ class EventListCreateView(APIView):
         request=EventWriteSerializer,
         responses={
             201: EventAdminSerializer,
-            400: OpenApiResponse(description='Invalid event details.'),
+            400: EVENT_ERROR_400,
         },
     )
     def post(self, request, makerspace_id, *args, **kwargs):

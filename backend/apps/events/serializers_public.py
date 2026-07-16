@@ -1,7 +1,7 @@
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from apps.events.capacity import spots_left
+from apps.events.capacity import availability_label
 from apps.events.models import Event, EventRegistration
 
 
@@ -13,7 +13,7 @@ PUBLIC_EVENT_FIELDS = (
     'ends_at',
     'location',
     'capacity',
-    'spots_left',
+    'availability',
     'status',
 )
 
@@ -26,17 +26,20 @@ class PublicEventSerializer(serializers.Serializer):
     ends_at = serializers.DateTimeField(read_only=True)
     location = serializers.CharField(read_only=True)
     capacity = serializers.IntegerField(min_value=0, read_only=True)
-    spots_left = serializers.SerializerMethodField()
+    availability = serializers.SerializerMethodField()
     status = serializers.ChoiceField(
         choices=[Event.Status.PUBLISHED],
         read_only=True,
     )
 
     @extend_schema_field(
-        {'type': 'integer', 'nullable': True, 'minimum': 0}
+        {
+            'type': 'string',
+            'enum': ['Available', 'Limited', 'Full'],
+        }
     )
-    def get_spots_left(self, obj):
-        return spots_left(obj)
+    def get_availability(self, obj):
+        return availability_label(obj)
 
 
 class PublicEventRegistrationInputSerializer(serializers.Serializer):

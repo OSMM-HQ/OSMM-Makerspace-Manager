@@ -354,6 +354,36 @@ def test_capacity_edits_promote_fifo_and_conflicts_roll_back():
     assert waiter.status == "waitlisted"
 
 
+def test_reopening_ended_event_promotes_waiter_into_freed_slot_fifo():
+    space, actor = make_space(), make_actor()
+    ended = make_event(
+        space,
+        capacity=2,
+        starts_at=timezone.now() - timedelta(hours=2),
+        ends_at=timezone.now() - timedelta(hours=1),
+    )
+    cancelled = make_registration(ended, "cancelled@x.test")
+    make_registration(ended, "held@x.test")
+    oldest = make_registration(ended, "oldest@x.test", "waitlisted")
+    newest = make_registration(ended, "newest@x.test", "waitlisted")
+    EventRegistration.objects.filter(pk=oldest.pk).update(
+        created_at=timezone.now() - timedelta(hours=1)
+    )
+    services.cancel_registration(cancelled, actor=actor)
+
+    services.update_event(
+        ended,
+        actor=actor,
+        ends_at=timezone.now() + timedelta(hours=1),
+    )
+
+    oldest.refresh_from_db()
+    newest.refresh_from_db()
+    assert (oldest.status, newest.status) == ("registered", "waitlisted")
+    updated = AuditLog.objects.filter(action="event.updated").latest("created_at")
+    assert updated.meta["promoted_registration_ids"] == [oldest.pk]
+
+
 def test_attendance_state_machine():
     space, actor = make_space(), make_actor()
     for state in (Event.Status.PUBLISHED, Event.Status.COMPLETED):

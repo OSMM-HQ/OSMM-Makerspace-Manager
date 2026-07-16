@@ -22,7 +22,7 @@ EXPECTED_FIELDS = {
     'ends_at',
     'location',
     'capacity',
-    'spots_left',
+    'availability',
     'status',
 }
 FORBIDDEN_KEYS = {
@@ -37,6 +37,10 @@ FORBIDDEN_KEYS = {
     'is_public',
     'registrations',
     'registration_counts',
+    'confirmed_count',
+    'occupancy',
+    'remaining',
+    'spots_left',
     'email',
     'phone',
     'name',
@@ -108,6 +112,7 @@ def test_public_event_exact_allowlist_and_recursive_sentinel_leak_sweep():
     assert set(row) == EXPECTED_FIELDS
     assert row['public_token'] == str(event.public_token)
     assert row['description'] == '<script>alert(1)</script>'
+    assert row['availability'] in {'Available', 'Limited', 'Full'}
     assert_no_public_leak(response.data, sentinels)
 
 
@@ -119,6 +124,15 @@ def test_openapi_has_exact_public_contracts_and_documented_errors():
     response_schema = components['PublicEventRegistrationResponse']
 
     assert set(event_schema['properties']) == set(PUBLIC_EVENT_FIELDS)
+    availability_ref = event_schema['properties']['availability']['allOf'][0][
+        '$ref'
+    ]
+    availability_schema = components[availability_ref.rsplit('/', 1)[-1]]
+    assert availability_schema['enum'] == [
+        'Available',
+        'Limited',
+        'Full',
+    ]
     assert {'id', 'pk', 'makerspace', 'created_by'} & set(
         event_schema['properties']
     ) == set()

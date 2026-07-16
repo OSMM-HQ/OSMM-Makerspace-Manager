@@ -275,3 +275,16 @@ def test_openapi_contains_nine_operations_and_typed_components():
     components = schema['components']['schemas']
     assert {'EventWrite', 'EventAdmin', 'EventRegistrationAdmin'} <= components.keys()
     assert set(components['HardwareRequestError']['properties']) == {'detail', 'code'}
+    validation_error_schema = {'type': 'object', 'additionalProperties': {}}
+    assert schema['paths'][
+        '/api/v1/admin/makerspaces/{makerspace_id}/events/'
+    ]['post']['responses']['400']['content']['application/json']['schema'] == (
+        validation_error_schema
+    )
+    for path, method in (
+        ('/api/v1/admin/events/{id}/', 'patch'),
+        ('/api/v1/admin/events/{id}/publish/', 'post'),
+    ):
+        assert schema['paths'][path][method]['responses']['400']['content'][
+            'application/json'
+        ]['schema'] == validation_error_schema

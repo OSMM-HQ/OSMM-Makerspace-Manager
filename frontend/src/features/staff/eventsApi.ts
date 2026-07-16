@@ -112,12 +112,16 @@ export function useCreateEvent(makerspaceId: number) {
 }
 
 export function useUpdateEvent(makerspaceId: number, eventId: number) {
-  const invalidate = useEventInvalidation(makerspaceId, eventId);
+  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (payload: EventPatch) => staffRequest<StaffEvent>(
       staffPath(EVENT_DETAIL_PATH, { id: eventId }),
       { method: "PATCH", body: JSON.stringify(payload) },
-    ), onSuccess: invalidate,
+    ), onSuccess: async () => { await Promise.all([
+      queryClient.invalidateQueries({ queryKey: eventKeys.registrations(eventId) }),
+      queryClient.invalidateQueries({ queryKey: eventKeys.detail(eventId) }),
+      queryClient.invalidateQueries({ queryKey: eventKeys.list(makerspaceId) }),
+    ]); },
   });
 }
 

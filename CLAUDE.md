@@ -29,7 +29,7 @@ no per-Part QA gate. Phase-per-commit with the three co-author trailers. Specs l
   makerspace) — generic machines have no bucket/queue.
 - Security disclosure contact changed to `shaanshoukath4522@gmail.com` (`SECURITY.md`, commit `0509ecc`).
 
-**Part C — Events module (CODE COMPLETE, all 5 phases committed; Stage-4 Codex review pending/in-progress).**
+**Part C — Events module (CODE COMPLETE + Stage-4 REVIEWED & FIXED; review-fix commits pending on `dev`).**
 New `apps/events/` app (per-makerspace `events` module flag, default-on via `makerspaces/0032`). `Event`
 (makerspace FK, title/description/times/location, `capacity` 0=unlimited, `is_public`, `status`
 draft/published/cancelled/completed, `public_token` UUID for opaque public routing, immutable `save()`) +
@@ -47,19 +47,51 @@ register` (AllowAny, honeypot-before-serializer, `ClientTierRateThrottle` `publi
 module-disabled → **400** matching the printing convention, leak-sweep test). Frontend `eventsApi.ts`
 (local types) + `EventsPanel` + public `PublicEventsPage`/`EventRegistrationForm`; `lib/api.ts` now
 preserves structured `{detail, code}` error bodies. ~61 backend tests; `tsc -b`/build green. Commits
-`260b0c0`(C1)·`8759be0`(C2)·`22212c5`(C3)·`117593c`(C4)·`ec29658`(C5).
+`260b0c0`(C1)·`8759be0`(C2)·`22212c5`(C3)·`117593c`(C4)·`ec29658`(C5), Stage-4-fix `7ae2281`, P1
+enumeration refinement `fce8760`.
+
+**Part C — Stage-4 final review (2 independent Codex passes) + fixes (this session, 64 events tests).**
+Pass #1 (full events range) clean; pass #2 surfaced 4 real defects (fixed) + 2 enumeration tradeoffs
+(user-decided). **Fixed:** (P2) `update_event` now promotes FIFO waiters whenever the event `_may_promote`
+AND has available capacity — not only when `capacity` changed — so **reopening** an ended event (extending
+`ends_at`) can no longer let a fresh registrant jump the waitlist; (P2) `register()` now locks and
+**reactivates a CANCELLED** same-email row (fresh `fresh_registration_status` + new FIFO `created_at` +
+audit) instead of falsely returning 201 while leaving it cancelled — an ACTIVE same-email row still raises
+the indistinguishable `DuplicateRegistration`; (P3) `useUpdateEvent` invalidates the registrations query
+so promoted rows refresh; (P3) events admin **400** OpenAPI schema corrected to a loose validation-error
+object (matches the field-map the serializer/quota actually return). **Enumeration tradeoffs (user-decided):**
+(1) exact public `spots_left` was an oracle (a fresh registration decrements it, a duplicate does not) →
+**coarsened to an `availability` label** `Available|Limited|Full` (`events/capacity.py:availability_label`,
+mirrors inventory `public_availability.py`: `Full` if left≤0, `Limited` if left≤`ceil(capacity*0.2)`, else
+`Available`; unlimited=`Available`); `PublicEventSerializer` dropped `spots_left`, `PublicEventsPage.tsx`
+renders the label; residual leak now only at bucket boundaries (accepted). (2) **timing** side-channel
+(duplicate path skips INSERT/audit) → **accepted + documented** (the `select_for_update` event-row lock +
+network jitter dominate; async infra unjustified for a self-hosted makerspace).
 
 **Spec-gate status:** C **APPROVED** (3 rounds). **Part E (Maintenance) APPROVED** (r2 — fixed 5 blockers:
 `performed_by=PROTECT`, purge-aware append-only trigger like `audit/0003`, lifecycle purge collection of
 log-doc keys, `add_storage`/`free_storage` accounting + `size_bytes`, dropped an unrelated machine-image
 retrofit + gated disabled-module dashboard). **Part G (Roadmap) APPROVED** (platform-scoped `RoadmapItem`,
-no makerspace FK, `GLOBAL_ADMIN_MODELS`, public `GET /api/v1/public/roadmap`). **Part D (Spaces & Bookings)
-re-review in progress** (r2 — fixed storage API names, one-txn finalize + compensating cleanup, inactive-space
-guard, reject `ends_at<=now`, public-image purge collection). Not yet spec'd: **F (Analytics — extends the
-reports stack; needs C/D/E), H (scoped PII encryption — highest risk), I (dynamic roles)**. Planned new apps:
-`apps/bookings/` (mig `makerspaces/0033`, `MANAGE_BOOKINGS`, uncapped), `apps/maintenance/` (mig
+no makerspace FK, `GLOBAL_ADMIN_MODELS`, public `GET /api/v1/public/roadmap`). Not yet spec'd:
+**F (Analytics — extends the reports stack; needs C/D/E), I (dynamic roles)**; **H (scoped PII encryption)
+spec revised this session** (Stage-1 r2 per 7 findings). Planned new apps: `apps/maintenance/` (mig
 `makerspaces/0034` chaining after 0033; `maintenance` flag already in `MODULE_WORKFLOWS`/`platform.py`, add
 to `DEFAULT_ENABLED_MODULES`; reuses Machines access, no new RBAC action), `apps/roadmap/`.
+
+**Part D — Spaces & Bookings (D1+D2+D3 CODE COMPLETE; committed/pending-commit on `dev`).** New
+`apps/bookings/` app: `BookableSpace` (makerspace FK, name/description, `is_active`, `is_public`,
+`public_token`, `image_key`, `show_public_availability`/`show_public_booker_names` visibility flags via
+mig `bookings/0002`) + `Booking` (space FK, requester name/email/phone, `starts_at`/`ends_at`, `status`,
+`public_token`). `services.py` is the atomic mutation source with **overlap prevention** (row-locked
+conflict check → 409 on time-slot collision); `MANAGE_BOOKINGS` RBAC action (Space Manager + Superadmin),
+uncapped. Migrations `makerspaces/0033` (module flag) + `bookings/0001`(models)/`0002`(visibility).
+Staff REST (`admin_api/views_bookings.py`/`views_bookable_spaces.py`/`serializers_bookings.py`, origin-scope
+wired). Space image via prefix storage (`bookings/storage.py`+`services_images.py`). Commits `cf0e503`(D1
+models)·`e6922e3`(D2 workflows). **D3 fix this session:** bookings `/control/` admins were registered on
+bare `ModelAdmin` (missing the mandatory `SuperuserOnlyModelAdmin` first base) → hidden-scope drift-guard
+failed; fixed by adding `SuperuserOnlyModelAdmin` to both admins + `bookings.booking` →
+`space__makerspace_id` in `config.admin_access.NESTED_MAKERSPACE_LOOKUPS` (`BookableSpace` auto-resolves via
+its direct `makerspace` FK). 38 bookings + 9 lifecycle tests pass; full suite green.
 
 **Harness notes:** local `osmm-db` (:5433), `osmm-redis`, `osmm-minio` (:9100) must be running; run tests
 with `DATABASE_URL="postgres://makerspace:makerspace@localhost:5433/makerspace_manager"`. Pre-existing (NOT

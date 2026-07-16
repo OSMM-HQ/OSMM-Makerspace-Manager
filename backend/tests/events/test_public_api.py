@@ -124,7 +124,7 @@ def test_list_filters_by_tenant_slug_or_code_and_orders_without_n_plus_one(
     assert by_code.data == response.data
 
 
-def test_spots_left_uses_only_confirmed_statuses_floors_and_handles_unlimited():
+def test_availability_uses_only_confirmed_statuses_and_handles_capacity_edges():
     space = make_space()
     limited = make_event(space, 'Limited', capacity=3)
     overfull = make_event(space, 'Overfull', capacity=1)
@@ -143,9 +143,44 @@ def test_spots_left_uses_only_confirmed_statuses_floors_and_handles_unlimited():
         row['title']: row for row in APIClient().get(list_url(space.slug)).data
     }
 
-    assert rows['Limited']['spots_left'] == 1
-    assert rows['Overfull']['spots_left'] == 0
-    assert rows['Unlimited']['spots_left'] is None
+    assert rows['Limited']['availability'] == 'Limited'
+    assert rows['Overfull']['availability'] == 'Full'
+    assert rows['Unlimited']['availability'] == 'Available'
+    for row in rows.values():
+        assert row['availability'] in {'Available', 'Limited', 'Full'}
+        assert 'spots_left' not in row
+
+
+def test_availability_is_coarse_across_registration_and_bucket_boundaries():
+    space = make_space()
+    event = make_event(space, capacity=10)
+    client = APIClient()
+
+    before = client.get(list_url(space.slug)).data[0]
+    registered = client.post(
+        register_url(space.slug, event),
+        identity(),
+        format='json',
+    )
+    after = client.get(list_url(space.slug)).data[0]
+
+    assert registered.status_code == 201
+    assert before['availability'] == after['availability'] == 'Available'
+    assert 'spots_left' not in before
+    assert 'spots_left' not in after
+
+    for index in range(1, 8):
+        make_registration(event, f'limited-{index}@example.com')
+    assert client.get(list_url(space.slug)).data[0]['availability'] == 'Limited'
+
+    make_registration(event, 'full-one@example.com')
+    make_registration(event, 'full-two@example.com')
+    assert client.get(list_url(space.slug)).data[0]['availability'] == 'Full'
+
+    unlimited = make_event(space, 'Unlimited', capacity=0)
+    make_registration(unlimited, 'unlimited@example.com')
+    rows = {row['title']: row for row in client.get(list_url(space.slug)).data}
+    assert rows['Unlimited']['availability'] == 'Available'
 
 
 def test_registration_by_list_token_returns_status_only_and_waitlists_when_full():
@@ -236,12 +271,25 @@ def test_registration_targets_are_slug_scoped_and_public_open_only():
     assert client.post(missing_url, identity(), format='json').status_code == 404
 
 
-def test_duplicate_normalized_email_matches_generic_new_registration_response():
+def test_cancelled_email_reregisters_and_active_duplicate_matches_generic_response():
     space = make_space()
     event = make_event(space, capacity=3)
-    make_registration(event, 'guest@example.com')
+    cancelled = make_registration(
+        event,
+        'guest@example.com',
+        EventRegistration.Status.CANCELLED,
+    )
+    original_created_at = timezone.now() - timedelta(days=1)
+    EventRegistration.objects.filter(pk=cancelled.pk).update(
+        created_at=original_created_at,
+    )
 
     client = APIClient()
+    reactivated = client.post(
+        register_url(space.slug, event),
+        identity(' Guest@Example.com '),
+        format='json',
+    )
     fresh = client.post(
         register_url(space.slug, event),
         identity('new@example.com'),
@@ -253,6 +301,18 @@ def test_duplicate_normalized_email_matches_generic_new_registration_response():
         format='json',
     )
 
+    cancelled.refresh_from_db()
+    assert reactivated.status_code == 201
+    assert reactivated.data == {'status': EventRegistration.Status.REGISTERED}
+    assert cancelled.status == EventRegistration.Status.REGISTERED
+    assert cancelled.created_at > original_created_at
+    assert event.registrations.filter(email='guest@example.com').count() == 1
+    assert {
+        'registration_id': cancelled.pk,
+        'status': EventRegistration.Status.REGISTERED,
+    } in AuditLog.objects.filter(
+        action='event.registration_created',
+    ).values_list('meta', flat=True)
     assert duplicate.status_code == fresh.status_code == 201
     assert duplicate.data == fresh.data == {
         'status': EventRegistration.Status.REGISTERED,
