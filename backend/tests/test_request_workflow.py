@@ -244,7 +244,7 @@ def test_successful_submission_creates_pending_request_items_audit_and_notifies(
     assert response.status_code == 201
     assert set(response.data) == {"public_token", "status"}
     assert response.data["status"] == HardwareRequest.Status.PENDING_APPROVAL
-    assert len(callbacks) == 1
+    assert len(callbacks) == 0
     hardware_request = HardwareRequest.objects.get()
     assert str(hardware_request.public_token) == response.data["public_token"]
     assert hardware_request.status == HardwareRequest.Status.PENDING_APPROVAL

@@ -275,6 +275,24 @@ def test_self_host_ignores_zero_cap_without_counter(monkeypatch):
     assert not DailyNotificationCounter.objects.exists()
 
 
+def test_telegram_global_token_fallback_is_configured(settings, monkeypatch):
+    # A space with a group chat id but no per-space token, relying on the global
+    # settings.TELEGRAM_BOT_TOKEN fallback (mirrored by telegram.send_message), must be
+    # treated as configured — not silently recorded not-configured.
+    settings.TELEGRAM_BOT_TOKEN = "global-fallback-token"
+    space = make_space("telegram-global")
+    space.telegram_group_chat_id = "-100999"
+    space.save(update_fields=["telegram_group_chat_id"])
+    monkeypatch.setattr(limits, "is_self_host", lambda: True)
+    sender = Mock(return_value=True)
+    monkeypatch.setattr("apps.integrations.telegram.send_message", sender)
+
+    log = dispatch(space, channel="telegram", sync=True)
+
+    assert log.status == NotificationDeliveryStatus.SENT
+    sender.assert_called_once()
+
+
 def test_undecryptable_secret_fails_terminally_without_raising(monkeypatch):
     # A rotated/missing API_CLIENT_ENC_KEY or corrupt ciphertext makes the decrypting
     # getter raise. dispatch_channel must NOT propagate — it records a terminal

@@ -7,6 +7,7 @@ from rest_framework.exceptions import ValidationError
 from apps.audit.services import record
 from apps.maintenance.exceptions import InactiveMaintenanceSchedule
 from apps.maintenance.models import MaintenanceLog, MaintenanceSchedule
+from apps.maintenance.notifications import notify_maintenance_lifecycle
 from apps.maintenance.services_shared import (
     apply_idle_transition,
     clean_date,
@@ -53,6 +54,7 @@ def log_maintenance(
     log = _append_log(machine, actor, values)
     if set_idle:
         apply_idle_transition(machine, actor)
+    notify_maintenance_lifecycle(log, "logged")
     return log
 
 
@@ -72,6 +74,7 @@ def create_schedule(machine, *, actor, description, interval_days, next_due):
         makerspace=machine.makerspace, target=schedule,
         meta={"machine_id": machine.pk, "interval_days": schedule.interval_days},
     )
+    notify_maintenance_lifecycle(schedule, "schedule_created")
     return schedule
 
 
@@ -101,6 +104,7 @@ def update_schedule(schedule, *, actor, **changes):
             makerspace=machine.makerspace, target=schedule,
             meta={"changed_fields": sorted(changes)},
         )
+        notify_maintenance_lifecycle(schedule, "schedule_updated")
     return schedule
 
 
@@ -120,6 +124,7 @@ def deactivate_schedule(schedule, *, actor):
         makerspace=machine.makerspace, target=schedule,
         meta={"machine_id": machine.pk},
     )
+    notify_maintenance_lifecycle(schedule, "schedule_deactivated")
     return schedule
 
 
@@ -156,6 +161,9 @@ def complete_due(
     )
     if set_idle:
         apply_idle_transition(machine, actor)
+    notify_maintenance_lifecycle(
+        schedule, "schedule_completed", log_id=log.pk
+    )
     return log
 
 

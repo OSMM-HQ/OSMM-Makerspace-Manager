@@ -232,7 +232,9 @@ def test_telegram_delivery_uses_decrypted_makerspace_bot_token(monkeypatch, sett
     assert makerspace.telegram_bot_token != "bot-token"
 
 
-def test_submitted_request_telegram_alert_includes_contact_and_items(monkeypatch):
+def test_submitted_request_telegram_alert_includes_contact_and_items(
+    monkeypatch, django_capture_on_commit_callbacks
+):
     makerspace = make_space("telegram-submitted-alert")
     requester = User.objects.create_user(
         username="requester-alert",
@@ -261,10 +263,11 @@ def test_submitted_request_telegram_alert_includes_contact_and_items(monkeypatch
         requested_quantity=3,
     )
     sent = Mock(return_value=True)
-    monkeypatch.setattr(notifications, "send_message", sent)
-    monkeypatch.setattr(notifications, "_send_templated_email", Mock(return_value=False))
+    monkeypatch.setattr("apps.integrations.dispatch_channels._channel_configured", lambda *a: True)
+    monkeypatch.setattr("apps.integrations.telegram.send_message", sent)
 
-    notifications.notify_request_submitted(hardware_request)
+    with django_capture_on_commit_callbacks(execute=True):
+        notifications.notify_request_submitted(hardware_request)
 
     text = sent.call_args.args[1]
     assert "requester@example.com" in text
@@ -276,7 +279,9 @@ def test_submitted_request_telegram_alert_includes_contact_and_items(monkeypatch
     assert sent.call_args.kwargs["reply_markup"]["inline_keyboard"]
 
 
-def test_submitted_request_telegram_delivery_error_is_swallowed(monkeypatch):
+def test_submitted_request_telegram_delivery_error_is_swallowed(
+    monkeypatch, django_capture_on_commit_callbacks
+):
     makerspace = make_space("telegram-submitted-failure")
     requester = User.objects.create_user(
         username="requester-failure",
@@ -296,15 +301,18 @@ def test_submitted_request_telegram_delivery_error_is_swallowed(monkeypatch):
         requested_quantity=1,
     )
     sent = Mock(side_effect=TelegramDeliveryError("delivery failed"))
-    monkeypatch.setattr(notifications, "send_message", sent)
-    monkeypatch.setattr(notifications, "_send_templated_email", Mock(return_value=False))
+    monkeypatch.setattr("apps.integrations.dispatch_channels._channel_configured", lambda *a: True)
+    monkeypatch.setattr("apps.integrations.telegram.send_message", sent)
 
-    notifications.notify_request_submitted(hardware_request)
+    with django_capture_on_commit_callbacks(execute=True):
+        notifications.notify_request_submitted(hardware_request)
 
     sent.assert_called_once()
 
 
-def test_submitted_request_telegram_message_stays_within_limit(monkeypatch):
+def test_submitted_request_telegram_message_stays_within_limit(
+    monkeypatch, django_capture_on_commit_callbacks
+):
     # A long requested_for must not push the payload past Telegram's 4096-char
     # limit, or the failed send would be swallowed and the alert lost.
     makerspace = make_space("telegram-long-message")
@@ -327,10 +335,11 @@ def test_submitted_request_telegram_message_stays_within_limit(monkeypatch):
         requested_quantity=1,
     )
     sent = Mock(return_value=True)
-    monkeypatch.setattr(notifications, "send_message", sent)
-    monkeypatch.setattr(notifications, "_send_templated_email", Mock(return_value=False))
+    monkeypatch.setattr("apps.integrations.dispatch_channels._channel_configured", lambda *a: True)
+    monkeypatch.setattr("apps.integrations.telegram.send_message", sent)
 
-    notifications.notify_request_submitted(hardware_request)
+    with django_capture_on_commit_callbacks(execute=True):
+        notifications.notify_request_submitted(hardware_request)
 
     text = sent.call_args.args[1]
     assert len(text) <= 4096

@@ -36,10 +36,16 @@ def _channel_configured(makerspace, channel) -> bool:
     # quota) so the fail-safe contract holds and a sync caller's fan-out never aborts.
     try:
         if channel == NonEmailNotificationChannel.TELEGRAM:
-            return bool(
-                makerspace.get_telegram_bot_token()
-                and makerspace.telegram_group_chat_id
+            # Mirror telegram.send_message's token resolution: a per-makerspace token OR
+            # the global settings.TELEGRAM_BOT_TOKEN fallback, plus a group chat id. Without
+            # the fallback here, a space relying on the global token would be wrongly treated
+            # as not-configured and its lifecycle Telegram alerts would silently stop.
+            from django.conf import settings
+
+            token = makerspace.get_telegram_bot_token() or getattr(
+                settings, "TELEGRAM_BOT_TOKEN", ""
             )
+            return bool(token and makerspace.telegram_group_chat_id)
         if channel == NonEmailNotificationChannel.SLACK:
             return bool(makerspace.get_slack_webhook_url())
         if channel == NonEmailNotificationChannel.MATTERMOST:

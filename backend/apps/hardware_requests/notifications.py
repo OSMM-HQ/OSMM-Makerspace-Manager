@@ -1,193 +1,170 @@
 import logging
 
 from apps.hardware_requests.display import requester_label
+from apps.hardware_requests.models import HardwareRequest
 from apps.integrations.email_templates import hardware_context, render
-from apps.integrations.email import send_makerspace_email
-from apps.integrations import notification_rules
-from apps.integrations.telegram import TelegramDeliveryError, send_message
-from apps.hardware_requests.staff_notifications import send_staff_hardware_email
+from apps.integrations.notify import EmailDelivery, LifecyclePayload, notify_lifecycle
+from apps.integrations.staff_notifications import staff_emails_for_feature
 
 logger = logging.getLogger(__name__)
 
+
 def notify_request_submitted(request):
-    """Telegram integration point for submitted hardware requests."""
-    logger.info(
-        "Hardware request submitted.",
-        extra={
-            "request_id": request.pk,
-            "makerspace_id": request.makerspace_id,
-            "status": request.status,
-        },
-    )
-    _send_request_message(
+    return _notify(
         request,
-        _build_submitted_request_message(request),
+        event="submitted",
+        requester_key="request_received",
+        staff_event="submitted",
+        text_builder=_build_submitted_request_message,
+        reply_markup_builder=_submitted_reply_markup,
     )
-    _send_templated_email(request, "request_received")
-    _send_staff_email(request, "submitted")
 
 
 def notify_request_accepted(request):
-    logger.info(
-        "Hardware request accepted.",
-        extra={
-            "request_id": request.pk,
-            "makerspace_id": request.makerspace_id,
-            "status": request.status,
-        },
+    return _notify(
+        request,
+        event="accepted",
+        requester_key="request_accepted",
+        staff_event="accepted",
+        text_builder=lambda row: f"Hardware request #{row.pk} has been accepted.",
     )
-    _send_templated_email(request, "request_accepted")
-    _send_staff_email(request, "accepted")
 
 
 def notify_request_rejected(request):
-    logger.info(
-        "Hardware request rejected.",
-        extra={
-            "request_id": request.pk,
-            "makerspace_id": request.makerspace_id,
-            "status": request.status,
-        },
+    return _notify(
+        request,
+        event="rejected",
+        requester_key="request_rejected",
+        staff_event="rejected",
+        text_builder=lambda row: f"Hardware request #{row.pk} has been rejected.",
     )
-    _send_templated_email(request, "request_rejected")
-    _send_staff_email(request, "rejected")
 
 
 def notify_request_issued(request):
-    """Telegram integration point for issued hardware requests."""
-    logger.info(
-        "Hardware request issued.",
-        extra={
-            "request_id": request.pk,
-            "makerspace_id": request.makerspace_id,
-            "status": request.status,
-        },
+    return _notify(
+        request,
+        event="issued",
+        requester_key="request_issued",
+        staff_event="issued",
+        text_builder=lambda row: f"Hardware request #{row.pk} has been issued.",
     )
-    _send_request_message(request, f"Hardware request #{request.pk} has been issued.")
-    _send_templated_email(request, "request_issued")
-    _send_staff_email(request, "issued")
 
 
 def notify_request_returned(request):
-    """Telegram integration point for returned hardware requests."""
-    logger.info(
-        "Hardware request returned.",
-        extra={
-            "request_id": request.pk,
-            "makerspace_id": request.makerspace_id,
-            "status": request.status,
-        },
+    event = (
+        request.status
+        if request.status in {"partially_returned", "returned", "closed_with_issue"}
+        else "returned"
     )
-    _send_request_message(request, f"Hardware request #{request.pk} has been returned.")
-    _send_templated_email(request, "request_returned")
-    _send_staff_email(request, request.status)
+    return _notify(
+        request,
+        event=event,
+        requester_key="request_returned",
+        staff_event=event,
+        text_builder=lambda row: f"Hardware request #{row.pk} has been returned.",
+    )
 
 
 def notify_return_due(request):
+    result = _notify(
+        request,
+        event="return_reminder",
+        requester_key="return_reminder",
+        staff_event="return_reminder",
+        text_builder=lambda row: f"Hardware request #{row.pk} is due for return.",
+        sync=True,
+    )
+    return bool(result.delivered_counts)
+
+
+def _notify(
+    request,
+    *,
+    event,
+    requester_key,
+    staff_event,
+    text_builder,
+    reply_markup_builder=None,
+    sync=False,
+):
     logger.info(
-        "Hardware request return reminder due.",
+        "Hardware request lifecycle notification.",
         extra={
             "request_id": request.pk,
             "makerspace_id": request.makerspace_id,
             "status": request.status,
+            "event": event,
         },
     )
-    sent = _send_templated_email(request, "return_reminder", sync=True)
-    staff_sent = _send_staff_email(request, "return_reminder", sync=True)
-    # Mark the reminder cycle complete if the borrower OR staff was actually reminded.
-    # Returning the borrower-only result would leave return_reminder_sent_at null whenever
-    # the borrower has no reachable email (blank contact / persistent bounce), so the cron
-    # would re-send the staff reminder every run. A transient SMTP outage hits both sends
-    # (shared makerspace connection) → both False → still retried next run, as intended.
-    return bool(sent) or bool(staff_sent)
+    request_id = request.pk
 
-
-def _send_request_message(request, text):
-    reply_markup = None
-    if request.status == request.Status.PENDING_APPROVAL:
-        reply_markup = {
-            "inline_keyboard": [
-                [
-                    {"text": "Accept", "callback_data": f"accept:{request.pk}"},
-                    {
-                        "text": "Reject",
-                        "callback_data": f"reject:{request.pk}:Rejected from Telegram.",
-                    },
-                ]
-            ]
-        }
-    try:
-        send_message(request.makerspace, text, reply_markup=reply_markup)
-    except TelegramDeliveryError:
-        logger.exception(
-            "Telegram request notification failed.",
-            extra={"request_id": request.pk},
+    def build():
+        row = (
+            HardwareRequest.objects.select_related(
+                "makerspace", "requester", "assigned_box"
+            )
+            .prefetch_related("items__product")
+            .get(pk=request_id)
+        )
+        emails = _email_deliveries(row, requester_key, staff_event)
+        markup = reply_markup_builder(row) if reply_markup_builder else None
+        return LifecyclePayload(
+            text=text_builder(row),
+            emails=emails,
+            telegram_reply_markup=markup,
         )
 
+    return notify_lifecycle(
+        request.makerspace,
+        feature="hardware_requests",
+        event=event,
+        build=build,
+        sync=sync,
+    )
 
-def _build_submitted_request_message(request):
-    lines = [
-        f"New hardware request #{request.pk}",
-        f"Requester: {requester_label(request, fallback='Unknown requester')}",
-    ]
+
+def _email_deliveries(request, requester_key, staff_event):
+    deliveries = []
     if request.requester_contact_email:
-        lines.append(f"Email: {request.requester_contact_email}")
-    if request.requester_contact_phone:
-        lines.append(f"Phone: {request.requester_contact_phone}")
-    if request.requested_for:
-        # requested_for is an uncapped TextField; clamp it so one long value can't
-        # push the payload past Telegram's 4096-char limit (a failed send would be
-        # swallowed by _send_request_message, dropping the alert + approve buttons).
-        lines.append(f"Requested for: {_clamp(request.requested_for, 300)}")
-
-    items = list(request.items.select_related("product"))
-    if items:
-        lines.append("Items:")
-        shown = items[:40]
-        for item in shown:
-            lines.append(f"- {_clamp(item.product.name, 80)}: {item.requested_quantity}")
-        if len(items) > len(shown):
-            lines.append(f"- ...and {len(items) - len(shown)} more")
-    else:
-        lines.append("Items: None")
-    # Final safety net: stay under Telegram's hard 4096-char text limit.
-    return _clamp("\n".join(lines), 4000)
-
-
-def _clamp(text, limit):
-    text = str(text)
-    return text if len(text) <= limit else text[: limit - 1] + "…"
-
-
-def _send_templated_email(request, key, *, sync=False):
-    if notification_rules.is_requester_muted(request.makerspace, "hardware", key):
-        return False
-
-    recipient = request.requester_contact_email
-    if not recipient:
-        return False
-
-    rendered = render_email(request, key)
-    try:
-        sent = send_makerspace_email(
+        rendered = render_email(request, requester_key)
+        deliveries.append(
+            EmailDelivery(
+                to_email=request.requester_contact_email,
+                subject=rendered["subject"],
+                text_body=rendered["text_body"],
+                html_body=rendered["html_body"],
+                audience="requester",
+                target="requester",
+                stream="hardware",
+                mute_event=requester_key,
+            )
+        )
+    recipients = staff_emails_for_feature(
+        request.makerspace,
+        "hardware_requests",
+        event=staff_event,
+    )
+    if recipients:
+        rendered = render(
             request.makerspace,
-            rendered["subject"],
-            rendered["text_body"],
-            [recipient],
-            html_body=rendered["html_body"],
-            stream="hardware",
-            event=key,
-            audience="requester",
-            sync=sync,
+            "hardware",
+            "staff",
+            staff_event,
+            hardware_context(request, staff=True),
         )
-        return bool(sent)
-    except Exception:
-        logger.warning(
-            "request_status_email_failed",
-            extra={"request_id": request.pk, "recipient": recipient, "template": key},
-            exc_info=True,
+        deliveries.extend(
+            EmailDelivery(
+                to_email=recipient,
+                subject=rendered["subject"],
+                text_body=rendered["text_body"],
+                html_body=rendered["html_body"],
+                audience="staff",
+                stream="hardware",
+                mute_event=staff_event,
+            )
+            for recipient in recipients
         )
-        return False
+    return tuple(deliveries)
 
 
 def render_email(request, key):
@@ -200,5 +177,44 @@ def render_email(request, key):
     )
 
 
-def _send_staff_email(request, event, *, sync=False) -> bool:
-    return send_staff_hardware_email(request, event, sync=sync)
+def _submitted_reply_markup(request):
+    return {
+        "inline_keyboard": [
+            [
+                {"text": "Accept", "callback_data": f"accept:{request.pk}"},
+                {
+                    "text": "Reject",
+                    "callback_data": f"reject:{request.pk}:Rejected from Telegram.",
+                },
+            ]
+        ]
+    }
+
+
+def _build_submitted_request_message(request):
+    lines = [
+        f"New hardware request #{request.pk}",
+        f"Requester: {requester_label(request, fallback='Unknown requester')}",
+    ]
+    if request.requester_contact_email:
+        lines.append(f"Email: {request.requester_contact_email}")
+    if request.requester_contact_phone:
+        lines.append(f"Phone: {request.requester_contact_phone}")
+    if request.requested_for:
+        lines.append(f"Requested for: {_clamp(request.requested_for, 300)}")
+    items = list(request.items.all())
+    if items:
+        lines.append("Items:")
+        shown = items[:40]
+        for item in shown:
+            lines.append(f"- {_clamp(item.product.name, 80)}: {item.requested_quantity}")
+        if len(items) > len(shown):
+            lines.append(f"- ...and {len(items) - len(shown)} more")
+    else:
+        lines.append("Items: None")
+    return _clamp("\n".join(lines), 4000)
+
+
+def _clamp(text, limit):
+    text = str(text)
+    return text if len(text) <= limit else text[: limit - 1] + "…"

@@ -376,7 +376,6 @@ def test_issue_happy_path(monkeypatch, django_capture_on_commit_callbacks):
         )
 
     assert response.status_code == 200
-    assert len(callbacks) == 1
     hardware_request.refresh_from_db()
     assert hardware_request.status == HardwareRequest.Status.ISSUED
     assert hardware_request.issued_by == admin

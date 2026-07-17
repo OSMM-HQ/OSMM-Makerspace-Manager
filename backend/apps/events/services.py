@@ -13,14 +13,15 @@ from apps.events.exceptions import (
     EventInvalidTransition,
 )
 from apps.events.models import Event, EventRegistration
+from apps.events.notifications import notify_event_lifecycle
 from apps.forms_schema.validation import validate_answers, validate_form_schema
 from apps.makerspaces import limits
 from apps.makerspaces.models import Makerspace
 
-EVENT_FIELDS = frozenset({
-    'title', 'description', 'starts_at', 'ends_at', 'location',
-    'location_kind', 'custom_form', 'capacity', 'is_public',
-})
+EVENT_FIELDS = frozenset(
+    {'title', 'description', 'starts_at', 'ends_at', 'location',
+     'location_kind', 'custom_form', 'capacity', 'is_public'}
+)
 
 
 def _locked_event(event_id):
@@ -61,9 +62,9 @@ def _may_promote(event, now):
 
 def _lock_waiters(event):
     return list(
-        EventRegistration.objects.select_for_update()
-        .filter(event=event, status=EventRegistration.Status.WAITLISTED)
-        .order_by("created_at", "id")
+        EventRegistration.objects.select_for_update().filter(
+            event=event, status=EventRegistration.Status.WAITLISTED
+        ).order_by("created_at", "id")
     )
 
 
@@ -74,6 +75,7 @@ def _promote(event, actor, waiters, count=None):
         registration.save(update_fields=["status"])
         meta = {"registration_id": registration.pk}
         _audit(event, actor, "event.registration_promoted", registration, meta)
+        notify_event_lifecycle(event, "registration_promoted", registration.pk)
     return selected
 
 
@@ -164,13 +166,13 @@ def update_event(event, *, actor, **changes):
 def _transition(event, actor, expected, new_status, action):
     locked = _locked_event(event.pk)
     if locked.status != expected:
-        raise EventInvalidTransition(
-            f"Cannot transition event from {locked.status} to {new_status}."
-        )
+        message = f"Cannot transition event from {locked.status} to {new_status}."
+        raise EventInvalidTransition(message)
     locked.status = new_status
     locked.save(update_fields=["status", "updated_at"])
     meta = {"old_status": expected, "new_status": new_status}
     _audit(locked, actor, action, locked, meta)
+    notify_event_lifecycle(locked, new_status)
     return _refresh(locked)
 
 
@@ -187,23 +189,18 @@ def publish(event, *, actor):
     locked.save(update_fields=["status", "updated_at"])
     meta = {"old_status": Event.Status.DRAFT, "new_status": Event.Status.PUBLISHED}
     _audit(locked, actor, "event.published", locked, meta)
+    notify_event_lifecycle(locked, "published")
     return _refresh(locked)
 
 
 @transaction.atomic
 def cancel(event, *, actor):
-    return _transition(
-        event, actor, Event.Status.PUBLISHED, Event.Status.CANCELLED,
-        "event.cancelled",
-    )
+    return _transition(event, actor, Event.Status.PUBLISHED, Event.Status.CANCELLED, "event.cancelled")
 
 
 @transaction.atomic
 def complete(event, *, actor):
-    return _transition(
-        event, actor, Event.Status.PUBLISHED, Event.Status.COMPLETED,
-        "event.completed",
-    )
+    return _transition(event, actor, Event.Status.PUBLISHED, Event.Status.COMPLETED, "event.completed")
 
 
 @transaction.atomic
@@ -234,6 +231,7 @@ def register(event, *, name, email, phone, custom_answers=None, actor=None):
         ])
         meta = {"registration_id": existing.pk, "status": status}
         _audit(locked, actor, "event.registration_created", existing, meta)
+        notify_event_lifecycle(locked, "registration_created", existing.pk)
         return _refresh(existing)
     if existing:
         raise DuplicateRegistration(
@@ -252,6 +250,7 @@ def register(event, *, name, email, phone, custom_answers=None, actor=None):
     registration.save()
     meta = {"registration_id": registration.pk, "status": status}
     _audit(locked, actor, "event.registration_created", registration, meta)
+    notify_event_lifecycle(locked, "registration_created", registration.pk)
     return _refresh(registration)
 
 
@@ -269,6 +268,7 @@ def cancel_registration(registration, *, actor=None):
     locked.save(update_fields=["status"])
     meta = {"registration_id": locked.pk, "old_status": old_status}
     _audit(event, actor, "event.registration_cancelled", locked, meta)
+    notify_event_lifecycle(event, "registration_cancelled", locked.pk)
     if (
         old_status == EventRegistration.Status.REGISTERED
         and event.capacity > 0
@@ -296,4 +296,5 @@ def mark_attended(registration, *, actor):
         event, actor, "event.registration_attended", locked,
         {"registration_id": locked.pk},
     )
+    notify_event_lifecycle(event, "registration_attended", locked.pk)
     return _refresh(locked)

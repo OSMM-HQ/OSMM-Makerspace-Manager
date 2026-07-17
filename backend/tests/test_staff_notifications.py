@@ -640,13 +640,14 @@ def test_hardware_staff_send_failure_does_not_block_transition_or_requester_emai
     product.reserved_quantity -= 1
     product.save(update_fields=["available_quantity", "reserved_quantity", "updated_at"])
 
-    def fail_staff_send(*args, **kwargs):
-        raise RuntimeError("staff SMTP failed")
+    from apps.integrations.dispatch import dispatch_email as real_dispatch_email
 
-    monkeypatch.setattr(
-        "apps.hardware_requests.staff_notifications.send_makerspace_email",
-        fail_staff_send,
-    )
+    def fail_staff_send(**kwargs):
+        if kwargs["audience"] == "staff":
+            raise RuntimeError("staff SMTP failed")
+        return real_dispatch_email(**kwargs)
+
+    monkeypatch.setattr("apps.integrations.notify.dispatch_email", fail_staff_send)
 
     with django_capture_on_commit_callbacks(execute=True):
         response = hardware_authenticated_client(admin).post(
@@ -676,10 +677,14 @@ def test_printing_staff_resolver_failure_does_not_block_transition_or_requester_
     manager = make_print_manager("staff-print-fail-safe-manager", makerspace)
     print_request = make_print_request(bucket, requester)
 
-    def fail_resolver(*args, **kwargs):
-        raise RuntimeError("resolver failed")
+    from apps.integrations.dispatch import dispatch_email as real_dispatch_email
 
-    monkeypatch.setattr("apps.printing.emails.staff_emails_for_stream", fail_resolver)
+    def fail_staff_send(**kwargs):
+        if kwargs["audience"] == "staff":
+            raise RuntimeError("staff dispatch failed")
+        return real_dispatch_email(**kwargs)
+
+    monkeypatch.setattr("apps.integrations.notify.dispatch_email", fail_staff_send)
 
     with django_capture_on_commit_callbacks(execute=True):
         response = print_authenticated_client(manager).post(
@@ -709,13 +714,14 @@ def test_notify_return_due_keeps_boolean_when_staff_send_fails(monkeypatch):
     hardware_request.requester_contact_email = "return-due-fail-safe-requester@example.com"
     hardware_request.save(update_fields=["requester_contact_email", "updated_at"])
 
-    def fail_staff_send(*args, **kwargs):
-        raise RuntimeError("staff SMTP failed")
+    from apps.integrations.dispatch import dispatch_email as real_dispatch_email
 
-    monkeypatch.setattr(
-        "apps.hardware_requests.staff_notifications.send_makerspace_email",
-        fail_staff_send,
-    )
+    def fail_staff_send(**kwargs):
+        if kwargs["audience"] == "staff":
+            raise RuntimeError("staff SMTP failed")
+        return real_dispatch_email(**kwargs)
+
+    monkeypatch.setattr("apps.integrations.notify.dispatch_email", fail_staff_send)
 
     assert hardware_notifications.notify_return_due(hardware_request) is True
     assert recipient_addresses() == ["return-due-fail-safe-requester@example.com"]
@@ -793,3 +799,17 @@ def test_notification_recipients_endpoint_lists_and_toggles():
     membership = MakerspaceMembership.objects.get(id=other_membership_id)
     assert membership.receives_notifications is False
     assert other.email not in staff_emails_for_stream(makerspace, "printing")
+
+
+def test_notification_recipients_endpoint_includes_machine_managers():
+    # Machine Managers receive maintenance emails by default, so a Space Manager must be
+    # able to see + toggle their receives_notifications flag like every other eligible role.
+    makerspace = make_space("notif-machine")
+    manager = make_staff_user("notif-sm", makerspace, MakerspaceMembership.Role.SPACE_MANAGER)
+    make_staff_user("notif-mm", makerspace, MakerspaceMembership.Role.MACHINE_MANAGER)
+    client = hardware_authenticated_client(manager)
+    url = f"/api/v1/admin/makerspace/{makerspace.id}/notification-recipients"
+
+    listed = client.get(url)
+    assert listed.status_code == 200
+    assert "notif-mm" in {row["username"] for row in listed.data}

@@ -95,8 +95,7 @@ def create_booking(
         booking,
         {'booking_id': booking.pk, 'status': status},
     )
-    event = 'confirmed' if status == Booking.Status.CONFIRMED else 'submitted'
-    notifications.notify_booking_status(booking, event)
+    notifications.notify_booking_status(booking, 'created')
     return _refresh(booking)
 
 
@@ -176,7 +175,7 @@ def reject_booking(booking, *, actor):
     return _refresh(locked)
 
 
-def _transition(booking, actor, new_status, action, *, require_ended=False):
+def _transition(booking, actor, new_status, action, event, *, require_ended=False):
     space, locked = _locked_booking(booking)
     if locked.status != Booking.Status.CONFIRMED:
         raise BookingInvalidTransition(
@@ -198,13 +197,14 @@ def _transition(booking, actor, new_status, action, *, require_ended=False):
             'new_status': new_status,
         },
     )
+    notifications.notify_booking_status(locked, event)
     return _refresh(locked)
 
 
 @transaction.atomic
 def cancel_booking(booking, *, actor):
     return _transition(
-        booking, actor, Booking.Status.CANCELLED, 'booking.cancelled'
+        booking, actor, Booking.Status.CANCELLED, 'booking.cancelled', 'cancelled'
     )
 
 
@@ -215,6 +215,7 @@ def complete_booking(booking, *, actor):
         actor,
         Booking.Status.COMPLETED,
         'booking.completed',
+        'completed',
         require_ended=True,
     )
 
@@ -226,5 +227,6 @@ def mark_no_show(booking, *, actor):
         actor,
         Booking.Status.NO_SHOW,
         'booking.no_show_marked',
+        'no_show',
         require_ended=True,
     )

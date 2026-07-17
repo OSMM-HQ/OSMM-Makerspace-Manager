@@ -9,7 +9,7 @@ from apps.accounts.models import User
 from apps.audit import services as audit
 from apps.hardware_requests.workflow_utils import get_or_create_requester
 from apps.makerspaces import limits
-from apps.printing.emails import queue_print_email, queue_staff_print_email
+from apps.printing.emails import notify_print_status
 from apps.printing.models import (
     FilamentSpool,
     PrintBucket,
@@ -162,8 +162,5 @@ def submit_public_print_request(makerspace, data, result):
                 )
 
         audit.record(requester, "print.submitted", makerspace=makerspace, target=request)
-        # Send the acknowledgement only after the row + file attachments commit, so a
-        # rolled-back submit never emails a "received" confirmation.
-        queue_print_email("submitted", request.pk)
-        queue_staff_print_email("submitted", request.pk)
+        notify_print_status(request, "submitted")
         return request

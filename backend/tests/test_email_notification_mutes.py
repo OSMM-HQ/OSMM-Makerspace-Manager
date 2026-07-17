@@ -18,7 +18,7 @@ from apps.integrations.notification_rules import (
     valid_targets_for_stream,
 )
 from apps.integrations.staff_notifications import staff_emails_for_stream
-from apps.hardware_requests.notifications import _send_templated_email
+from apps.hardware_requests import notifications as hardware_notifications
 from apps.makerspaces.models import MakerspaceMembership
 from apps.printing.emails import send_print_email
 from tests.test_issue import make_accepted_request, make_product, make_space
@@ -225,7 +225,9 @@ def test_staff_role_mute_excludes_printing_role_only_when_event_is_supplied():
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-def test_hardware_requester_mute_skips_email_log_and_unmuted_sync_send_logs_email():
+def test_hardware_requester_mute_skips_email_log_and_unmuted_send_logs_email(
+    django_capture_on_commit_callbacks,
+):
     makerspace = make_space("mute-hardware-requester")
     product = make_product(makerspace)
     hardware_request = make_accepted_request(makerspace, product, 1)
@@ -233,11 +235,13 @@ def test_hardware_requester_mute_skips_email_log_and_unmuted_sync_send_logs_emai
     hardware_request.save(update_fields=["requester_contact_email", "updated_at"])
     create_mute(makerspace, target="requester", stream="hardware", event="request_accepted", audience="requester")
 
-    assert _send_templated_email(hardware_request, "request_accepted") is False
+    with django_capture_on_commit_callbacks(execute=True):
+        hardware_notifications.notify_request_accepted(hardware_request)
     assert EmailLog.objects.count() == 0
 
     EmailNotificationMute.objects.all().delete()
-    assert _send_templated_email(hardware_request, "request_accepted", sync=True) is True
+    with django_capture_on_commit_callbacks(execute=True):
+        hardware_notifications.notify_request_accepted(hardware_request)
     log = EmailLog.objects.get()
     assert log.to_email == "hardware-requester@example.com"
     assert log.stream == "hardware"
@@ -270,7 +274,7 @@ def test_return_reminder_requester_email_ignores_bogus_mute_row():
     hardware_request.save(update_fields=["requester_contact_email", "updated_at"])
     create_mute(makerspace, target="requester", stream="hardware", event="return_reminder", audience="requester")
 
-    assert _send_templated_email(hardware_request, "return_reminder", sync=True) is True
+    assert hardware_notifications.notify_return_due(hardware_request) is True
     log = EmailLog.objects.get()
     assert log.to_email == "return-reminder@example.com"
     assert log.event == "return_reminder"

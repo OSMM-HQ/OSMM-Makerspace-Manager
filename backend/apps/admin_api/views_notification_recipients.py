@@ -11,11 +11,13 @@ from apps.audit import services as audit
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 
 # Roles that can receive staff lifecycle notifications (mirrors the resolver's
-# _STREAM_ROLES union: hardware = space + inventory, printing = space + print).
+# feature->roles union: hardware = space + inventory, printing = space + print,
+# maintenance = space + machine).
 NOTIFY_ROLES = (
     MakerspaceMembership.Role.SPACE_MANAGER,
     MakerspaceMembership.Role.INVENTORY_MANAGER,
     MakerspaceMembership.Role.PRINT_MANAGER,
+    MakerspaceMembership.Role.MACHINE_MANAGER,
 )
 
 

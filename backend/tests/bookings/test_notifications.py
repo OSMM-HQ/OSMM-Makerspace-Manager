@@ -1,10 +1,18 @@
 from datetime import timedelta
+from types import SimpleNamespace
 
 import pytest
 from django.utils import timezone
 
 from apps.bookings import notifications, services
 from apps.bookings.models import BookableSpace, Booking
+from apps.integrations.models import (
+    NotificationChannel,
+    NotificationDeliveryLog,
+    NotificationDeliveryStatus,
+)
+from apps.integrations.notify import NotificationResult
+from apps.integrations.notification_catalog import is_notification_enabled
 from apps.makerspaces.models import Makerspace
 
 pytestmark = pytest.mark.django_db
@@ -54,9 +62,8 @@ def test_notification_events_use_single_requester_email_adapter(
     )
     dispatched = []
     monkeypatch.setattr(
-        notifications,
-        'dispatch_email',
-        lambda **kwargs: dispatched.append(kwargs),
+        'apps.integrations.notify.dispatch_email',
+        lambda **kwargs: dispatched.append(kwargs) or SimpleNamespace(status='sent'),
     )
 
     with django_capture_on_commit_callbacks(execute=True):
@@ -74,8 +81,8 @@ def test_notification_events_use_single_requester_email_adapter(
         services.reject_booking(rejected, actor=None)
 
     assert [call['event'] for call in dispatched] == [
-        'confirmed',
-        'submitted',
+        'created',
+        'created',
         'confirmed',
         'rejected',
     ]
@@ -120,9 +127,8 @@ def test_effective_notification_toggle_controls_delivery(
     )
     dispatched = []
     monkeypatch.setattr(
-        notifications,
-        'dispatch_email',
-        lambda **kwargs: dispatched.append(kwargs),
+        'apps.integrations.notify.dispatch_email',
+        lambda **kwargs: dispatched.append(kwargs) or SimpleNamespace(status='sent'),
     )
     with django_capture_on_commit_callbacks(execute=True):
         book(target)
@@ -137,9 +143,8 @@ def test_notification_callback_reloads_toggle_after_commit(
     target = space(tenant)
     dispatched = []
     monkeypatch.setattr(
-        notifications,
-        'dispatch_email',
-        lambda **kwargs: dispatched.append(kwargs),
+        'apps.integrations.notify.dispatch_email',
+        lambda **kwargs: dispatched.append(kwargs) or SimpleNamespace(status='sent'),
     )
     with django_capture_on_commit_callbacks(execute=False) as callbacks:
         book(target)
@@ -162,20 +167,100 @@ def test_notification_setup_failure_is_non_pii_and_never_breaks_mutation(
     def fail(**kwargs):
         raise RuntimeError('ada@example.com private delivery detail')
 
-    monkeypatch.setattr(notifications, 'dispatch_email', fail)
+    monkeypatch.setattr('apps.integrations.notify.dispatch_email', fail)
     with caplog.at_level('WARNING'):
         with django_capture_on_commit_callbacks(execute=True):
             created = book(target)
     created.refresh_from_db()
     assert created.status == Booking.Status.CONFIRMED
     assert Booking.objects.filter(pk=created.pk).exists()
-    assert 'booking_requester_notification_failed' in caplog.text
+    assert 'lifecycle_email_dispatch_failed' in caplog.text
     assert 'ada@example.com' not in caplog.text
     assert 'private delivery detail' not in caplog.text
 
 
-def test_notification_seam_rejects_unknown_events():
+def test_notification_seam_suppresses_unknown_events():
     target = space(makerspace('booking-notify-invalid', False))
     row = book(target)
-    with pytest.raises(ValueError):
-        notifications.notify_booking_status(row, 'cancelled')
+    result = notifications.notify_booking_status(row, 'unknown')
+    assert result.scheduled is False
+
+
+def test_all_booking_services_emit_the_exact_lifecycle_event_once(monkeypatch):
+    tenant = makerspace('booking-all-events', True)
+    approval = space(
+        tenant, approval_mode=BookableSpace.ApprovalMode.APPROVE,
+    )
+    instant = space(tenant, name='Instant')
+    calls = []
+    monkeypatch.setattr(
+        notifications,
+        'notify_booking_status',
+        lambda booking, event: calls.append((booking.pk, event)),
+    )
+
+    pending = book(approval)
+    services.approve_booking(pending, actor=None)
+    rejected = book(approval, start=pending.ends_at, email='reject@example.com')
+    services.reject_booking(rejected, actor=None)
+    cancelled = book(instant, start=rejected.ends_at, email='cancel@example.com')
+    services.cancel_booking(cancelled, actor=None)
+
+    past = timezone.now() - timedelta(hours=3)
+    completed = Booking.objects.create(
+        space=instant, name='Complete', email='complete@example.com', phone='1',
+        starts_at=past, ends_at=past + timedelta(hours=1), status='confirmed',
+    )
+    no_show = Booking.objects.create(
+        space=instant, name='No show', email='noshow@example.com', phone='1',
+        starts_at=past, ends_at=past + timedelta(hours=1), status='confirmed',
+    )
+    services.complete_booking(completed, actor=None)
+    services.mark_no_show(no_show, actor=None)
+
+    assert [event for _, event in calls] == [
+        'created', 'confirmed', 'created', 'rejected', 'created', 'cancelled',
+        'completed', 'no_show',
+    ]
+
+
+def test_booker_and_staff_envelopes_share_one_fanout(monkeypatch):
+    tenant = makerspace('booking-shared-envelope', True)
+    row = book(space(tenant))
+    captured = []
+    monkeypatch.setattr(
+        notifications,
+        'staff_emails_for_feature',
+        lambda *args, **kwargs: ['staff@example.com'],
+    )
+
+    def capture(makerspace, **kwargs):
+        captured.append(kwargs['build']())
+        return NotificationResult(False, {}, {})
+
+    monkeypatch.setattr(notifications, 'notify_lifecycle', capture)
+    notifications.notify_booking_status(row, 'confirmed', sync=True)
+    assert len(captured) == 1
+    assert [(email.to_email, email.audience) for email in captured[0].emails] == [
+        (row.email, 'requester'), ('staff@example.com', 'staff'),
+    ]
+
+
+def test_booking_defaults_and_unconfigured_telegram_fail_safely(
+    django_capture_on_commit_callbacks,
+):
+    tenant = makerspace('booking-default-channels', True)
+    assert is_notification_enabled(tenant, 'bookings', 'email') is True
+    assert is_notification_enabled(tenant, 'bookings', 'telegram') is True
+    assert is_notification_enabled(tenant, 'bookings', 'slack') is False
+    assert is_notification_enabled(tenant, 'bookings', 'mattermost') is False
+    with django_capture_on_commit_callbacks(execute=True):
+        created = book(space(tenant))
+    delivery = NotificationDeliveryLog.objects.get(
+        makerspace=tenant,
+        feature='bookings',
+        event='created',
+        channel=NotificationChannel.TELEGRAM,
+    )
+    assert delivery.status == NotificationDeliveryStatus.FAILED
+    assert Booking.objects.filter(pk=created.pk).exists()

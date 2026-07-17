@@ -349,8 +349,8 @@ def test_print_manager_accepts_starts_and_completes_with_audit_and_emails(
         response = client.post(action_url(print_request, "accept"), format="json")
         assert response.status_code == 200
         assert mail.outbox == []
-    # 4 = 2 sends (requester + staff) x async double-on_commit (queue hook -> dispatch enqueue hook).
-    assert len(callbacks) == 4
+    # One shared fan-out callback, then one dispatch callback per email envelope.
+    assert len(callbacks) == 3
     assert len(mail.outbox) == 2
     assert ["lifecycle-requester@e.com"] in [message.to for message in mail.outbox]
     assert ["lifecycle-manager@e.com"] in [message.to for message in mail.outbox]
@@ -374,8 +374,8 @@ def test_print_manager_accepts_starts_and_completes_with_audit_and_emails(
             format="json",
         )
         assert response.status_code == 200
-    # 4 = 2 sends (requester + staff) x async double-on_commit (queue hook -> dispatch enqueue hook).
-    assert len(callbacks) == 4
+    # One shared fan-out callback, then one dispatch callback per email envelope.
+    assert len(callbacks) == 3
     assert len(mail.outbox) == 4
     print_request.refresh_from_db()
     assert print_request.status == PrintRequest.Status.PRINTING
@@ -385,8 +385,8 @@ def test_print_manager_accepts_starts_and_completes_with_audit_and_emails(
         response = client.post(action_url(print_request, "complete"), format="json")
         assert response.status_code == 200
         assert len(mail.outbox) == 4
-    # 4 = 2 sends (requester + staff) x async double-on_commit (queue hook -> dispatch enqueue hook).
-    assert len(callbacks) == 4
+    # One shared fan-out callback, then one dispatch callback per email envelope.
+    assert len(callbacks) == 3
     assert len(mail.outbox) == 6
     print_request.refresh_from_db()
     assert print_request.status == PrintRequest.Status.COMPLETED
@@ -1064,8 +1064,8 @@ def test_print_manager_rejects_pending_request_with_reason_audit_and_email(
         assert response.status_code == 200
         assert mail.outbox == []
 
-    # 4 = 2 sends (requester + staff) x async double-on_commit (queue hook -> dispatch enqueue hook).
-    assert len(callbacks) == 4
+    # One shared fan-out callback, then one dispatch callback per email envelope.
+    assert len(callbacks) == 3
     assert len(mail.outbox) == 2
     assert ["reject-requester@e.com"] in [message.to for message in mail.outbox]
     assert ["reject-manager@e.com"] in [message.to for message in mail.outbox]

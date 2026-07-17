@@ -61,7 +61,7 @@ def submit_request(
             makerspace=makerspace,
             target=request,
         )
-        transaction.on_commit(lambda: notifications.notify_request_submitted(request))
+        notifications.notify_request_submitted(request)
         emit_notification(
             makerspace,
             level="info",
@@ -126,15 +126,7 @@ def accept_request(actor, request, accepted=None):
             target=locked,
             meta={"accepted": {item.pk: item.accepted_quantity for item in items}},
         )
-        transaction.on_commit(
-            lambda request_id=locked.pk: notifications.notify_request_accepted(
-                HardwareRequest.objects.select_related(
-                    "makerspace",
-                    "requester",
-                    "accepted_by",
-                ).get(pk=request_id)
-            )
-        )
+        notifications.notify_request_accepted(locked)
         return locked
 
 
@@ -160,12 +152,5 @@ def reject_request(actor, request, reason):
             target=locked,
             meta={"reason": reason},
         )
-        transaction.on_commit(
-            lambda request_id=locked.pk: notifications.notify_request_rejected(
-                HardwareRequest.objects.select_related(
-                    "makerspace",
-                    "requester",
-                ).get(pk=request_id)
-            )
-        )
+        notifications.notify_request_rejected(locked)
         return locked

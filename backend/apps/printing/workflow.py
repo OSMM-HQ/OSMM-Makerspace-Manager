@@ -1,26 +1,18 @@
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
 from django.db import transaction
-from django.core.exceptions import ObjectDoesNotExist
 from django.utils import timezone
 
 from apps.audit import services as audit
 from apps.notifications.emit import emit_notification
-from apps.printing.emails import queue_print_email, queue_staff_print_email
-from apps.printing.models import FilamentSpool, PrintPrinter, PrintRequest
+from apps.printing.emails import notify_print_status
+from apps.printing.models import PrintRequest
 from apps.printing.spool_reservations import (
     SpoolReservationError,
     reconcile_filament,
-    reserve_filament,
 )
-
-
-class InvalidTransition(Exception):
-    pass
-
-
-class PrintStartValidationError(InvalidTransition):
-    pass
+from apps.printing.workflow_errors import InvalidTransition, PrintStartValidationError
+from apps.printing.workflow_start import assign_print_job, coerce_filament_grams, coerce_price
 
 
 _ALLOWED = {
@@ -54,7 +46,7 @@ def _transition(
         extra_update_fields = []
         now = timezone.now()
         if status == PrintRequest.Status.PRINTING:
-            _assign_print_job(
+            assign_print_job(
                 locked,
                 actor=actor,
                 printer_id=printer_id,
@@ -77,13 +69,13 @@ def _transition(
         if status == PrintRequest.Status.ACCEPTED:
             locked.accepted_at = now
             locked.accepted_by = actor
-            locked.price = _coerce_price(price)
+            locked.price = coerce_price(price)
             extra_update_fields.extend(["accepted_by", "price"])
             # The manager can set/edit the planned filament at accept. `is not None`
             # (not truthiness) so an explicit 0 updates while an omitted field
             # preserves the requester's submitted estimate.
             if estimated_filament_grams is not None:
-                locked.estimated_filament_grams = _coerce_filament_grams(
+                locked.estimated_filament_grams = coerce_filament_grams(
                     estimated_filament_grams
                 )
                 extra_update_fields.append("estimated_filament_grams")
@@ -140,10 +132,7 @@ def _transition(
                 _reconcile_spool(actor, locked, partial, "failed_partial")
             else:
                 _reconcile_spool(actor, locked, Decimal("0.00"), "failed_partial")
-        if event in {"accepted", "started", "rejected", "completed"}:
-            queue_print_email(event, locked.pk)
-        if event in {"accepted", "started", "rejected", "completed", "failed"}:
-            queue_staff_print_email(event, locked.pk)
+        notify_print_status(locked, event)
         return locked
 
 
@@ -153,106 +142,6 @@ def _reconcile_spool(actor, locked, grams, reason):
     except SpoolReservationError as exc:
         raise InvalidTransition(str(exc)) from exc
 
-
-def _coerce_filament_grams(grams):
-    try:
-        value = Decimal(str(grams))
-    except (InvalidOperation, ValueError) as exc:
-        raise InvalidTransition("Actual filament grams must be a valid decimal value.") from exc
-    if not value.is_finite() or value < 0:
-        raise InvalidTransition(
-            "Actual filament grams must be a finite decimal value greater than or equal to 0."
-        )
-    return value.quantize(Decimal("0.01"))
-
-
-
-def _coerce_positive_filament_grams(grams):
-    value = _coerce_filament_grams(grams)
-    if value <= 0:
-        raise PrintStartValidationError("Planned filament grams must be greater than 0.")
-    return value
-
-
-def _coerce_estimated_minutes(minutes):
-    try:
-        value = int(minutes)
-    except (TypeError, ValueError) as exc:
-        raise PrintStartValidationError("Estimated minutes must be a whole number.") from exc
-    if value <= 0:
-        raise PrintStartValidationError("Estimated minutes must be greater than 0.")
-    return value
-def _coerce_price(price):
-    try:
-        value = Decimal(str(price if price is not None else 0))
-    except (InvalidOperation, ValueError) as exc:
-        raise InvalidTransition("Price must be a valid decimal value.") from exc
-    if not value.is_finite() or value < 0:
-        raise InvalidTransition("Price must be a finite decimal value greater than or equal to 0.")
-    return value
-
-
-def _assign_print_job(
-    print_request, *, actor, printer_id, filament_spool_id,
-    estimated_minutes, estimated_filament_grams,
-):
-    if printer_id is None:
-        raise PrintStartValidationError("Printer is required to start a print.")
-    if filament_spool_id is None:
-        raise PrintStartValidationError("Filament spool is required to start a print.")
-    if estimated_minutes is None:
-        raise PrintStartValidationError("Estimated minutes are required to start a print.")
-    if estimated_filament_grams is None:
-        raise PrintStartValidationError("Planned filament grams are required to start a print.")
-
-    estimated_minutes = _coerce_estimated_minutes(estimated_minutes)
-    estimated_filament_grams = _coerce_positive_filament_grams(estimated_filament_grams)
-
-    try:
-        printer = PrintPrinter.objects.select_for_update().get(pk=printer_id)
-    except ObjectDoesNotExist as exc:
-        raise PrintStartValidationError("Printer was not found.") from exc
-    if printer.makerspace_id != print_request.bucket.makerspace_id:
-        raise PrintStartValidationError("Printer must belong to the request makerspace.")
-    if not printer.is_active or printer.status != PrintPrinter.Status.ACTIVE:
-        raise PrintStartValidationError("Printer is not available for printing.")
-    if printer.print_requests.filter(status=PrintRequest.Status.PRINTING).exists():
-        raise InvalidTransition("Printer already has an active print job.")
-
-    try:
-        spool = FilamentSpool.objects.select_for_update().get(pk=filament_spool_id)
-    except ObjectDoesNotExist as exc:
-        raise PrintStartValidationError("Filament spool was not found.") from exc
-    if spool.makerspace_id != print_request.bucket.makerspace_id:
-        raise PrintStartValidationError("Filament spool must belong to the request makerspace.")
-    if spool.printer_id not in (None, printer.id):
-        raise PrintStartValidationError("Filament spool is assigned to a different printer.")
-    if not spool.is_active:
-        raise PrintStartValidationError("Filament spool is not active.")
-
-    print_request.printer = printer
-    print_request.filament_spool = spool
-    print_request.estimated_minutes = estimated_minutes
-    print_request.estimated_filament_grams = estimated_filament_grams
-    print_request.run_printer_name = printer.name
-    print_request.run_printer_model = printer.model
-    print_request.run_spool_label = _spool_label(spool)
-    print_request.run_spool_material = spool.material
-    print_request.run_spool_color = spool.color
-    print_request.run_estimated_minutes = estimated_minutes
-    print_request.run_planned_filament_grams = estimated_filament_grams
-
-    if estimated_filament_grams > spool.remaining_weight_grams:
-        raise PrintStartValidationError("Estimated filament exceeds remaining spool weight.")
-    try:
-        reserve_filament(actor, print_request)
-    except SpoolReservationError as exc:
-        raise PrintStartValidationError(str(exc)) from exc
-
-
-def _spool_label(spool):
-    parts = [spool.brand, spool.material, spool.color]
-    return " ".join(part.strip() for part in parts if part and part.strip()) or spool.material
 
 def accept(print_request, actor, *, price=0, estimated_filament_grams=None):
     return _transition(
@@ -284,7 +173,7 @@ def start(
 
 def complete(print_request, actor, *, actual_filament_grams=None):
     if actual_filament_grams is not None:
-        actual_filament_grams = _coerce_filament_grams(actual_filament_grams)
+        actual_filament_grams = coerce_filament_grams(actual_filament_grams)
     return _transition(
         print_request,
         actor,
@@ -337,7 +226,7 @@ def mark_collected(print_request, actor):
             target=locked,
             meta={"price": str(locked.price), "payment_status": locked.payment_status},
         )
-        queue_staff_print_email("collected", locked.pk)
+        notify_print_status(locked, "collected")
         return locked
 
 
@@ -385,7 +274,7 @@ def reprint(failed_request, actor):
                 "reprint_id": clone.id,
             },
         )
-        queue_staff_print_email("reprinted", clone.pk)
+        notify_print_status(clone, "reprinted")
         return clone
 
 

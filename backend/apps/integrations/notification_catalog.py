@@ -32,7 +32,9 @@ FEATURE_EVENTS = {
         "published", "cancelled", "completed", "registration_created",
         "registration_cancelled", "registration_promoted", "registration_attended",
     ),
-    F.BOOKINGS: ("created", "cancelled", "completed", "no_show"),
+    F.BOOKINGS: (
+        "created", "confirmed", "rejected", "cancelled", "completed", "no_show",
+    ),
     F.MAINTENANCE: (
         "schedule_created", "schedule_updated", "schedule_deactivated", "logged",
         "schedule_completed",
