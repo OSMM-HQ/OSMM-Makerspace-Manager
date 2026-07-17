@@ -17,6 +17,15 @@ def delete_for_makerspace(makerspace, cursor):
         ServiceBucket,
         ServiceRequestFile,
     )
+    from apps.makerspaces import limits
+
+    charged_bytes = sum(
+        ServiceRequestFile.objects.filter(
+            machine__makerspace=makerspace,
+            service_request__isnull=False,
+        ).values_list("size_bytes", flat=True)
+    )
+    limits.free_storage(makerspace, charged_bytes)
 
     # The ledger has both ORM and DB append-only guards; raw SQL is intentional
     # here because lifecycle.purge has enabled its transaction-scoped bypass.

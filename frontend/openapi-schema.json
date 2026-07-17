@@ -2982,6 +2982,135 @@
                 }
             }
         },
+        "/api/v1/admin/machine-service/files/{id}": {
+            "delete": {
+                "operationId": "api_v1_admin_machine_service_files_destroy",
+                "summary": "Delete a staged service attachment",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid attachment input."
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "description": "Machine management permission required."
+                    },
+                    "404": {
+                        "description": "Service request or file was not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Attachment conflict."
+                    },
+                    "503": {
+                        "description": "Private storage is unavailable."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machine-service/files/{id}/url": {
+            "get": {
+                "operationId": "api_v1_admin_machine_service_files_url_retrieve",
+                "summary": "Create a signed service attachment URL",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ServiceFileUrl"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid attachment input."
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "description": "Machine management permission required."
+                    },
+                    "404": {
+                        "description": "Service request or file was not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Attachment conflict."
+                    },
+                    "503": {
+                        "description": "Private storage is unavailable."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/machine-service/requests/{id}": {
             "get": {
                 "operationId": "api_v1_admin_machine_service_requests_retrieve",
@@ -3362,6 +3491,182 @@
                             }
                         },
                         "description": "Service workflow conflict."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machine-service/requests/{id}/files/finalize": {
+            "post": {
+                "operationId": "api_v1_admin_machine_service_requests_files_finalize_create",
+                "summary": "Finalize a service attachment upload",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceFileFinalize"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceFileFinalize"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceFileFinalize"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ServiceFilePresignResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid attachment input."
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "description": "Machine management permission required."
+                    },
+                    "404": {
+                        "description": "Service request or file was not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Attachment conflict."
+                    },
+                    "503": {
+                        "description": "Private storage is unavailable."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machine-service/requests/{id}/files/presign": {
+            "post": {
+                "operationId": "api_v1_admin_machine_service_requests_files_presign_create",
+                "summary": "Create a service attachment upload URL",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceFilePresign"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceFilePresign"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceFilePresign"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ServiceFileFinalizeResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid attachment input."
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "description": "Machine management permission required."
+                    },
+                    "404": {
+                        "description": "Service request or file was not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Attachment conflict."
+                    },
+                    "503": {
+                        "description": "Private storage is unavailable."
                     }
                 }
             }
@@ -36185,6 +36490,96 @@
                     "kind",
                     "original_filename",
                     "size_bytes"
+                ]
+            },
+            "ServiceFileFinalize": {
+                "type": "object",
+                "properties": {
+                    "file_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    }
+                },
+                "required": [
+                    "file_id"
+                ]
+            },
+            "ServiceFileFinalizeResponse": {
+                "type": "object",
+                "properties": {
+                    "file_id": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "file_id"
+                ]
+            },
+            "ServiceFilePresign": {
+                "type": "object",
+                "properties": {
+                    "filename": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "content_type": {
+                        "type": "string",
+                        "maxLength": 128
+                    }
+                },
+                "required": [
+                    "content_type",
+                    "filename"
+                ]
+            },
+            "ServiceFilePresignResponse": {
+                "type": "object",
+                "properties": {
+                    "file_id": {
+                        "type": "integer"
+                    },
+                    "upload": {
+                        "$ref": "#/components/schemas/ServiceFileUpload"
+                    }
+                },
+                "required": [
+                    "file_id",
+                    "upload"
+                ]
+            },
+            "ServiceFileUpload": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "method": {
+                        "type": "string"
+                    },
+                    "fields": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    },
+                    "headers": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    }
+                },
+                "required": [
+                    "url"
+                ]
+            },
+            "ServiceFileUrl": {
+                "type": "object",
+                "properties": {
+                    "url": {
+                        "type": "string",
+                        "format": "uri"
+                    }
+                },
+                "required": [
+                    "url"
                 ]
             },
             "ServiceMachine": {

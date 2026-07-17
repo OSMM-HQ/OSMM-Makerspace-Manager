@@ -1,6 +1,10 @@
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
+from apps.machines.service_file_policies import (
+    default_service_file_policy,
+    validate_service_file_policy,
+)
 
 # Service-request models are kept separate so the long-lived machine catalog stays
 # compact; importing here preserves the app's established public model surface.
@@ -87,6 +91,10 @@ class Machine(models.Model):
     image_key = models.CharField(max_length=300, blank=True, default="")
     is_public = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
+    service_file_policy = models.JSONField(
+        default=default_service_file_policy,
+        validators=[validate_service_file_policy],
+    )
     # Set only by the linking service; read-only over REST/admin.
     linked_print_printer = models.OneToOneField(
         "printing.PrintPrinter",

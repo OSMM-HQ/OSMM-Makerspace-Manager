@@ -160,6 +160,8 @@ class ServiceRequestFile(models.Model):
     original_filename = models.CharField(max_length=255, blank=True, default="")
     size_bytes = models.PositiveBigIntegerField(default=0)
     owner_user_id = models.BigIntegerField()
+    file_policy_name = models.CharField(max_length=64, default="documents")
+    file_policy_version = models.PositiveSmallIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     attached_at = models.DateTimeField(null=True, blank=True)
 
@@ -169,11 +171,15 @@ class ServiceRequestFile(models.Model):
     def save(self, *args, **kwargs):
         if self.pk:
             original = type(self).objects.only(
-                "attached_at", "owner_user_id", "object_key", "size_bytes", "content_type", "original_filename"
+                "attached_at", "owner_user_id", "object_key", "size_bytes", "content_type", "original_filename",
+                "file_policy_name", "file_policy_version",
             ).get(pk=self.pk)
             if original.attached_at and any(
                 getattr(self, field) != getattr(original, field)
-                for field in ("owner_user_id", "object_key", "size_bytes", "content_type", "original_filename")
+                for field in (
+                    "owner_user_id", "object_key", "size_bytes", "content_type", "original_filename",
+                    "file_policy_name", "file_policy_version",
+                )
             ):
                 raise RuntimeError("Attached ServiceRequestFile metadata is immutable.")
         return super().save(*args, **kwargs)

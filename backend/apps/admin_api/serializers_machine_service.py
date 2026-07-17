@@ -108,3 +108,32 @@ class ServiceFailSerializer(ServiceCompleteSerializer):
 
 class EmptyServiceActionSerializer(serializers.Serializer):
     pass
+
+
+class ServiceFilePresignSerializer(serializers.Serializer):
+    filename = serializers.CharField(max_length=255)
+    content_type = serializers.CharField(max_length=128)
+
+
+class ServiceFileUploadSerializer(serializers.Serializer):
+    url = serializers.URLField()
+    method = serializers.CharField(required=False)
+    fields = serializers.DictField(required=False)
+    headers = serializers.DictField(required=False)
+
+
+class ServiceFilePresignResponseSerializer(serializers.Serializer):
+    file_id = serializers.IntegerField()
+    upload = ServiceFileUploadSerializer()
+
+
+class ServiceFileFinalizeSerializer(serializers.Serializer):
+    file_id = serializers.IntegerField(min_value=1)
+
+
+class ServiceFileFinalizeResponseSerializer(serializers.Serializer):
+    file_id = serializers.IntegerField()
+
+
+class ServiceFileUrlSerializer(serializers.Serializer):
+    url = serializers.URLField()

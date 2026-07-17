@@ -70,6 +70,12 @@ from apps.admin_api.views_machine_service import (
     MachineServiceRequestListCreateView,
     MachineServiceStartView,
 )
+from apps.admin_api.views_machine_service_files import (
+    MachineServiceFileDeleteView,
+    MachineServiceFileFinalizeView,
+    MachineServiceFilePresignView,
+    MachineServiceFileUrlView,
+)
 from apps.admin_api.views_machines_actions import (
     MachineErrorLogView,
     MachineRetireView,
@@ -151,6 +157,26 @@ urlpatterns = [
         "machine-service/requests/<int:pk>/collect",
         MachineServiceCollectView.as_view(),
         name="admin-machine-service-request-collect",
+    ),
+    path(
+        "machine-service/requests/<int:pk>/files/presign",
+        MachineServiceFilePresignView.as_view(),
+        name="admin-machine-service-file-presign",
+    ),
+    path(
+        "machine-service/requests/<int:pk>/files/finalize",
+        MachineServiceFileFinalizeView.as_view(),
+        name="admin-machine-service-file-finalize",
+    ),
+    path(
+        "machine-service/files/<int:pk>/url",
+        MachineServiceFileUrlView.as_view(),
+        name="admin-machine-service-file-url",
+    ),
+    path(
+        "machine-service/files/<int:pk>",
+        MachineServiceFileDeleteView.as_view(),
+        name="admin-machine-service-file-detail",
     ),
     path(
         "makerspaces/<int:makerspace_id>/memberships",
