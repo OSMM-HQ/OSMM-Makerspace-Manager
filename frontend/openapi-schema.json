@@ -22764,6 +22764,45 @@
                     "id"
                 ]
             },
+            "AuthMembership": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "slug": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string"
+                    },
+                    "role_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "role_name": {
+                        "type": "string"
+                    },
+                    "role_slug": {
+                        "type": "string"
+                    },
+                    "actions": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "actions",
+                    "id",
+                    "role",
+                    "role_id",
+                    "role_name",
+                    "role_slug",
+                    "slug"
+                ]
+            },
             "AuthUserPayload": {
                 "type": "object",
                 "properties": {
@@ -22789,8 +22828,7 @@
                     "makerspaces": {
                         "type": "array",
                         "items": {
-                            "type": "object",
-                            "additionalProperties": {}
+                            "$ref": "#/components/schemas/AuthMembership"
                         }
                     }
                 },
@@ -28400,17 +28438,21 @@
                 "type": "object",
                 "properties": {
                     "username": {
-                        "type": "string"
+                        "type": "string",
+                        "maxLength": 150
                     },
                     "email": {
                         "type": "string",
-                        "format": "email"
+                        "format": "email",
+                        "maxLength": 254
                     },
                     "first_name": {
-                        "type": "string"
+                        "type": "string",
+                        "maxLength": 150
                     },
                     "last_name": {
-                        "type": "string"
+                        "type": "string",
+                        "maxLength": 150
                     },
                     "password": {
                         "type": "string",

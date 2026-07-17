@@ -9,7 +9,7 @@ def user_payload(user, request=None):
     from apps.accounts import rbac
     from apps.makerspaces.origin_scope import origin_scoped_makerspace_id
 
-    memberships = user.makerspace_memberships.select_related("makerspace")
+    memberships = user.makerspace_memberships.select_related("makerspace", "assigned_role")
     archived_ids = rbac.archived_makerspace_ids()
     if archived_ids:
         memberships = memberships.exclude(makerspace_id__in=archived_ids)
@@ -18,6 +18,22 @@ def user_payload(user, request=None):
         scoped_makerspace_id = origin_scoped_makerspace_id(request)
         if scoped_makerspace_id is not None:
             memberships = memberships.filter(makerspace_id=scoped_makerspace_id)
+
+    # Resolve effective actions from the already select_related-loaded membership rows so
+    # /auth/login and /auth/me stay O(1) queries — calling rbac.effective_actions() per row
+    # would re-query the membership + archived set for each makerspace (1+2N). This mirrors
+    # rbac.effective_actions: a superadmin in a VISIBLE makerspace gets the full grantable
+    # set; a superadmin who is an explicit member of a hard-hidden makerspace (kept here by
+    # hide_from_superadmin's explicit-member carve-out) is membership-limited; everyone else
+    # uses the membership's resolved actions. Archived rows are already excluded above.
+    is_superadmin = user.is_superuser or user.role == User.Role.SUPERADMIN
+    hidden_ids = rbac.superadmin_hidden_makerspace_ids() if is_superadmin else ()
+
+    def _membership_actions(m):
+        if is_superadmin and not rbac._id_in(m.makerspace_id, hidden_ids):
+            return sorted(rbac.ROLE_GRANTABLE_ACTIONS)
+        return sorted(rbac.actions_for_membership(m))
+
     return {
         "id": user.id,
         "username": user.username,
@@ -26,10 +42,35 @@ def user_payload(user, request=None):
         "is_superuser": user.is_superuser,
         "must_change_password": user.must_change_password,
         "makerspaces": [
-            {"id": m.makerspace_id, "slug": m.makerspace.slug, "role": m.role}
+            {
+                "id": m.makerspace_id,
+                "slug": m.makerspace.slug,
+                "role": m.role,
+                "role_id": m.assigned_role_id,
+                "role_name": (
+                    m.assigned_role.name
+                    if m.assigned_role_id is not None
+                    else _legacy_role_name(m.role)
+                ),
+                "role_slug": (
+                    m.assigned_role.slug
+                    if m.assigned_role_id is not None
+                    else m.role
+                ),
+                "actions": _membership_actions(m),
+            }
             for m in memberships
         ],
     }
+
+
+def _legacy_role_name(role):
+    from apps.makerspaces.models import MakerspaceMembership
+
+    try:
+        return MakerspaceMembership.Role(role).label
+    except ValueError:
+        return role.replace("_", " ").title()
 
 
 class LoginSerializer(TokenObtainPairSerializer):

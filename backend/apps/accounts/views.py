@@ -30,6 +30,18 @@ from apps.openapi import LOGIN_EXAMPLE
 
 logger = logging.getLogger(__name__)
 
+AuthMembershipSerializer = inline_serializer(
+    name="AuthMembership",
+    fields={
+        "id": serializers.IntegerField(),
+        "slug": serializers.CharField(),
+        "role": serializers.CharField(),
+        "role_id": serializers.IntegerField(allow_null=True),
+        "role_name": serializers.CharField(),
+        "role_slug": serializers.CharField(),
+        "actions": serializers.ListField(child=serializers.CharField()),
+    },
+)
 UserPayloadSerializer = inline_serializer(
     name="AuthUserPayload",
     fields={
@@ -39,8 +51,7 @@ UserPayloadSerializer = inline_serializer(
         "role": serializers.CharField(),
         "is_superuser": serializers.BooleanField(),
         "must_change_password": serializers.BooleanField(),
-        # documented loosely: list of {id, slug, role} membership objects.
-        "makerspaces": serializers.ListField(child=serializers.DictField()),
+        "makerspaces": serializers.ListField(child=AuthMembershipSerializer),
     },
 )
 LoginRequestSerializer = inline_serializer(
