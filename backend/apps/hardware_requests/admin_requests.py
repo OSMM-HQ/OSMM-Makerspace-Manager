@@ -13,6 +13,7 @@ from apps.hardware_requests.handover_workflow import (
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
 from apps.hardware_requests.request_workflow import accept_request, reject_request
 from config.admin_access import SuperuserOnlyModelAdmin
+from apps.encryption.admin_search import ScopedPiiAdminSearchMixin
 
 
 class ReturnDueForm(forms.Form):
@@ -47,7 +48,7 @@ class HardwareRequestItemInline(TabularInline):
 
 
 @admin.register(HardwareRequest)
-class HardwareRequestAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+class HardwareRequestAdmin(ScopedPiiAdminSearchMixin, SuperuserOnlyModelAdmin, ModelAdmin):
     actions = [
         "accept_selected",
         "reject_selected",
@@ -58,13 +59,12 @@ class HardwareRequestAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         "id",
         "status",
         "makerspace",
-        "requester_username",
+        "requester_identity",
         "return_due_at",
         "created_at",
     )
     list_filter = ("status", "makerspace")
     search_fields = (
-        "requester_username",
         "requested_for",
         "rejection_reason",
         "items__product__name",
@@ -91,6 +91,12 @@ class HardwareRequestAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     )
     fields = readonly_fields
     inlines = [HardwareRequestItemInline]
+    pii_search_model = "hardware_requests.HardwareRequest"
+    pii_search_fields = ("requester_name", "requester_contact_email")
+
+    @admin.display(description="Requester")
+    def requester_identity(self, obj):
+        return obj.requester_name or obj.requester_contact_email or "-"
 
     # Requests are created by the public submit flow and mutated only through the
     # workflow services (the actions below). Direct add hits required readonly fields

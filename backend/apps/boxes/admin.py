@@ -16,6 +16,7 @@ from apps.boxes.services import revoke_qr_code
 from apps.inventory.models import InventoryAsset, InventoryProduct
 from apps.makerspaces.models import Makerspace
 from config.admin_access import SuperuserOnlyModelAdmin
+from apps.encryption.admin_search import ScopedPiiAdminSearchMixin
 
 
 class QrRebindAdminForm(forms.Form):
@@ -199,7 +200,7 @@ class QrScanEventAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
 
 
 @admin.register(BoxScan)
-class BoxScanAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+class BoxScanAdmin(ScopedPiiAdminSearchMixin, SuperuserOnlyModelAdmin, ModelAdmin):
     list_display = ("box", "box_qr", "makerspace", "context", "scanned_by", "created_at")
     list_filter = ("makerspace", "context")
     search_fields = (
@@ -207,8 +208,10 @@ class BoxScanAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         "box__code",
         "actor__username",
         "actor__email",
-        "request__requester_username",
     )
+    pii_search_model = "hardware_requests.HardwareRequest"
+    pii_search_relation = "request__"
+    pii_search_fields = ("requester_name", "requester_contact_email")
     readonly_fields = ("makerspace", "box", "request", "actor", "context", "created_at")
     fields = readonly_fields
     ordering = ("-created_at",)

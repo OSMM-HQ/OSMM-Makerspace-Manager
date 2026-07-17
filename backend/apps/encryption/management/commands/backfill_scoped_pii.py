@@ -1,4 +1,4 @@
-"""Encrypt the fixed scoped-PII registry without any H3 search artifacts."""
+"""Encrypt fixed scoped PII and synchronize H3 search artifacts atomically."""
 
 from django.apps import apps
 from django.conf import settings
@@ -20,7 +20,7 @@ FILTERS = {
 
 
 class Command(BaseCommand):
-    help = "Backfill authenticated scoped-PII envelopes (H2 encryption only)."
+    help = "Backfill authenticated scoped PII and its generation-bound indexes."
 
     def add_arguments(self, parser):
         parser.add_argument("--makerspace", type=int, required=True)

@@ -1,6 +1,7 @@
 """Audited mutation boundary for Events and their registrations."""
 
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
@@ -205,6 +206,18 @@ def complete(event, *, actor):
 
 @transaction.atomic
 def register(event, *, name, email, phone, custom_answers=None, actor=None):
+    generation = None
+    event_hash = None
+    normalized_email = (email or "").strip().lower()
+    if settings.PII_ENCRYPTION_ENABLED:
+        # Do this before the duplicate query so a mismatched fleet cannot disclose
+        # registration existence or write a generation-bound record.
+        from apps.encryption.blind_index import active_generation, event_email_hash
+        generation = active_generation()
+        event_hash = event_email_hash(
+            normalized_email, generation=generation.generation,
+            makerspace_id=event.makerspace_id, event_id=event.pk,
+        )
     locked = _locked_event(event.pk)
     if (
         not locked.is_public
@@ -212,12 +225,25 @@ def register(event, *, name, email, phone, custom_answers=None, actor=None):
         or locked.ends_at < timezone.now()
     ):
         raise EventInvalidTransition("This event is not open for registration.")
-    normalized_email = (email or "").strip().lower()
     custom_answers = validate_answers(locked.custom_form, custom_answers)
     status = fresh_registration_status(locked)
-    existing = EventRegistration.objects.select_for_update().filter(
-        event=locked, email=normalized_email
-    ).first()
+    if settings.PII_ENCRYPTION_ENABLED:
+        candidates = EventRegistration.objects.select_for_update().filter(
+            event=locked, email_hash_generation=generation, email_exact_hash=event_hash
+        )
+        existing = next((row for row in candidates if row.email.strip().lower() == normalized_email), None)
+        if settings.PII_ENCRYPTION_DUAL_READ:
+            from apps.encryption.search import legacy_plaintext_candidates
+            legacy = legacy_plaintext_candidates(
+                EventRegistration.objects.filter(event=locked), field_name="email",
+                term=normalized_email, exact=True,
+            )
+            if legacy:
+                existing = EventRegistration.objects.select_for_update().filter(pk__in=legacy).first() or existing
+    else:
+        existing = EventRegistration.objects.select_for_update().filter(
+            event=locked, email=normalized_email
+        ).first()
     if existing and existing.status == EventRegistration.Status.CANCELLED:
         existing.name = (name or '').strip()
         existing.email = normalized_email

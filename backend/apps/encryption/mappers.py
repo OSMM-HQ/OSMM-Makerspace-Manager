@@ -1,7 +1,5 @@
 """Mapped model save/read boundary for scoped encrypted PII."""
 
-from contextlib import nullcontext
-
 from django.conf import settings
 from django.db import connection, models, transaction
 
@@ -95,14 +93,25 @@ class ScopedPiiModelMixin(models.Model):
         update_fields = kwargs.get("update_fields")
         update_fields = None if update_fields is None else set(update_fields)
         is_new = self._state.adding
-        context = transaction.atomic() if is_new else nullcontext()
-        with context:
+        # Encryption and its candidate material are one commit.  In particular an
+        # index error must never leave a fresh envelope with stale/missing bits.
+        with transaction.atomic():
             if is_new and self.pk is None:
                 self._reserve_pk()
+            from apps.encryption.blind_index import active_generation, sync_event_hash, upsert_index
+
+            generation = active_generation()
             encrypted, restore = {}, {}
             for item in self._mapped_values_for_save(update_fields, is_new=is_new):
                 raw = self.__dict__.get(item.field_name, "")
-                plaintext = self.__dict__.get("_pii_plain_values", {}).get(item.field_name, raw)
+                if is_envelope(raw):
+                    # Loaded ciphertext not reassigned in memory: prefer the cached decrypt.
+                    plaintext = self.__dict__.get("_pii_plain_values", {}).get(item.field_name, raw)
+                else:
+                    # A direct `obj.field = value` (or restored plaintext) is the source of
+                    # truth; the decrypt cache may be stale after reassignment, so never
+                    # prefer it over the current in-memory plaintext.
+                    plaintext = raw
                 makerspace_id = makerspace_id_for(self, item)
                 original = self.__dict__.get("_pii_original_plain_values", {}).get(item.field_name)
                 raw_saved = self.__dict__.get("_pii_raw_values", {}).get(item.field_name)
@@ -118,6 +127,13 @@ class ScopedPiiModelMixin(models.Model):
                         encrypted[item.field_name] = plaintext
                 restore[item.field_name] = plaintext
             self.__dict__.update(encrypted)
+            event_email = next((item for item in self._mapped_values_for_save(update_fields, is_new=is_new)
+                                if item.index_kind == "event_exact"), None)
+            if event_email is not None:
+                sync_event_hash(self, restore.get(event_email.field_name, ""), generation)
+                if update_fields is not None:
+                    update_fields.update({"email_exact_hash", "email_hash_generation"})
+                    kwargs["update_fields"] = update_fields
             self.__dict__["_pii_writing"] = True
             if is_new:
                 kwargs["force_insert"] = True
@@ -129,4 +145,6 @@ class ScopedPiiModelMixin(models.Model):
             self.__dict__.setdefault("_pii_plain_values", {}).update(restore)
             self.__dict__.setdefault("_pii_raw_values", {}).update(encrypted)
             self.__dict__.setdefault("_pii_original_plain_values", {}).update(restore)
+            for item in self._mapped_values_for_save(update_fields, is_new=is_new):
+                upsert_index(self, item, restore.get(item.field_name, ""), generation)
             return result

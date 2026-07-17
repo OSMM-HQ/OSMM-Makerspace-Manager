@@ -8,10 +8,11 @@ from apps.hardware_requests.self_checkout_models import (
     PublicToolLoan,
 )
 from config.admin_access import SuperuserOnlyModelAdmin
+from apps.encryption.admin_search import ScopedPiiAdminSearchMixin
 
 
 @admin.register(PublicToolLoan)
-class PublicToolLoanAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+class PublicToolLoanAdmin(ScopedPiiAdminSearchMixin, SuperuserOnlyModelAdmin, ModelAdmin):
     list_display = (
         "id",
         "makerspace",
@@ -22,11 +23,13 @@ class PublicToolLoanAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         "source",
         "checked_out_at",
     )
+    pii_search_model = "hardware_requests.HardwareRequest"
+    pii_search_relation = "request__"
+    pii_search_fields = ("requester_name", "requester_contact_email")
     list_filter = ("makerspace", "status", "source")
     search_fields = (
         "requester__username",
         "requester__email",
-        "request__requester_username",
         "target_label",
     )
     readonly_fields = (
@@ -57,7 +60,7 @@ class PublicToolLoanAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         return False
 
 @admin.register(PublicProblemReport)
-class PublicProblemReportAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+class PublicProblemReportAdmin(ScopedPiiAdminSearchMixin, SuperuserOnlyModelAdmin, ModelAdmin):
     list_display = (
         "id",
         "makerspace",
@@ -67,11 +70,13 @@ class PublicProblemReportAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         "resolved_at",
         "resolved_by",
     )
+    pii_search_model = "hardware_requests.HardwareRequest"
+    pii_search_relation = "request__"
+    pii_search_fields = ("requester_name", "requester_contact_email")
     list_filter = ("makerspace", "resolved_at", "created_at")
     search_fields = (
         "requester__username",
         "requester__email",
-        "request__requester_username",
         "note",
     )
     readonly_fields = (
@@ -97,11 +102,10 @@ class PublicProblemReportAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         return False
 
 @admin.register(ReturnEvent)
-class ReturnEventAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+class ReturnEventAdmin(ScopedPiiAdminSearchMixin, SuperuserOnlyModelAdmin, ModelAdmin):
     list_display = ("id", "makerspace", "request", "box", "actor", "created_at")
     list_filter = ("makerspace", "created_at")
     search_fields = (
-        "request__requester_username",
         "request__requester__username",
         "request__requester__email",
         "actor__username",
@@ -109,6 +113,9 @@ class ReturnEventAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         "box__label",
         "box__code",
     )
+    pii_search_model = "hardware_requests.HardwareRequest"
+    pii_search_relation = "request__"
+    pii_search_fields = ("requester_name", "requester_contact_email")
     readonly_fields = (
         "request",
         "makerspace",
@@ -131,7 +138,7 @@ class ReturnEventAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
 
 
 @admin.register(RequesterAccountability)
-class RequesterAccountabilityAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+class RequesterAccountabilityAdmin(ScopedPiiAdminSearchMixin, SuperuserOnlyModelAdmin, ModelAdmin):
     list_display = (
         "id",
         "makerspace",
@@ -141,11 +148,13 @@ class RequesterAccountabilityAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         "quantity",
         "created_at",
     )
+    pii_search_model = "hardware_requests.HardwareRequest"
+    pii_search_relation = "request__"
+    pii_search_fields = ("requester_name", "requester_contact_email")
     list_filter = ("makerspace", "issue_type", "created_at")
     search_fields = (
         "requester__username",
         "requester__email",
-        "request__requester_username",
         "request_item__product__name",
         "description",
     )
@@ -174,7 +183,7 @@ class RequesterAccountabilityAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
 
 
 @admin.register(HardwareRequestItemAsset)
-class HardwareRequestItemAssetAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+class HardwareRequestItemAssetAdmin(ScopedPiiAdminSearchMixin, SuperuserOnlyModelAdmin, ModelAdmin):
     list_display = (
         "id",
         "request_item",
@@ -184,9 +193,11 @@ class HardwareRequestItemAssetAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         "issued_at",
         "returned_at",
     )
+    pii_search_model = "hardware_requests.HardwareRequest"
+    pii_search_relation = "request_item__request__"
+    pii_search_fields = ("requester_name", "requester_contact_email")
     list_filter = ("asset__makerspace", "outcome")
     search_fields = (
-        "request_item__request__requester_username",
         "request_item__request__requester__username",
         "request_item__product__name",
         "asset__asset_tag",

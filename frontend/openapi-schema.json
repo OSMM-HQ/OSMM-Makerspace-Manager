@@ -5064,7 +5064,7 @@
                         "name": "search",
                         "required": false,
                         "in": "query",
-                        "description": "A search term.",
+                        "description": "A search term (requested-for, requester name/email).",
                         "schema": {
                             "type": "string"
                         }
@@ -5215,7 +5215,7 @@
                         "name": "search",
                         "required": false,
                         "in": "query",
-                        "description": "A search term.",
+                        "description": "A search term (requested-for, requester name/email).",
                         "schema": {
                             "type": "string"
                         }
@@ -9324,7 +9324,7 @@
                         "name": "search",
                         "required": false,
                         "in": "query",
-                        "description": "A search term.",
+                        "description": "A search term (requested-for, requester name/email).",
                         "schema": {
                             "type": "string"
                         }
@@ -9826,7 +9826,7 @@
                         "name": "search",
                         "required": false,
                         "in": "query",
-                        "description": "A search term.",
+                        "description": "A search term (requested-for, requester name/email).",
                         "schema": {
                             "type": "string"
                         }
@@ -16286,7 +16286,7 @@
                         "name": "search",
                         "required": false,
                         "in": "query",
-                        "description": "A search term.",
+                        "description": "A search term (requested-for, requester name/email).",
                         "schema": {
                             "type": "string"
                         }
@@ -23124,7 +23124,6 @@
                     },
                     "email": {
                         "type": "string",
-                        "format": "email",
                         "readOnly": true
                     },
                     "phone": {
@@ -24914,7 +24913,6 @@
                     },
                     "email": {
                         "type": "string",
-                        "format": "email",
                         "readOnly": true
                     },
                     "phone": {
@@ -28080,7 +28078,6 @@
                     },
                     "contact_email": {
                         "type": "string",
-                        "format": "email",
                         "readOnly": true
                     },
                     "contact_phone": {
@@ -31602,7 +31599,6 @@
                     },
                     "contact_email": {
                         "type": "string",
-                        "format": "email",
                         "readOnly": true
                     },
                     "contact_phone": {

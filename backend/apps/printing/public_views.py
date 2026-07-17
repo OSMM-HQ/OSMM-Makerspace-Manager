@@ -35,6 +35,7 @@ from apps.printing.storage import (
     print_object_key,
     validate_print_upload,
 )
+from django.conf import settings
 
 
 def _require_module(makerspace):
@@ -268,7 +269,13 @@ class PublicPrintStatusByEmailView(APIView):
             # contact_email WITHOUT verifying email ownership, so it is enumerable.
             # Keep it as an explicit makerspace setting; do NOT copy this pattern to
             # sensitive data.
-            queryset = queryset.filter(contact_email__iexact=email)
+            if settings.PII_ENCRYPTION_ENABLED:
+                from apps.encryption.search import indexed_candidates, legacy_plaintext_candidates, verified_ids
+                ids = indexed_candidates(makerspace_id=makerspace.id, model_label="printing.PrintRequest", field_name="contact_email", term=email, exact=True)
+                ids += legacy_plaintext_candidates(queryset, field_name="contact_email", term=email, exact=True)
+                queryset = queryset.filter(pk__in=verified_ids(queryset.filter(pk__in=set(ids)), field_name="contact_email", term=email, exact=True))
+            else:
+                queryset = queryset.filter(contact_email__iexact=email)
         requests = list(
             queryset.select_related("bucket__makerspace")
             .order_by("-created_at", "-id")[:20]

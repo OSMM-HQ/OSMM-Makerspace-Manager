@@ -42,8 +42,30 @@ def test_enabled_local_valid_master_key_passes():
         PII_ENCRYPTION_ENABLED=True,
         PII_KEY_BROKER="local",
         PII_MASTER_KEY=Fernet.generate_key().decode(),
+        PII_SEARCH_HASH_KEY=Fernet.generate_key().decode(),
     ):
         assert check_pii_wrapping_configuration(None) == []
+
+
+def test_enabled_local_missing_search_key_errors():
+    with override_settings(
+        PII_ENCRYPTION_ENABLED=True,
+        PII_KEY_BROKER="local",
+        PII_MASTER_KEY=Fernet.generate_key().decode(),
+        PII_SEARCH_HASH_KEY="",
+    ):
+        assert "encryption.E006" in _ids(check_pii_wrapping_configuration(None))
+
+
+def test_enabled_local_master_equals_search_key_errors():
+    shared = Fernet.generate_key().decode()
+    with override_settings(
+        PII_ENCRYPTION_ENABLED=True,
+        PII_KEY_BROKER="local",
+        PII_MASTER_KEY=shared,
+        PII_SEARCH_HASH_KEY=shared,
+    ):
+        assert "encryption.E005" in _ids(check_pii_wrapping_configuration(None))
 
 
 def test_enabled_unknown_broker_errors():

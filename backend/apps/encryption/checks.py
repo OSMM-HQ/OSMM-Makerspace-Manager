@@ -61,4 +61,14 @@ def check_pii_wrapping_configuration(app_configs, **kwargs):
                 id="encryption.E004",
             )
         )
+    from apps.encryption.blind_index import search_key
+    try:
+        key = search_key()
+        if broker == "local":
+            import base64
+            master = base64.urlsafe_b64decode(settings.PII_MASTER_KEY.encode() + b"=" * (-len(settings.PII_MASTER_KEY) % 4))
+            if key == master:
+                errors.append(Error("PII_MASTER_KEY and PII_SEARCH_HASH_KEY must be independent.", id="encryption.E005"))
+    except Exception:
+        errors.append(Error("PII_ENCRYPTION_ENABLED is true but PII_SEARCH_HASH_KEY is missing or invalid.", id="encryption.E006"))
     return errors

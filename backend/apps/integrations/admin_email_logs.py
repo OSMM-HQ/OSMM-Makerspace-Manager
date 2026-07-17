@@ -14,8 +14,6 @@ class EmailLogAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     search_fields = ("event", "error", "makerspace__name")
     readonly_fields = (
         "makerspace",
-        "to_email",
-        "subject",
         "stream",
         "event",
         "audience",

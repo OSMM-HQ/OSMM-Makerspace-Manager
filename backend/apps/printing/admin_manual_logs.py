@@ -13,6 +13,7 @@ from apps.printing import services_manual_logs
 from apps.printing.models import FilamentSpool, ManualPrintLog, PrintPrinter
 from apps.printing.workflow import InvalidTransition
 from config.admin_access import SuperuserOnlyModelAdmin
+from apps.encryption.admin_search import ScopedPiiAdminSearchMixin
 
 
 def _visible_makerspaces():
@@ -68,10 +69,12 @@ class ManualPrintLogAdminForm(forms.Form):
 
 
 @admin.register(ManualPrintLog)
-class ManualPrintLogAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
-    list_display = ("title", "outcome", "requester_name", "contact_email", "contact_phone", "makerspace", "printer", "filament_spool", "grams_used", "created_at")
+class ManualPrintLogAdmin(ScopedPiiAdminSearchMixin, SuperuserOnlyModelAdmin, ModelAdmin):
+    list_display = ("title", "outcome", "requester_display", "email_display", "makerspace", "printer", "filament_spool", "grams_used", "created_at")
     list_filter = ("makerspace", "printer", "outcome")
-    search_fields = ("title", "requester_name", "contact_email", "contact_phone", "note", "printer__name", "filament_spool__material")
+    search_fields = ("title", "printer__name", "filament_spool__material")
+    pii_search_model = "printing.ManualPrintLog"
+    pii_search_fields = ("requester_name", "contact_email")
     readonly_fields = (
         "makerspace",
         "printer",
@@ -90,6 +93,14 @@ class ManualPrintLogAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         "created_at",
     )
     fields = readonly_fields
+
+    @admin.display(description="Requester")
+    def requester_display(self, obj):
+        return obj.requester_name or "-"
+
+    @admin.display(description="Email")
+    def email_display(self, obj):
+        return obj.contact_email or "-"
 
     def has_add_permission(self, request):
         return self._has_superuser_access(request)

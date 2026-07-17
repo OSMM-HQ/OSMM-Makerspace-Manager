@@ -26,4 +26,6 @@ class ReadinessView(APIView):
         with connection.cursor() as cursor:
             cursor.execute("SELECT 1")
             cursor.fetchone()
+        from apps.encryption.readiness import assert_ready
+        assert_ready()
         return Response({"status": "ready", "database": "ok"})

@@ -1,4 +1,4 @@
-from django.db.models import Count, Max, Sum
+from django.db.models import Count, Sum
 
 from apps.boxes.models import QrScanEvent
 from apps.hardware_requests.display import label_from_candidates, requester_label
@@ -183,24 +183,24 @@ def _top_borrowers(makerspace_id, aggregate, limit=None, date_range=None):
         .annotate(
             requests=Count("request_id", distinct=True),
             items_borrowed=Sum("issued_quantity"),
-            requester_username=Max("request__requester_username"),
-            username=Max("request__requester__username"),
-            external_id=Max("request__requester__external_checkin_user_id"),
         )
         .order_by(
             *(["request__makerspace_id"] if aggregate else []),
             "-requests",
             "-items_borrowed",
-            "username",
+            "request__requester_id",
         )
     )
+    keys = {(row.get("request__makerspace_id"), row["request__requester_id"]) for row in qs}
+    source = _requests(makerspace_id).select_related("requester").only("id", "makerspace_id", "requester_id", "requester_username", "requester__username", "requester__external_checkin_user_id")
+    labels = {}
+    for request in source.iterator(chunk_size=200):
+        key = (request.makerspace_id if aggregate else None, request.requester_id)
+        if key in keys and key not in labels:
+            labels[key] = label_from_candidates(request.requester_username, request.requester.external_checkin_user_id, request.requester.username)
     rows = []
     for row in qs:
-        holder = label_from_candidates(
-            row["requester_username"],
-            row["external_id"],
-            row["username"],
-        )
+        holder = labels.get((row.get("request__makerspace_id") if aggregate else None, row["request__requester_id"]), "Member")
         prefix = [row["request__makerspace_id"]] if aggregate else []
         rows.append([*prefix, holder, row["requests"], row["items_borrowed"] or 0])
     return [header, *rows]

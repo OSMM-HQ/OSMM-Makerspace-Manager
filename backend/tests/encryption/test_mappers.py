@@ -26,7 +26,9 @@ def requester():
 
 @pytest.fixture
 def enabled():
-    with override_settings(PII_ENCRYPTION_ENABLED=True, PII_ENCRYPTION_DUAL_READ=True, PII_MASTER_KEY=Fernet.generate_key().decode(), PII_KEY_BROKER="local"):
+    from tests.encryption.conftest import enabled_encryption
+
+    with enabled_encryption():
         yield
 
 

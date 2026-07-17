@@ -1,7 +1,8 @@
 from decimal import Decimal
 
-from django.db.models import Count, DecimalField, Max, Q, Sum
-from django.db.models.functions import Coalesce, Lower, TruncDay, TruncHour, TruncMonth
+from django.db.models import Count, DecimalField, Q, Sum
+from django.db.models.functions import Coalesce, TruncDay, TruncHour, TruncMonth
+from django.conf import settings
 
 from apps.accounts import rbac
 from apps.hardware_requests.display import requester_label_for_user
@@ -122,63 +123,40 @@ def _top_requesters(requests, include_makerspace):
         Decimal("0"),
     )
 
-    email_keys = ["email_key"]
-    if include_makerspace:
-        email_keys.append("bucket__makerspace_id")
-    email_rows = (
-        requests.exclude(contact_email="")
-        .annotate(email_key=Lower("contact_email"))
-        .values(*email_keys)
-        .annotate(
-            request_count=Count("id"),
-            items=Sum("quantity"),
-            grams=grams,
-            # Max ignores blank "" in favour of a real name; a stable representative
-            # id keeps the serializer's requester_id contract + React keys intact.
-            display_name=Max("requester_name"),
-            display_email=Max("contact_email"),
-            rep_requester_id=Max("requester_id"),
-        )
-    )
+    # Pull non-PII metrics only, then group mapper-exposed values in application
+    # code. This deliberately keeps all DB expressions away from ciphertext.
+    from apps.encryption.blind_index import canonical_email
+    from apps.encryption.models import PiiBlindIndex
+    generation = None
+    hashes = {}
+    if settings.PII_ENCRYPTION_ENABLED:
+        from apps.encryption.blind_index import active_generation
+        generation = active_generation()
+        hashes = {(row.makerspace_id, row.object_id): bytes(row.exact_hash) for row in PiiBlindIndex.objects.filter(search_generation=generation, model_label="printing.PrintRequest", field_name="contact_email").only("makerspace_id", "object_id", "exact_hash")}
+    groups = {}
+    rows = requests.select_related("bucket", "requester").only("id", "bucket__makerspace_id", "requester_id", "quantity", "status", "run_planned_filament_grams", "estimated_filament_grams", "requester_name", "contact_email", "requester__username", "requester__external_checkin_user_id")
+    for row in rows.iterator(chunk_size=200):
+        makerspace_id = row.bucket.makerspace_id
+        email = row.contact_email
+        key = hashes.get((makerspace_id, row.pk)) if email and generation else None
+        key = key or (makerspace_id, canonical_email(email)) if email else ("blank", makerspace_id, row.requester_id)
+        bucket = groups.setdefault(key, {"makerspace_id": makerspace_id, "requester_id": row.requester_id, "names": [], "emails": [], "requests": 0, "items": 0, "grams": Decimal("0"), "user": row.requester})
+        bucket["requests"] += 1
+        bucket["items"] += row.quantity or 0
+        if row.status in COMPLETED_STATUSES:
+            bucket["grams"] += row.run_planned_filament_grams or row.estimated_filament_grams or Decimal("0")
+        if row.requester_name:
+            bucket["names"].append(row.requester_name.strip())
+        if email:
+            bucket["emails"].append(email.strip())
     data = []
-    for row in email_rows:
-        name = (
-            (row["display_name"] or "").strip()
-            or (row["display_email"] or "").strip()
-            or "Anonymous"
-        )
-        item = {
-            "requester_id": row["rep_requester_id"],
-            "requester": name,
-            "grams": decimal_to_float(row["grams"]),
-            "requests": row["request_count"],
-            "items": row["items"] or 0,
-        }
+    for bucket in groups.values():
+        label = next((x for x in sorted(bucket["names"]) if x), None) or next((x for x in sorted(bucket["emails"]) if x), None)
+        if not label:
+            label = requester_label_for_user(username=bucket["user"].username, external_checkin_user_id=bucket["user"].external_checkin_user_id)
+        item = {"requester_id": bucket["requester_id"], "requester": label or "Anonymous", "grams": decimal_to_float(bucket["grams"]), "requests": bucket["requests"], "items": bucket["items"]}
         if include_makerspace:
-            item["makerspace_id"] = row["bucket__makerspace_id"]
-        data.append(item)
-
-    legacy_values = ["requester_id", "requester__username", "requester__external_checkin_user_id"]
-    if include_makerspace:
-        legacy_values.append("bucket__makerspace_id")
-    legacy_rows = (
-        requests.filter(contact_email="")
-        .values(*legacy_values)
-        .annotate(request_count=Count("id"), items=Sum("quantity"), grams=grams)
-    )
-    for row in legacy_rows:
-        item = {
-            "requester_id": row["requester_id"],
-            "requester": requester_label_for_user(
-                username=row["requester__username"],
-                external_checkin_user_id=row["requester__external_checkin_user_id"],
-            ),
-            "grams": decimal_to_float(row["grams"]),
-            "requests": row["request_count"],
-            "items": row["items"] or 0,
-        }
-        if include_makerspace:
-            item["makerspace_id"] = row["bucket__makerspace_id"]
+            item["makerspace_id"] = bucket["makerspace_id"]
         data.append(item)
 
     data.sort(

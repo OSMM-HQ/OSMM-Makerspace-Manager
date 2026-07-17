@@ -27,8 +27,10 @@ def test_dry_run_is_key_free_and_mutation_requires_the_flag():
 
 
 def test_backfill_encrypts_only_registered_fields():
+    from tests.encryption.conftest import enabled_encryption
+
     space, row = make_request()
-    with override_settings(PII_ENCRYPTION_ENABLED=True, PII_ENCRYPTION_DUAL_READ=True, PII_MASTER_KEY=Fernet.generate_key().decode(), PII_KEY_BROKER="local"):
+    with enabled_encryption():
         call_command("backfill_scoped_pii", makerspace=space.pk, model="hardware_requests.HardwareRequest", batch_size=1)
         row.refresh_from_db()
         assert row.requester_name == "Backfill Name"
