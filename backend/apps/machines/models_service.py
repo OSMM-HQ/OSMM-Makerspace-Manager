@@ -106,6 +106,14 @@ class MachineServiceRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class ServiceRequestQuerySet(models.QuerySet):
+        def update(self, **kwargs):
+            if "status" in kwargs:
+                raise RuntimeError("MachineServiceRequest status is workflow-managed.")
+            return super().update(**kwargs)
+
+    objects = ServiceRequestQuerySet.as_manager()
+
     class Meta:
         indexes = [
             models.Index(fields=["requester", "-created_at"], name="servicereq_requester_created_idx"),

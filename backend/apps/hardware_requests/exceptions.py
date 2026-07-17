@@ -21,6 +21,12 @@ from apps.hardware_requests.workflow import (
     ReturnValidationError,
 )
 from apps.inventory.availability import InsufficientStock
+from apps.machines.service_errors import (
+    ServiceConsumptionInvalid,
+    ServiceInsufficientStock,
+    ServiceInvalidTransition,
+    ServiceMachineUnavailable,
+)
 from apps.maintenance.exceptions import (
     InactiveMaintenanceSchedule,
     MaintenanceStatusConflict,
@@ -106,6 +112,26 @@ _EXCEPTION_MAP = {
         status.HTTP_409_CONFLICT,
         "insufficient_stock",
         "Insufficient stock.",
+    ),
+    ServiceInvalidTransition: (
+        status.HTTP_409_CONFLICT,
+        "service_invalid_transition",
+        "Invalid machine service request transition.",
+    ),
+    ServiceMachineUnavailable: (
+        status.HTTP_409_CONFLICT,
+        "service_machine_unavailable",
+        "Machine is unavailable for service.",
+    ),
+    ServiceInsufficientStock: (
+        status.HTTP_400_BAD_REQUEST,
+        "service_insufficient_stock",
+        "Insufficient stock for machine service consumption.",
+    ),
+    ServiceConsumptionInvalid: (
+        status.HTTP_400_BAD_REQUEST,
+        "service_consumption_invalid",
+        "Invalid machine service consumption.",
     ),
     RequestValidationError: (
         status.HTTP_400_BAD_REQUEST,
