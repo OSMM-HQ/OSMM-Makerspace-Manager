@@ -33,7 +33,7 @@ def space(tenant=None, mode=BookableSpace.ApprovalMode.INSTANT, **values):
 
 
 def book(target, start=None, **values):
-    start = start or timezone.now() + timedelta(hours=1)
+    start = start or timezone.now() + timedelta(hours=2)
     defaults = {
         'name': 'Ada',
         'email': 'ada@example.com',
@@ -61,7 +61,7 @@ def pending(target, start=None, **values):
 
 
 def test_instant_and_approval_modes_have_distinct_overlap_behavior():
-    start = timezone.now() + timedelta(hours=1)
+    start = timezone.now() + timedelta(hours=2)
     instant = space(makerspace('booking-j2-instant'))
     assert book(instant, start).status == Booking.Status.CONFIRMED
     with pytest.raises(BookingConflict):
@@ -226,7 +226,7 @@ def test_concurrent_overlapping_approvals_have_one_winner():
         makerspace('booking-j2-approval-race'),
         BookableSpace.ApprovalMode.APPROVE,
     )
-    start = timezone.now() + timedelta(hours=1)
+    start = timezone.now() + timedelta(hours=2)
     rows = (
         book(target, start, email='one@example.com'),
         book(target, start, email='two@example.com'),

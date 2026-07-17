@@ -219,6 +219,10 @@ _MODEL_LOOKUPS = {
         "log__machine__makerspace_id",
     ),
     'admin-bookable-space-detail': ('bookings.BookableSpace', 'makerspace_id'),
+    'admin-bookable-space-booking-rules': (
+        'bookings.BookableSpace',
+        'makerspace_id',
+    ),
     'admin-bookable-space-deactivate': (
         'bookings.BookableSpace',
         'makerspace_id',

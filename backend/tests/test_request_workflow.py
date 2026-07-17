@@ -711,7 +711,7 @@ def test_accept_email_uses_admin_configured_template(
     assert "accepted" in staff_email.subject
 
 
-def test_inventory_manager_can_set_return_policy_and_request_due_time():
+def test_return_policy_requires_space_manager_and_inventory_can_set_due_time():
     makerspace = make_space("return-policy")
     product = make_product(makerspace)
     hardware_request = make_hardware_request(
@@ -728,6 +728,16 @@ def test_inventory_manager_can_set_return_policy_and_request_due_time():
     client = authenticated_client(inventory_manager)
 
     response = client.patch(
+        return_policy_url(makerspace),
+        {"default_loan_days": 10},
+        format="json",
+    )
+    assert response.status_code == 404
+    makerspace.refresh_from_db()
+    assert makerspace.default_loan_days != 10
+
+    space_manager = make_member("return-policy-manager", makerspace)
+    response = authenticated_client(space_manager).patch(
         return_policy_url(makerspace),
         {"default_loan_days": 10},
         format="json",

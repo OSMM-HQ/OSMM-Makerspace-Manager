@@ -25,11 +25,8 @@ class BookableSpaceWriteSerializer(serializers.Serializer):
     is_public = serializers.BooleanField(default=False, required=False)
     show_public_availability = serializers.BooleanField(default=False, required=False)
     show_public_booker_names = serializers.BooleanField(default=False, required=False)
-    approval_mode = serializers.ChoiceField(
-        choices=BookableSpace.ApprovalMode.choices,
-        default=BookableSpace.ApprovalMode.INSTANT,
-        required=False,
-    )
+    # approval_mode is a booking rule; it is writable ONLY through the dedicated
+    # MANAGE_MAKERSPACE booking-rules endpoint, never this MANAGE_BOOKINGS path.
     custom_form = CustomFormSchemaField(
         allow_null=True,
         required=False,
@@ -76,6 +73,10 @@ class BookableSpaceAdminSerializer(serializers.ModelSerializer):
             'show_public_availability',
             'show_public_booker_names',
             'approval_mode',
+            'min_booking_duration_minutes',
+            'max_booking_duration_minutes',
+            'booking_lead_time_minutes',
+            'max_booking_advance_days',
             'custom_form',
             'requester_notifications_enabled',
             'effective_requester_notifications_enabled',
@@ -96,6 +97,18 @@ class BookableSpaceAdminSerializer(serializers.ModelSerializer):
         if override is not None:
             return override
         return obj.makerspace.booking_requester_notifications_enabled
+
+
+class BookableSpaceBookingRulesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BookableSpace
+        fields = (
+            'min_booking_duration_minutes',
+            'max_booking_duration_minutes',
+            'booking_lead_time_minutes',
+            'max_booking_advance_days',
+            'approval_mode',
+        )
 
 
 class BookingAdminSerializer(serializers.ModelSerializer):

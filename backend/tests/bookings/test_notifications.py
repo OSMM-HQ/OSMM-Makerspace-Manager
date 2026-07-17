@@ -37,7 +37,7 @@ def space(tenant, **values):
 
 
 def book(target, start=None, **values):
-    start = start or timezone.now() + timedelta(hours=1)
+    start = start or timezone.now() + timedelta(hours=2)
     defaults = {
         'name': 'Ada',
         'email': 'ada@example.com',

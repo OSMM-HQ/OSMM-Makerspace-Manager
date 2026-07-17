@@ -148,8 +148,15 @@ class ReturnPolicyView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         makerspace_id = self.kwargs["makerspace_id"]
-        require_action(self.request.user, rbac.Action.ACCEPT_REQUEST, makerspace_id)
-        return get_object_or_404(Makerspace, pk=makerspace_id)
+        return get_object_or_404(
+            rbac.scope_by_action(
+                self.request.user,
+                rbac.Action.MANAGE_MAKERSPACE,
+                Makerspace.objects.all(),
+                field="id",
+            ),
+            pk=makerspace_id,
+        )
 
     def perform_update(self, serializer):
         instance = serializer.save()

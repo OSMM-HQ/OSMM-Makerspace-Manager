@@ -53,6 +53,8 @@ def create_booking(
     space, *, name, email, phone, starts_at, ends_at, custom_answers=None,
     note='', actor=None,
 ):
+    from apps.bookings.services_rules import enforce_booking_rules
+
     locked_space = _locked_space(space.pk)
     if not locked_space.is_active:
         raise BookingInvalidTransition('Inactive spaces cannot accept bookings.')
@@ -74,6 +76,7 @@ def create_booking(
         status=status,
     )
     _validate(booking)
+    enforce_booking_rules(locked_space, starts_at, ends_at, now)
     if ends_at <= now:
         raise serializers.ValidationError(
             {'ends_at': 'End time must be in the future.'}

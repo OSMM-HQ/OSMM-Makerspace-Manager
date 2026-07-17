@@ -13245,6 +13245,167 @@
                 }
             }
         },
+        "/api/v1/admin/spaces/{id}/booking-rules/": {
+            "get": {
+                "operationId": "api_v1_admin_spaces_booking_rules_retrieve",
+                "summary": "Retrieve booking rules for a space",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin bookings"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookableSpaceBookingRules"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": "Invalid booking-rule values or bookings module disabled."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Not found."
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "api_v1_admin_spaces_booking_rules_partial_update",
+                "summary": "Update booking rules for a space",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin bookings"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedBookableSpaceBookingRules"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedBookableSpaceBookingRules"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedBookableSpaceBookingRules"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/BookableSpaceBookingRules"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {}
+                                }
+                            }
+                        },
+                        "description": "Invalid booking-rule values or bookings module disabled."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Workflow conflict."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/spaces/{id}/bookings/": {
             "get": {
                 "operationId": "api_v1_admin_spaces_bookings_retrieve",
@@ -21851,6 +22012,22 @@
                         ],
                         "readOnly": true
                     },
+                    "min_booking_duration_minutes": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "max_booking_duration_minutes": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "booking_lead_time_minutes": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "max_booking_advance_days": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
                     "custom_form": {
                         "readOnly": true,
                         "nullable": true
@@ -21886,6 +22063,7 @@
                 },
                 "required": [
                     "approval_mode",
+                    "booking_lead_time_minutes",
                     "capacity",
                     "created_at",
                     "created_by_id",
@@ -21899,6 +22077,9 @@
                     "kind",
                     "location",
                     "makerspace_id",
+                    "max_booking_advance_days",
+                    "max_booking_duration_minutes",
+                    "min_booking_duration_minutes",
                     "name",
                     "public_token",
                     "requester_notifications_enabled",
@@ -21906,6 +22087,34 @@
                     "show_public_booker_names",
                     "updated_at"
                 ]
+            },
+            "BookableSpaceBookingRules": {
+                "type": "object",
+                "properties": {
+                    "min_booking_duration_minutes": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 1
+                    },
+                    "max_booking_duration_minutes": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 1
+                    },
+                    "booking_lead_time_minutes": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 0
+                    },
+                    "max_booking_advance_days": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 1
+                    },
+                    "approval_mode": {
+                        "$ref": "#/components/schemas/ApprovalModeEnum"
+                    }
+                }
             },
             "BookableSpaceListResponse": {
                 "type": "object",
@@ -21973,14 +22182,6 @@
                     "show_public_booker_names": {
                         "type": "boolean",
                         "default": false
-                    },
-                    "approval_mode": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ApprovalModeEnum"
-                            }
-                        ],
-                        "default": "instant"
                     },
                     "custom_form": {
                         "nullable": true
@@ -28789,6 +28990,34 @@
                     }
                 }
             },
+            "PatchedBookableSpaceBookingRules": {
+                "type": "object",
+                "properties": {
+                    "min_booking_duration_minutes": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 1
+                    },
+                    "max_booking_duration_minutes": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 1
+                    },
+                    "booking_lead_time_minutes": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 0
+                    },
+                    "max_booking_advance_days": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 1
+                    },
+                    "approval_mode": {
+                        "$ref": "#/components/schemas/ApprovalModeEnum"
+                    }
+                }
+            },
             "PatchedBookableSpaceWrite": {
                 "type": "object",
                 "properties": {
@@ -28829,14 +29058,6 @@
                     "show_public_booker_names": {
                         "type": "boolean",
                         "default": false
-                    },
-                    "approval_mode": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/ApprovalModeEnum"
-                            }
-                        ],
-                        "default": "instant"
                     },
                     "custom_form": {
                         "nullable": true

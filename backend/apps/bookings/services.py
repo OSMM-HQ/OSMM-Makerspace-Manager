@@ -13,6 +13,7 @@ from apps.bookings.services_bookings import (
     mark_no_show,
     reject_booking,
 )
+from apps.bookings.services_rules import update_booking_rules
 from apps.makerspaces import limits
 
 __all__ = [
@@ -26,6 +27,7 @@ __all__ = [
     'reject_booking',
     'remove_space_image',
     'set_space_image',
+    'update_booking_rules',
     'update_space',
     'validate_space_image_key',
 ]

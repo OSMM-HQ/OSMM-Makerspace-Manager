@@ -150,7 +150,10 @@ def test_model_ordering_indexes_and_constraints_match_contract():
         "bookspace_public_idx",
     }
     assert {constraint.name for constraint in BookableSpace._meta.constraints} == {
-        "bookspace_capacity_nonnegative"
+        "bookspace_capacity_nonnegative",
+        "bookspace_min_duration_positive",
+        "bookspace_max_duration_gte_min",
+        "bookspace_advance_positive",
     }
     assert {index.name for index in Booking._meta.indexes} == {
         "booking_space_status_idx",

@@ -2,6 +2,7 @@ from uuid import uuid4
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import F, Q
 
@@ -64,6 +65,19 @@ class BookableSpace(models.Model):
         blank=True,
         default=None,
     )
+    min_booking_duration_minutes = models.PositiveIntegerField(
+        default=30,
+        validators=[MinValueValidator(1)],
+    )
+    max_booking_duration_minutes = models.PositiveIntegerField(
+        default=480,
+        validators=[MinValueValidator(1)],
+    )
+    booking_lead_time_minutes = models.PositiveIntegerField(default=60)
+    max_booking_advance_days = models.PositiveIntegerField(
+        default=30,
+        validators=[MinValueValidator(1)],
+    )
     is_active = models.BooleanField(default=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -81,6 +95,22 @@ class BookableSpace(models.Model):
             models.CheckConstraint(
                 condition=Q(capacity__gte=0),
                 name="bookspace_capacity_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=Q(min_booking_duration_minutes__gte=1),
+                name="bookspace_min_duration_positive",
+            ),
+            models.CheckConstraint(
+                condition=Q(
+                    max_booking_duration_minutes__gte=F(
+                        "min_booking_duration_minutes"
+                    )
+                ),
+                name="bookspace_max_duration_gte_min",
+            ),
+            models.CheckConstraint(
+                condition=Q(max_booking_advance_days__gte=1),
+                name="bookspace_advance_positive",
             ),
         ]
         indexes = [

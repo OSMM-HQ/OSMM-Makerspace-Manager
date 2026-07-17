@@ -218,6 +218,7 @@ export const openApiPaths = [
   "/api/v1/admin/requests/{id}/return-due",
   "/api/v1/admin/requests/{id}/timeline",
   "/api/v1/admin/spaces/{id}/",
+  "/api/v1/admin/spaces/{id}/booking-rules/",
   "/api/v1/admin/spaces/{id}/bookings/",
   "/api/v1/admin/spaces/{id}/deactivate/",
   "/api/v1/admin/spaces/{id}/image/",

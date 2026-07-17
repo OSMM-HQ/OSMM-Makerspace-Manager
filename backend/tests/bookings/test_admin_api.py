@@ -72,6 +72,8 @@ def urls(makerspace, bookable_space, row):
         ('post', reverse('admin-bookable-space-image-finalize', kwargs={'pk': bookable_space.pk}), {'object_key': 'x'}),
         ('delete', reverse('admin-bookable-space-image-delete', kwargs={'pk': bookable_space.pk}), None),
         ('get', reverse('admin-space-booking-list', kwargs={'pk': bookable_space.pk}), None),
+        ('get', reverse('admin-bookable-space-booking-rules', kwargs={'pk': bookable_space.pk}), None),
+        ('patch', reverse('admin-bookable-space-booking-rules', kwargs={'pk': bookable_space.pk}), {'booking_lead_time_minutes': 90}),
         ('post', reverse('admin-booking-approve', kwargs={'pk': row.pk}), {}),
         ('post', reverse('admin-booking-reject', kwargs={'pk': row.pk}), {}),
         ('post', reverse('admin-booking-cancel', kwargs={'pk': row.pk}), {}),
@@ -198,6 +200,8 @@ def test_space_crud_allowlist_flags_and_validation():
         'capacity', 'location', 'image_url', 'is_public',
         'show_public_availability', 'show_public_booker_names', 'is_active',
         'approval_mode', 'custom_form', 'requester_notifications_enabled',
+        'min_booking_duration_minutes', 'max_booking_duration_minutes',
+        'booking_lead_time_minutes', 'max_booking_advance_days',
         'effective_requester_notifications_enabled',
         'created_by_id', 'created_at', 'updated_at',
     }
@@ -325,6 +329,7 @@ def test_staff_urls_origin_registry_and_openapi():
         '/api/v1/admin/spaces/{id}/image/finalize/': {'post'},
         '/api/v1/admin/spaces/{id}/image/': {'delete'},
         '/api/v1/admin/spaces/{id}/bookings/': {'get'},
+        '/api/v1/admin/spaces/{id}/booking-rules/': {'get', 'patch'},
         '/api/v1/admin/bookings/{id}/approve/': {'post'},
         '/api/v1/admin/bookings/{id}/reject/': {'post'},
         '/api/v1/admin/bookings/{id}/cancel/': {'post'},
@@ -359,6 +364,10 @@ def test_staff_urls_origin_registry_and_openapi():
         '/api/v1/admin/spaces/{id}/bookings/': {
             'get': {'400', '403', '404'},
         },
+        '/api/v1/admin/spaces/{id}/booking-rules/': {
+            'get': {'400', '403', '404'},
+            'patch': {'400', '403', '404', '409'},
+        },
         '/api/v1/admin/bookings/{id}/approve/': {
             'post': {'400', '403', '404', '409'},
         },
@@ -375,6 +384,7 @@ def test_staff_urls_origin_registry_and_openapi():
             'post': {'400', '403', '404', '409'},
         },
     }
+    rules_path = '/api/v1/admin/spaces/{id}/booking-rules/'
     for path, methods in expected_errors.items():
         for method, codes in methods.items():
             responses = schema['paths'][path][method]['responses']
@@ -383,4 +393,11 @@ def test_staff_urls_origin_registry_and_openapi():
                 error_schema = responses[code]['content']['application/json'][
                     'schema'
                 ]
-                assert error_schema['$ref'].endswith('/HardwareRequestError')
+                if path == rules_path and code == '400':
+                    # Booking-rule 400s are DRF field-error maps (and the
+                    # module-disabled {"module": ...} map), documented as a
+                    # loose validation-error object, not HardwareRequestError.
+                    assert '$ref' not in error_schema
+                    assert error_schema.get('type') == 'object'
+                else:
+                    assert error_schema['$ref'].endswith('/HardwareRequestError')

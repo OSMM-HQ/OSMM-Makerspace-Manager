@@ -40,7 +40,7 @@ def make_space(makerspace=None, actor=None, **overrides):
 
 
 def book(space, start=None, **overrides):
-    start = start or timezone.now() + timedelta(hours=1)
+    start = start or timezone.now() + timedelta(hours=2)
     values = dict(
         name='Ada Lovelace', email='ada@example.com', phone='123',
         starts_at=start, ends_at=start + timedelta(hours=1), note='',
@@ -156,7 +156,7 @@ def test_overlap_conflict_response_has_no_row_or_audit_and_adjacency_works():
     assert AuditLog.objects.count() == before
     adjacent = book(space, first.ends_at)
     for starts_at, ends_at in (
-        (start + timedelta(minutes=10), start + timedelta(minutes=20)),
+        (start + timedelta(minutes=10), start + timedelta(minutes=40)),
         (start, first.ends_at),
         (start - timedelta(minutes=10), first.ends_at + timedelta(minutes=10)),
     ):
@@ -165,7 +165,7 @@ def test_overlap_conflict_response_has_no_row_or_audit_and_adjacency_works():
     assert adjacent.status == Booking.Status.CONFIRMED
 
 def test_terminal_rows_do_not_block_interval_reuse():
-    start = timezone.now() + timedelta(hours=1)
+    start = timezone.now() + timedelta(hours=2)
     for index, status in enumerate(
         (Booking.Status.CANCELLED, Booking.Status.COMPLETED, Booking.Status.NO_SHOW)
     ):
@@ -177,7 +177,7 @@ def test_terminal_rows_do_not_block_interval_reuse():
 @pytest.mark.django_db(transaction=True)
 def test_postgres_concurrent_overlap_has_one_winner_and_spaces_are_independent(monkeypatch):
     space = make_space()
-    start = timezone.now() + timedelta(hours=1)
+    start = timezone.now() + timedelta(hours=2)
     gate = Barrier(2)
     def race(target):
         close_old_connections(); gate.wait()
@@ -236,9 +236,11 @@ def test_frozen_clock_booking_and_lifecycle_boundaries(monkeypatch):
     assert not Booking.objects.filter(space=space).exists()
     assert AuditLog.objects.count() == before
     allowed = book(
-        space, now - timedelta(minutes=1), ends_at=now + timedelta(microseconds=1)
+        space,
+        now + timedelta(minutes=60),
+        ends_at=now + timedelta(minutes=90),
     )
-    assert allowed.starts_at < now < allowed.ends_at
+    assert allowed.starts_at == now + timedelta(minutes=60)
 
     for operation in (services.complete_booking, services.mark_no_show):
         row = direct_booking(space, ends_at=now + timedelta(hours=1))

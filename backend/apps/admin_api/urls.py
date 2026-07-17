@@ -34,6 +34,7 @@ from apps.admin_api.views_bookings import (
     BookingRejectView,
     SpaceBookingListView,
 )
+from apps.admin_api.views_booking_rules import BookableSpaceBookingRulesView
 from apps.admin_api.views_hosting import MakerspaceProvisionSubdomainView
 from apps.admin_api.views_machine_documents import (
     MachineDocumentDeleteView,
@@ -170,6 +171,11 @@ urlpatterns = [
         'spaces/<int:pk>/bookings/',
         SpaceBookingListView.as_view(),
         name='admin-space-booking-list',
+    ),
+    path(
+        'spaces/<int:pk>/booking-rules/',
+        BookableSpaceBookingRulesView.as_view(),
+        name='admin-bookable-space-booking-rules',
     ),
     path(
         'bookings/<int:pk>/approve/',
