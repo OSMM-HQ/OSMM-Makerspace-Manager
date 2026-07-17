@@ -37,6 +37,16 @@ class MakerspacesConfig(AppConfig):
                 )
                 transaction.on_commit(invalidate)
 
+        def ensure_default_roles_on_create(sender, instance, created, **kwargs):
+            if not created:
+                return
+            from apps.makerspaces.roles import ensure_default_roles
+
+            # Seed in the SAME transaction as the makerspace insert (not on_commit)
+            # so a new makerspace is never observable without its five protected
+            # defaults, and a seeding failure rolls the creation back.
+            ensure_default_roles(instance)
+
         post_save.connect(
             reconcile_selfhost_domain,
             sender=Makerspace,
@@ -47,6 +57,12 @@ class MakerspacesConfig(AppConfig):
             invalidate_hosting_cache,
             sender=Makerspace,
             dispatch_uid="makerspaces.invalidate_hosting_cache_on_save",
+            weak=False,
+        )
+        post_save.connect(
+            ensure_default_roles_on_create,
+            sender=Makerspace,
+            dispatch_uid="makerspaces.ensure_default_roles_on_create",
             weak=False,
         )
         post_delete.connect(

@@ -1,6 +1,7 @@
 from urllib.parse import urlsplit
 
 from django.conf import settings
+from django.contrib.postgres.indexes import GinIndex
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
@@ -276,6 +277,7 @@ class MakerspaceMembership(models.Model):
         # {MANAGE_MACHINES}; every machine sub-feature already gates on machine access,
         # so no new RBAC action is needed. Delegable by a Space Manager (Part I).
         MACHINE_MANAGER = "machine_manager", "Machine Manager"
+        CUSTOM = "custom", "Custom"
 
     makerspace = models.ForeignKey(
         Makerspace,
@@ -289,6 +291,13 @@ class MakerspaceMembership(models.Model):
         limit_choices_to={"is_active": True},
     )
     role = models.CharField(max_length=32, choices=Role.choices, default=Role.SPACE_MANAGER)
+    assigned_role = models.ForeignKey(
+        "makerspaces.MakerspaceRole",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="memberships",
+    )
     # Per-makerspace opt-in for staff lifecycle email notifications. Default True keeps
     # existing behavior (every relevant manager is notified); the space manager can turn
     # an individual manager off in Settings without removing their access.
@@ -308,9 +317,74 @@ class MakerspaceMembership(models.Model):
         # inline where user is the parent and limit_choices_to does not apply).
         if self.user_id and not self.user.is_active:
             raise ValidationError("Cannot assign a makerspace to an inactive user.")
+        # An assigned custom role must belong to the SAME makerspace as this
+        # membership. Defense-in-depth: the RBAC reader also fails closed on a
+        # tenant mismatch, and the role-assignment service rejects it at write.
+        if (
+            self.assigned_role_id
+            and self.makerspace_id
+            and self.assigned_role.makerspace_id != self.makerspace_id
+        ):
+            raise ValidationError(
+                {"assigned_role": "Role must belong to the same makerspace."}
+            )
 
     def __str__(self):
         return f"{self.user} @ {self.makerspace.slug} ({self.role})"
+
+
+class MakerspaceRole(models.Model):
+    makerspace = models.ForeignKey(
+        Makerspace,
+        on_delete=models.CASCADE,
+        related_name="roles",
+    )
+    name = models.CharField(max_length=80)
+    slug = models.SlugField(max_length=80)
+    granted_actions = models.JSONField(default=list, blank=True)
+    legacy_role = models.CharField(
+        max_length=32,
+        choices=tuple(
+            choice
+            for choice in MakerspaceMembership.Role.choices
+            if choice[0] != MakerspaceMembership.Role.CUSTOM
+        ),
+        null=True,
+        blank=True,
+    )
+    is_default = models.BooleanField(default=False)
+    is_protected = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+        constraints = [
+            models.UniqueConstraint(
+                Lower("name"), "makerspace", name="makerspacerole_ci_name_uniq"
+            ),
+            models.UniqueConstraint(
+                Lower("slug"), "makerspace", name="makerspacerole_ci_slug_uniq"
+            ),
+            models.UniqueConstraint(
+                fields=["makerspace", "legacy_role"],
+                condition=Q(legacy_role__isnull=False),
+                name="makerspacerole_legacy_uniq",
+            ),
+            models.CheckConstraint(
+                condition=Q(is_default=False) | Q(legacy_role__isnull=False),
+                name="makerspacerole_default_has_legacy",
+            ),
+        ]
+        indexes = [
+            GinIndex(fields=["granted_actions"], name="makerspacerole_actions_gin"),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.name = (self.name or "").strip()
+        if not self.name:
+            raise ValidationError("Role name cannot be blank.")
+        super().save(*args, **kwargs)
 
 
 class SubdomainRequest(models.Model):
