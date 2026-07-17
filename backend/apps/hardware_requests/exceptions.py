@@ -27,6 +27,7 @@ from apps.maintenance.exceptions import (
     RetiredMachineMaintenance,
 )
 from apps.makerspaces.role_services import RoleConflict
+from apps.encryption.crypto import PiiUnavailable
 
 
 @extend_schema_serializer(component_name="HardwareRequestError")
@@ -36,6 +37,11 @@ class ErrorSerializer(serializers.Serializer):
 
 
 _EXCEPTION_MAP = {
+    PiiUnavailable: (
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "pii_unavailable",
+        "Protected data is temporarily unavailable.",
+    ),
     RetiredMachineMaintenance: (
         status.HTTP_409_CONFLICT,
         "machine_retired",

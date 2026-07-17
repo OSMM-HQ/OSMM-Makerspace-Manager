@@ -2,9 +2,10 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from apps.encryption.mappers import ScopedPiiModelMixin
 
 
-class HardwareRequest(models.Model):
+class HardwareRequest(ScopedPiiModelMixin, models.Model):
     class Status(models.TextChoices):
         DRAFT = "draft", "Draft"
         PENDING_APPROVAL = "pending_approval", "Pending Approval"
@@ -25,10 +26,10 @@ class HardwareRequest(models.Model):
         on_delete=models.PROTECT,
         related_name="hardware_requests",
     )
-    requester_username = models.CharField(max_length=150)
-    requester_name = models.CharField(max_length=120, blank=True, default="")
-    requester_contact_email = models.EmailField(blank=True)
-    requester_contact_phone = models.CharField(max_length=32, blank=True)
+    requester_username = models.TextField()
+    requester_name = models.TextField(blank=True, default="")
+    requester_contact_email = models.TextField(blank=True)
+    requester_contact_phone = models.TextField(blank=True)
     status = models.CharField(
         max_length=32,
         choices=Status.choices,

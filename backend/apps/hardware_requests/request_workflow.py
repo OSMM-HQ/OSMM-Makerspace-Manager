@@ -67,7 +67,7 @@ def submit_request(
             level="info",
             event="request.submitted",
             title="New hardware request",
-            body=f"{requester_name.strip() or result.username} submitted a hardware request.",
+            body=f"Hardware request #{request.pk} submitted.",
         )
         return request
 

@@ -1,5 +1,6 @@
 import logging
 
+from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.db import transaction
 from django.utils import timezone
@@ -25,6 +26,12 @@ def dispatch_email(
     persist_body=True,
     sync=False,
 ):
+    platform_minimized = settings.PII_ENCRYPTION_ENABLED and makerspace is None
+    if platform_minimized:
+        # Keyless platform mail is deliberately transient: it cannot be queued or retried.
+        sync = True
+        persist_body = False
+        stream, event, audience = "platform", "platform_email", "system"
     if not persist_body and not sync:
         raise ValueError("persist_body=False requires sync=True")
 
@@ -72,8 +79,8 @@ def dispatch_email(
     # it's set on the in-memory instance below and _deliver never re-saves the body fields.
     log = EmailLog.objects.create(
         makerspace=makerspace,
-        to_email=to_email,
-        subject=subject,
+        to_email="" if platform_minimized else to_email,
+        subject="Platform email" if platform_minimized else subject,
         text_body=text_body if persist_body else "",
         html_body=html_body if persist_body else "",
         stream=stream,
@@ -86,6 +93,9 @@ def dispatch_email(
         # so the stored row stays redacted while delivery uses the real content.
         log.text_body = text_body
         log.html_body = html_body
+    if platform_minimized:
+        log.to_email = to_email
+        log.subject = subject
     if sync:
         return _deliver(log)
     transaction.on_commit(lambda lid=log.id: _enqueue(lid))
@@ -132,9 +142,9 @@ def _deliver(log):
     except Exception as exc:
         log.status = EmailLog.Status.FAILED
         log.error = sanitize_email_error(exc)
-        logger.exception(
+        logger.error(
             "email_delivery_failed",
-            extra={"email_log_id": log.pk, "to_email": log.to_email},
+            extra={"email_log_id": log.pk, "error_class": type(exc).__name__},
         )
         # Heads-up in the staff inbox on FIRST failure only (attempts is bumped in
         # `finally` below, so 0 here means the initial delivery attempt) — avoids a
@@ -147,7 +157,7 @@ def _deliver(log):
                 level="warning",
                 event="email.failed",
                 title="Email delivery failed",
-                body=f"Failed to send \"{log.subject}\" to {log.to_email}.",
+                body=f"Email log #{log.pk} delivery failed.",
             )
     else:
         log.status = EmailLog.Status.SENT

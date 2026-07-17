@@ -3,6 +3,7 @@ from django.db import models
 
 from apps.integrations.email_templates_registry import validate_email_template_strings
 from apps.makerspaces.secrets import decrypt_value, encrypt_value
+from apps.encryption.mappers import ScopedPiiModelMixin
 
 class EmailTemplate(models.Model):
     class Stream(models.TextChoices):
@@ -74,7 +75,7 @@ class PlatformEmailSettings(models.Model):
     def __str__(self):
         return "Platform email settings"
 
-class EmailLog(models.Model):
+class EmailLog(ScopedPiiModelMixin, models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
         SENDING = "sending", "Sending"
@@ -88,8 +89,8 @@ class EmailLog(models.Model):
         on_delete=models.CASCADE,
         related_name="email_logs",
     )
-    to_email = models.CharField(max_length=255)
-    subject = models.CharField(max_length=255)
+    to_email = models.TextField()
+    subject = models.TextField()
     text_body = models.TextField(blank=True)
     html_body = models.TextField(blank=True)
     stream = models.CharField(max_length=32, blank=True)
@@ -116,7 +117,7 @@ class EmailLog(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.to_email} {self.subject} [{self.status}]"
+        return f"EmailLog#{self.pk} [{self.status}]"
 
 class DailyEmailCounter(models.Model):
     makerspace = models.ForeignKey(

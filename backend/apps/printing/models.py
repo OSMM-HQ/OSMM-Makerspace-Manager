@@ -9,6 +9,7 @@ from django.core.validators import (
 from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Lower
+from apps.encryption.mappers import ScopedPiiModelMixin
 
 
 class PrintBucket(models.Model):
@@ -164,7 +165,7 @@ class FilamentAdjustment(models.Model):
         return f"{self.kind} {self.grams}g on spool {self.filament_spool_id}"
 
 
-class ManualPrintLog(models.Model):
+class ManualPrintLog(ScopedPiiModelMixin, models.Model):
     makerspace = models.ForeignKey("makerspaces.Makerspace", on_delete=models.CASCADE, related_name="manual_print_logs")
     printer = models.ForeignKey(
         PrintPrinter,
@@ -203,9 +204,9 @@ class ManualPrintLog(models.Model):
     )
     reason = models.TextField(blank=True, default="")
     title = models.CharField(max_length=200)
-    requester_name = models.CharField(max_length=120, blank=True, default="")
-    contact_email = models.EmailField(blank=True, default="")
-    contact_phone = models.CharField(max_length=40, blank=True, default="")
+    requester_name = models.TextField(blank=True, default="")
+    contact_email = models.TextField(blank=True, default="")
+    contact_phone = models.TextField(blank=True, default="")
     note = models.TextField(blank=True)
     logged_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -223,7 +224,7 @@ class ManualPrintLog(models.Model):
         return f"{self.title} ({self.grams_used}g)"
 
 
-class PrintRequest(models.Model):
+class PrintRequest(ScopedPiiModelMixin, models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
         ACCEPTED = "accepted", "Accepted"
@@ -382,9 +383,9 @@ class PrintRequest(models.Model):
         db_index=True,
     )
     project_brief = models.TextField(blank=True)
-    requester_name = models.CharField(max_length=120, blank=True)
-    contact_email = models.EmailField(blank=True)
-    contact_phone = models.CharField(max_length=40, blank=True)
+    requester_name = models.TextField(blank=True)
+    contact_email = models.TextField(blank=True)
+    contact_phone = models.TextField(blank=True)
 
     class Meta:
         indexes = [

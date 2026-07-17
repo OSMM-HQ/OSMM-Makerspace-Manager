@@ -2,6 +2,7 @@
 
 from django.conf import settings
 from django.db import models
+from apps.encryption.mappers import ScopedPiiModelMixin
 from django.db.models import F, Q
 
 from apps.forms_schema.validation import validate_form_schema
@@ -101,7 +102,7 @@ class Event(models.Model):
         super().save(*args, **kwargs)
 
 
-class EventRegistration(models.Model):
+class EventRegistration(ScopedPiiModelMixin, models.Model):
     class Status(models.TextChoices):
         REGISTERED = "registered", "Registered"
         WAITLISTED = "waitlisted", "Waitlisted"
@@ -113,9 +114,9 @@ class EventRegistration(models.Model):
         on_delete=models.CASCADE,
         related_name="registrations",
     )
-    name = models.CharField(max_length=200)
-    email = models.EmailField(max_length=254)
-    phone = models.CharField(max_length=32)
+    name = models.TextField()
+    email = models.TextField()
+    phone = models.TextField()
     custom_answers = models.JSONField(null=True, blank=True, default=None)
     status = models.CharField(
         max_length=16,

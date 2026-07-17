@@ -30,7 +30,7 @@ def retry_email_log(actor, log):
         "email.retried",
         makerspace=log.makerspace,
         target=log,
-        meta={"to_email": log.to_email, "event": log.event, "stream": log.stream},
+        meta={"email_log_id": log.pk, "event": log.event, "stream": log.stream},
     )
     transaction.on_commit(lambda: _enqueue(log.pk))
     return log

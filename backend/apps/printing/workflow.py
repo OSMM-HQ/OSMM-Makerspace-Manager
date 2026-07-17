@@ -193,7 +193,7 @@ def fail(print_request, actor, reason, percent_complete=0):
             level="warning",
             event="print.failed",
             title="Print job failed",
-            body=str(reason or "")[:500],
+            body=f"Print request #{result.pk} failed.",
         )
     except Exception:
         pass

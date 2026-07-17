@@ -38,6 +38,11 @@ class PiiKeyUnavailable(PiiUnavailable):
         super().__init__("Protected data is unavailable.")
 
 
+class LegacyPlaintextRejected(PiiUnavailable):
+    def __init__(self):
+        super().__init__("Protected data is unavailable.")
+
+
 def is_envelope(raw) -> bool:
     if isinstance(raw, bytes):
         return raw.startswith(_PREFIX.encode("ascii"))

@@ -30,7 +30,6 @@ def verify(makerspace, identifier) -> CheckinResult:
         return _verify_http(makerspace, identifier)
 
     logger.warning("Unknown check-in mode.", extra={"mode": mode, "makerspace": slug})
-    logger.debug("Unknown check-in mode for identifier=%r.", identifier)
     raise CheckinUnavailable("Check-in service is not configured.")
 
 
@@ -61,18 +60,14 @@ def _verify_http(makerspace, identifier) -> CheckinResult:
     except (requests.ConnectionError, requests.Timeout) as exc:
         logger.warning(
             "Check-in service unreachable.",
-            extra={"mode": mode, "makerspace": slug},
-            exc_info=exc,
+            extra={"mode": mode, "makerspace": slug, "error_class": type(exc).__name__},
         )
-        logger.debug("Check-in request failed for identifier=%r.", identifier)
         raise CheckinUnavailable("Check-in service is unavailable.") from exc
     except requests.RequestException as exc:
         logger.warning(
             "Check-in request failed.",
-            extra={"mode": mode, "makerspace": slug},
-            exc_info=exc,
+            extra={"mode": mode, "makerspace": slug, "error_class": type(exc).__name__},
         )
-        logger.debug("Check-in request failed for identifier=%r.", identifier)
         raise CheckinUnavailable("Check-in service is unavailable.") from exc
 
     # 404 == "service healthy, identifier not checked in" -> deny (403).
@@ -85,7 +80,6 @@ def _verify_http(makerspace, identifier) -> CheckinResult:
             "Check-in identifier denied.",
             extra={"mode": mode, "makerspace": slug, "status_code": response.status_code},
         )
-        logger.debug("Check-in denied identifier=%r.", identifier)
         raise CheckinDenied("Identifier is not checked in.")
 
     # Fail-closed BEFORE parsing any denial body: every non-2xx status other than the
@@ -96,7 +90,6 @@ def _verify_http(makerspace, identifier) -> CheckinResult:
             "Check-in service returned an unsuccessful status.",
             extra={"mode": mode, "makerspace": slug, "status_code": response.status_code},
         )
-        logger.debug("Check-in unsuccessful response for identifier=%r.", identifier)
         raise CheckinUnavailable("Check-in service is unavailable.")
 
     data = _response_json(response, mode, slug)
@@ -106,7 +99,6 @@ def _verify_http(makerspace, identifier) -> CheckinResult:
             "Check-in identifier denied.",
             extra={"mode": mode, "makerspace": slug, "status_code": response.status_code},
         )
-        logger.debug("Check-in denied identifier=%r.", identifier)
         raise CheckinDenied("Identifier is not checked in.")
 
     username = data.get("username")
@@ -115,7 +107,6 @@ def _verify_http(makerspace, identifier) -> CheckinResult:
             "Check-in service returned a malformed response.",
             extra={"mode": mode, "makerspace": slug, "status_code": response.status_code},
         )
-        logger.debug("Malformed check-in response for identifier=%r.", identifier)
         raise CheckinUnavailable("Check-in service returned an invalid response.")
 
     external_id = data.get("external_id") or identifier
@@ -128,8 +119,7 @@ def _response_json(response, mode, slug):
     except ValueError as exc:
         logger.warning(
             "Check-in service returned non-JSON response.",
-            extra={"mode": mode, "makerspace": slug, "status_code": response.status_code},
-            exc_info=exc,
+            extra={"mode": mode, "makerspace": slug, "status_code": response.status_code, "error_class": type(exc).__name__},
         )
         raise CheckinUnavailable("Check-in service returned an invalid response.") from exc
 

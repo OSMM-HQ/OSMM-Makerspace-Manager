@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import F, Q
+from apps.encryption.mappers import ScopedPiiModelMixin
 
 from apps.forms_schema.validation import validate_form_schema
 
@@ -137,7 +138,7 @@ class BookableSpace(models.Model):
         super().save(*args, **kwargs)
 
 
-class Booking(models.Model):
+class Booking(ScopedPiiModelMixin, models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
         CONFIRMED = "confirmed", "Confirmed"
@@ -157,9 +158,9 @@ class Booking(models.Model):
         unique=True,
         db_index=True,
     )
-    name = models.CharField(max_length=200)
-    email = models.EmailField(max_length=254)
-    phone = models.CharField(max_length=32)
+    name = models.TextField()
+    email = models.TextField()
+    phone = models.TextField()
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField()
     status = models.CharField(

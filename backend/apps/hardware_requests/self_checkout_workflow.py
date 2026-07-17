@@ -179,7 +179,7 @@ def return_tool(
                 level="warning",
                 event="problem_report.filed",
                 title="Tool problem reported",
-                body=f"A problem was reported on a returned tool: {loan.target_label}.",
+                body=f"Problem report #{report.pk} filed for loan #{loan.pk}.",
             )
         return loan
 

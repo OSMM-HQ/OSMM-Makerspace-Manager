@@ -36,10 +36,14 @@ class BookableSpaceAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
 
 @admin.register(Booking)
 class BookingAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
-    list_display = ('name', 'space', 'starts_at', 'ends_at', 'status')
+    list_display = ('booker_name', 'space', 'starts_at', 'ends_at', 'status')
     list_filter = ('status',)
     readonly_fields = tuple(field.name for field in Booking._meta.fields)
     fields = readonly_fields
+
+    @admin.display(description='Name')
+    def booker_name(self, obj):
+        return obj.name
 
     def has_add_permission(self, request):
         return False
