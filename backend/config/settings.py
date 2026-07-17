@@ -65,6 +65,7 @@ MANAGED_RESOURCE_LIMITS = {
     "slack": 100,
     "mattermost": 100,
     "api_clients": 1,
+    "custom_roles": 20,
 }
 STORAGE_PRESIGN_METHOD = env("STORAGE_PRESIGN_METHOD", default="post")
 CRON_SECRET = env("CRON_SECRET", default="")

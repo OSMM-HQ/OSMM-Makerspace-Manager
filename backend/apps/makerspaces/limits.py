@@ -28,6 +28,7 @@ NUMERIC_LIMIT_KEYS = frozenset(
         "slack",
         "mattermost",
         "api_clients",
+        "custom_roles",
     }
 )
 BOOLEAN_LIMIT_KEYS = frozenset({"custom_domain"})
@@ -47,6 +48,7 @@ RESOURCE_LABELS = {
     "slack": "daily Slack notifications",
     "mattermost": "daily Mattermost notifications",
     "api_clients": "API clients",
+    "custom_roles": "custom roles",
     "custom_domain": "custom domains",
 }
 
@@ -155,6 +157,12 @@ def _api_clients(makerspace) -> int:
     return ApiClient.objects.filter(makerspace=makerspace, is_active=True).count()
 
 
+def _custom_roles(makerspace) -> int:
+    from apps.makerspaces.models import MakerspaceRole
+
+    return MakerspaceRole.objects.filter(makerspace=makerspace, is_default=False).count()
+
+
 def _print_requests(makerspace) -> int:
     from apps.printing.models import PrintRequest
 
@@ -240,6 +248,7 @@ _COUNTERS: dict[str, Callable[[object], int]] = {
     "bookings": _bookings,
     "staff": _staff,
     "api_clients": _api_clients,
+    "custom_roles": _custom_roles,
     "print": _print_requests,
     "storage": _storage,
     "email": _emails,

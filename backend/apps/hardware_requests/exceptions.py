@@ -26,6 +26,7 @@ from apps.maintenance.exceptions import (
     MaintenanceStatusConflict,
     RetiredMachineMaintenance,
 )
+from apps.makerspaces.role_services import RoleConflict
 
 
 @extend_schema_serializer(component_name="HardwareRequestError")
@@ -129,6 +130,11 @@ _EXCEPTION_MAP = {
         status.HTTP_503_SERVICE_UNAVAILABLE,
         "evidence_storage_unavailable",
         "Evidence storage is unavailable.",
+    ),
+    RoleConflict: (
+        status.HTTP_409_CONFLICT,
+        "role_conflict",
+        "This role cannot be deleted.",
     ),
 }
 
