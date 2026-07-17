@@ -10,6 +10,7 @@ import { MakerspaceFilamentSettings } from "./MakerspaceFilamentSettings";
 import { IntegrationHealthPanel } from "./IntegrationHealthPanel";
 import { MakerspaceLocationSettings } from "./MakerspaceLocationSettings";
 import { MakerspaceSubdomainSettings } from "./MakerspaceSubdomainSettings";
+import { MakerspaceWebhookSettings } from "./MakerspaceWebhookSettings";
 import { NotificationMuteMatrix } from "./NotificationMuteMatrix";
 import { Panel, type Makerspace, useStaffGet } from "./StaffPanels";
 
@@ -226,6 +227,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
         <MakerspaceBookingSettings makerspace={makerspace} settings={settings.data} loading={settings.isLoading} />
         <MakerspaceFilamentSettings makerspace={makerspace} settings={settings.data} loading={settings.isLoading} />
         <MakerspaceEmailSettings makerspace={makerspace} />
+        <MakerspaceWebhookSettings makerspace={makerspace} />
         {settings.data?.platform_hosting === true ? (
           <MakerspaceSubdomainSettings makerspace={makerspace} settings={settings.data} />
         ) : null}
@@ -235,7 +237,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
           loading={settings.isLoading}
         />
         <div className="min-w-0 rounded-md border border-line bg-bg p-4">
-          <h3 className="text-base font-semibold text-ink">Email notifications: mute matrix</h3>
+          <h3 className="text-base font-semibold text-ink">Notification channels</h3>
           <NotificationMuteMatrix makerspaceId={makerspace.id} />
         </div>
       </div>
