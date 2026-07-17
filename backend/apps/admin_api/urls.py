@@ -94,10 +94,24 @@ from apps.admin_api.views_warranty_documents import (
     WarrantyDocumentUrlView,
 )
 from apps.makerspaces.models import MakerspaceMembership
+from apps.admin_api.views_memberships import (
+    MembershipListCreateView,
+    MembershipRoleAssignView,
+)
 from apps.admin_api.views_roles import CapabilityCatalogView, RoleDetailView, RoleListCreateView
 from apps.printing.views_printer_image import PrinterImageView
 
 urlpatterns = [
+    path(
+        "makerspaces/<int:makerspace_id>/memberships",
+        MembershipListCreateView.as_view(),
+        name="admin-membership-list-create",
+    ),
+    path(
+        "makerspaces/<int:makerspace_id>/memberships/<int:membership_id>/role",
+        MembershipRoleAssignView.as_view(),
+        name="admin-membership-role-assign",
+    ),
     path(
         "makerspaces/<int:makerspace_id>/roles/capabilities",
         CapabilityCatalogView.as_view(),

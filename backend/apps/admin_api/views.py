@@ -40,13 +40,13 @@ from apps.admin_api.views_user_access import (
     RestoreUserAccessView,
     RestrictUserView,
 )
+from apps.admin_api.services_staff import _global_role_for_membership
 from apps.admin_api.views_users import (
     AuditLogListView,
     AuditLogPagination,
     MembershipRevokeView,
     StaffListCreateView,
     _can_create_staff_role,
-    _global_role_for_membership,
 )
 
 __all__ = [

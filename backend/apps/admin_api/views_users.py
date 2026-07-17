@@ -1,7 +1,5 @@
-from django.contrib.auth.hashers import make_password
 from django.db import transaction
 from django.http import Http404
-from django.utils.crypto import get_random_string
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import generics
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -12,6 +10,7 @@ from rest_framework.views import APIView
 from apps.accounts import rbac
 from apps.accounts.models import User
 from apps.admin_api.permissions import IsActiveStaff
+from apps.admin_api.services_staff import attach_staff_membership
 from apps.admin_api.serializers_users import (
     AuditLogSerializer,
     StaffCreateSerializer,
@@ -19,8 +18,7 @@ from apps.admin_api.serializers_users import (
 )
 from apps.audit import services as audit
 from apps.audit.models import AuditLog
-from apps.makerspaces import limits
-from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.makerspaces.models import Makerspace, MakerspaceMembership, MakerspaceRole
 
 # Roles a Space Manager (MANAGE_MAKERSPACE holder, non-superadmin) may assign, list, and
 # revoke within their own makerspace scope. Deliberately excludes SPACE_MANAGER: an SM must
@@ -76,10 +74,6 @@ class StaffListCreateView(generics.ListCreateAPIView):
         makerspace_id = data["makerspace_id"]
         if not _can_create_staff_role(request.user, target_role, makerspace_id):
             raise PermissionDenied()
-        # A superadmin can target any makerspace_id, including a nonexistent one. Validate
-        # before writing: otherwise get_or_create commits the user, then the membership FK
-        # fails -> 500 and an orphaned staff account. Wrap both writes in one transaction so
-        # a membership failure rolls back the user creation too.
         makerspace = Makerspace.objects.filter(pk=makerspace_id).first()
         if not makerspace:
             raise ValidationError({"makerspace_id": "Makerspace does not exist."})
@@ -87,95 +81,32 @@ class StaffListCreateView(generics.ListCreateAPIView):
         # new staff to it (the superadmin branch of _can_create_staff_role bypasses rbac scope).
         if makerspace.archived_at is not None:
             raise ValidationError({"makerspace_id": "Makerspace is archived."})
-        actor_is_superadmin = (
-            request.user.is_superuser or request.user.role == User.Role.SUPERADMIN
+        role = MakerspaceRole.objects.get(
+            makerspace=makerspace, legacy_role=target_role
         )
-        is_break_glass = (
-            actor_is_superadmin and not makerspace.superadmin_access_enabled
-        )
-        user_defaults = {
-            "email": data.get("email", ""),
-            "first_name": data.get("first_name", ""),
-            "last_name": data.get("last_name", ""),
-            "role": _global_role_for_membership(target_role),
-            "password": make_password(data.get("password") or get_random_string(32)),
-        }
         with transaction.atomic():
-            if is_break_glass:
-                errors = {}
-                if User.objects.filter(username=data["username"]).exists():
-                    errors["username"] = "A user with that username already exists."
-                email = data.get("email", "")
-                if email and User.objects.filter(email__iexact=email).exists():
-                    errors["email"] = "A user with that email already exists."
-                if errors:
-                    raise ValidationError(errors)
-                user = User.objects.create(username=data["username"], **user_defaults)
-                limits.check_quota(makerspace, "staff", adding=1)
-                membership = MakerspaceMembership.objects.create(
-                    user=user,
-                    makerspace=makerspace,
-                    role=target_role,
-                )
-                created = True
-            else:
-                user, created = User.objects.get_or_create(
-                    username=data["username"],
-                    defaults=user_defaults,
-                )
-                # Non-escalation guard (Part I): a Space Manager may create/assign only
-                # delegable roles, and must never overwrite an existing SPACE_MANAGER
-                # membership (which update_or_create below would silently rewrite). Locked +
-                # re-checked INSIDE the transaction so a concurrent superadmin promotion to
-                # SPACE_MANAGER can't be raced past this guard. Superadmin is unaffected.
-                if not actor_is_superadmin:
-                    existing_role = (
-                        MakerspaceMembership.objects.select_for_update()
-                        .filter(makerspace_id=makerspace_id, user=user)
-                        .values_list("role", flat=True)
-                        .first()
-                    )
-                    if existing_role is not None and existing_role not in _SM_DELEGABLE_ROLES:
-                        raise PermissionDenied(
-                            "Only a superadmin can change a Space Manager membership."
-                        )
-                has_active_membership = MakerspaceMembership.objects.filter(
-                    user=user,
-                    makerspace=makerspace,
-                    user__is_active=True,
-                    user__access_status=User.AccessStatus.ACTIVE,
-                ).exists()
-                if not has_active_membership and user.is_active and (
-                    user.access_status == User.AccessStatus.ACTIVE
-                ):
-                    limits.check_quota(makerspace, "staff", adding=1)
-                membership, _ = MakerspaceMembership.objects.update_or_create(
-                    user=user,
-                    makerspace_id=makerspace_id,
-                    defaults={"role": target_role},
-                )
-        audit.record(
-            request.user,
-            (
-                "superadmin.break_glass_space_manager_created"
-                if is_break_glass
-                else "staff.created" if created else "staff.membership_updated"
-            ),
-            makerspace=membership.makerspace,
-            target=user,
-            meta={"membership_role": target_role},
-        )
+            membership, created, is_break_glass = attach_staff_membership(
+                actor=request.user,
+                makerspace=makerspace,
+                role=role,
+                username=data["username"],
+                email=data.get("email", ""),
+                first_name=data.get("first_name", ""),
+                last_name=data.get("last_name", ""),
+                password=data.get("password", ""),
+            )
+            audit.record(
+                request.user,
+                (
+                    "superadmin.break_glass_space_manager_created"
+                    if is_break_glass
+                    else "staff.created" if created else "staff.membership_updated"
+                ),
+                makerspace=membership.makerspace,
+                target=membership.user,
+                meta={"membership_role": target_role},
+            )
         return Response(StaffMembershipSerializer(membership).data, status=201)
-
-
-def _global_role_for_membership(target_role):
-    if target_role == MakerspaceMembership.Role.SPACE_MANAGER:
-        return User.Role.SPACE_MANAGER
-    if target_role == MakerspaceMembership.Role.GUEST_ADMIN:
-        return User.Role.GUEST_ADMIN
-    if target_role == MakerspaceMembership.Role.INVENTORY_MANAGER:
-        return User.Role.REQUESTER
-    return User.Role.REQUESTER
 
 
 def _can_create_staff_role(user, target_role, makerspace_id):
@@ -230,7 +161,7 @@ class MembershipRevokeView(APIView):
                     actor, rbac.Action.MANAGE_MAKERSPACE, membership.makerspace_id
                 ):
                     raise Http404
-                if membership.role not in _SM_DELEGABLE_ROLES:
+                if rbac.Action.MANAGE_MAKERSPACE in rbac.actions_for_membership(membership):
                     raise PermissionDenied(
                         "Only a superadmin can revoke a Space Manager membership."
                     )

@@ -95,6 +95,43 @@ def can_assign_role(actor, makerspace, role, target_membership=None):
     return True
 
 
+def assign_role(*, makerspace, actor, membership, role):
+    """Atomically assign a makerspace role and preserve the legacy role mirror."""
+    if role.makerspace_id != makerspace.id or membership.makerspace_id != makerspace.id:
+        raise PermissionDenied()
+    with transaction.atomic():
+        makerspace = Makerspace.objects.select_for_update().get(pk=makerspace.pk)
+        role = MakerspaceRole.objects.select_for_update().get(
+            pk=role.pk, makerspace=makerspace
+        )
+        membership = (
+            MakerspaceMembership.objects.select_for_update(of=("self",))
+            .select_related("assigned_role")
+            .get(pk=membership.pk)
+        )
+        if membership.makerspace_id != makerspace.id:
+            raise PermissionDenied()
+        can_assign_role(actor, makerspace, role, target_membership=membership)
+        old_role_id = membership.assigned_role_id
+        old_legacy_role = membership.role
+        membership.assigned_role = role
+        membership.role = role.legacy_role or MakerspaceMembership.Role.CUSTOM
+        membership.save(update_fields=["assigned_role", "role"])
+        audit.record(
+            actor,
+            "staff.role_assigned",
+            makerspace=makerspace,
+            target=membership.user,
+            meta={
+                "membership_id": membership.id,
+                "old_role_id": old_role_id,
+                "new_role_id": role.id,
+                "new_role_slug": role.slug,
+            },
+        )
+        return membership
+
+
 def _slug_for(makerspace, name, role_id=None):
     root = slugify(name)[:72] or "role"
     slug, suffix = root, 2
