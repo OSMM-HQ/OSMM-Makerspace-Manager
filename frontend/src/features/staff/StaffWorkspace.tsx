@@ -16,7 +16,7 @@ import type { Makerspace } from "./panels/shared";
 
 export function StaffWorkspace({
   activeMakerspace,
-  activeRole,
+  actions,
   collapsedGroups,
   guestOnly,
   isSuperadmin,
@@ -30,7 +30,7 @@ export function StaffWorkspace({
   user,
 }: {
   activeMakerspace?: Makerspace;
-  activeRole?: string;
+  actions: readonly string[];
   collapsedGroups: Set<string>;
   guestOnly: boolean;
   isSuperadmin: boolean;
@@ -61,7 +61,7 @@ export function StaffWorkspace({
     defaultTab,
     handoutOnly,
     printingOnly,
-  } = getStaffAccess(activeRole, isSuperadmin, singleTenantLocked, activeMakerspace?.enabled_modules ?? []);
+  } = getStaffAccess(actions, isSuperadmin, singleTenantLocked, activeMakerspace?.enabled_modules ?? []);
   const visibleMakerspaces =
     singleTenantLocked && activeMakerspace
       ? [activeMakerspace]

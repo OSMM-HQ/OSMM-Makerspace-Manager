@@ -6,14 +6,6 @@ const ALL_TABS = [
 
 export const STAFF_TAB_KEYS: readonly string[] = ALL_TABS;
 
-const FULL_ACCESS_ROLES = ["space_manager", "inventory_manager"];
-const PRINTING_TABS = ["dashboard", "notifications", "requests", "printing", "machines", "tobuy", "reports", "warranty", "api", "emailtemplates"];
-const GUEST_ADMIN_TABS = ["requests", "direct"];
-// Machine Manager: makerspace-wide machine authority (machines + maintenance/warranty/usage
-// live inside the Machines drawer). Deliberately narrow — no Dashboard (DashboardView requires
-// VIEW_INVENTORY/MANAGE_PRINTING/MANAGE_MAKERSPACE, none of which this role holds).
-const MACHINE_MANAGER_TABS = ["machines"];
-
 export const TAB_LABELS: Record<string, string> = {
   dashboard: "Dashboard",
   notifications: "Notifications",
@@ -57,32 +49,29 @@ export const TAB_GROUPS: { label: string; tabs: string[] }[] = [
   { label: "Admin", tabs: ["users", "settings", "emailtemplates", "email-logs", "api", "platform"] },
 ];
 
-export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boolean, singleTenantLocked: boolean, enabledModules: readonly string[] = []) {
-  const fullAccess = isSuperadmin || (!!activeRole && FULL_ACCESS_ROLES.includes(activeRole));
-  const handoutOnly = activeRole === "guest_admin" && !isSuperadmin;
-  const machineOnly = activeRole === "machine_manager" && !isSuperadmin;
-  const printingOnly = !fullAccess && !handoutOnly && !machineOnly;
-  const canSeeHardware = isSuperadmin || ["space_manager", "inventory_manager", "guest_admin"].includes(activeRole ?? "");
-  const canSeePrinting = isSuperadmin || ["space_manager", "print_manager"].includes(activeRole ?? "");
-  const canUseToBuy = isSuperadmin || ["space_manager", "inventory_manager", "print_manager"].includes(activeRole ?? "");
-  const canEditInventory = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
-  const canIssueDirectLoan = isSuperadmin || ["space_manager", "inventory_manager", "guest_admin"].includes(activeRole ?? "");
-  const canViewAudit = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
-  const canManageQr = isSuperadmin || ["space_manager", "inventory_manager"].includes(activeRole ?? "");
-  const canManageMakerspace = isSuperadmin || activeRole === "space_manager";
-  const canManageMachines = isSuperadmin || ["space_manager", "machine_manager"].includes(activeRole ?? "");
-  const canManageEvents = isSuperadmin || activeRole === "space_manager";
-  const canManageBookings = isSuperadmin || activeRole === "space_manager";
-  const canChooseToBuyKind = isSuperadmin || activeRole === "space_manager";
-  const baseTabs = handoutOnly
-    ? GUEST_ADMIN_TABS
-    : machineOnly
-      ? MACHINE_MANAGER_TABS
-      : fullAccess
-        ? ALL_TABS
-        : PRINTING_TABS;
+export function getStaffAccess(actions: readonly string[], isSuperadmin: boolean, singleTenantLocked: boolean, enabledModules: readonly string[] = []) {
+  const has = (action: string) => isSuperadmin || actions.includes(action);
+  const canEditInventory = has("edit_inventory");
+  const canViewInventory = has("view_inventory");
+  const canSeePrinting = has("manage_printing");
+  const canManageMachines = has("manage_machines");
+  const canManageEvents = has("manage_events");
+  const canManageBookings = has("manage_bookings");
+  const canViewAudit = has("view_audit");
+  const canManageQr = has("manage_qr");
+  const canManageMakerspace = has("manage_makerspace");
+  const canIssueDirectLoan = has("issue_direct_loan");
+  const canSeeHardware = isSuperadmin || ["accept_request", "reject_request", "assign_box", "issue_request", "issue_direct_loan", "return_request"].some((action) => actions.includes(action));
+  const canUseToBuy = has("edit_inventory") || has("manage_printing") || has("manage_makerspace");
+  const canChooseToBuyKind = has("manage_makerspace");
+  const canSeeDashboard = has("view_inventory") || has("manage_printing") || has("manage_makerspace");
+  const HANDOUT = ["view_inventory", "assign_box", "issue_request", "issue_direct_loan", "return_request", "upload_evidence"];
+  const HANDOUT_MUTATIONS = ["assign_box", "issue_request", "issue_direct_loan", "return_request", "upload_evidence"];
+  const handoutOnly = !isSuperadmin && actions.length > 0 && actions.every((action) => HANDOUT.includes(action)) && actions.some((action) => HANDOUT_MUTATIONS.includes(action));
+  const printingOnly = canSeePrinting && !canEditInventory && !canManageMakerspace;
+  const baseTabs = handoutOnly ? (["requests", "direct"] as const) : ALL_TABS;
   const allowedTabs: readonly string[] = baseTabs.filter((tabName) => {
-    if (tabName === "dashboard") return !handoutOnly;
+    if (tabName === "dashboard") return !handoutOnly && (isSuperadmin || canSeeDashboard);
     if (tabName === "notifications") return !handoutOnly && enabledModules.includes("notifications");
     if (tabName === "tobuy") return canUseToBuy;
     if (tabName === "needsfix") return canEditInventory;
@@ -90,8 +79,8 @@ export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boo
     if (tabName === "bulk") return canEditInventory;
     if (tabName === "stocktake") return canEditInventory;
     if (tabName === "direct") return canIssueDirectLoan;
-    if (tabName === "inventory") return !handoutOnly;
-    if (tabName === "ledger") return !handoutOnly;
+    if (tabName === "inventory") return canViewInventory;
+    if (tabName === "ledger") return canViewInventory;
     if (tabName === "transfers") return canEditInventory || isSuperadmin;
     if (tabName === "containers") return canManageQr;
     if (tabName === "qr") return canManageQr;
@@ -119,6 +108,7 @@ export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boo
     canSeePrinting,
     canUseToBuy,
     canEditInventory,
+    canViewInventory,
     canIssueDirectLoan,
     canViewAudit,
     canManageQr,
@@ -128,6 +118,6 @@ export function getStaffAccess(activeRole: string | undefined, isSuperadmin: boo
     canManageBookings,
     canChooseToBuyKind,
     allowedTabs,
-    defaultTab: handoutOnly ? "requests" : machineOnly ? "machines" : "dashboard",
+    defaultTab: handoutOnly ? "requests" : (allowedTabs.includes("dashboard") ? "dashboard" : (allowedTabs[0] ?? "dashboard")),
   };
 }

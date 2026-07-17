@@ -286,13 +286,13 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
       }
       return next;
     });
-  const activeRole = user.makerspaces.find((item) => item.id === selected)?.role;
+  const activeActions = user.makerspaces.find((item) => item.id === selected)?.actions ?? [];
   const makerspaceList = makerspaces.data ?? [];
 
   return (
     <StaffWorkspace
       activeMakerspace={activeMakerspace}
-      activeRole={activeRole}
+      actions={activeActions}
       collapsedGroups={collapsedGroups}
       guestOnly={guestOnly}
       isSuperadmin={isSuperadmin}

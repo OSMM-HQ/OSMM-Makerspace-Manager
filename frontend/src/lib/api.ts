@@ -47,7 +47,15 @@ export type StaffAuthUser = {
   role: string;
   is_superuser: boolean;
   must_change_password: boolean;
-  makerspaces: { id: number; slug: string; role: string }[];
+  makerspaces: {
+    id: number;
+    slug: string;
+    role: string;
+    role_id: number | null;
+    role_name: string;
+    role_slug: string;
+    actions: string[];
+  }[];
 };
 
 export type ApiErrorBody = Record<string, unknown> & {
