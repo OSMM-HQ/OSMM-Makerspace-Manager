@@ -61,6 +61,9 @@ MANAGED_RESOURCE_LIMITS = {
     "storage": 1073741824,
     "print": 200,
     "email": 100,
+    "telegram": 100,
+    "slack": 100,
+    "mattermost": 100,
     "api_clients": 1,
 }
 STORAGE_PRESIGN_METHOD = env("STORAGE_PRESIGN_METHOD", default="post")

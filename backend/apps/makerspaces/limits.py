@@ -1,13 +1,17 @@
 """Managed-platform fair-use limits; deliberately dormant on self-hosts."""
 
+import logging
 from collections.abc import Callable
 from datetime import UTC, datetime
 
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
 from apps.makerspaces.domain_verification import is_self_host
+
+logger = logging.getLogger(__name__)
 
 NUMERIC_LIMIT_KEYS = frozenset(
     {
@@ -20,6 +24,9 @@ NUMERIC_LIMIT_KEYS = frozenset(
         "storage",
         "print",
         "email",
+        "telegram",
+        "slack",
+        "mattermost",
         "api_clients",
     }
 )
@@ -36,6 +43,9 @@ RESOURCE_LABELS = {
     "storage": "storage",
     "print": "monthly print requests",
     "email": "daily emails",
+    "telegram": "daily Telegram notifications",
+    "slack": "daily Slack notifications",
+    "mattermost": "daily Mattermost notifications",
     "api_clients": "API clients",
     "custom_domain": "custom domains",
 }
@@ -52,6 +62,31 @@ def resource_limit(makerspace, key) -> int | None:
             return None
         return int(value)
     return settings.MANAGED_RESOURCE_LIMITS.get(key)
+
+
+def reserve_notification_quota(makerspace, channel) -> bool:
+    if is_self_host():
+        return True
+    limit = resource_limit(makerspace, channel)
+    if limit is None:
+        return True
+    try:
+        from apps.integrations.models import DailyNotificationCounter
+
+        with transaction.atomic():
+            counter, _ = DailyNotificationCounter.objects.get_or_create(
+                makerspace=makerspace, channel=channel, day=timezone.now().date()
+            )
+            counter = DailyNotificationCounter.objects.select_for_update().get(pk=counter.pk)
+            if counter.count >= limit:
+                return False
+            counter.count += 1
+            counter.save(update_fields=["count"])
+            return True
+    except Exception:
+        details = {"makerspace_id": makerspace.pk, "channel": channel}
+        logger.exception("notification_limit_check_failed", extra=details)
+        return True
 
 
 def custom_domain_allowed(makerspace) -> bool:
