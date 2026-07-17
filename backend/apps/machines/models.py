@@ -2,6 +2,16 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 
+# Service-request models are kept separate so the long-lived machine catalog stays
+# compact; importing here preserves the app's established public model surface.
+from apps.machines.models_service import (
+    MachineServiceRequest,
+    ServiceBucket,
+    ServiceRequestConsumption,
+    ServiceRequestFile,
+    get_or_create_default_bucket,
+)
+
 
 class MachineType(models.Model):
     """Machine type catalog. Global built-ins (makerspace=NULL) + per-lab custom rows."""

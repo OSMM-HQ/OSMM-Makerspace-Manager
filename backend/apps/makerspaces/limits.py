@@ -2,7 +2,7 @@
 
 import logging
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from django.conf import settings
 from django.db import transaction
@@ -29,6 +29,8 @@ NUMERIC_LIMIT_KEYS = frozenset(
         "mattermost",
         "api_clients",
         "custom_roles",
+        "machine_service_open",
+        "machine_service_submit",
     }
 )
 BOOLEAN_LIMIT_KEYS = frozenset({"custom_domain"})
@@ -49,6 +51,8 @@ RESOURCE_LABELS = {
     "mattermost": "daily Mattermost notifications",
     "api_clients": "API clients",
     "custom_roles": "custom roles",
+    "machine_service_open": "open machine service requests",
+    "machine_service_submit": "daily machine service requests",
     "custom_domain": "custom domains",
 }
 
@@ -179,6 +183,31 @@ def _print_requests(makerspace) -> int:
     ).count()
 
 
+def _machine_service_open(makerspace) -> int:
+    from apps.machines.models import MachineServiceRequest
+
+    return MachineServiceRequest.objects.filter(
+        bucket__machine__makerspace=makerspace,
+        status__in=(
+            MachineServiceRequest.Status.PENDING,
+            MachineServiceRequest.Status.ACCEPTED,
+            MachineServiceRequest.Status.IN_PROGRESS,
+        ),
+    ).count()
+
+
+def _machine_service_submit(makerspace) -> int:
+    from apps.machines.models import MachineServiceRequest
+
+    now = datetime.now(UTC)
+    day_start = datetime(now.year, now.month, now.day, tzinfo=UTC)
+    return MachineServiceRequest.objects.filter(
+        bucket__machine__makerspace=makerspace,
+        created_at__gte=day_start,
+        created_at__lt=day_start + timedelta(days=1),
+    ).count()
+
+
 def _storage(makerspace) -> int:
     return makerspace.storage_bytes_used
 
@@ -250,6 +279,8 @@ _COUNTERS: dict[str, Callable[[object], int]] = {
     "api_clients": _api_clients,
     "custom_roles": _custom_roles,
     "print": _print_requests,
+    "machine_service_open": _machine_service_open,
+    "machine_service_submit": _machine_service_submit,
     "storage": _storage,
     "email": _emails,
 }

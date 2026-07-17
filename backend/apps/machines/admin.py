@@ -11,6 +11,10 @@ from apps.machines.models import (
     MachineOperator,
     MachineType,
     MachineUsageEntry,
+    MachineServiceRequest,
+    ServiceBucket,
+    ServiceRequestConsumption,
+    ServiceRequestFile,
 )
 from config.admin_access import SuperuserOnlyModelAdmin
 
@@ -141,3 +145,34 @@ class MachineConsumableAdmin(_ReadOnlyMachineChildAdmin):
     )
     list_filter = ("measurement",)
     search_fields = ("machine__name", "product__name", "label")
+
+
+@admin.register(ServiceBucket)
+class ServiceBucketAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = ("id", "machine", "name", "is_active", "created_at")
+    list_filter = ("is_active", "machine")
+    search_fields = ("machine__name", "name")
+
+
+@admin.register(MachineServiceRequest)
+class MachineServiceRequestAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = ("id", "title", "bucket", "assigned_machine", "status", "created_at")
+    list_filter = ("status", "assigned_machine", "bucket__machine")
+    search_fields = ("title", "requester_name", "contact_email")
+    raw_id_fields = ("bucket", "requester", "assigned_machine")
+
+
+@admin.register(ServiceRequestFile)
+class ServiceRequestFileAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = ("id", "service_request", "machine", "kind", "original_filename", "size_bytes", "attached_at")
+    list_filter = ("kind", "machine")
+    search_fields = ("original_filename", "service_request__title", "machine__name")
+    raw_id_fields = ("service_request", "machine")
+
+
+@admin.register(ServiceRequestConsumption)
+class ServiceRequestConsumptionAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = ("id", "service_request", "machine_consumable", "measurement", "quantity", "outcome", "created_at")
+    list_filter = ("outcome", "measurement", "machine_consumable__machine")
+    search_fields = ("service_request__title", "machine_consumable__label", "machine_consumable__machine__name")
+    raw_id_fields = ("service_request", "machine_consumable", "product", "created_by")

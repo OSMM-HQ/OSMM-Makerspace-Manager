@@ -22,6 +22,10 @@ NESTED_MAKERSPACE_LOOKUPS = {
     "machines.machinedocument": "machine__makerspace_id",
     "machines.machineerrorlog": "machine__makerspace_id",
     "machines.machineconsumable": "machine__makerspace_id",
+    "machines.servicebucket": "machine__makerspace_id",
+    "machines.machineservicerequest": "bucket__machine__makerspace_id",
+    "machines.servicerequestfile": "machine__makerspace_id",
+    "machines.servicerequestconsumption": "service_request__bucket__machine__makerspace_id",
     "bookings.booking": "space__makerspace_id",
 }
 

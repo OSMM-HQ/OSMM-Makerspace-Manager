@@ -55,6 +55,8 @@ MANAGED_RESOURCE_LIMITS = {
     "products": 500,
     "assets": 2000,
     "machines": 5,
+    "machine_service_open": 100,
+    "machine_service_submit": 100,
     "events": 10,
     "bookings": 500,
     "staff": 10,

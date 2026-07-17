@@ -23,6 +23,7 @@ MODULE_WORKFLOWS = {
     "qr_print_batches": ["qr_print_batch"],
     "asset_units": ["asset_qr_generation"],
     "printing": ["printing_requests"],
+    "machine_service": ["machine_service_requests"],
     "telegram": ["telegram_alerts"],
     "maintenance": ["maintenance"],
     "procurement": ["procurement"],

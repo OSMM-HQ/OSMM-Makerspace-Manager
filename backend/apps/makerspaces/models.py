@@ -59,6 +59,7 @@ DEFAULT_ENABLED_MODULES = [
     "asset_units",
     "procurement",
     "machines",
+    "machine_service",
     "events",
     "bookings",
     "maintenance",
