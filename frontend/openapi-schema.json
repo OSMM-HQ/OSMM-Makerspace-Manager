@@ -9206,7 +9206,7 @@
         "/api/v1/admin/makerspace/{makerspace_id}/notification-rules": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_notification_rules_retrieve",
-                "summary": "List or update makerspace email notification rules",
+                "summary": "List or update makerspace notification rules",
                 "parameters": [
                     {
                         "in": "path",
@@ -9240,7 +9240,7 @@
             },
             "patch": {
                 "operationId": "api_v1_admin_makerspace_notification_rules_partial_update",
-                "summary": "List or update makerspace email notification rules",
+                "summary": "List or update makerspace notification rules",
                 "parameters": [
                     {
                         "in": "path",
@@ -9290,7 +9290,7 @@
                         "description": ""
                     },
                     "400": {
-                        "description": "Invalid notification rule change."
+                        "description": "Invalid notification rule or preference change."
                     },
                     "404": {
                         "description": "Makerspace not found."
@@ -22486,6 +22486,16 @@
                     "detail"
                 ]
             },
+            "ChannelEnum": {
+                "enum": [
+                    "email",
+                    "telegram",
+                    "slack",
+                    "mattermost"
+                ],
+                "type": "string",
+                "description": "* `email` - Email\n* `telegram` - Telegram\n* `slack` - Slack\n* `mattermost` - Mattermost"
+            },
             "CheckinVerifyRequest": {
                 "type": "object",
                 "properties": {
@@ -24154,6 +24164,17 @@
                     "reason"
                 ]
             },
+            "FeatureEnum": {
+                "enum": [
+                    "hardware_requests",
+                    "printing",
+                    "events",
+                    "bookings",
+                    "maintenance"
+                ],
+                "type": "string",
+                "description": "* `hardware_requests` - Hardware requests\n* `printing` - Printing\n* `events` - Events\n* `bookings` - Bookings\n* `maintenance` - Maintenance"
+            },
             "FilamentAdjustment": {
                 "type": "object",
                 "properties": {
@@ -25246,6 +25267,27 @@
                 "required": [
                     "evidence_id"
                 ]
+            },
+            "Key66aEnum": {
+                "enum": [
+                    "email",
+                    "telegram",
+                    "slack",
+                    "mattermost"
+                ],
+                "type": "string",
+                "description": "* `email` - Email\n* `telegram` - Telegram\n* `slack` - Slack\n* `mattermost` - Mattermost"
+            },
+            "Key833Enum": {
+                "enum": [
+                    "hardware_requests",
+                    "printing",
+                    "events",
+                    "bookings",
+                    "maintenance"
+                ],
+                "type": "string",
+                "description": "* `hardware_requests` - Hardware requests\n* `printing` - Printing\n* `events` - Events\n* `bookings` - Bookings\n* `maintenance` - Maintenance"
             },
             "Kind3bfEnum": {
                 "enum": [
@@ -27540,6 +27582,43 @@
                     "url_path"
                 ]
             },
+            "NotificationChannel": {
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "$ref": "#/components/schemas/Key66aEnum"
+                    },
+                    "label": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "key",
+                    "label"
+                ]
+            },
+            "NotificationFeature": {
+                "type": "object",
+                "properties": {
+                    "key": {
+                        "$ref": "#/components/schemas/Key833Enum"
+                    },
+                    "label": {
+                        "type": "string"
+                    },
+                    "events": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    }
+                },
+                "required": [
+                    "events",
+                    "key",
+                    "label"
+                ]
+            },
             "NotificationMarkAllRead": {
                 "type": "object",
                 "properties": {
@@ -27549,6 +27628,56 @@
                 },
                 "required": [
                     "updated"
+                ]
+            },
+            "NotificationPreferenceCell": {
+                "type": "object",
+                "properties": {
+                    "feature": {
+                        "$ref": "#/components/schemas/FeatureEnum"
+                    },
+                    "channel": {
+                        "$ref": "#/components/schemas/ChannelEnum"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    },
+                    "source": {
+                        "$ref": "#/components/schemas/NotificationPreferenceCellSourceEnum"
+                    }
+                },
+                "required": [
+                    "channel",
+                    "enabled",
+                    "feature",
+                    "source"
+                ]
+            },
+            "NotificationPreferenceCellSourceEnum": {
+                "enum": [
+                    "default",
+                    "override"
+                ],
+                "type": "string",
+                "description": "* `default` - default\n* `override` - override"
+            },
+            "NotificationPreferenceChange": {
+                "type": "object",
+                "properties": {
+                    "feature": {
+                        "$ref": "#/components/schemas/FeatureEnum"
+                    },
+                    "channel": {
+                        "$ref": "#/components/schemas/ChannelEnum"
+                    },
+                    "enabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "channel",
+                    "enabled",
+                    "feature"
                 ]
             },
             "NotificationRecipient": {
@@ -27691,11 +27820,32 @@
                         "items": {
                             "$ref": "#/components/schemas/NotificationRuleMute"
                         }
+                    },
+                    "channels": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/NotificationChannel"
+                        }
+                    },
+                    "features": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/NotificationFeature"
+                        }
+                    },
+                    "preferences": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/NotificationPreferenceCell"
+                        }
                     }
                 },
                 "required": [
                     "catalog",
-                    "mutes"
+                    "channels",
+                    "features",
+                    "mutes",
+                    "preferences"
                 ]
             },
             "NotificationUnreadCount": {
@@ -29448,6 +29598,12 @@
                         "type": "array",
                         "items": {
                             "$ref": "#/components/schemas/NotificationRuleChange"
+                        }
+                    },
+                    "preferences": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/NotificationPreferenceChange"
                         }
                     }
                 }

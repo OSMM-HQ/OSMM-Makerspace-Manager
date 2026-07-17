@@ -5,7 +5,13 @@ from rest_framework.test import APIClient
 
 from apps.accounts.models import User
 from apps.audit.models import AuditLog
-from apps.integrations.models import EmailNotificationMute
+from apps.integrations import notification_catalog
+from apps.integrations.models import (
+    EmailNotificationMute,
+    NotificationChannel,
+    NotificationFeature,
+    NotificationPreference,
+)
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 
 pytestmark = pytest.mark.django_db
@@ -51,7 +57,29 @@ def test_manager_gets_catalog_and_empty_mutes():
     catalog = response.data["catalog"]
     assert len(catalog) == 4
     assert response.data["mutes"] == []
-    # return_reminder must never appear as a mutable event.
+    assert response.data["channels"] == [
+        {"key": channel.value, "label": channel.label}
+        for channel in NotificationChannel
+    ]
+    assert response.data["features"] == [
+        {
+            "key": feature.value,
+            "label": feature.label,
+            "events": list(notification_catalog.FEATURE_EVENTS[feature]),
+        }
+        for feature in NotificationFeature
+    ]
+    expected_cells = [
+        (feature.value, channel.value)
+        for feature in NotificationFeature
+        for channel in NotificationChannel
+    ]
+    assert len(response.data["preferences"]) == 20
+    assert [
+        (cell["feature"], cell["channel"])
+        for cell in response.data["preferences"]
+    ] == expected_cells
+    assert all(cell["source"] == "default" for cell in response.data["preferences"])
     assert all("return_reminder" not in entry["events"] for entry in catalog)
     hw_req = next(
         e for e in catalog if e["stream"] == "hardware" and e["audience"] == "requester"
@@ -221,3 +249,52 @@ def test_rules_api_returns_404_for_cross_tenant_hidden_and_archived():
     assert manager_client.get(rules_url(other_space)).status_code == 404
     assert manager_client.get(rules_url(archived_space)).status_code == 404
     assert authenticated_client(superadmin).get(rules_url(hidden_space)).status_code == 404
+
+
+def test_patch_preferences_upserts_last_duplicate_and_audits_safe_meta():
+    makerspace = make_space("rules-preferences")
+    manager = make_member("rules-preferences-mgr", makerspace)
+    payload = {
+        "preferences": [
+            {"feature": "events", "channel": "slack", "enabled": True},
+            {"feature": "printing", "channel": "email", "enabled": False},
+            {"feature": "events", "channel": "slack", "enabled": False},
+        ]
+    }
+
+    response = authenticated_client(manager).patch(
+        rules_url(makerspace), payload, format="json"
+    )
+
+    assert response.status_code == 200
+    rows = NotificationPreference.objects.filter(makerspace=makerspace)
+    assert rows.count() == 2
+    assert rows.get(feature="events", channel="slack").enabled is False
+    cells = {(c["feature"], c["channel"]): c for c in response.data["preferences"]}
+    assert cells[("events", "slack")] == {
+        "feature": "events", "channel": "slack", "enabled": False, "source": "override"
+    }
+    assert cells[("hardware_requests", "email")]["source"] == "default"
+    log = AuditLog.objects.get(action="notification.preferences_updated")
+    assert log.meta == {"preferences": [
+        {"feature": "events", "channel": "slack", "enabled": False},
+        {"feature": "printing", "channel": "email", "enabled": False},
+    ]}
+    assert "updated_by" not in str(log.meta)
+
+
+@pytest.mark.parametrize("payload", [
+    {}, {"changes": []}, {"preferences": []},
+    {"preferences": [{"feature": "unknown", "channel": "email", "enabled": True}]},
+    {"preferences": [{"feature": "events", "channel": "unknown", "enabled": True}]},
+    {"preferences": [{"feature": "events", "channel": "email", "enabled": "yes"}]},
+    {"changes": [{"target": "requester", "stream": "hardware", "event": "return_reminder", "audience": "requester", "muted": True}]},
+    {"preferences": [{"feature": "events", "channel": "email", "enabled": True}], "changes": [{"target": "requester", "stream": "hardware", "event": "return_reminder", "audience": "requester", "muted": True}]},
+])
+def test_patch_invalid_or_empty_batch_is_atomic(payload):
+    makerspace = make_space("rules-invalid")
+    manager = make_member("rules-invalid-mgr", makerspace)
+    response = authenticated_client(manager).patch(rules_url(makerspace), payload, format="json")
+    assert response.status_code == 400
+    assert not NotificationPreference.objects.filter(makerspace=makerspace).exists()
+    assert not EmailNotificationMute.objects.filter(makerspace=makerspace).exists()

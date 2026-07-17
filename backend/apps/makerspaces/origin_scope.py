@@ -17,6 +17,9 @@ _MAKERSPACE_KWARG_ROUTES = {
     "admin-machine-type-detail": "makerspace_id",
     "admin-makerspace-provision-subdomain": "makerspace_id",
     "admin-makerspace-subdomain-request": "makerspace_id",
+    "admin-api-settings": "makerspace_id",
+    "admin-notification-recipients": "makerspace_id",
+    "admin-notification-rules": "makerspace_id",
 }
 
 
