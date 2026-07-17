@@ -81,8 +81,11 @@ def _require_non_superadmin_reset_scope(actor, target, is_superadmin):
             raise PermissionDenied(
                 "This user also belongs to a makerspace outside your authority."
             )
-    if memberships.filter(role=MakerspaceMembership.Role.SPACE_MANAGER).exists():
-        raise PermissionDenied("Cannot reset another Space Manager's password.")
+    for membership in memberships:
+        if rbac.can(
+            target, rbac.Action.MANAGE_MAKERSPACE, membership.makerspace_id
+        ):
+            raise PermissionDenied("Cannot reset another Space Manager's password.")
 
 
 def _validated_or_generated_password(password, target):

@@ -813,3 +813,44 @@ def test_notification_recipients_endpoint_includes_machine_managers():
     listed = client.get(url)
     assert listed.status_code == 200
     assert "notif-mm" in {row["username"] for row in listed.data}
+
+
+def test_notification_recipients_endpoint_includes_and_toggles_custom_action_roles():
+    # L2b: recipient eligibility is action-based, so a custom role granting manage_printing
+    # both receives printing emails AND must be listed + toggleable by the Space Manager.
+    from apps.accounts import rbac
+    from apps.makerspaces.models import MakerspaceRole
+
+    makerspace = make_space("notif-custom")
+    manager = make_staff_user("notif-csm", makerspace, MakerspaceMembership.Role.SPACE_MANAGER)
+    role = MakerspaceRole.objects.create(
+        makerspace=makerspace,
+        name="Print Only",
+        slug="print-only",
+        granted_actions=[rbac.Action.MANAGE_PRINTING],
+        is_default=False,
+        legacy_role=None,
+    )
+    custom_user = make_user("notif-custom-user")
+    MakerspaceMembership.objects.create(
+        user=custom_user,
+        makerspace=makerspace,
+        role=MakerspaceMembership.Role.CUSTOM,
+        assigned_role=role,
+    )
+    client = hardware_authenticated_client(manager)
+    url = f"/api/v1/admin/makerspace/{makerspace.id}/notification-recipients"
+
+    listed = client.get(url)
+    assert listed.status_code == 200
+    by_user = {row["username"]: row for row in listed.data}
+    assert "notif-custom-user" in by_user
+    assert custom_user.email in staff_emails_for_stream(makerspace, "printing")
+
+    patched = client.patch(
+        url,
+        {"recipients": [{"id": by_user["notif-custom-user"]["id"], "receives_notifications": False}]},
+        format="json",
+    )
+    assert patched.status_code == 200
+    assert custom_user.email not in staff_emails_for_stream(makerspace, "printing")

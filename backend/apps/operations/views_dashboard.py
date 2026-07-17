@@ -17,7 +17,7 @@ from apps.hardware_requests.models import (
 )
 from apps.integrations.models import EmailLog
 from apps.inventory.models import InventoryProduct
-from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.makerspaces.models import Makerspace
 from apps.makerspaces.platform import module_enabled
 from apps.operations.models import StocktakeSession
 from apps.printing.models import PrintRequest
@@ -183,9 +183,4 @@ def build_dashboard(makerspace):
 
 
 def _is_guest_only(user, makerspace_id):
-    if user.is_superuser or user.role == user.Role.SUPERADMIN:
-        return False
-    return (
-        rbac.membership_role(user, makerspace_id)
-        == MakerspaceMembership.Role.GUEST_ADMIN
-    )
+    return rbac.is_handout_only(user, makerspace_id)

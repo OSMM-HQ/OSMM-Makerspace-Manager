@@ -45,25 +45,14 @@ class MakerspaceListCreateView(generics.ListCreateAPIView):
         queryset = Makerspace.objects.filter(archived_at__isnull=True)
         actor = self.request.user
         origin_scope = origin_scoped_makerspace_id(self.request)
-        if actor.is_superuser or actor.role == User.Role.SUPERADMIN:
-            queryset = rbac.scope_by_action(
-                actor,
-                rbac.Action.VIEW_INVENTORY,
-                queryset,
-                field="id",
-            )
-            if origin_scope is not None:
-                queryset = queryset.filter(id=origin_scope)
-            return queryset.order_by("name")
         scope = rbac.makerspaces_for_actions(
             actor,
-            rbac.Action.VIEW_INVENTORY,
-            rbac.Action.MANAGE_PRINTING,
-            rbac.Action.MANAGE_MACHINES,
+            *sorted(rbac.ROLE_GRANTABLE_ACTIONS),
         )
         if not scope:
             return queryset.none()
-        queryset = queryset.filter(id__in=scope)
+        if scope is not rbac.ALL:
+            queryset = queryset.filter(id__in=scope)
         if origin_scope is not None:
             queryset = queryset.filter(id=origin_scope)
         return queryset.order_by("name")

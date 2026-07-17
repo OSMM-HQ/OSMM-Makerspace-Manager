@@ -1,5 +1,6 @@
 import logging
 
+from apps.accounts import rbac
 from apps.accounts.models import User
 from apps.integrations import notification_rules
 from apps.makerspaces.models import MakerspaceMembership
@@ -7,21 +8,12 @@ from apps.makerspaces.models import MakerspaceMembership
 logger = logging.getLogger(__name__)
 
 
-_FEATURE_ROLES = {
-    "hardware_requests": (
-        MakerspaceMembership.Role.SPACE_MANAGER,
-        MakerspaceMembership.Role.INVENTORY_MANAGER,
-    ),
-    "printing": (
-        MakerspaceMembership.Role.SPACE_MANAGER,
-        MakerspaceMembership.Role.PRINT_MANAGER,
-    ),
-    "events": (MakerspaceMembership.Role.SPACE_MANAGER,),
-    "bookings": (MakerspaceMembership.Role.SPACE_MANAGER,),
-    "maintenance": (
-        MakerspaceMembership.Role.SPACE_MANAGER,
-        MakerspaceMembership.Role.MACHINE_MANAGER,
-    ),
+_FEATURE_ACTIONS = {
+    "hardware_requests": rbac.Action.ACCEPT_REQUEST,
+    "printing": rbac.Action.MANAGE_PRINTING,
+    "events": rbac.Action.MANAGE_EVENTS,
+    "bookings": rbac.Action.MANAGE_BOOKINGS,
+    "maintenance": rbac.Action.MANAGE_MACHINES,
 }
 
 _FEATURE_STREAMS = {
@@ -36,8 +28,8 @@ def staff_emails_for_feature(makerspace, feature, event=None) -> list[str]:
         if not getattr(makerspace, "staff_notifications_enabled", True):
             return []
 
-        roles = _FEATURE_ROLES.get(feature)
-        if roles is None:
+        required_action = _FEATURE_ACTIONS.get(feature)
+        if required_action is None:
             logger.warning(
                 "staff_notification_unknown_feature",
                 extra={
@@ -47,34 +39,35 @@ def staff_emails_for_feature(makerspace, feature, event=None) -> list[str]:
             )
             return []
 
-        muted_roles = set()
         stream = _FEATURE_STREAMS.get(feature)
-        if stream and event and notification_rules.is_event_mutable(stream, "staff", event):
-            muted_roles = {
-                role
-                for role in roles
-                if notification_rules.role_muted(makerspace, stream, event, role)
-            }
+        mutable_event = bool(
+            stream
+            and event
+            and notification_rules.is_event_mutable(stream, "staff", event)
+        )
 
         memberships = (
             MakerspaceMembership.objects.filter(
                 makerspace=makerspace,
-                role__in=roles,
                 receives_notifications=True,
                 user__is_active=True,
                 user__access_status=User.AccessStatus.ACTIVE,
             )
             .exclude(user__is_superuser=True)
             .exclude(user__role=User.Role.SUPERADMIN)
-            .select_related("user")
+            .select_related("user", "assigned_role")
             .order_by("id")
         )
-        if muted_roles:
-            memberships = memberships.exclude(role__in=muted_roles)
 
         seen = set()
         recipients = []
         for membership in memberships:
+            if required_action not in rbac.actions_for_membership(membership):
+                continue
+            if mutable_event and notification_rules.role_muted(
+                makerspace, stream, event, membership.role
+            ):
+                continue
             email = (membership.user.email or "").strip()
             if not email:
                 continue

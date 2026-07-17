@@ -61,8 +61,6 @@ def require_user_access_mutation(actor, target):
 
 
 def hidden_space_manager_reset_break_glass(target):
-    from apps.makerspaces.models import MakerspaceMembership
-
     memberships = list(target.makerspace_memberships.select_related("makerspace"))
     hidden = [
         membership
@@ -72,7 +70,7 @@ def hidden_space_manager_reset_break_glass(target):
     if not hidden:
         return False
     allowed = len(hidden) == len(memberships) and all(
-        membership.role == MakerspaceMembership.Role.SPACE_MANAGER
+        rbac.can(target, rbac.Action.MANAGE_MAKERSPACE, membership.makerspace_id)
         for membership in memberships
     )
     if not allowed:
