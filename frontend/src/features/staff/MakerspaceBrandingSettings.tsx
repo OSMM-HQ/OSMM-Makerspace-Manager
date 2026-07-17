@@ -13,8 +13,14 @@ type Props = {
 
 export function MakerspaceBrandingSettings({ makerspace, settings, loading }: Props) {
   const queryClient = useQueryClient();
+  const currentRegisteredName = settings?.name ?? makerspace.name;
+  const [registeredNameInput, setRegisteredNameInput] = useState(currentRegisteredName);
   const [displayNameInput, setDisplayNameInput] = useState("");
   const currentDisplayName = settings?.branding_config?.display_name ?? "";
+
+  useEffect(() => {
+    setRegisteredNameInput(currentRegisteredName);
+  }, [currentRegisteredName, makerspace.id]);
 
   useEffect(() => {
     setDisplayNameInput(currentDisplayName);
@@ -26,6 +32,15 @@ export function MakerspaceBrandingSettings({ makerspace, settings, loading }: Pr
     queryClient.invalidateQueries({ queryKey: ["staff", "makerspaces"] });
   };
 
+  const updateRegisteredName = useMutation({
+    mutationFn: (value: string) =>
+      staffRequest<Makerspace>(`/admin/makerspaces/${makerspace.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ name: value }),
+      }),
+    onSuccess: refreshBranding,
+  });
+
   const updateDisplayName = useMutation({
     mutationFn: (value: string) =>
       staffRequest<Makerspace>(`/admin/makerspaces/${makerspace.id}`, {
@@ -35,6 +50,10 @@ export function MakerspaceBrandingSettings({ makerspace, settings, loading }: Pr
     onSuccess: refreshBranding,
   });
 
+  const trimmedRegisteredName = registeredNameInput.trim();
+  const registeredNameChanged = trimmedRegisteredName !== currentRegisteredName.trim();
+  const registeredNameSaveDisabled =
+    loading || updateRegisteredName.isPending || !trimmedRegisteredName || !registeredNameChanged;
   const trimmedDisplayName = displayNameInput.trim();
   const displayNameChanged = trimmedDisplayName !== currentDisplayName.trim();
   const displayNameSaveDisabled = loading || updateDisplayName.isPending || !displayNameChanged;
@@ -62,15 +81,52 @@ export function MakerspaceBrandingSettings({ makerspace, settings, loading }: Pr
           onChanged={refreshBranding}
         />
       </div>
-      <form
-        className="mt-4 grid min-w-0 max-w-xl gap-2"
-        onSubmit={(event) => {
-          event.preventDefault();
-          if (!displayNameSaveDisabled) {
-            updateDisplayName.mutate(trimmedDisplayName);
-          }
-        }}
-      >
+      <div className="mt-4 grid min-w-0 gap-4 lg:grid-cols-2">
+        <form
+          className="grid min-w-0 gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!registeredNameSaveDisabled) {
+              updateRegisteredName.mutate(trimmedRegisteredName);
+            }
+          }}
+        >
+          <label className="text-sm font-semibold text-ink" htmlFor="registered-name">
+            Registered name
+          </label>
+          <input
+            id="registered-name"
+            className="desk-input"
+            value={registeredNameInput}
+            disabled={loading}
+            onChange={(event) => setRegisteredNameInput(event.target.value)}
+          />
+          <p className="text-xs text-muted">
+            The official name of this makerspace. Used across the app and as the public wordmark
+            when no logo or public display name is set.
+          </p>
+          <div>
+            <button
+              className="desk-button-primary w-full max-w-full sm:w-auto"
+              type="submit"
+              disabled={registeredNameSaveDisabled}
+            >
+              {updateRegisteredName.isPending ? "Saving..." : "Save registered name"}
+            </button>
+          </div>
+          {updateRegisteredName.error ? (
+            <p className="text-sm text-danger">{updateRegisteredName.error.message}</p>
+          ) : null}
+        </form>
+        <form
+          className="grid min-w-0 gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (!displayNameSaveDisabled) {
+              updateDisplayName.mutate(trimmedDisplayName);
+            }
+          }}
+        >
         <label className="text-sm font-semibold text-ink" htmlFor="public-display-name">
           Public display name
         </label>
@@ -98,7 +154,8 @@ export function MakerspaceBrandingSettings({ makerspace, settings, loading }: Pr
         {updateDisplayName.error ? (
           <p className="text-sm text-danger">{updateDisplayName.error.message}</p>
         ) : null}
-      </form>
+        </form>
+      </div>
     </div>
   );
 }

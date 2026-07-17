@@ -6,6 +6,8 @@ import { staffRequest } from "../../../lib/api";
 export type Makerspace = {
   id: number;
   name: string;
+  default_loan_days?: number;
+  public_inventory_enabled?: boolean;
   public_code: string;
   slug: string;
   location?: string;

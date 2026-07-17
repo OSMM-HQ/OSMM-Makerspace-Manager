@@ -5,7 +5,7 @@ import { staffRequest } from "../../../lib/api";
 import { Pagination } from "../../../components/ui/Pagination";
 import { useDebouncedValue } from "../../../lib/useDebouncedValue";
 import { usePaginatedQuery } from "../../../lib/usePaginatedQuery";
-import { Panel, type Makerspace, useStaffGet } from "./shared";
+import { Panel, type Makerspace } from "./shared";
 import { RequestList } from "./QueuesList";
 import { actionInvalidationScope, invalidateRequestQueues } from "./QueuesInvalidation";
 import {
@@ -64,12 +64,11 @@ export function Queues({ makerspace, guestOnly, canViewAudit = false }: { makers
   const [assignIssueRow, setAssignIssueRow] = useState<HardwareRequest | null>(null);
   const [returnRow, setReturnRow] = useState<HardwareRequest | null>(null);
   const [modalError, setModalError] = useState("");
-  const [defaultLoanDays, setDefaultLoanDays] = useState("7");
+  const [defaultLoanDays, setDefaultLoanDays] = useState(String(makerspace.default_loan_days ?? 7));
   const [showHistory, setShowHistory] = useState(false);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search);
 
-  const policy = useStaffGet<{ id: number; default_loan_days: number }>(["return-policy", makerspace.id], `/admin/makerspace/${makerspace.id}/return-policy`, !guestOnly);
   const pending = usePaginatedQuery<HardwareRequest>({
     key: ["pending", makerspace.id],
     path: `/admin/makerspace/${makerspace.id}/pending-requests`,
@@ -101,14 +100,9 @@ export function Queues({ makerspace, guestOnly, canViewAudit = false }: { makers
     mutationFn: ({ path, body }: { path: string; body?: object }) => staffRequest(path, { method: "POST", body: JSON.stringify(body ?? {}) }),
     onSuccess: (_data, { path }) => invalidateRequestQueues(queryClient, makerspace.id, actionInvalidationScope(path)),
   });
-  const savePolicy = useMutation({
-    mutationFn: () => staffRequest(`/admin/makerspace/${makerspace.id}/return-policy`, { method: "PATCH", body: JSON.stringify({ default_loan_days: Number(defaultLoanDays) || 7 }) }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["return-policy", makerspace.id] }),
-  });
-
   useEffect(() => {
-    if (policy.data) setDefaultLoanDays(String(policy.data.default_loan_days));
-  }, [policy.data]);
+    setDefaultLoanDays(String(makerspace.default_loan_days ?? 7));
+  }, [makerspace.default_loan_days, makerspace.id]);
 
   const openModal = (setter: (row: HardwareRequest | null) => void, row: HardwareRequest) => {
     setModalError("");
@@ -164,7 +158,6 @@ export function Queues({ makerspace, guestOnly, canViewAudit = false }: { makers
 
   return (
     <div className="grid gap-4">
-      {!guestOnly ? <ReturnPolicyPanel policyDays={policy.data?.default_loan_days ?? 7} value={defaultLoanDays} pending={savePolicy.isPending} onChange={setDefaultLoanDays} onSave={() => savePolicy.mutate()} /> : null}
       <input
         className="desk-input"
         placeholder="Search requester name, email, phone, or purpose"
@@ -197,18 +190,6 @@ export function Queues({ makerspace, guestOnly, canViewAudit = false }: { makers
       <AssignIssueModal row={assignIssueRow} open={Boolean(assignIssueRow)} pending={action.isPending} error={modalError} onClose={closeModals} onSubmit={submitAssignIssue} makerspaceId={makerspace.id} />
       <ReturnRequestModal row={returnRow} open={Boolean(returnRow)} pending={action.isPending} error={modalError} onClose={closeModals} onSubmit={submitReturn} makerspaceId={makerspace.id} />
     </div>
-  );
-}
-
-function ReturnPolicyPanel({ policyDays, value, pending, onChange, onSave }: { policyDays: number; value: string; pending: boolean; onChange: (value: string) => void; onSave: () => void }) {
-  return (
-    <Panel title="Return policy">
-      <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-        <input aria-label="Default loan days" className="desk-input" type="number" min="1" value={value} onChange={(event) => onChange(event.target.value)} />
-        <button disabled={pending} onClick={onSave}>Save default days</button>
-      </div>
-      <p className="mt-2 text-sm text-muted">Default return time is used when a request is issued. Current default: {policyDays} days.</p>
-    </Panel>
   );
 }
 

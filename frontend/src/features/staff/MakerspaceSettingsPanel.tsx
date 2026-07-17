@@ -3,12 +3,15 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "../../components/ui";
 import { staffRequest } from "../../lib/api";
 import { MakerspaceBrandingSettings } from "./MakerspaceBrandingSettings";
+import { MakerspaceBookingRulesSettings } from "./MakerspaceBookingRulesSettings";
 import { MakerspaceBookingSettings } from "./MakerspaceBookingSettings";
 import { MakerspaceCustomDomainSettings } from "./MakerspaceCustomDomainSettings";
 import { MakerspaceEmailSettings } from "./MakerspaceEmailSettings";
 import { MakerspaceFilamentSettings } from "./MakerspaceFilamentSettings";
+import { MakerspaceGeneralSettings } from "./MakerspaceGeneralSettings";
 import { IntegrationHealthPanel } from "./IntegrationHealthPanel";
 import { MakerspaceLocationSettings } from "./MakerspaceLocationSettings";
+import { MakerspaceModuleSettings } from "./MakerspaceModuleSettings";
 import { MakerspaceSubdomainSettings } from "./MakerspaceSubdomainSettings";
 import { MakerspaceWebhookSettings } from "./MakerspaceWebhookSettings";
 import { NotificationMuteMatrix } from "./NotificationMuteMatrix";
@@ -33,6 +36,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
     settings.data?.public_stats_enabled ?? makerspace.public_stats_enabled ?? false;
   const publicPrintStatusLookupPolicy =
     settings.data?.public_print_status_lookup_policy ?? makerspace.public_print_status_lookup_policy ?? "email_unverified";
+  const enabledModules = settings.data?.enabled_modules ?? makerspace.enabled_modules ?? [];
   const reEnableBlocked = isSuperadmin && !superadminAccessEnabled;
 
   const updateAccess = useMutation({
@@ -95,6 +99,16 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
     <Panel title="Makerspace settings">
       <div className="grid min-w-0 gap-4">
         <MakerspaceBrandingSettings
+          makerspace={makerspace}
+          settings={settings.data}
+          loading={settings.isLoading}
+        />
+        <MakerspaceGeneralSettings
+          makerspace={makerspace}
+          settings={settings.data}
+          loading={settings.isLoading}
+        />
+        <MakerspaceModuleSettings
           makerspace={makerspace}
           settings={settings.data}
           loading={settings.isLoading}
@@ -225,6 +239,9 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
           </div>
         </div>
         <MakerspaceBookingSettings makerspace={makerspace} settings={settings.data} loading={settings.isLoading} />
+        {enabledModules.includes("bookings") ? (
+          <MakerspaceBookingRulesSettings makerspace={makerspace} />
+        ) : null}
         <MakerspaceFilamentSettings makerspace={makerspace} settings={settings.data} loading={settings.isLoading} />
         <MakerspaceEmailSettings makerspace={makerspace} />
         <MakerspaceWebhookSettings makerspace={makerspace} />
