@@ -254,6 +254,15 @@ def _delete_object_graph(makerspace):
         ApiKeyRequest.objects.filter(makerspace=makerspace).delete()
         MakerspaceMembership.objects.filter(makerspace=makerspace).delete()
         AuditLog.objects.filter(makerspace=makerspace).delete()
+        # Encryption key rows carry a PROTECT FK + a no-delete ORM guard/trigger, so
+        # raw-delete them inside this authorized purge context (session_replication_role
+        # =replica self-host, or app.allow_immutable_delete GUC managed) before the
+        # parent delete; otherwise the PROTECT FK would block teardown once a makerspace
+        # has ever had scoped-PII encryption enabled.
+        cursor.execute(
+            "DELETE FROM encryption_makerspaceencryptionkey WHERE makerspace_id = %s",
+            [makerspace.id],
+        )
         makerspace.delete()
 
 

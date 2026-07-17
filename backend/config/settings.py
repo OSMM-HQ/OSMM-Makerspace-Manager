@@ -89,6 +89,7 @@ INSTALLED_APPS = [
     "storages",
     "apps.accounts",
     "apps.makerspaces",
+    "apps.encryption",
     "apps.apiclients",
     "apps.boxes",
     "apps.inventory",
@@ -370,6 +371,18 @@ HMAC_PROTECTED_PATH_PREFIXES = env.list(
 # _fernet() raises ImproperlyConfigured only when a key is actually needed. Tests/CI get a
 # real key from .env / docker-compose (added below).
 API_CLIENT_ENC_KEY = env("API_CLIENT_ENC_KEY", default="")
+# Scoped requester/contact PII encryption is intentionally dormant by default.  These
+# values are read lazily by the encryption broker so a disabled installation needs no
+# key material or optional KMS dependency.
+PII_ENCRYPTION_ENABLED = env.bool("PII_ENCRYPTION_ENABLED", default=False)
+PII_ENCRYPTION_DUAL_READ = env.bool("PII_ENCRYPTION_DUAL_READ", default=True)
+PII_KEY_BROKER = env("PII_KEY_BROKER", default="local")
+PII_MASTER_KEY = env("PII_MASTER_KEY", default="")
+PII_MASTER_KEY_PREVIOUS = env("PII_MASTER_KEY_PREVIOUS", default="")
+PII_DEK_CACHE_TTL_SECONDS = env.int("PII_DEK_CACHE_TTL_SECONDS", default=300)
+PII_AWS_KMS_KEY_ID = env("PII_AWS_KMS_KEY_ID", default="")
+PII_AWS_KMS_REGION = env("PII_AWS_KMS_REGION", default="")
+PII_AWS_KMS_ENDPOINT_URL = env("PII_AWS_KMS_ENDPOINT_URL", default="")
 # When True, requests to HMAC_PROTECTED_PATH_PREFIXES must carry a valid signed client.
 API_CLIENT_AUTH_REQUIRED = env.bool("API_CLIENT_AUTH_REQUIRED", default=False)
 

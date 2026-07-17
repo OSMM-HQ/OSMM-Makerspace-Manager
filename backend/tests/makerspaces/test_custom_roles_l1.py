@@ -105,7 +105,13 @@ def test_seed_and_backfill_migration_round_trip():
             assert membership.assigned_role_id is None
             assert membership.role == legacy_role
     finally:
-        MigrationExecutor(connection).migrate(target)
+        # Restore the FULL migration graph forward, not just makerspaces/0039.
+        # Rewinding makerspaces to 0037 cascade-unapplies migrations in other apps
+        # that depend on makerspaces/0039 (e.g. encryption/0001), and migrating only
+        # makerspaces forward would leave those dropped tables missing for every
+        # later test in the process.
+        restore = MigrationExecutor(connection)
+        restore.migrate(restore.loader.graph.leaf_nodes())
 
 
 @pytest.mark.django_db(transaction=True)

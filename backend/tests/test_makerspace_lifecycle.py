@@ -599,6 +599,37 @@ def test_comprehensive_purge_under_managed_postgres(monkeypatch):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_purge_removes_scoped_pii_encryption_keys(monkeypatch):
+    """A makerspace that owns PII encryption keys still purges cleanly.
+
+    The key rows carry a PROTECT FK + a no-delete ORM guard/trigger; the purge
+    context authorizes their raw removal so the FK cannot block teardown.
+    """
+    from cryptography.fernet import Fernet
+    from django.test import override_settings
+
+    from apps.encryption.models import MakerspaceEncryptionKey
+    from apps.encryption.services import get_or_create_active_dek
+
+    actor = make_superadmin("lifecycle-enc-super")
+    doomed = make_space("lifecycle-enc-doomed")
+    monkeypatch.setattr(lifecycle, "_delete_storage_keys", lambda keys: None)
+
+    with override_settings(
+        PII_ENCRYPTION_ENABLED=True,
+        PII_KEY_BROKER="local",
+        PII_MASTER_KEY=Fernet.generate_key().decode(),
+    ):
+        get_or_create_active_dek(doomed.id)
+        assert MakerspaceEncryptionKey.objects.filter(makerspace=doomed).exists()
+        archived = archive_space(doomed, actor)
+        lifecycle.purge(archived, actor)
+
+    assert not MakerspaceEncryptionKey.objects.filter(makerspace_id=doomed.id).exists()
+    assert not Makerspace.objects.filter(pk=doomed.id).exists()
+
+
+@pytest.mark.django_db(transaction=True)
 def test_immutable_update_still_blocked_under_purge_guard():
     actor = make_superadmin("lifecycle-managed-update-super")
     audit_log = AuditLog.objects.create(actor=actor, action="managed.before_update")
