@@ -33,6 +33,7 @@ GLOBAL_ADMIN_MODELS = {
     "axes.accessfailurelog",
     "axes.accesslog",
     "integrations.platformemailsettings",
+    "encryption.piiglobalwritefence",
     "roadmap.roadmapitem",
     "token_blacklist.blacklistedtoken",
     "token_blacklist.outstandingtoken",

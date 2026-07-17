@@ -12,6 +12,16 @@ from apps.makerspaces import domain_verification, limits
 logger = logging.getLogger(__name__)
 
 
+def _create_email_log(**values):
+    """Hold the shared fence across the mapped EmailLog insert."""
+    from apps.encryption.write_fence import assert_mapped_write_allowed
+
+    with transaction.atomic():
+        makerspace = values.get("makerspace")
+        assert_mapped_write_allowed(None if makerspace is None else makerspace.id)
+        return EmailLog.objects.create(**values)
+
+
 def dispatch_email(
     *,
     to_email,
@@ -44,6 +54,12 @@ def dispatch_email(
             limit = limits.resource_limit(makerspace, "email")
             if limit is not None:
                 with transaction.atomic():
+                    from apps.encryption.write_fence import (
+                        PiiWriteFenced,
+                        assert_mapped_write_allowed,
+                    )
+
+                    assert_mapped_write_allowed(makerspace.id)
                     counter, _ = DailyEmailCounter.objects.get_or_create(
                         makerspace=makerspace,
                         day=timezone.now().date(),
@@ -67,6 +83,8 @@ def dispatch_email(
                         )
                     counter.count = counter.count + 1
                     counter.save(update_fields=["count"])
+        except PiiWriteFenced:
+            raise
         except Exception:
             logger.exception(
                 "daily_email_limit_check_failed",
@@ -77,7 +95,7 @@ def dispatch_email(
     # reset emails embed a live recovery token in the body - persisting it would leave a
     # usable token in the DB + Django admin until expiry). We still deliver the real body:
     # it's set on the in-memory instance below and _deliver never re-saves the body fields.
-    log = EmailLog.objects.create(
+    log = _create_email_log(
         makerspace=makerspace,
         to_email="" if platform_minimized else to_email,
         subject="Platform email" if platform_minimized else subject,
@@ -108,16 +126,27 @@ def _enqueue(log_id):
     try:
         deliver_email_task.delay(log_id)
     except Exception as exc:
-        EmailLog.objects.filter(pk=log_id).update(
-            status=EmailLog.Status.FAILED,
-            error=sanitize_email_error(exc),
-        )
+        from apps.encryption.write_fence import assert_mapped_write_allowed
+
+        with transaction.atomic():
+            candidate = EmailLog.objects.only("makerspace_id").filter(pk=log_id).first()
+            if candidate is not None:
+                assert_mapped_write_allowed(candidate.makerspace_id)
+                log = EmailLog.objects.select_for_update().get(pk=log_id)
+                log.status = EmailLog.Status.FAILED
+                log.error = sanitize_email_error(exc)
+                log.save(update_fields=["status", "error", "updated_at"])
         logger.exception("email_enqueue_failed", extra={"email_log_id": log_id})
 
 
 def _deliver(log):
     if log.status == EmailLog.Status.SENT:
         return log
+
+    from apps.encryption.write_fence import assert_mapped_write_allowed
+
+    with transaction.atomic():
+        assert_mapped_write_allowed(log.makerspace_id)
 
     try:
         from apps.integrations.email import (

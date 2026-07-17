@@ -46,6 +46,10 @@ def book(space, start=None, **overrides):
         starts_at=start, ends_at=start + timedelta(hours=1), note='',
     )
     values.update(overrides)
+    # Worker-thread connections don't share the setup transaction's provisioning,
+    # so seed the required persistent tenant write-fence row (idempotent).
+    from apps.encryption.models import PiiMakerspaceWriteFence
+    PiiMakerspaceWriteFence.objects.get_or_create(makerspace_id=space.makerspace_id)
     return services.create_booking(space, **values)
 
 

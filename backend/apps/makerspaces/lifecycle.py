@@ -263,6 +263,10 @@ def _delete_object_graph(makerspace):
             "DELETE FROM encryption_makerspaceencryptionkey WHERE makerspace_id = %s",
             [makerspace.id],
         )
+        cursor.execute(
+            "DELETE FROM encryption_piimakerspacewritefence WHERE makerspace_id = %s",
+            [makerspace.id],
+        )
         makerspace.delete()
 
 

@@ -54,7 +54,9 @@ def create_booking(
     note='', actor=None,
 ):
     from apps.bookings.services_rules import enforce_booking_rules
+    from apps.encryption.write_fence import assert_mapped_write_allowed
 
+    assert_mapped_write_allowed(space.makerspace_id)
     locked_space = _locked_space(space.pk)
     if not locked_space.is_active:
         raise BookingInvalidTransition('Inactive spaces cannot accept bookings.')

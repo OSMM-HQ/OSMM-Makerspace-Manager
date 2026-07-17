@@ -215,10 +215,16 @@ def test_capacity_zero_registers_and_positive_capacity_waitlists():
 def test_concurrent_mutations_serialize_without_oversubscription_or_deadlock():
     space, actor = make_space(), make_actor()
     event = make_event(space, capacity=1)
+    from apps.encryption.models import PiiMakerspaceWriteFence
+
     barrier = Barrier(2)
     def concurrent_register(index):
         close_old_connections(); barrier.wait()
         try:
+            # The test's worker connections do not share its uncommitted setup
+            # transaction, unlike production provisioning. Seed the required
+            # persistent row on each worker before exercising registration.
+            PiiMakerspaceWriteFence.objects.get_or_create(makerspace_id=event.makerspace_id)
             return register(Event.objects.get(pk=event.pk), f"c{index}@x.test").status
         finally:
             close_old_connections()

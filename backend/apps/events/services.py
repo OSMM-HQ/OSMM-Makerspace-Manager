@@ -1,21 +1,19 @@
 """Audited mutation boundary for Events and their registrations."""
 
 from django.core.exceptions import ValidationError as DjangoValidationError
-from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
 from apps.audit import services as audit
-from apps.events.capacity import CONFIRMED_STATUSES, fresh_registration_status
+from apps.events.capacity import CONFIRMED_STATUSES
 from apps.events.exceptions import (
     CapacityConflict,
-    DuplicateRegistration,
     EventInvalidTransition,
 )
 from apps.events.models import Event, EventRegistration
 from apps.events.notifications import notify_event_lifecycle
-from apps.forms_schema.validation import validate_answers, validate_form_schema
+from apps.forms_schema.validation import validate_form_schema
 from apps.makerspaces import limits
 from apps.makerspaces.models import Makerspace
 
@@ -205,82 +203,6 @@ def complete(event, *, actor):
 
 
 @transaction.atomic
-def register(event, *, name, email, phone, custom_answers=None, actor=None):
-    generation = None
-    event_hash = None
-    normalized_email = (email or "").strip().lower()
-    if settings.PII_ENCRYPTION_ENABLED:
-        # Do this before the duplicate query so a mismatched fleet cannot disclose
-        # registration existence or write a generation-bound record.
-        from apps.encryption.blind_index import active_generation, event_email_hash
-        generation = active_generation()
-        event_hash = event_email_hash(
-            normalized_email, generation=generation.generation,
-            makerspace_id=event.makerspace_id, event_id=event.pk,
-        )
-    locked = _locked_event(event.pk)
-    if (
-        not locked.is_public
-        or locked.status != Event.Status.PUBLISHED
-        or locked.ends_at < timezone.now()
-    ):
-        raise EventInvalidTransition("This event is not open for registration.")
-    custom_answers = validate_answers(locked.custom_form, custom_answers)
-    status = fresh_registration_status(locked)
-    if settings.PII_ENCRYPTION_ENABLED:
-        candidates = EventRegistration.objects.select_for_update().filter(
-            event=locked, email_hash_generation=generation, email_exact_hash=event_hash
-        )
-        existing = next((row for row in candidates if row.email.strip().lower() == normalized_email), None)
-        if settings.PII_ENCRYPTION_DUAL_READ:
-            from apps.encryption.search import legacy_plaintext_candidates
-            legacy = legacy_plaintext_candidates(
-                EventRegistration.objects.filter(event=locked), field_name="email",
-                term=normalized_email, exact=True,
-            )
-            if legacy:
-                existing = EventRegistration.objects.select_for_update().filter(pk__in=legacy).first() or existing
-    else:
-        existing = EventRegistration.objects.select_for_update().filter(
-            event=locked, email=normalized_email
-        ).first()
-    if existing and existing.status == EventRegistration.Status.CANCELLED:
-        existing.name = (name or '').strip()
-        existing.email = normalized_email
-        existing.phone = (phone or '').strip()
-        existing.custom_answers = custom_answers
-        existing.status = status
-        existing.created_at = timezone.now()
-        _validate(existing)
-        existing.save(update_fields=[
-            'name', 'email', 'phone', 'custom_answers', 'status', 'created_at',
-        ])
-        meta = {"registration_id": existing.pk, "status": status}
-        _audit(locked, actor, "event.registration_created", existing, meta)
-        notify_event_lifecycle(locked, "registration_created", existing.pk)
-        return _refresh(existing)
-    if existing:
-        raise DuplicateRegistration(
-            "A registration already exists for this email.",
-            fresh_status=status,
-        )
-    registration = EventRegistration(
-        event=locked,
-        name=(name or "").strip(),
-        email=normalized_email,
-        phone=(phone or "").strip(),
-        custom_answers=custom_answers,
-        status=status,
-    )
-    _validate(registration)
-    registration.save()
-    meta = {"registration_id": registration.pk, "status": status}
-    _audit(locked, actor, "event.registration_created", registration, meta)
-    notify_event_lifecycle(locked, "registration_created", registration.pk)
-    return _refresh(registration)
-
-
-@transaction.atomic
 def cancel_registration(registration, *, actor=None):
     event = _locked_event(registration.event_id)
     locked = EventRegistration.objects.select_for_update().get(pk=registration.pk)
@@ -324,3 +246,6 @@ def mark_attended(registration, *, actor):
     )
     notify_event_lifecycle(event, "registration_attended", locked.pk)
     return _refresh(locked)
+
+
+from apps.events.services_registration import register  # noqa: E402

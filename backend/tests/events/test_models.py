@@ -4,7 +4,7 @@ from uuid import uuid4
 
 import pytest
 from django.apps import apps as django_apps
-from django.db import IntegrityError, transaction
+from django.db import IntegrityError, connection, transaction
 from django.utils import timezone
 
 from apps.accounts.models import User
@@ -114,7 +114,15 @@ def test_makerspace_delete_cascades_and_creator_delete_sets_null():
     event.refresh_from_db()
     assert event.created_by is None
 
-    makerspace.delete()
+    # H4's tenant fence intentionally has a PROTECT FK.  Normal deletion is
+    # rejected; the makerspace purge path removes the fence under its scoped
+    # immutable-delete GUC before deleting the tenant graph.
+    from apps.encryption.models import PiiMakerspaceWriteFence
+
+    with transaction.atomic(), connection.cursor() as cursor:
+        cursor.execute("SET LOCAL app.allow_immutable_delete = 'on'")
+        PiiMakerspaceWriteFence.objects.filter(makerspace=makerspace).delete()
+        makerspace.delete()
     assert not Event.objects.filter(pk=event.pk).exists()
     assert not EventRegistration.objects.filter(pk=registration.pk).exists()
 

@@ -47,6 +47,12 @@ def _retry_countdown(retries):
 
 def _claim_log(log_id):
     with transaction.atomic():
+        candidate = EmailLog.objects.only("makerspace_id").filter(pk=log_id).first()
+        if candidate is None:
+            return None
+        from apps.encryption.write_fence import assert_mapped_write_allowed
+
+        assert_mapped_write_allowed(candidate.makerspace_id)
         log = EmailLog.objects.select_for_update().filter(pk=log_id).first()
         if log is None or log.status == EmailLog.Status.SENT:
             return None

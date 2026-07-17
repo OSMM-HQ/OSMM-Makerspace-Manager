@@ -28,6 +28,7 @@ from apps.maintenance.exceptions import (
 )
 from apps.makerspaces.role_services import RoleConflict
 from apps.encryption.crypto import PiiUnavailable
+from apps.encryption.write_fence import PiiWriteFenced
 
 
 @extend_schema_serializer(component_name="HardwareRequestError")
@@ -37,6 +38,11 @@ class ErrorSerializer(serializers.Serializer):
 
 
 _EXCEPTION_MAP = {
+    PiiWriteFenced: (
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "pii_write_fenced",
+        "Protected writes are temporarily unavailable.",
+    ),
     PiiUnavailable: (
         status.HTTP_503_SERVICE_UNAVAILABLE,
         "pii_unavailable",

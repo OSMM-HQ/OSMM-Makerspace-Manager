@@ -47,6 +47,15 @@ class MakerspacesConfig(AppConfig):
             # defaults, and a seeding failure rolls the creation back.
             ensure_default_roles(instance)
 
+        def ensure_pii_write_fence_on_create(sender, instance, created, **kwargs):
+            if not created:
+                return
+            from apps.encryption.models import PiiMakerspaceWriteFence
+
+            # Keep the persistent fail-closed row in the same transaction as the
+            # tenant insert, just like default-role provisioning.
+            PiiMakerspaceWriteFence.objects.get_or_create(makerspace=instance)
+
         post_save.connect(
             reconcile_selfhost_domain,
             sender=Makerspace,
@@ -63,6 +72,12 @@ class MakerspacesConfig(AppConfig):
             ensure_default_roles_on_create,
             sender=Makerspace,
             dispatch_uid="makerspaces.ensure_default_roles_on_create",
+            weak=False,
+        )
+        post_save.connect(
+            ensure_pii_write_fence_on_create,
+            sender=Makerspace,
+            dispatch_uid="makerspaces.ensure_pii_write_fence_on_create",
             weak=False,
         )
         post_delete.connect(

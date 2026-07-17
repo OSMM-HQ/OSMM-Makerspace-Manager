@@ -39,6 +39,27 @@ class ScopedPiiModelMixin(models.Model):
     class Meta:
         abstract = True
 
+    def __setattr__(self, name, value):
+        """A caller assignment invalidates a prior decrypted read cache.
+
+        Concrete models such as Booking normalize attributes before delegating to
+        this mixin's ``save``; without this invalidation that normalization can
+        read a stale plaintext cache and accidentally restore the old value.
+        """
+        if not name.startswith("_"):
+            try:
+                mapped = field_for(self, name)
+            except (AttributeError, TypeError):
+                mapped = None
+            if mapped is not None:
+                for cache_name in (
+                    "_pii_plain_values", "_pii_raw_values", "_pii_original_plain_values",
+                ):
+                    cache = self.__dict__.get(cache_name)
+                    if cache is not None:
+                        cache.pop(name, None)
+        super().__setattr__(name, value)
+
     def __getattribute__(self, name):
         value = super().__getattribute__(name)
         if name.startswith("_") or self.__dict__.get("_pii_writing") or not settings.PII_ENCRYPTION_ENABLED:
@@ -87,15 +108,40 @@ class ScopedPiiModelMixin(models.Model):
             and not (item.model_label == "integrations.EmailLog" and self.makerspace_id is None)
         ]
 
+    def _requires_mapped_write_fence(self, update_fields, *, is_new):
+        mapped = fields_for(self)
+        return bool(mapped) and (
+            is_new
+            or update_fields is None
+            or any(item.field_name in update_fields for item in mapped)
+        )
+
+    def _mapped_write_fence_makerspace_id(self):
+        return makerspace_id_for(self, fields_for(self)[0])
+
     def save(self, *args, **kwargs):
-        if not settings.PII_ENCRYPTION_ENABLED or not fields_for(self):
-            return super().save(*args, **kwargs)
         update_fields = kwargs.get("update_fields")
         update_fields = None if update_fields is None else set(update_fields)
         is_new = self._state.adding
-        # Encryption and its candidate material are one commit.  In particular an
-        # index error must never leave a fresh envelope with stale/missing bits.
+        fence_required = self._requires_mapped_write_fence(
+            update_fields, is_new=is_new
+        )
+        if not settings.PII_ENCRYPTION_ENABLED or not fields_for(self):
+            if not fence_required:
+                return super().save(*args, **kwargs)
+            with transaction.atomic():
+                from apps.encryption.write_fence import assert_mapped_write_allowed
+
+                assert_mapped_write_allowed(self._mapped_write_fence_makerspace_id())
+                return super().save(*args, **kwargs)
+
+        # Encryption and the fence share this transaction so a close waits for the
+        # complete mapped INSERT/UPDATE, not merely the preflight query.
         with transaction.atomic():
+            if fence_required:
+                from apps.encryption.write_fence import assert_mapped_write_allowed
+
+                assert_mapped_write_allowed(self._mapped_write_fence_makerspace_id())
             if is_new and self.pk is None:
                 self._reserve_pk()
             from apps.encryption.blind_index import active_generation, sync_event_hash, upsert_index

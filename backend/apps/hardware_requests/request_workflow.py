@@ -31,6 +31,9 @@ def submit_request(
     result = checkin.verify(makerspace, contact_email)
 
     with transaction.atomic():
+        from apps.encryption.write_fence import assert_mapped_write_allowed
+
+        assert_mapped_write_allowed(makerspace.id)
         requester = get_or_create_requester(result.external_id)
         if requester.access_status != User.AccessStatus.ACTIVE:
             raise RequesterBlocked("Requester is not active.")

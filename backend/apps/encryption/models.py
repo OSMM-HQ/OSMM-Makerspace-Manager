@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import connection, models
 from django.db.models import Q
 from django.core.exceptions import ValidationError
 
@@ -122,3 +122,65 @@ class PiiBlindIndex(models.Model):
     def save(self, *args, **kwargs):
         self.clean()
         return super().save(*args, **kwargs)
+
+
+class _FenceQuerySet(models.QuerySet):
+    def delete(self):
+        if not self.model._purge_delete_allowed():
+            raise RuntimeError("PII write-fence rows cannot be deleted.")
+        return super().delete()
+
+
+class _FenceModel(models.Model):
+    class State(models.TextChoices):
+        OPEN = "open", "Open"
+        CLOSED = "closed", "Closed"
+
+    class OperationKind(models.TextChoices):
+        ENABLE_TRANSITION = "enable_transition", "Enable transition"
+        DECRYPT_ROLLBACK = "decrypt_rollback", "Decrypt rollback"
+        SEARCH_ROTATION = "search_rotation", "Search rotation"
+
+    state = models.CharField(max_length=8, choices=State.choices, default=State.OPEN)
+    operation_id = models.UUIDField(null=True, blank=True)
+    operation_kind = models.CharField(
+        max_length=20, choices=OperationKind.choices, null=True, blank=True
+    )
+    actor_id = models.BigIntegerField(null=True, blank=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    opened_at = models.DateTimeField(null=True, blank=True)
+
+    objects = _FenceQuerySet.as_manager()
+
+    class Meta:
+        abstract = True
+
+    @classmethod
+    def _purge_delete_allowed(cls):
+        return False
+
+    def delete(self, *args, **kwargs):
+        if not self._purge_delete_allowed():
+            raise RuntimeError("PII write-fence rows cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+
+class PiiGlobalWriteFence(_FenceModel):
+    """The fixed-ID global fence; id=1 makes a second singleton impossible."""
+
+    class Meta:
+        constraints = [models.CheckConstraint(condition=Q(pk=1), name="ck_pii_global_fence_singleton")]
+
+
+class PiiMakerspaceWriteFence(_FenceModel):
+    makerspace = models.OneToOneField(
+        "makerspaces.Makerspace",
+        on_delete=models.PROTECT,
+        related_name="pii_write_fence",
+    )
+
+    @classmethod
+    def _purge_delete_allowed(cls):
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT current_setting('app.allow_immutable_delete', true)")
+            return cursor.fetchone()[0] == "on"
