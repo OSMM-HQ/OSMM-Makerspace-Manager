@@ -2982,6 +2982,560 @@
                 }
             }
         },
+        "/api/v1/admin/machine-service/requests/{id}": {
+            "get": {
+                "operationId": "api_v1_admin_machine_service_requests_retrieve",
+                "summary": "Retrieve a machine service request",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineServiceRequest"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid service request input."
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "description": "Machine management permission required."
+                    },
+                    "404": {
+                        "description": "Service request was not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Service workflow conflict."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machine-service/requests/{id}/accept": {
+            "post": {
+                "operationId": "api_v1_admin_machine_service_requests_accept_create",
+                "summary": "Accept a machine service request",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceAccept"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceAccept"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceAccept"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineServiceRequest"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid service request input."
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "description": "Machine management permission required."
+                    },
+                    "404": {
+                        "description": "Service request was not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Service workflow conflict."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machine-service/requests/{id}/collect": {
+            "post": {
+                "operationId": "api_v1_admin_machine_service_requests_collect_create",
+                "summary": "Mark a machine service request collected",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineServiceRequest"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid service request input."
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "description": "Machine management permission required."
+                    },
+                    "404": {
+                        "description": "Service request was not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Service workflow conflict."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machine-service/requests/{id}/complete": {
+            "post": {
+                "operationId": "api_v1_admin_machine_service_requests_complete_create",
+                "summary": "Complete machine service work",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceComplete"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceComplete"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceComplete"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineServiceRequest"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid service request input."
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "description": "Machine management permission required."
+                    },
+                    "404": {
+                        "description": "Service request was not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Service workflow conflict."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machine-service/requests/{id}/fail": {
+            "post": {
+                "operationId": "api_v1_admin_machine_service_requests_fail_create",
+                "summary": "Mark machine service work failed",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceFail"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceFail"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceFail"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineServiceRequest"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid service request input."
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "description": "Machine management permission required."
+                    },
+                    "404": {
+                        "description": "Service request was not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Service workflow conflict."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machine-service/requests/{id}/reject": {
+            "post": {
+                "operationId": "api_v1_admin_machine_service_requests_reject_create",
+                "summary": "Reject a machine service request",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceReject"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceReject"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceReject"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineServiceRequest"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid service request input."
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "description": "Machine management permission required."
+                    },
+                    "404": {
+                        "description": "Service request was not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Service workflow conflict."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machine-service/requests/{id}/start": {
+            "post": {
+                "operationId": "api_v1_admin_machine_service_requests_start_create",
+                "summary": "Start machine service work",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceStart"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceStart"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ServiceStart"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineServiceRequest"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid service request input."
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "description": "Machine management permission required."
+                    },
+                    "404": {
+                        "description": "Service request was not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Service workflow conflict."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/machines/{id}": {
             "get": {
                 "operationId": "api_v1_admin_machines_retrieve",
@@ -10682,6 +11236,178 @@
                             }
                         },
                         "description": "Invalid event details."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspaces/{makerspace_id}/machine-service/requests": {
+            "get": {
+                "operationId": "api_v1_admin_makerspaces_machine_service_requests_list",
+                "summary": "List machine service requests",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "bucket",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "machine",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/MachineServiceRequest"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid service request input."
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "description": "Machine management permission required."
+                    },
+                    "404": {
+                        "description": "Service request was not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Service workflow conflict."
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_admin_makerspaces_machine_service_requests_create",
+                "summary": "Submit a machine service request for a member",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MachineServiceSubmit"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MachineServiceSubmit"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MachineServiceSubmit"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineServiceRequest"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid service request input."
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "description": "Machine management permission required."
+                    },
+                    "404": {
+                        "description": "Service request was not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Service workflow conflict."
                     }
                 }
             }
@@ -27131,6 +27857,226 @@
                     "username"
                 ]
             },
+            "MachineServiceRequest": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "bucket_id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "machine": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ServiceMachine"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "assigned_machine": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ServiceMachine"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "requester": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ServiceRequester"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "requester_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "contact_email": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "contact_phone": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "description": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "source_link": {
+                        "type": "string",
+                        "format": "uri",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MachineServiceRequestStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "reason": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "estimated_minutes": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "actual_minutes": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "fail_percent_complete": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "accepted_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "started_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "completed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "failed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "collected_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "files": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ServiceFile"
+                        },
+                        "readOnly": true
+                    },
+                    "consumptions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ServiceConsumption"
+                        },
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "accepted_at",
+                    "actual_minutes",
+                    "assigned_machine",
+                    "bucket_id",
+                    "collected_at",
+                    "completed_at",
+                    "consumptions",
+                    "contact_email",
+                    "contact_phone",
+                    "created_at",
+                    "description",
+                    "estimated_minutes",
+                    "fail_percent_complete",
+                    "failed_at",
+                    "files",
+                    "id",
+                    "machine",
+                    "reason",
+                    "requester",
+                    "requester_name",
+                    "source_link",
+                    "started_at",
+                    "status",
+                    "title",
+                    "updated_at"
+                ]
+            },
+            "MachineServiceRequestStatusEnum": {
+                "enum": [
+                    "pending",
+                    "accepted",
+                    "in_progress",
+                    "completed",
+                    "collected",
+                    "rejected",
+                    "failed"
+                ],
+                "type": "string",
+                "description": "* `pending` - Pending\n* `accepted` - Accepted\n* `in_progress` - In progress\n* `completed` - Completed\n* `collected` - Collected\n* `rejected` - Rejected\n* `failed` - Failed"
+            },
+            "MachineServiceSubmit": {
+                "type": "object",
+                "properties": {
+                    "requester_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "machine_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "title": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "description": {
+                        "type": "string"
+                    },
+                    "source_link": {
+                        "type": "string",
+                        "format": "uri"
+                    },
+                    "requester_name": {
+                        "type": "string"
+                    },
+                    "contact_email": {
+                        "type": "string",
+                        "format": "email"
+                    },
+                    "contact_phone": {
+                        "type": "string",
+                        "maxLength": 32
+                    }
+                },
+                "required": [
+                    "machine_id",
+                    "requester_id",
+                    "title"
+                ]
+            },
             "MachineStatusEnum": {
                 "enum": [
                     "idle",
@@ -35067,6 +36013,250 @@
                 ],
                 "type": "string",
                 "description": "* `space_manager` - Space Manager\n* `guest_admin` - Guest Admin\n* `inventory_manager` - Inventory Manager\n* `print_manager` - Print Manager\n* `machine_manager` - Machine Manager\n* `custom` - Custom"
+            },
+            "ServiceAccept": {
+                "type": "object",
+                "properties": {
+                    "estimated_minutes": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "note": {
+                        "type": "string"
+                    }
+                }
+            },
+            "ServiceComplete": {
+                "type": "object",
+                "properties": {
+                    "actual_minutes": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "consumptions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ServiceConsumptionInput"
+                        }
+                    }
+                },
+                "required": [
+                    "actual_minutes",
+                    "consumptions"
+                ]
+            },
+            "ServiceConsumption": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "machine_consumable_id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "measurement": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "product_id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "label": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "quantity": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "outcome": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "id",
+                    "label",
+                    "machine_consumable_id",
+                    "measurement",
+                    "outcome",
+                    "product_id",
+                    "quantity"
+                ]
+            },
+            "ServiceConsumptionInput": {
+                "type": "object",
+                "properties": {
+                    "machine_consumable_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "quantity": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    }
+                },
+                "required": [
+                    "machine_consumable_id",
+                    "quantity"
+                ]
+            },
+            "ServiceFail": {
+                "type": "object",
+                "properties": {
+                    "actual_minutes": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "consumptions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ServiceConsumptionInput"
+                        }
+                    },
+                    "reason": {
+                        "type": "string"
+                    },
+                    "percent_complete": {
+                        "type": "integer",
+                        "maximum": 100,
+                        "minimum": 0
+                    }
+                },
+                "required": [
+                    "actual_minutes",
+                    "consumptions",
+                    "percent_complete",
+                    "reason"
+                ]
+            },
+            "ServiceFile": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "kind": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "original_filename": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "content_type": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "size_bytes": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "attached_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "attached_at",
+                    "content_type",
+                    "created_at",
+                    "id",
+                    "kind",
+                    "original_filename",
+                    "size_bytes"
+                ]
+            },
+            "ServiceMachine": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "status"
+                ]
+            },
+            "ServiceReject": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "reason"
+                ]
+            },
+            "ServiceRequester": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "username": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "display": {
+                        "type": "string",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "display",
+                    "id",
+                    "username"
+                ]
+            },
+            "ServiceStart": {
+                "type": "object",
+                "properties": {
+                    "machine_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "estimated_minutes": {
+                        "type": "integer",
+                        "minimum": 0
+                    }
+                },
+                "required": [
+                    "machine_id"
+                ]
             },
             "SetStatus": {
                 "type": "object",

@@ -23,6 +23,7 @@ _MAKERSPACE_KWARG_ROUTES = {
     "admin-api-settings": "makerspace_id",
     "admin-notification-recipients": "makerspace_id",
     "admin-notification-rules": "makerspace_id",
+    "admin-machine-service-request-list-create": "makerspace_id",
 }
 
 
@@ -192,6 +193,15 @@ _PRINT_ACTIONS = {
     "managed-request-fail",
     "managed-request-reprint",
 }
+_MACHINE_SERVICE_ACTIONS = {
+    "admin-machine-service-request-detail",
+    "admin-machine-service-request-accept",
+    "admin-machine-service-request-reject",
+    "admin-machine-service-request-start",
+    "admin-machine-service-request-complete",
+    "admin-machine-service-request-fail",
+    "admin-machine-service-request-collect",
+}
 _MODEL_LOOKUPS = {
     "admin-membership-revoke": (
         "makerspaces.MakerspaceMembership",
@@ -326,6 +336,7 @@ _MODEL_LOOKUPS = {
     "admin-machine-document-detail": ("machines.MachineDocument", "machine__makerspace_id"),
     **{name: ("hardware_requests.HardwareRequest", "makerspace_id") for name in _REQUEST_ACTIONS},
     **{name: ("printing.PrintRequest", "makerspace_id") for name in _PRINT_ACTIONS},
+    **{name: ("machines.MachineServiceRequest", "bucket__machine__makerspace_id") for name in _MACHINE_SERVICE_ACTIONS},
 }
 
 

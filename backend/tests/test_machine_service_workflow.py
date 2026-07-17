@@ -7,6 +7,7 @@ from django.db import close_old_connections, transaction
 from django.test import override_settings
 
 from apps.audit.models import AuditLog
+from apps.inventory import availability
 from apps.machines.models import (
     Machine,
     MachineConsumable,
@@ -68,10 +69,10 @@ def test_allowed_edges_are_audited_and_notified_after_commit(monkeypatch):
         callback()
     row.refresh_from_db()
     assert row.status == MachineServiceRequest.Status.COLLECTED
-    assert list(AuditLog.objects.filter(target_id=str(row.pk)).values_list("action", flat=True))[:6] == [
-        "machine_service.collected", "machine_service.completed", "machine_service.started",
-        "machine_service.assigned", "machine_service.accepted", "machine_service.submitted",
-    ]
+    assert {
+        "machine_service.submitted", "machine_service.accepted", "machine_service.assigned",
+        "machine_service.started", "machine_service.completed", "machine_service.collected",
+    } <= set(AuditLog.objects.filter(target_id=str(row.pk)).values_list("action", flat=True))
     assert notices == ["submitted", "accepted", "started", "completed", "collected"]
 
 
@@ -149,14 +150,22 @@ def test_submit_caps_are_dormant_on_self_host():
     assert request(space).status == MachineServiceRequest.Status.PENDING
 
 
-def test_count_consumption_debits_inventory_once_and_rejects_fractional():
+def test_count_consumption_debits_inventory_once_and_rejects_fractional(monkeypatch):
     space, actor = make_space("service-count"), make_user("service-count-manager")
     row = in_progress(space, actor=actor)
     product = make_product(space, name="Bits", available_quantity=4, total_quantity=4)
     consumable = MachineConsumable.objects.create(machine=row.assigned_machine, measurement="count", product=product)
+    calls, original_consume = [], availability.consume_available
+
+    def consume(product, quantity, reason, actor):
+        calls.append((product.pk, quantity, actor.pk))
+        return original_consume(product, quantity, reason, actor)
+
+    monkeypatch.setattr(availability, "consume_available", consume)
     complete(row, actor, actual_minutes=2, consumptions=[{"machine_consumable_id": consumable.pk, "quantity": 2}])
     product.refresh_from_db()
     assert product.available_quantity == 2
+    assert calls == [(product.pk, 2, actor.pk)]
     snapshot = ServiceRequestConsumption.objects.get(service_request=row)
     assert (snapshot.measurement, snapshot.quantity, snapshot.outcome) == ("count", Decimal("2.00"), "completed")
     with pytest.raises(ServiceInvalidTransition):

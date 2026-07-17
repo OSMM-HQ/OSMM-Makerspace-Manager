@@ -90,9 +90,9 @@ def accept(service_request, actor, *, estimated_minutes=None, note=""):
 
 
 def reject(service_request, actor, *, reason):
-    if not str(reason or "").strip():
-        raise ServiceConsumptionInvalid("A rejection reason is required.")
     with transaction.atomic():
+        if not str(reason or "").strip():
+            raise ServiceConsumptionInvalid("A rejection reason is required.")
         locked = _locked_request(service_request)
         _require_module(locked.bucket.machine.makerspace)
         _require_edge(locked, MachineServiceRequest.Status.REJECTED)
@@ -106,9 +106,9 @@ def reject(service_request, actor, *, reason):
 
 
 def start(service_request, actor, *, machine_id, estimated_minutes=None):
-    if machine_id is None:
-        raise ServiceMachineUnavailable("A machine is required to start service.")
     with transaction.atomic():
+        if machine_id is None:
+            raise ServiceMachineUnavailable("A machine is required to start service.")
         locked = _locked_request(service_request)
         _require_module(locked.bucket.machine.makerspace)
         _require_edge(locked, MachineServiceRequest.Status.IN_PROGRESS)
@@ -149,9 +149,9 @@ def complete(service_request, actor, *, actual_minutes, consumptions):
 
 
 def fail(service_request, actor, *, reason, percent_complete, actual_minutes, consumptions):
-    if not str(reason or "").strip():
-        raise ServiceConsumptionInvalid("A failure reason is required.")
     with transaction.atomic():
+        if not str(reason or "").strip():
+            raise ServiceConsumptionInvalid("A failure reason is required.")
         locked = _locked_request(service_request)
         _require_module(locked.bucket.machine.makerspace)
         _require_edge(locked, MachineServiceRequest.Status.FAILED)

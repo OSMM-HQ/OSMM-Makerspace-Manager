@@ -60,6 +60,16 @@ from apps.admin_api.views_machine_types import (
     MachineTypeListCreateView,
 )
 from apps.admin_api.views_machines import MachineDetailView, MachineListCreateView
+from apps.admin_api.views_machine_service import (
+    MachineServiceAcceptView,
+    MachineServiceCollectView,
+    MachineServiceCompleteView,
+    MachineServiceFailView,
+    MachineServiceRejectView,
+    MachineServiceRequestDetailView,
+    MachineServiceRequestListCreateView,
+    MachineServiceStartView,
+)
 from apps.admin_api.views_machines_actions import (
     MachineErrorLogView,
     MachineRetireView,
@@ -102,6 +112,46 @@ from apps.admin_api.views_roles import CapabilityCatalogView, RoleDetailView, Ro
 from apps.printing.views_printer_image import PrinterImageView
 
 urlpatterns = [
+    path(
+        "makerspaces/<int:makerspace_id>/machine-service/requests",
+        MachineServiceRequestListCreateView.as_view(),
+        name="admin-machine-service-request-list-create",
+    ),
+    path(
+        "machine-service/requests/<int:pk>",
+        MachineServiceRequestDetailView.as_view(),
+        name="admin-machine-service-request-detail",
+    ),
+    path(
+        "machine-service/requests/<int:pk>/accept",
+        MachineServiceAcceptView.as_view(),
+        name="admin-machine-service-request-accept",
+    ),
+    path(
+        "machine-service/requests/<int:pk>/reject",
+        MachineServiceRejectView.as_view(),
+        name="admin-machine-service-request-reject",
+    ),
+    path(
+        "machine-service/requests/<int:pk>/start",
+        MachineServiceStartView.as_view(),
+        name="admin-machine-service-request-start",
+    ),
+    path(
+        "machine-service/requests/<int:pk>/complete",
+        MachineServiceCompleteView.as_view(),
+        name="admin-machine-service-request-complete",
+    ),
+    path(
+        "machine-service/requests/<int:pk>/fail",
+        MachineServiceFailView.as_view(),
+        name="admin-machine-service-request-fail",
+    ),
+    path(
+        "machine-service/requests/<int:pk>/collect",
+        MachineServiceCollectView.as_view(),
+        name="admin-machine-service-request-collect",
+    ),
     path(
         "makerspaces/<int:makerspace_id>/memberships",
         MembershipListCreateView.as_view(),

@@ -43,9 +43,12 @@ def debit_consumptions(service_request, actor, consumptions, *, outcome):
         raise ServiceConsumptionInvalid("Consumption has already been recorded for this request.")
 
     created = []
-    for consumable_id, quantity in parsed:
-        row = by_id[consumable_id]
+    quantities = dict(parsed)
+    for row in rows:
+        quantity = quantities[row.pk]
         if row.measurement == MachineConsumable.Measurement.COUNT:
+            if row.product_id is None:
+                raise ServiceConsumptionInvalid("Count consumable has no inventory product.")
             _debit_count(service_request, actor, row, quantity)
             snapshot = ServiceRequestConsumption.objects.create(
                 service_request=service_request,
@@ -105,7 +108,10 @@ def _parse(value):
         raise ServiceConsumptionInvalid("Consumption quantity must be numeric.") from exc
     if not quantity.is_finite() or quantity <= 0:
         raise ServiceConsumptionInvalid("Consumption quantity must be positive.")
-    return consumable_id, quantity.quantize(Decimal("0.01"))
+    quantity = quantity.quantize(Decimal("0.01"))
+    if quantity <= 0:
+        raise ServiceConsumptionInvalid("Consumption quantity must be at least 0.01.")
+    return consumable_id, quantity
 
 
 def _debit_count(service_request, actor, row, quantity):
