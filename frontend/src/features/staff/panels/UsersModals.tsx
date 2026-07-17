@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 
 import { Modal } from "../../../components/ui";
-import type { Makerspace } from "./shared";
 
 export type StaffForm = {
   username: string;
@@ -9,7 +8,7 @@ export type StaffForm = {
   first_name: string;
   last_name: string;
   password: string;
-  role: "space_manager" | "inventory_manager" | "guest_admin" | "print_manager" | "machine_manager";
+  role_id: number | "";
   makerspace_id: string;
 };
 export type RestrictForm = { status: "restricted" | "suspended"; reason: string };
@@ -23,44 +22,31 @@ export type MakerspaceForm = {
 export type ResetPasswordForm = { password: string };
 export type ResetPasswordResult = { username: string; temporary_password: string };
 
-const roleOptions = [
-  ["space_manager", "Space Manager"],
-  ["inventory_manager", "Inventory Manager"],
-  ["guest_admin", "Guest Admin"],
-  ["print_manager", "Print Manager"],
-  ["machine_manager", "Machine Manager"],
-] as const;
-
 export function AddStaffModal({
   open,
   form,
-  makerspaces,
+  makerspaceName,
   pending,
   error,
-  isSuperadmin = false,
+  roles,
   onChange,
   onClose,
   onSubmit,
 }: {
   open: boolean;
   form: StaffForm;
-  makerspaces: Makerspace[];
+  makerspaceName: string;
   pending: boolean;
   error: unknown;
-  isSuperadmin?: boolean;
+  roles: { id: number; name: string }[];
   onChange: (form: StaffForm) => void;
   onClose: () => void;
   onSubmit: () => void;
 }) {
   const errors = validationErrors(error);
-  // A Space Manager may assign only the delegable roles; only a superadmin can create
-  // another Space Manager (non-escalation guard, enforced server-side too).
-  const availableRoles = isSuperadmin
-    ? roleOptions
-    : roleOptions.filter(([value]) => value !== "space_manager");
   // Password is required: the API does not return an auto-generated one, so a
   // blank password would create an account nobody can sign into.
-  const disabled = pending || !form.username.trim() || !form.makerspace_id || !form.password;
+  const disabled = pending || !form.username.trim() || !form.password || !form.role_id;
   return (
     <Modal open={open} onClose={onClose} title="Add staff" footer={<ModalActions pending={pending} disabled={disabled} onClose={onClose} onSubmit={onSubmit} />}>
       <form className="grid gap-3 text-sm" onSubmit={(event) => { event.preventDefault(); if (!disabled) onSubmit(); }}>
@@ -78,20 +64,18 @@ export function AddStaffModal({
             <input className="desk-input w-full" value={form.last_name} onChange={(event) => onChange({ ...form, last_name: event.target.value })} />
           </Field>
         </div>
-        <Field label="Password" hint="Required — share it with the new staff member." error={errors.password}>
+        <Field label="Password" hint="Required - share it with the new staff member." error={errors.password}>
           <input className="desk-input w-full" type="password" value={form.password} onChange={(event) => onChange({ ...form, password: event.target.value })} />
         </Field>
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Role" error={errors.role}>
-            <select className="desk-input w-full" value={form.role} onChange={(event) => onChange({ ...form, role: event.target.value as StaffForm["role"] })}>
-              {availableRoles.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+          <Field label="Role" error={errors.role_id}>
+            <select className="desk-input w-full" value={form.role_id} onChange={(event) => onChange({ ...form, role_id: Number(event.target.value) || "" })}>
+              <option value="">Select role</option>
+              {roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}
             </select>
           </Field>
-          <Field label="Makerspace" error={errors.makerspace_id}>
-            <select className="desk-input w-full" value={form.makerspace_id} onChange={(event) => onChange({ ...form, makerspace_id: event.target.value })}>
-              <option value="">Select makerspace</option>
-              {makerspaces.map((space) => <option key={space.id} value={space.id}>{space.name}</option>)}
-            </select>
+          <Field label="Makerspace">
+            <div className="desk-input flex w-full items-center bg-surface text-muted">{makerspaceName}</div>
           </Field>
         </div>
         <GeneralError error={error} errors={errors} />

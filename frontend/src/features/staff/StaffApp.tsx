@@ -86,6 +86,12 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     setSelected(superadmin ? saved : staffSaved ?? nextUser.makerspaces[0]?.id ?? null);
   }, [setSelected, tenant.makerspaceId, tenant.mode]);
 
+  // Refetch /auth/me and re-hydrate after a role edit/assignment may have changed the
+  // current actor's own effective actions, so tabs/capabilities recompute immediately.
+  const refreshAuthUser = useCallback(() => {
+    fetchMe().then(hydrateUser).catch(() => {});
+  }, [hydrateUser]);
+
   const expireSession = useCallback(() => {
     setUser(null);
     setSelected(null);
@@ -297,6 +303,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
       guestOnly={guestOnly}
       isSuperadmin={isSuperadmin}
       makerspaces={makerspaceList}
+      onAuthRefresh={refreshAuthUser}
       selected={selected}
       setSelected={chooseMakerspace}
       setTab={setTab}

@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 
 import { Skeleton } from "../../components/ui";
+import type { StaffAuthUser } from "../../lib/api";
 import { Panel, type Makerspace } from "./panels/shared";
 
 const DashboardPanel = lazy(() => import("./panels/DashboardPanel").then((m) => ({ default: m.DashboardPanel })));
@@ -39,6 +40,8 @@ export function StaffTabContent({
   guestOnly,
   makerspaces,
   isSuperadmin,
+  currentUser,
+  onAuthRefresh,
   printingOnly,
   canChooseToBuyKind,
   canEditInventory,
@@ -58,6 +61,8 @@ export function StaffTabContent({
   guestOnly: boolean;
   makerspaces: Makerspace[];
   isSuperadmin: boolean;
+  currentUser: StaffAuthUser;
+  onAuthRefresh: () => void;
   printingOnly: boolean;
   canChooseToBuyKind: boolean;
   canEditInventory: boolean;
@@ -196,7 +201,7 @@ export function StaffTabContent({
       ) : null}
       {activeTab === "platform" ? <PlatformEmailPanel /> : null}
       {activeTab === "users" && canManageMakerspace ? (
-        <Users makerspaces={makerspaces} isSuperadmin={isSuperadmin} />
+        <Users makerspaces={makerspaces} isSuperadmin={isSuperadmin} currentUser={currentUser} onAuthRefresh={onAuthRefresh} />
       ) : null}
       {activeTab === "audit" && canViewAudit ? <AuditLog /> : null}
     </Suspense>

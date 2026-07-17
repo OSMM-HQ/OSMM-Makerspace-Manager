@@ -21,6 +21,7 @@ export function StaffWorkspace({
   guestOnly,
   isSuperadmin,
   makerspaces,
+  onAuthRefresh,
   selected,
   setSelected,
   setTab,
@@ -35,6 +36,7 @@ export function StaffWorkspace({
   guestOnly: boolean;
   isSuperadmin: boolean;
   makerspaces: Makerspace[];
+  onAuthRefresh: () => void;
   selected: number | null;
   setSelected: (id: number | null) => void;
   setTab: (tab: string) => void;
@@ -130,6 +132,8 @@ export function StaffWorkspace({
               guestOnly={guestOnly || handoutOnly}
               makerspaces={visibleMakerspaces}
               isSuperadmin={isSuperadmin}
+              currentUser={user}
+              onAuthRefresh={onAuthRefresh}
               printingOnly={printingOnly}
               canChooseToBuyKind={canChooseToBuyKind}
               canEditInventory={canEditInventory}
