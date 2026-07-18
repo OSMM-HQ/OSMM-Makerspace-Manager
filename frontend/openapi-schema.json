@@ -18762,6 +18762,65 @@
                 }
             }
         },
+        "/api/v1/member/makerspaces/{makerspace_id}/activity": {
+            "get": {
+                "operationId": "api_v1_member_makerspaces_activity_retrieve",
+                "summary": "Retrieve the caller's makerspace activity",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Member activity"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MemberActivity"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "An active membership is required."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Makerspace not found."
+                    }
+                }
+            }
+        },
         "/api/v1/member/makerspaces/{makerspace_id}/waiver": {
             "get": {
                 "operationId": "api_v1_member_makerspaces_waiver_retrieve",
@@ -31754,6 +31813,254 @@
                 ],
                 "type": "string",
                 "description": "* `count` - Count\n* `grams` - Grams"
+            },
+            "MemberAccountability": {
+                "type": "object",
+                "properties": {
+                    "membership_active": {
+                        "type": "boolean"
+                    },
+                    "waiver_acceptance_required": {
+                        "type": "boolean"
+                    },
+                    "restriction_code": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "membership_active",
+                    "restriction_code",
+                    "waiver_acceptance_required"
+                ]
+            },
+            "MemberActivity": {
+                "type": "object",
+                "properties": {
+                    "active_hardware_loans": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MemberLoanActivity"
+                        }
+                    },
+                    "print_requests": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MemberPrintActivity"
+                        }
+                    },
+                    "machine_service_requests": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MemberMachineServiceActivity"
+                        }
+                    },
+                    "bookings": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "array",
+                            "items": {}
+                        }
+                    },
+                    "event_registrations": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MemberEventRegistrationActivity"
+                        }
+                    },
+                    "recent_presence_sessions": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MemberPresenceActivity"
+                        }
+                    },
+                    "currently_checked_in": {
+                        "type": "boolean"
+                    },
+                    "accountability": {
+                        "$ref": "#/components/schemas/MemberAccountability"
+                    }
+                },
+                "required": [
+                    "accountability",
+                    "active_hardware_loans",
+                    "currently_checked_in",
+                    "recent_presence_sessions"
+                ]
+            },
+            "MemberEventRegistrationActivity": {
+                "type": "object",
+                "properties": {
+                    "event_title": {
+                        "type": "string"
+                    },
+                    "starts_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "ends_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "waitlist_position": {
+                        "type": "integer",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "ends_at",
+                    "event_title",
+                    "starts_at",
+                    "status",
+                    "waitlist_position"
+                ]
+            },
+            "MemberLoanActivity": {
+                "type": "object",
+                "properties": {
+                    "label": {
+                        "type": "string"
+                    },
+                    "checked_out_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "due_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "overdue": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "checked_out_at",
+                    "due_at",
+                    "label",
+                    "overdue"
+                ]
+            },
+            "MemberMachineServiceActivity": {
+                "type": "object",
+                "properties": {
+                    "title": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "queue_position": {
+                        "type": "integer",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "queue_position",
+                    "status",
+                    "title"
+                ]
+            },
+            "MemberPresenceActivity": {
+                "type": "object",
+                "properties": {
+                    "started_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "expires_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "ended_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "end_reason": {
+                        "type": "string"
+                    },
+                    "active": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "active",
+                    "end_reason",
+                    "ended_at",
+                    "expires_at",
+                    "started_at"
+                ]
+            },
+            "MemberPrintActivity": {
+                "type": "object",
+                "properties": {
+                    "public_token": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "accepted_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "started_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "completed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "estimated_minutes": {
+                        "type": "integer"
+                    },
+                    "queue_position": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "queue_approved_ahead": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "queue_awaiting_review_ahead": {
+                        "type": "integer",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "accepted_at",
+                    "completed_at",
+                    "created_at",
+                    "estimated_minutes",
+                    "public_token",
+                    "queue_approved_ahead",
+                    "queue_awaiting_review_ahead",
+                    "queue_position",
+                    "started_at",
+                    "status",
+                    "title"
+                ]
             },
             "MemberSignUp": {
                 "type": "object",

@@ -5,7 +5,8 @@ then id. A request's position is everything ahead of it plus one. Counts are com
 with SQL counts for the target requests rather than loading the whole waiting queue.
 """
 
-from django.db.models import Q
+from django.db.models import Case, Count, IntegerField, OuterRef, Q, Subquery, Value, When
+from django.db.models.functions import Coalesce
 
 from apps.printing.models import PrintRequest
 
@@ -16,39 +17,49 @@ def queue_counts_for(makerspace, requests) -> dict[int, dict]:
     targets = [request for request in requests if request.status in WAITING_STATUSES]
     if not targets:
         return {}
-    return {request.id: _counts_for_request(makerspace.id, request) for request in targets}
-
-
-def _counts_for_request(makerspace_id, request):
-    accepted_ahead = _waiting_queryset(makerspace_id).filter(
-        status=PrintRequest.Status.ACCEPTED
+    before = Q(created_at__lt=OuterRef("created_at")) | Q(
+        created_at=OuterRef("created_at"), id__lt=OuterRef("id")
     )
-    pending_ahead = _waiting_queryset(makerspace_id).filter(
-        status=PrintRequest.Status.PENDING
-    )
-    if request.status == PrintRequest.Status.ACCEPTED:
-        accepted_ahead = accepted_ahead.filter(_before(request))
-        pending_ahead = pending_ahead.none()
-    else:
-        pending_ahead = pending_ahead.filter(_before(request))
-    approved = accepted_ahead.count()
-    pending = pending_ahead.count()
-    return {
-        "position": approved + pending + 1,
-        "approved_ahead": approved,
-        "awaiting_review_ahead": pending,
-    }
-
-
-def _waiting_queryset(makerspace_id):
-    return PrintRequest.objects.filter(
-        bucket__makerspace_id=makerspace_id,
+    waiting = PrintRequest.objects.filter(
+        bucket__makerspace_id=OuterRef("bucket__makerspace_id"),
         status__in=WAITING_STATUSES,
+    ).filter(before).order_by()
+    accepted_total = PrintRequest.objects.filter(
+        bucket__makerspace_id=OuterRef("bucket__makerspace_id"),
+        status=PrintRequest.Status.ACCEPTED,
+    ).values(
+        "bucket__makerspace_id"
+    ).annotate(total=Count("id")).values("total")[:1]
+    accepted_before = waiting.filter(status=PrintRequest.Status.ACCEPTED).values(
+        "bucket__makerspace_id"
+    ).annotate(total=Count("id")).values("total")[:1]
+    pending_before = waiting.filter(status=PrintRequest.Status.PENDING).values(
+        "bucket__makerspace_id"
+    ).annotate(total=Count("id")).values("total")[:1]
+    rows = PrintRequest.objects.filter(pk__in=[request.id for request in targets]).annotate(
+        accepted_ahead=Case(
+            When(
+                status=PrintRequest.Status.ACCEPTED,
+                then=Coalesce(Subquery(accepted_before, output_field=IntegerField()), Value(0)),
+            ),
+            default=Coalesce(Subquery(accepted_total, output_field=IntegerField()), Value(0)),
+            output_field=IntegerField(),
+        ),
+        pending_ahead=Case(
+            When(
+                status=PrintRequest.Status.PENDING,
+                then=Coalesce(Subquery(pending_before, output_field=IntegerField()), Value(0)),
+            ),
+            default=Value(0),
+            output_field=IntegerField(),
+        ),
     )
-
-
-def _before(request):
-    return Q(created_at__lt=request.created_at) | Q(
-        created_at=request.created_at,
-        id__lt=request.id,
-    )
+    counts = {}
+    for request in rows:
+        pending_ahead = request.pending_ahead if request.status == PrintRequest.Status.PENDING else 0
+        counts[request.id] = {
+            "position": request.accepted_ahead + pending_ahead + 1,
+            "approved_ahead": request.accepted_ahead,
+            "awaiting_review_ahead": pending_ahead,
+        }
+    return counts

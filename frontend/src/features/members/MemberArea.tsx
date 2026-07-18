@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { bootstrapTenant, refreshAccessToken, setAccessToken, StructuredApiError, staffRequest } from "../../lib/api";
 import { LoginPanel } from "../staff/LoginPanel";
+import { MemberActivityPanel, type MemberActivity } from "./MemberActivity";
 
 type Membership = { makerspace: { slug: string; name: string }; membership_status: string; role: string; waiver_acceptance_required: boolean };
 type Memberships = { memberships: Membership[]; requests: { makerspace: { slug: string; name: string }; state: string; kind: string }[] };
@@ -28,12 +29,13 @@ export function MemberArea() {
   const makerspaceId = bootstrap.data?.makerspace.id ?? -1;
   const waiver = useQuery({ queryKey: ["member", slug, "waiver"], queryFn: () => staffRequest<Waiver>(`/member/makerspaces/${makerspaceId}/waiver`), enabled: makerspaceId >= 0, retry: false });
   const presence = useQuery({ queryKey: ["member", slug, "presence"], queryFn: () => staffRequest<Presence>(`/public/${slug}/presence-sessions/current`), enabled: Boolean(slug), retry: false });
+  const activity = useQuery({ queryKey: ["member", slug, "activity"], queryFn: () => staffRequest<MemberActivity>(`/member/makerspaces/${makerspaceId}/activity`), enabled: makerspaceId >= 0 && membership?.membership_status === "active", retry: false });
   const refresh = () => client.invalidateQueries({ queryKey: ["member"] });
   const request = useMutation({ mutationFn: () => staffRequest(`/public/${slug}/membership-requests`, { method: "POST", body: JSON.stringify({}) }), onSuccess: refresh });
   const accept = useMutation({ mutationFn: () => staffRequest(`/member/makerspaces/${makerspaceId}/waiver/accept`, { method: "POST" }), onSuccess: refresh });
   const start = useMutation({ mutationFn: () => staffRequest(`/public/${slug}/presence-sessions`, { method: "POST", body: JSON.stringify({ duration_minutes: 120 }) }), onSuccess: refresh });
   const end = useMutation({ mutationFn: () => staffRequest(`/public/${slug}/presence-sessions/current/end`, { method: "POST" }), onSuccess: refresh });
-  const error = memberships.error ?? request.error ?? accept.error ?? start.error ?? end.error;
+  const error = memberships.error ?? request.error ?? accept.error ?? start.error ?? end.error ?? activity.error;
   const login = useMutation({ mutationFn: (payload: { username: string; password: string }) => staffRequest<{ access: string }>("/auth/login", { method: "POST", credentials: "include", body: JSON.stringify(payload) }), onSuccess: (data) => { setAccessToken(data.access); client.invalidateQueries({ queryKey: ["member"] }); } });
 
   if (restoring) return <main className="desk-shell grid place-items-center px-5 text-sm text-muted">Restoring session…</main>;
@@ -44,7 +46,8 @@ export function MemberArea() {
     {memberships.data && !membership ? <section className="desk-panel p-5"><h2 className="font-semibold text-ink">Join this makerspace</h2><p className="mt-1 text-sm text-muted">Send a membership request for staff approval.</p><button className="desk-button-primary mt-4" disabled={request.isPending} onClick={() => request.mutate()}>{request.isPending ? "Sending…" : "Request membership"}</button></section> : null}
     {membership ? <><section className="desk-panel p-5"><h2 className="font-semibold text-ink">Membership</h2><p className="mt-1 text-sm text-muted">{membership.makerspace.name} · {membership.membership_status} · {membership.role}</p></section>
       {waiver.data?.has_waiver ? <section className="desk-panel p-5"><h2 className="font-semibold text-ink">Current waiver ({waiver.data.version})</h2><p className="mt-3 whitespace-pre-wrap text-sm text-muted">{waiver.data.body}</p><button className="desk-button-primary mt-4" disabled={accept.isPending} onClick={() => accept.mutate()}>Accept waiver</button></section> : null}
-      <section className="desk-panel p-5"><h2 className="font-semibold text-ink">Presence</h2><p className="mt-1 text-sm text-muted">{presence.data?.active ? `Active until ${new Date(presence.data.session?.expires_at ?? "").toLocaleTimeString()}` : "No active session."}</p><button className="desk-button-primary mt-4" disabled={start.isPending || end.isPending} onClick={() => presence.data?.active ? end.mutate() : start.mutate()}>{presence.data?.active ? "End presence" : "Start 2-hour presence"}</button></section></> : null}
+      <section className="desk-panel p-5"><h2 className="font-semibold text-ink">Presence</h2><p className="mt-1 text-sm text-muted">{presence.data?.active ? `Active until ${new Date(presence.data.session?.expires_at ?? "").toLocaleTimeString()}` : "No active session."}</p><button className="desk-button-primary mt-4" disabled={start.isPending || end.isPending} onClick={() => presence.data?.active ? end.mutate() : start.mutate()}>{presence.data?.active ? "End presence" : "Start 2-hour presence"}</button></section>
+      {activity.data ? <MemberActivityPanel activity={activity.data} /> : null}</> : null}
     {error && !memberships.isError ? <p className="text-sm text-danger" role="alert">{message(error)}</p> : null}
   </main>;
 }

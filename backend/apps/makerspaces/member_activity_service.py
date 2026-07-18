@@ -1,0 +1,136 @@
+from django.apps import apps
+from django.db.models import Count, IntegerField, OuterRef, Q, Subquery
+from django.utils import timezone
+
+from apps.accounts.models import User
+from apps.hardware_requests.self_checkout_models import PublicToolLoan
+from apps.makerspaces.models import MakerspaceMembership, MakerspaceWaiver
+from apps.makerspaces.platform import module_enabled
+from apps.presence.models import PresenceSession
+from apps.printing.member_activity import member_print_activity
+
+
+RECENT_LIMIT = 20
+ACTIVITY_LIMIT = 50
+
+
+def active_membership(user, makerspace_id):
+    if not (
+        user and user.is_authenticated and user.pk and user.is_active
+        and user.access_status == User.AccessStatus.ACTIVE
+    ):
+        return None
+    return MakerspaceMembership.objects.select_related("makerspace", "accepted_waiver").filter(
+        makerspace_id=makerspace_id, user=user, status="active",
+        makerspace__archived_at__isnull=True,
+    ).first()
+
+
+def member_activity(membership):
+    makerspace, member = membership.makerspace, membership.user
+    now = timezone.now()
+    payload = {
+        "active_hardware_loans": _loans(makerspace.id, member, now),
+        "recent_presence_sessions": _presence(makerspace.id, member, now),
+        "currently_checked_in": PresenceSession.objects.filter(
+            makerspace_id=makerspace.id, member=member, ended_at__isnull=True,
+            expires_at__gt=now,
+        ).exists(),
+        "accountability": _accountability(membership),
+    }
+    if module_enabled(makerspace, "printing"):
+        payload["print_requests"] = member_print_activity(makerspace, member, limit=ACTIVITY_LIMIT)
+    if module_enabled(makerspace, "bookings"):
+        payload["bookings"] = _bookings(makerspace.id, member, now)
+    if module_enabled(makerspace, "events"):
+        payload["event_registrations"] = _event_registrations(makerspace.id, member)
+    if module_enabled(makerspace, "machine_service") and apps.is_installed("apps.machines"):
+        payload["machine_service_requests"] = _machine_service_requests(makerspace.id, member)
+    return payload
+
+
+def _loans(makerspace_id, member, now):
+    rows = PublicToolLoan.objects.filter(
+        makerspace_id=makerspace_id, requester=member,
+        status=PublicToolLoan.Status.CHECKED_OUT,
+    ).only("target_label", "checked_out_at", "due_at").order_by("due_at", "checked_out_at")[:ACTIVITY_LIMIT]
+    return [{
+        "label": row.target_label,
+        "checked_out_at": row.checked_out_at,
+        "due_at": row.due_at,
+        "overdue": bool(row.due_at and row.due_at < now),
+    } for row in rows]
+
+
+def _bookings(makerspace_id, member, now):
+    from apps.bookings.models import Booking
+
+    rows = Booking.objects.filter(
+        space__makerspace_id=makerspace_id, member=member,
+    ).select_related("space").only(
+        "starts_at", "ends_at", "status", "space__name"
+    )
+    fields = ("starts_at", "ends_at", "status", "space_name")
+    def values(queryset):
+        return [dict(zip(fields, (row.starts_at, row.ends_at, row.status, row.space.name))) for row in queryset[:ACTIVITY_LIMIT]]
+    return {
+        "upcoming": values(rows.filter(ends_at__gte=now).order_by("starts_at", "id")),
+        "past": values(rows.filter(ends_at__lt=now).order_by("-ends_at", "-id")),
+    }
+
+
+def _event_registrations(makerspace_id, member):
+    from apps.events.models import EventRegistration
+
+    waitlisted_before = EventRegistration.objects.filter(
+        event_id=OuterRef("event_id"), status=EventRegistration.Status.WAITLISTED,
+    ).filter(
+        Q(created_at__lt=OuterRef("created_at"))
+        | Q(created_at=OuterRef("created_at"), id__lte=OuterRef("id"))
+    ).values("event_id").annotate(total=Count("id")).values("total")[:1]
+    rows = EventRegistration.objects.filter(
+        event__makerspace_id=makerspace_id, member=member,
+    ).select_related("event").annotate(
+        waitlist_position=Subquery(waitlisted_before, output_field=IntegerField())
+    ).only("status", "created_at", "event__title", "event__starts_at", "event__ends_at")
+    return [{
+        "event_title": row.event.title, "starts_at": row.event.starts_at,
+        "ends_at": row.event.ends_at, "status": row.status,
+        "waitlist_position": row.waitlist_position if row.status == EventRegistration.Status.WAITLISTED else None,
+    } for row in rows.order_by("-event__starts_at", "-id")[:ACTIVITY_LIMIT]]
+
+
+def _machine_service_requests(makerspace_id, member):
+    from apps.machines.models import MachineServiceRequest
+
+    rows = MachineServiceRequest.objects.filter(
+        bucket__machine__makerspace_id=makerspace_id, requester=member,
+    ).only("title", "status", "created_at").order_by("-created_at", "-id")[:ACTIVITY_LIMIT]
+    # Part N has not supplied a member-safe queue calculator in this deployment.
+    # Do not infer a rank from staff queue rows; null is the safe queue contract.
+    return [{"title": row.title, "status": row.status, "created_at": row.created_at, "queue_position": None} for row in rows]
+
+
+def _presence(makerspace_id, member, now):
+    rows = PresenceSession.objects.filter(
+        makerspace_id=makerspace_id, member=member,
+    ).only("started_at", "expires_at", "ended_at", "end_reason").order_by("-started_at", "-id")[:RECENT_LIMIT]
+    return [{
+        "started_at": row.started_at, "expires_at": row.expires_at,
+        "ended_at": row.ended_at, "end_reason": row.end_reason,
+        "active": row.ended_at is None and row.expires_at > now,
+    } for row in rows]
+
+
+def _accountability(membership):
+    waiver = MakerspaceWaiver.objects.filter(
+        makerspace_id=membership.makerspace_id, is_active=True,
+    ).only("id", "version").first()
+    return {
+        "membership_active": membership.status == "active",
+        "waiver_acceptance_required": bool(
+            waiver and (membership.accepted_waiver_id != waiver.id
+                        or membership.waiver_version_accepted != waiver.version)
+        ),
+        "restriction_code": None,
+    }
