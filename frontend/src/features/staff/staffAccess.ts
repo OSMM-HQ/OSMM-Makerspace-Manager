@@ -87,7 +87,7 @@ export function getStaffAccess(actions: readonly string[], isSuperadmin: boolean
     if (tabName === "scanner") return canManageQr;
     if (tabName === "audit") return canViewAudit;
     if (tabName === "accountability") return canViewAudit;
-    if (tabName === "reports") return canViewAudit || canSeePrinting;
+    if (tabName === "reports") return canViewAudit || canSeePrinting || canManageMachines;
     if (tabName === "warranty") return canEditInventory || canSeePrinting;
     if (tabName === "users") return canManageMakerspace;
     if (tabName === "settings") return canManageMakerspace;

@@ -10,7 +10,6 @@ from apps.audit import services as audit
 
 logger = logging.getLogger(__name__)
 
-
 def archive(makerspace, actor):
     with transaction.atomic():
         locked = makerspace.__class__.objects.select_for_update().get(pk=makerspace.pk)
@@ -84,6 +83,7 @@ def _collect_storage_keys(makerspace):
     from apps.warranty.models import WarrantyDocument
     from apps.maintenance.models import MaintenanceLogDocument
     from apps.machines.models import MachineDocument
+    from apps.machines.service_lifecycle import collect_private_object_keys
 
     keys = []
     seen = set()
@@ -118,6 +118,8 @@ def _collect_storage_keys(makerspace):
         machine__makerspace=makerspace
     ).values_list("object_key", flat=True):
         add(key)
+
+    collect_private_object_keys(makerspace, add)
 
     for request in PrintRequest.objects.filter(bucket__makerspace=makerspace).only(
         "model_file", "estimate_screenshot", "preview_screenshot"
@@ -187,6 +189,7 @@ def _delete_object_graph(makerspace):
     from apps.printing.models import FilamentSpool, ManualPrintLog, PrintBucket
     from apps.printing.models import PrintPrinter, PrintRequest, PrintRequestFile
     from apps.machines.models import Machine, MachineType
+    from apps.machines.service_lifecycle import delete_for_makerspace
 
     with connection.cursor() as cursor:
         # Suspend ALL triggers for THIS transaction only via the session-replication
@@ -226,6 +229,8 @@ def _delete_object_graph(makerspace):
         PrintBucket.objects.filter(makerspace=makerspace).delete()
         FilamentSpool.objects.filter(makerspace=makerspace).delete()
         PrintPrinter.objects.filter(makerspace=makerspace).delete()
+
+        delete_for_makerspace(makerspace, cursor)
 
         HardwareRequestItemAsset.objects.filter(request_item__request__makerspace=makerspace).delete()
         BoxScan.objects.filter(makerspace=makerspace).delete()

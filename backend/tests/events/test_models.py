@@ -160,8 +160,10 @@ def test_new_makerspaces_enable_events_by_default():
     makerspace = make_space("events-enabled-by-default")
 
     assert "events" in makerspace.enabled_modules
-    assert makerspace.enabled_modules.index("events") == (
-        makerspace.enabled_modules.index("machines") + 1
+    # events is a FabLab default enabled after the machines block; don't assert
+    # exact adjacency (machine_service now sits between machines and events).
+    assert makerspace.enabled_modules.index("events") > (
+        makerspace.enabled_modules.index("machines")
     )
 
 

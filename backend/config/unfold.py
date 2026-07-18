@@ -109,6 +109,10 @@ UNFOLD = {
                     _item("Machine consumables", "deployed_code", "admin:machines_machineconsumable_changelist"),
                     _item("Machine documents", "description", "admin:machines_machinedocument_changelist"),
                     _item("Machine error logs", "error", "admin:machines_machineerrorlog_changelist"),
+                    _item("Service buckets", "folder", "admin:machines_servicebucket_changelist"),
+                    _item("Service requests", "build", "admin:machines_machineservicerequest_changelist"),
+                    _item("Service request files", "attach_file", "admin:machines_servicerequestfile_changelist"),
+                    _item("Service consumption", "receipt_long", "admin:machines_servicerequestconsumption_changelist"),
                 ],
             },
             {

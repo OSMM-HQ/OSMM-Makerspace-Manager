@@ -14,6 +14,7 @@ from apps.inventory.models import InventoryProduct
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 from apps.encryption.models import PiiGlobalWriteFence, PiiMakerspaceWriteFence
 from config.admin_access import GLOBAL_ADMIN_MODELS
+from config.admin_access import NESTED_MAKERSPACE_LOOKUPS
 
 pytestmark = pytest.mark.django_db
 
@@ -24,7 +25,7 @@ def test_pii_write_fence_scope_decisions_are_explicit():
     assert _makerspace_lookup_paths(PiiGlobalWriteFence) == set()
 
 
-def _makerspace_lookup_paths(model, max_depth=3):
+def _makerspace_lookup_paths(model, max_depth=4):
     if model is Makerspace:
         return {"id"}
 
@@ -96,6 +97,15 @@ def test_every_registered_admin_resolves_a_makerspace_decision():
             )
 
     assert not failures, "Admin hidden-scope drift:\n" + "\n".join(failures)
+
+
+def test_machine_service_models_have_explicit_nested_scope_decisions():
+    assert NESTED_MAKERSPACE_LOOKUPS["machines.servicebucket"] == "machine__makerspace_id"
+    assert NESTED_MAKERSPACE_LOOKUPS["machines.machineservicerequest"] == "bucket__machine__makerspace_id"
+    assert NESTED_MAKERSPACE_LOOKUPS["machines.servicerequestfile"] == "machine__makerspace_id"
+    assert NESTED_MAKERSPACE_LOOKUPS["machines.servicerequestconsumption"] == (
+        "service_request__bucket__machine__makerspace_id"
+    )
 
 
 def test_inventory_product_admin_hides_disabled_makerspace_rows():

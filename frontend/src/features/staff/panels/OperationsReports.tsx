@@ -5,6 +5,7 @@ import { downloadStaffFile } from "../../../lib/api";
 import { DataState, StatCards } from "./OperationsReportsParts";
 import { OperationsReportsFablab } from "./OperationsReportsFablab";
 import { OperationsReportsHardware } from "./OperationsReportsHardware";
+import { OperationsReportsMachineService } from "./OperationsReportsMachineService";
 import { PrintingReportSection } from "./OperationsReportsPrinting";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 
@@ -92,6 +93,7 @@ export function OperationsReports({
   printingOnly = false,
   canViewAudit,
   canSeePrinting,
+  canManageMachines,
 }: {
   makerspace: Makerspace;
   makerspaces: Makerspace[];
@@ -99,6 +101,7 @@ export function OperationsReports({
   printingOnly?: boolean;
   canViewAudit: boolean;
   canSeePrinting: boolean;
+  canManageMachines: boolean;
 }) {
   const [allMakerspaces, setAllMakerspaces] = useState(false);
   const [startDate, setStartDate] = useState("");
@@ -288,6 +291,8 @@ export function OperationsReports({
       ) : null}
 
       {!printingOnly ? <OperationsReportsFablab makerspace={makerspace} aggregate={aggregate} canViewAudit={canViewAudit} startDate={startDate} endDate={endDate} makerspaceName={makerspaceName} /> : null}
+
+      <OperationsReportsMachineService makerspace={makerspace} aggregate={aggregate} canManageMachines={canManageMachines} startDate={startDate} endDate={endDate} makerspaceName={makerspaceName} />
 
       {canSeePrinting ? (
         <PrintingReportSection makerspace={makerspace} aggregate={aggregate} makerspaceName={makerspaceName} startDate={startDate} endDate={endDate} />

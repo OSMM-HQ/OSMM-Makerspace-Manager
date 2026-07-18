@@ -165,6 +165,7 @@ export function StaffTabContent({
           printingOnly={printingOnly}
           canViewAudit={canViewAudit}
           canSeePrinting={canSeePrinting}
+          canManageMachines={canManageMachines}
         />
       ) : null}
       {activeTab === "direct" && canIssueDirectLoan ? <DirectLoans key={makerspaceKey} makerspace={activeMakerspace} /> : null}
