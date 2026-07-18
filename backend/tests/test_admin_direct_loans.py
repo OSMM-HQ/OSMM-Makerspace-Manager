@@ -9,9 +9,9 @@ from apps.audit.models import AuditLog
 from apps.boxes.models import Box, QrCode, QrScanEvent
 from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests.models import HardwareRequest, PublicToolLoan
-from apps.hardware_requests.workflow_utils import get_or_create_requester
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
-from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.makerspaces.models import Makerspace, MakerspaceMembership, MakerspaceRole
+from apps.presence import services as presence
 from tests.return_helpers import make_issue_evidence, make_return_evidence
 
 pytestmark = pytest.mark.django_db
@@ -73,6 +73,29 @@ def make_admin(makerspace):
     return user
 
 
+def eligible_member(makerspace, username="member-direct", display_name="Direct Borrower"):
+    member_username = f"{username}-{makerspace.slug}"
+    user = User.objects.filter(username=member_username).first()
+    if user is None:
+        user = User.objects.create_user(
+            username=member_username,
+            email=f"{member_username}@example.com",
+            phone="+15550101010",
+            display_name=display_name,
+            access_status=User.AccessStatus.ACTIVE,
+        )
+    MakerspaceMembership.objects.get_or_create(
+        makerspace=makerspace,
+        user=user,
+        defaults={
+            "role": MakerspaceMembership.Role.CUSTOM,
+            "assigned_role": MakerspaceRole.objects.get(makerspace=makerspace, slug="member"),
+        },
+    )
+    presence.start_session(user, makerspace, 60)
+    return user
+
+
 def make_product(makerspace, **overrides):
     defaults = {
         "makerspace": makerspace,
@@ -98,32 +121,29 @@ def direct_url(makerspace):
     return f"/api/v1/admin/makerspace/{makerspace.id}/direct-loans"
 
 
-def direct_payload(**overrides):
+def direct_payload(*, makerspace=None, **overrides):
+    makerspace = makerspace or _current_direct_makerspace
+    assert makerspace is not None
+    borrower = overrides.pop("borrower", None) or eligible_member(makerspace)
     payload = {
-        "requester_name": "Direct Borrower",
-        "contact_email": "member-direct@example.com",
-        "contact_phone": "+15550101010",
+        "borrower_id": borrower.id,
     }
     payload.update(overrides)
-    if "evidence_id" not in payload and _current_direct_makerspace_is_live():
-        payload["evidence_id"] = _direct_issue_evidence().id
+    if "evidence_id" not in payload:
+        payload["evidence_id"] = _direct_issue_evidence(makerspace).id
     return payload
 
-def _current_direct_makerspace_is_live():
-    return _current_direct_makerspace is not None and Makerspace.objects.filter(pk=_current_direct_makerspace.pk).exists()
-
-def _direct_issue_evidence():
-    assert _current_direct_makerspace is not None
-    actor = User.objects.filter(makerspace_memberships__makerspace=_current_direct_makerspace).first()
+def _direct_issue_evidence(makerspace):
+    actor = User.objects.filter(makerspace_memberships__makerspace=makerspace).first()
     if actor is None:
         actor = User.objects.create_user(
-            username=f"evidence-{_current_direct_makerspace.slug}",
+            username=f"evidence-{makerspace.slug}",
             access_status=User.AccessStatus.ACTIVE,
         )
     return EvidencePhoto.objects.create(
-        makerspace=_current_direct_makerspace,
+        makerspace=makerspace,
         evidence_type=EvidencePhoto.EvidenceType.ISSUE,
-        object_key=f"evidence/{_current_direct_makerspace.id}/issue/direct-{EvidencePhoto.objects.count() + 1}",
+        object_key=f"evidence/{makerspace.id}/issue/direct-{EvidencePhoto.objects.count() + 1}",
         uploaded_by=actor,
     )
 
@@ -137,10 +157,6 @@ def issue_direct_product_loan(makerspace, admin, product=None):
     )
     assert response.status_code == 201
     return client, PublicToolLoan.objects.get(), product
-
-
-def staff_verify_url(makerspace):
-    return f"/api/v1/admin/makerspace/{makerspace.id}/checkin/verify"
 
 
 def set_staff_domain(makerspace, domain):
@@ -182,7 +198,7 @@ def test_admin_direct_manual_handout_and_return_logs_product(monkeypatch):
     assert request.status == HardwareRequest.Status.ISSUED
     assert request.issued_by == admin
     assert request.requester_name == "Direct Borrower"
-    assert request.requester_contact_email == "member-direct@example.com"
+    assert request.requester_contact_email == f"member-direct-{makerspace.slug}@example.com"
     assert request.requester_contact_phone == "+15550101010"
     loan = PublicToolLoan.objects.get()
     assert loan.qr_code_id is None
@@ -237,13 +253,16 @@ def test_admin_direct_manual_handout_and_return_logs_product(monkeypatch):
 
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
-@pytest.mark.parametrize("missing_field", ["requester_name", "contact_email", "contact_phone"])
-def test_direct_loan_requires_name_email_and_phone(missing_field):
-    makerspace = make_space(f"direct-missing-{missing_field.replace('_', '-')}")
+def test_direct_loan_requires_selected_member():
+    makerspace = make_space("direct-missing-member")
     admin = make_admin(makerspace)
     product = make_product(makerspace)
-    payload = direct_payload(items=[{"product_id": product.id, "quantity": 1}])
-    payload.pop(missing_field)
+    payload = direct_payload(
+        makerspace=makerspace,
+        borrower=eligible_member(makerspace),
+        items=[{"product_id": product.id, "quantity": 1}],
+    )
+    payload.pop("borrower_id")
 
     response = authed(admin).post(
         direct_url(makerspace),
@@ -252,7 +271,7 @@ def test_direct_loan_requires_name_email_and_phone(missing_field):
     )
 
     assert response.status_code == 400
-    assert missing_field in response.data
+    assert "borrower_id" in response.data
     assert PublicToolLoan.objects.count() == 0
 
 
@@ -375,16 +394,13 @@ def test_direct_loan_rejects_different_staff_origin_for_scoped_views():
     created = client.post(
         direct_url(primary),
         direct_payload(
-            contact_email="member-direct-2@example.com",
             items=[{"product_id": product.id, "quantity": 1}],
         ),
         format="json",
         HTTP_ORIGIN=wrong_origin,
     )
-    verified = client.post(
-        staff_verify_url(primary),
-        {"identifier": "member-direct"},
-        format="json",
+    members = client.get(
+        f"/api/v1/admin/makerspace/{primary.id}/direct-loan-members",
         HTTP_ORIGIN=wrong_origin,
     )
     returned = client.post(
@@ -396,7 +412,7 @@ def test_direct_loan_rejects_different_staff_origin_for_scoped_views():
 
     assert listed.status_code == 403
     assert created.status_code == 403
-    assert verified.status_code == 403
+    assert members.status_code == 403
     assert returned.status_code == 404
     assert PublicToolLoan.objects.count() == 1
     loan.refresh_from_db()
@@ -850,7 +866,7 @@ def test_direct_loan_duplicate_active_container_returns_409():
     created = client.post(
         direct_url(makerspace),
         direct_payload(
-            contact_email="member-direct-1@example.com",
+            borrower=eligible_member(makerspace, "member-direct-1"),
             container_id=container.id,
             items=[{"product_id": first.id, "quantity": 1}],
         ),
@@ -861,7 +877,7 @@ def test_direct_loan_duplicate_active_container_returns_409():
     duplicate = client.post(
         direct_url(makerspace),
         direct_payload(
-            contact_email="member-direct-2@example.com",
+            borrower=eligible_member(makerspace, "member-direct-2"),
             container_id=container.id,
             items=[{"product_id": second.id, "quantity": 1}],
         ),
@@ -912,17 +928,15 @@ def test_guest_admin_can_create_direct_loan():
 def test_direct_return_rejects_self_checkout_loan():
     makerspace = make_space("direct-return-guard")
     admin = make_admin(makerspace)
+    member = eligible_member(makerspace, "member-x", "Self Checkout")
     product = make_product(makerspace, public_self_checkout_enabled=True)
     qr = make_qr(makerspace, product)
 
-    checkout = APIClient().post(
+    checkout = authed(member).post(
         f"/api/v1/public/{makerspace.slug}/tools/checkout",
         {
             "payload": qr.payload,
-            "requester_name": "Self Checkout",
-            "contact_email": "member-x@example.com",
-            "contact_phone": "+15550101010",
-                "evidence_id": _public_issue_evidence(makerspace, "member-x@example.com").id,
+            "evidence_id": _public_issue_evidence(makerspace, member).id,
         },
         format="json",
     )
@@ -1030,12 +1044,12 @@ def test_direct_return_rejects_evidence_used_by_reviewed_return(monkeypatch):
 
 
 
-def _public_issue_evidence(makerspace, identifier):
+def _public_issue_evidence(makerspace, user):
     return EvidencePhoto.objects.create(
         makerspace=makerspace,
         evidence_type=EvidencePhoto.EvidenceType.ISSUE,
-        object_key=f"evidence/{makerspace.id}/issue/{identifier}-{EvidencePhoto.objects.count() + 1}",
-        uploaded_by=get_or_create_requester(identifier),
+        object_key=f"evidence/{makerspace.id}/issue/{user.id}-{EvidencePhoto.objects.count() + 1}",
+        uploaded_by=user,
     )
 
 

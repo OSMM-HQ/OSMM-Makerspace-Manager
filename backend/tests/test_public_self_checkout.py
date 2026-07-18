@@ -2,19 +2,16 @@ import pytest
 from django.test import override_settings
 from rest_framework.test import APIClient
 
+from apps.accounts.models import User
 from apps.audit.models import AuditLog
-
 from apps.boxes.models import Box, QrCode, QrScanEvent
 from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests.models import HardwareRequest, PublicToolLoan
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
-from apps.makerspaces.models import Makerspace
-from apps.hardware_requests.workflow_utils import get_or_create_requester
+from apps.makerspaces.models import Makerspace, MakerspaceMembership, MakerspaceRole
+from apps.presence import services as presence
 
 pytestmark = pytest.mark.django_db
-
-_current_makerspace = None
-
 
 def make_space(slug="self-checkout-space"):
     return Makerspace.objects.create(name=slug, slug=slug)
@@ -49,74 +46,79 @@ def make_asset_qr(makerspace, asset):
     )
 
 
+def eligible_member(makerspace, username="member-1"):
+    user = User.objects.create_user(
+        username=username,
+        email=f"{username}@example.com",
+        phone="+15550101010",
+        display_name="Self Checkout",
+    )
+    MakerspaceMembership.objects.create(
+        makerspace=makerspace,
+        user=user,
+        role=MakerspaceMembership.Role.CUSTOM,
+        assigned_role=MakerspaceRole.objects.get(makerspace=makerspace, slug="member"),
+    )
+    presence.start_session(user, makerspace, 60)
+    return user
+
+
+def member_client(user):
+    client = APIClient(REMOTE_ADDR="10.20.30.40")
+    client.force_authenticate(user)
+    return client
+
+
 def checkout_url(makerspace):
-    global _current_makerspace
-    _current_makerspace = makerspace
     return f"/api/v1/public/{makerspace.slug}/tools/checkout"
 
 
 def return_url(makerspace):
-    global _current_makerspace
-    _current_makerspace = makerspace
     return f"/api/v1/public/{makerspace.slug}/tools/return"
-
-
-def api_client():
-    return APIClient(REMOTE_ADDR="10.20.30.40")
 
 
 def evidence_url(makerspace):
     return f"/api/v1/public/{makerspace.slug}/tools/evidence-url"
 
 
-def checkout_payload(payload, **overrides):
+def checkout_payload(makerspace, user, payload, **overrides):
     body = {
         "payload": payload,
-        "requester_name": "Self Checkout",
-        "contact_email": "member-1@example.com",
-        "contact_phone": "+15550101010",
     }
     body.update(overrides)
-    if "evidence_id" not in body and _current_makerspace_is_live():
-        body["evidence_id"] = _public_evidence(
-            body["contact_email"],
-            EvidencePhoto.EvidenceType.ISSUE,
-        ).id
+    if "evidence_id" not in body:
+        body["evidence_id"] = public_evidence(makerspace, user, EvidencePhoto.EvidenceType.ISSUE).id
     return body
 
 
-def return_payload(payload, identifier="member-1@example.com", remark="Returned in good condition.", **overrides):
+def return_payload(makerspace, user, payload, remark="Returned in good condition.", **overrides):
     body = {
-        "identifier": identifier,
         "payload": payload,
         "remark": remark,
-        "evidence_id": _public_evidence(identifier, EvidencePhoto.EvidenceType.RETURN).id,
+        "evidence_id": public_evidence(makerspace, user, EvidencePhoto.EvidenceType.RETURN).id,
     }
     body.update(overrides)
     return body
 
-def _current_makerspace_is_live():
-    return _current_makerspace is not None and Makerspace.objects.filter(pk=_current_makerspace.pk).exists()
 
-def _public_evidence(identifier, evidence_type):
-    assert _current_makerspace is not None
-    requester = get_or_create_requester(identifier)
+def public_evidence(makerspace, user, evidence_type):
     return EvidencePhoto.objects.create(
-        makerspace=_current_makerspace,
+        makerspace=makerspace,
         evidence_type=evidence_type,
-        object_key=f"evidence/{_current_makerspace.id}/{evidence_type}/{identifier}-{EvidencePhoto.objects.count() + 1}",
-        uploaded_by=requester,
+        object_key=f"evidence/{makerspace.id}/{evidence_type}/{user.id}-{EvidencePhoto.objects.count() + 1}",
+        uploaded_by=user,
     )
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_public_checkout_requires_tool_opt_in():
     makerspace = make_space("checkout-disabled")
+    user = eligible_member(makerspace)
     product = make_product(makerspace, public_self_checkout_enabled=False)
     qr = make_qr(makerspace, product)
 
-    response = api_client().post(
+    response = member_client(user).post(
         checkout_url(makerspace),
-        checkout_payload(qr.payload),
+        checkout_payload(makerspace, user, qr.payload),
         format="json",
     )
 
@@ -130,6 +132,7 @@ def test_public_checkout_requires_tool_opt_in():
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_public_checkout_requires_public_self_checkout_flags():
     makerspace = make_space("checkout-private")
+    user = eligible_member(makerspace)
     product = make_product(
         makerspace,
         is_public=False,
@@ -137,9 +140,9 @@ def test_public_checkout_requires_public_self_checkout_flags():
     )
     qr = make_qr(makerspace, product)
 
-    response = api_client().post(
+    response = member_client(user).post(
         checkout_url(makerspace),
-        checkout_payload(qr.payload),
+        checkout_payload(makerspace, user, qr.payload),
         format="json",
     )
 
@@ -152,28 +155,29 @@ def test_public_checkout_requires_public_self_checkout_flags():
 
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
-@pytest.mark.parametrize("missing_field", ["requester_name", "contact_email", "contact_phone"])
-def test_public_checkout_requires_name_email_and_phone(missing_field):
-    makerspace = make_space(f"checkout-missing-{missing_field.replace('_', '-')}")
+def test_public_checkout_requires_issue_evidence():
+    makerspace = make_space("checkout-missing-evidence")
+    user = eligible_member(makerspace)
     product = make_product(makerspace, public_self_checkout_enabled=True)
     qr = make_qr(makerspace, product)
-    payload = checkout_payload(qr.payload)
-    payload.pop(missing_field)
+    payload = checkout_payload(makerspace, user, qr.payload)
+    payload.pop("evidence_id")
 
-    response = api_client().post(
+    response = member_client(user).post(
         checkout_url(makerspace),
         payload,
         format="json",
     )
 
     assert response.status_code == 400
-    assert missing_field in response.data
+    assert "evidence_id" in response.data
     assert HardwareRequest.objects.count() == 0
 
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_public_checkout_rejects_product_qr_for_individual_tracked_product():
     makerspace = make_space("checkout-individual-product-qr")
+    user = eligible_member(makerspace)
     product = make_product(
         makerspace,
         public_self_checkout_enabled=True,
@@ -181,9 +185,9 @@ def test_public_checkout_rejects_product_qr_for_individual_tracked_product():
     )
     qr = make_qr(makerspace, product)
 
-    response = api_client().post(
+    response = member_client(user).post(
         checkout_url(makerspace),
-        checkout_payload(qr.payload),
+        checkout_payload(makerspace, user, qr.payload),
         format="json",
     )
 
@@ -200,6 +204,7 @@ def test_public_checkout_rejects_product_qr_for_individual_tracked_product():
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_public_checkout_accepts_asset_qr_for_individual_tracked_product():
     makerspace = make_space("checkout-individual-asset-qr")
+    user = eligible_member(makerspace)
     product = make_product(
         makerspace,
         public_self_checkout_enabled=True,
@@ -215,9 +220,9 @@ def test_public_checkout_accepts_asset_qr_for_individual_tracked_product():
     )
     qr = make_asset_qr(makerspace, asset)
 
-    response = api_client().post(
+    response = member_client(user).post(
         checkout_url(makerspace),
-        checkout_payload(qr.payload),
+        checkout_payload(makerspace, user, qr.payload),
         format="json",
     )
 
@@ -233,6 +238,7 @@ def test_public_checkout_accepts_asset_qr_for_individual_tracked_product():
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_public_checkout_rejects_box_qr_fallback_for_individual_tracked_product():
     makerspace = make_space("checkout-individual-box")
+    user = eligible_member(makerspace)
     box = Box.objects.create(makerspace=makerspace, label="Individual shelf")
     product = make_product(
         makerspace,
@@ -248,9 +254,9 @@ def test_public_checkout_rejects_box_qr_fallback_for_individual_tracked_product(
         target_id=box.id,
     )
 
-    response = api_client().post(
+    response = member_client(user).post(
         checkout_url(makerspace),
-        checkout_payload(qr.payload),
+        checkout_payload(makerspace, user, qr.payload),
         format="json",
     )
 
@@ -267,13 +273,14 @@ def test_public_checkout_rejects_box_qr_fallback_for_individual_tracked_product(
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_public_checkout_and_return_move_inventory_and_record_scans():
     makerspace = make_space("checkout-return")
+    user = eligible_member(makerspace)
     product = make_product(makerspace, public_self_checkout_enabled=True)
     qr = make_qr(makerspace, product)
-    client = api_client()
+    client = member_client(user)
 
     checkout = client.post(
         checkout_url(makerspace),
-        checkout_payload(qr.payload),
+        checkout_payload(makerspace, user, qr.payload),
         format="json",
     )
 
@@ -287,8 +294,8 @@ def test_public_checkout_and_return_move_inventory_and_record_scans():
     assert product.issued_quantity == 1
     request = HardwareRequest.objects.get()
     assert request.status == HardwareRequest.Status.ISSUED
-    assert request.requester_name == "Self Checkout"
-    assert request.requester_contact_email == "member-1@example.com"
+    assert request.requester_name == user.display_name
+    assert request.requester_contact_email == user.email
     assert request.requester_contact_phone == "+15550101010"
     loan = PublicToolLoan.objects.get()
     assert request.return_due_at == loan.due_at
@@ -296,7 +303,7 @@ def test_public_checkout_and_return_move_inventory_and_record_scans():
 
     returned = client.post(
         return_url(makerspace),
-        return_payload(qr.payload),
+        return_payload(makerspace, user, qr.payload),
         format="json",
     )
 
@@ -313,6 +320,7 @@ def test_public_checkout_and_return_move_inventory_and_record_scans():
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_public_box_checkout_return_restores_all_items():
     makerspace = make_space("checkout-return-box")
+    user = eligible_member(makerspace)
     box = Box.objects.create(makerspace=makerspace, label="Loan shelf")
     product_a = make_product(
         makerspace,
@@ -331,11 +339,11 @@ def test_public_box_checkout_return_restores_all_items():
         target_type=QrCode.TargetType.BOX,
         target_id=box.id,
     )
-    client = api_client()
+    client = member_client(user)
 
     checkout = client.post(
         checkout_url(makerspace),
-        checkout_payload(qr.payload),
+        checkout_payload(makerspace, user, qr.payload),
         format="json",
     )
 
@@ -353,7 +361,7 @@ def test_public_box_checkout_return_restores_all_items():
 
     returned = client.post(
         return_url(makerspace),
-        return_payload(qr.payload),
+        return_payload(makerspace, user, qr.payload),
         format="json",
     )
 
@@ -369,18 +377,20 @@ def test_public_box_checkout_return_restores_all_items():
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_public_return_requires_same_verified_user():
     makerspace = make_space("checkout-other-user")
+    user = eligible_member(makerspace)
+    other_user = eligible_member(makerspace, "member-2")
     product = make_product(makerspace, public_self_checkout_enabled=True)
     qr = make_qr(makerspace, product)
-    client = api_client()
+    client = member_client(user)
     client.post(
         checkout_url(makerspace),
-        checkout_payload(qr.payload),
+        checkout_payload(makerspace, user, qr.payload),
         format="json",
     )
 
-    response = client.post(
+    response = member_client(other_user).post(
         return_url(makerspace),
-        return_payload(qr.payload, identifier="member-2@example.com"),
+        return_payload(makerspace, other_user, qr.payload),
         format="json",
     )
 
@@ -394,15 +404,15 @@ def test_public_return_requires_same_verified_user():
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_public_self_checkout_evidence_upload_url_is_audited(monkeypatch):
     makerspace = make_space("checkout-evidence-audit")
+    user = eligible_member(makerspace)
     monkeypatch.setattr(
         "apps.hardware_requests.self_checkout_views.presigned_upload",
         lambda object_key, content_type: {"url": "https://storage.test/upload", "fields": {"key": object_key}},
     )
 
-    response = api_client().post(
+    response = member_client(user).post(
         evidence_url(makerspace),
         {
-            "identifier": "member-1@example.com",
             "evidence_type": EvidencePhoto.EvidenceType.ISSUE,
             "content_type": "image/png",
             "size_bytes": 4321,
@@ -430,15 +440,16 @@ def test_public_return_report_problem_creates_report_and_keeps_stock_available()
     from apps.hardware_requests.models import PublicProblemReport
 
     makerspace = make_space("checkout-report")
+    user = eligible_member(makerspace)
     product = make_product(makerspace, public_self_checkout_enabled=True)
     qr = make_qr(makerspace, product)
-    client = api_client()
-    checkout = client.post(checkout_url(makerspace), checkout_payload(qr.payload), format="json")
+    client = member_client(user)
+    checkout = client.post(checkout_url(makerspace), checkout_payload(makerspace, user, qr.payload), format="json")
     assert checkout.status_code == 201
 
     returned = client.post(
         return_url(makerspace),
-        return_payload(qr.payload, report_problem=True, problem_note="Tip is bent."),
+        return_payload(makerspace, user, qr.payload, report_problem=True, problem_note="Tip is bent."),
         format="json",
     )
 
@@ -460,12 +471,13 @@ def test_public_return_without_report_creates_no_problem_report():
     from apps.hardware_requests.models import PublicProblemReport
 
     makerspace = make_space("checkout-no-report")
+    user = eligible_member(makerspace)
     product = make_product(makerspace, public_self_checkout_enabled=True)
     qr = make_qr(makerspace, product)
-    client = api_client()
-    client.post(checkout_url(makerspace), checkout_payload(qr.payload), format="json")
+    client = member_client(user)
+    client.post(checkout_url(makerspace), checkout_payload(makerspace, user, qr.payload), format="json")
 
-    returned = client.post(return_url(makerspace), return_payload(qr.payload), format="json")
+    returned = client.post(return_url(makerspace), return_payload(makerspace, user, qr.payload), format="json")
 
     assert returned.status_code == 200
     assert not PublicProblemReport.objects.exists()
@@ -474,14 +486,15 @@ def test_public_return_without_report_creates_no_problem_report():
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_public_return_report_problem_requires_note():
     makerspace = make_space("checkout-report-note")
+    user = eligible_member(makerspace)
     product = make_product(makerspace, public_self_checkout_enabled=True)
     qr = make_qr(makerspace, product)
-    client = api_client()
-    client.post(checkout_url(makerspace), checkout_payload(qr.payload), format="json")
+    client = member_client(user)
+    client.post(checkout_url(makerspace), checkout_payload(makerspace, user, qr.payload), format="json")
 
     response = client.post(
         return_url(makerspace),
-        return_payload(qr.payload, report_problem=True, problem_note="   "),
+        return_payload(makerspace, user, qr.payload, report_problem=True, problem_note="   "),
         format="json",
     )
 

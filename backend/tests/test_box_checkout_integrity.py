@@ -10,13 +10,10 @@ from apps.boxes.models import Box, QrCode
 from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests.models import HardwareRequest, PublicToolLoan
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
-from apps.makerspaces.models import Makerspace, MakerspaceMembership
-from apps.hardware_requests.workflow_utils import get_or_create_requester
+from apps.makerspaces.models import Makerspace, MakerspaceMembership, MakerspaceRole
+from apps.presence import services as presence
 
 pytestmark = pytest.mark.django_db
-
-_current_makerspace = None
-
 
 def make_space(slug):
     return Makerspace.objects.create(name=slug, slug=slug)
@@ -34,6 +31,29 @@ def make_admin(makerspace):
         role=MakerspaceMembership.Role.SPACE_MANAGER,
     )
     return user
+
+
+def eligible_member(makerspace, username="box-member"):
+    user = User.objects.create_user(
+        username=f"{username}-{makerspace.slug}",
+        email=f"{username}-{makerspace.slug}@example.com",
+        phone="+15550101010",
+        display_name="Box Borrower",
+    )
+    MakerspaceMembership.objects.create(
+        makerspace=makerspace,
+        user=user,
+        role=MakerspaceMembership.Role.CUSTOM,
+        assigned_role=MakerspaceRole.objects.get(makerspace=makerspace, slug="member"),
+    )
+    presence.start_session(user, makerspace, 60)
+    return user
+
+
+def member_client(user):
+    client = APIClient()
+    client.force_authenticate(user)
+    return client
 
 
 def make_product(makerspace, **overrides):
@@ -57,50 +77,41 @@ def make_box_qr(makerspace, box):
     )
 
 
-def checkout_payload(payload):
+def checkout_payload(makerspace, member, payload):
     return {
         "payload": payload,
-        "requester_name": "Box Borrower",
-        "contact_email": "box-member@example.com",
-        "contact_phone": "+15550101010",
-        "evidence_id": _evidence("box-member@example.com", EvidencePhoto.EvidenceType.ISSUE).id,
+        "evidence_id": _evidence(makerspace, member, EvidencePhoto.EvidenceType.ISSUE).id,
     }
 
 def public_checkout_url(makerspace):
-    global _current_makerspace
-    _current_makerspace = makerspace
     return f"/api/v1/public/{makerspace.slug}/tools/checkout"
 
 
 def direct_url(makerspace):
-    global _current_makerspace
-    _current_makerspace = makerspace
     return f"/api/v1/admin/makerspace/{makerspace.id}/direct-loans"
 
 
-def direct_payload(**overrides):
+def direct_payload(makerspace, borrower, **overrides):
     payload = {
-        "requester_name": "Direct Box Borrower",
-        "contact_email": "direct-box@example.com",
-        "contact_phone": "+15550101010",
-        "evidence_id": _evidence("direct-box@example.com", EvidencePhoto.EvidenceType.ISSUE).id,
+        "borrower_id": borrower.id,
+        "evidence_id": _evidence(makerspace, borrower, EvidencePhoto.EvidenceType.ISSUE).id,
     }
     payload.update(overrides)
     return payload
 
 
-def _evidence(identifier, evidence_type):
-    assert _current_makerspace is not None
+def _evidence(makerspace, user, evidence_type):
     return EvidencePhoto.objects.create(
-        makerspace=_current_makerspace,
+        makerspace=makerspace,
         evidence_type=evidence_type,
-        object_key=f"evidence/{_current_makerspace.id}/{evidence_type}/{identifier}-{EvidencePhoto.objects.count() + 1}",
-        uploaded_by=get_or_create_requester(identifier),
+        object_key=f"evidence/{makerspace.id}/{evidence_type}/{user.id}-{EvidencePhoto.objects.count() + 1}",
+        uploaded_by=user,
     )
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_public_box_checkout_issues_mixed_asset_and_quantity_contents():
     makerspace = make_space("box-mixed-public")
+    member = eligible_member(makerspace)
     box = Box.objects.create(makerspace=makerspace, label="Mixed Box")
     individual_product = make_product(
         makerspace,
@@ -120,9 +131,9 @@ def test_public_box_checkout_issues_mixed_asset_and_quantity_contents():
     quantity_product = make_product(makerspace, name="Cable Kit", box=box)
     qr = make_box_qr(makerspace, box)
 
-    response = APIClient().post(
+    response = member_client(member).post(
         public_checkout_url(makerspace),
-        checkout_payload(qr.payload),
+        checkout_payload(makerspace, member, qr.payload),
         format="json",
     )
 
@@ -147,17 +158,21 @@ def test_public_box_checkout_issues_mixed_asset_and_quantity_contents():
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_public_box_checkout_blocks_subsequent_direct_container_loan():
     makerspace = make_space("box-public-blocks-direct")
+    member = eligible_member(makerspace)
     box = Box.objects.create(makerspace=makerspace, label="Shared Box")
     make_product(makerspace, name="Shared Kit", box=box)
     qr = make_box_qr(makerspace, box)
-    APIClient().post(public_checkout_url(makerspace), checkout_payload(qr.payload), format="json")
+    member_client(member).post(
+        public_checkout_url(makerspace), checkout_payload(makerspace, member, qr.payload), format="json"
+    )
     admin = make_admin(makerspace)
+    borrower = eligible_member(makerspace, "direct-box")
     client = APIClient()
     client.force_authenticate(admin)
 
     response = client.post(
         direct_url(makerspace),
-        direct_payload(container_id=box.id, items=[]),
+        direct_payload(makerspace, borrower, container_id=box.id, items=[]),
         format="json",
     )
 
@@ -172,12 +187,13 @@ def test_direct_box_qr_loan_sets_container():
     product = make_product(makerspace, name="Direct Box Kit", box=box)
     qr = make_box_qr(makerspace, box)
     admin = make_admin(makerspace)
+    borrower = eligible_member(makerspace, "direct-box")
     client = APIClient()
     client.force_authenticate(admin)
 
     response = client.post(
         direct_url(makerspace),
-        direct_payload(qr_payloads=[qr.payload]),
+        direct_payload(makerspace, borrower, qr_payloads=[qr.payload]),
         format="json",
     )
 
