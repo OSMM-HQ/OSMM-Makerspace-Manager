@@ -21,7 +21,7 @@ def assert_default_roles(makerspace):
         role.legacy_role: role
         for role in MakerspaceRole.objects.filter(makerspace=makerspace)
     }
-    assert set(actual) == set(LEGACY_ROLE_VALUES)
+    assert set(actual) == set(LEGACY_ROLE_VALUES) | {None}
     for legacy_role, name, granted_actions in roles.DEFAULT_ROLE_DEFINITIONS:
         role = actual[legacy_role]
         assert role.name == name
@@ -29,10 +29,16 @@ def assert_default_roles(makerspace):
         assert role.granted_actions == sorted(granted_actions)
         assert role.is_default is True
         assert role.is_protected is True
+    member = actual[None]
+    assert member.name == "Member"
+    assert member.slug == "member"
+    assert member.granted_actions == []
+    assert member.is_default is True
+    assert member.is_protected is True
 
 
 @pytest.mark.django_db(transaction=True)
-def test_new_makerspace_gets_exactly_five_default_roles():
+def test_new_makerspace_gets_protected_default_roles():
     makerspace = Makerspace.objects.create(name="New roles", slug="new-roles")
 
     assert_default_roles(makerspace)
@@ -45,7 +51,7 @@ def test_ensure_default_roles_is_idempotent():
     roles.ensure_default_roles(makerspace)
     roles.ensure_default_roles(makerspace)
 
-    assert MakerspaceRole.objects.filter(makerspace=makerspace).count() == 5
+    assert MakerspaceRole.objects.filter(makerspace=makerspace).count() == 6
     assert_default_roles(makerspace)
 
 
@@ -124,9 +130,10 @@ def test_seeded_defaults_match_frozen_rbac_mapping():
         for role in MakerspaceRole.objects.filter(makerspace=makerspace)
     }
 
-    assert set(seeded) == set(rbac._MEMBERSHIP_ROLE_ACTIONS)
+    assert set(seeded) == set(rbac._MEMBERSHIP_ROLE_ACTIONS) | {None}
     for legacy_role, actions in rbac._MEMBERSHIP_ROLE_ACTIONS.items():
         assert seeded[legacy_role] == sorted(actions)
+    assert seeded[None] == []
 
 
 @pytest.mark.django_db(transaction=True)

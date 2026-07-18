@@ -167,19 +167,16 @@ def test_staff_emails_for_stream_excludes_ineligible_members(username, user_kwar
     assert staff_emails_for_stream(makerspace, "hardware") == [valid.email]
 
 
-def test_staff_emails_for_stream_dedupes_case_variant_emails():
+def test_staff_emails_for_stream_returns_single_normalized_email():
+    # Two distinct accounts can no longer share a case-variant email (M1 added a global
+    # case-insensitive unique email constraint), so the resolver only needs to return each
+    # staff member's address once, normalized.
     makerspace = make_space("staff-resolver-dedupe")
     make_staff_user(
         "resolver-dedupe-upper",
         makerspace,
         MakerspaceMembership.Role.SPACE_MANAGER,
         email="Foo@Example.com",
-    )
-    make_staff_user(
-        "resolver-dedupe-lower",
-        makerspace,
-        MakerspaceMembership.Role.INVENTORY_MANAGER,
-        email="foo@example.com",
     )
 
     recipients = staff_emails_for_stream(makerspace, "hardware")

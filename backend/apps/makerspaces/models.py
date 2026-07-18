@@ -303,6 +303,28 @@ class MakerspaceMembership(models.Model):
     # existing behavior (every relevant manager is notified); the space manager can turn
     # an individual manager off in Settings without removing their access.
     receives_notifications = models.BooleanField(default=True)
+    status = models.CharField(
+        max_length=16,
+        choices=(("active", "Active"), ("revoked", "Revoked")),
+        default="active",
+    )
+    activated_at = models.DateTimeField(null=True, blank=True)
+    activated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="activated_makerspace_memberships",
+    )
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    revoked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="revoked_makerspace_memberships",
+    )
+    revocation_reason = models.TextField(blank=True)
+    waiver_accepted_at = models.DateTimeField(null=True, blank=True)
+    waiver_version_accepted = models.CharField(max_length=64, null=True, blank=True)
+    accepted_waiver = models.ForeignKey(
+        "makerspaces.MakerspaceWaiver", null=True, blank=True, on_delete=models.PROTECT,
+        related_name="accepted_by_memberships",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -310,6 +332,15 @@ class MakerspaceMembership(models.Model):
             models.UniqueConstraint(
                 fields=["makerspace", "user"],
                 name="uniq_makerspace_user",
+            ),
+            models.CheckConstraint(
+                condition=(
+                    Q(waiver_accepted_at__isnull=True, waiver_version_accepted__isnull=True,
+                      accepted_waiver__isnull=True)
+                    | Q(waiver_accepted_at__isnull=False, waiver_version_accepted__isnull=False,
+                        accepted_waiver__isnull=False)
+                ),
+                name="membership_waiver_acceptance_all_or_none",
             ),
         ]
 
@@ -329,6 +360,11 @@ class MakerspaceMembership(models.Model):
             raise ValidationError(
                 {"assigned_role": "Role must belong to the same makerspace."}
             )
+        if (
+            self.accepted_waiver_id and self.makerspace_id
+            and self.accepted_waiver.makerspace_id != self.makerspace_id
+        ):
+            raise ValidationError({"accepted_waiver": "Waiver must belong to the same makerspace."})
 
     def __str__(self):
         return f"{self.user} @ {self.makerspace.slug} ({self.role})"
@@ -373,7 +409,7 @@ class MakerspaceRole(models.Model):
                 name="makerspacerole_legacy_uniq",
             ),
             models.CheckConstraint(
-                condition=Q(is_default=False) | Q(legacy_role__isnull=False),
+                condition=Q(is_default=False) | Q(legacy_role__isnull=False) | Q(is_protected=True),
                 name="makerspacerole_default_has_legacy",
             ),
         ]
@@ -385,6 +421,63 @@ class MakerspaceRole(models.Model):
         self.name = (self.name or "").strip()
         if not self.name:
             raise ValidationError("Role name cannot be blank.")
+        super().save(*args, **kwargs)
+
+
+class MakerspaceWaiver(models.Model):
+    makerspace = models.ForeignKey(Makerspace, on_delete=models.CASCADE, related_name="waivers")
+    body = models.TextField()
+    version = models.CharField(max_length=64)
+    is_active = models.BooleanField(default=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="created_makerspace_waivers",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    superseded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["makerspace", "version"], name="uniq_waiver_version_per_makerspace"),
+            models.UniqueConstraint(fields=["makerspace"], condition=Q(is_active=True), name="uniq_active_waiver_per_makerspace"),
+        ]
+        ordering = ["-created_at", "-id"]
+
+
+class MembershipRequest(models.Model):
+    class Kind(models.TextChoices):
+        REQUEST = "request", "Request"
+        INVITE = "invite", "Invite"
+
+    class State(models.TextChoices):
+        REQUESTED = "requested", "Requested"
+        INVITED = "invited", "Invited"
+        ACTIVE = "active", "Active"
+        REVOKED = "revoked", "Revoked"
+
+    makerspace = models.ForeignKey(Makerspace, on_delete=models.CASCADE, related_name="membership_requests")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="membership_requests")
+    invite_email = models.CharField(max_length=254, blank=True)
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    state = models.CharField(max_length=16, choices=State.choices)
+    requested_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="requested_memberships")
+    invited_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="invited_memberships")
+    decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="decided_membership_requests")
+    assigned_role = models.ForeignKey("makerspaces.MakerspaceRole", null=True, blank=True, on_delete=models.PROTECT, related_name="membership_requests")
+    decision_note = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["makerspace", "user"], condition=Q(state__in=["requested", "invited"], user__isnull=False), name="uniq_open_membership_request_user"),
+            models.UniqueConstraint(fields=["makerspace", "invite_email"], condition=Q(state__in=["requested", "invited"]) & ~Q(invite_email=""), name="uniq_open_membership_request_email"),
+        ]
+        ordering = ["-created_at", "-id"]
+
+    def save(self, *args, **kwargs):
+        self.invite_email = (self.invite_email or "").strip().lower()
         super().save(*args, **kwargs)
 
 

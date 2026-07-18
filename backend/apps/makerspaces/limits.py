@@ -21,6 +21,7 @@ NUMERIC_LIMIT_KEYS = frozenset(
         "events",
         "bookings",
         "staff",
+        "members",
         "storage",
         "print",
         "email",
@@ -43,6 +44,7 @@ RESOURCE_LABELS = {
     "events": "events",
     "bookings": "active bookings",
     "staff": "staff members",
+    "members": "members",
     "storage": "storage",
     "print": "monthly print requests",
     "email": "daily emails",
@@ -166,6 +168,16 @@ def _staff(makerspace) -> int:
     return MakerspaceMembership.objects.filter(
         makerspace=makerspace,
         user__is_active=True,
+        user__access_status=User.AccessStatus.ACTIVE,
+    ).count()
+
+
+def _members(makerspace) -> int:
+    from apps.accounts.models import User
+    from apps.makerspaces.models import MakerspaceMembership
+
+    return MakerspaceMembership.objects.filter(
+        makerspace=makerspace, status="active", user__is_active=True,
         user__access_status=User.AccessStatus.ACTIVE,
     ).count()
 
@@ -301,6 +313,7 @@ _COUNTERS: dict[str, Callable[[object], int]] = {
     "events": _events,
     "bookings": _bookings,
     "staff": _staff,
+    "members": _members,
     "api_clients": _api_clients,
     "custom_roles": _custom_roles,
     "print": _print_requests,

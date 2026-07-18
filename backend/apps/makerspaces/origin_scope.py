@@ -9,6 +9,7 @@ from apps.makerspaces.platform import makerspace_staff_origins
 NO_STAFF_ORIGIN_SCOPE = object()
 AMBIGUOUS_STAFF_ORIGIN_SCOPE = object()
 _MAKERSPACE_KWARG_ROUTES = {
+    "admin-memberships-roster": "makerspace_id",
     'admin-maintenance-schedule-list-create': 'makerspace_id',
     'admin-maintenance-log-list-create': 'makerspace_id',
     'admin-bookable-space-list-create': 'makerspace_id',
@@ -103,7 +104,10 @@ def _target_makerspace_id(request, view=None):
         return int(kwargs["makerspace_id"])
     if url_name == "admin-makerspace" and "pk" in kwargs:
         return int(kwargs["pk"])
-    query_value = getattr(request, "query_params", {}).get("makerspace")
+    query_value = (
+        getattr(request, "query_params", {}).get("makerspace")
+        or getattr(request, "query_params", {}).get("makerspace_id")
+    )
     if query_value not in (None, ""):
         try:
             return int(query_value)
@@ -205,6 +209,10 @@ _MACHINE_SERVICE_ACTIONS = {
     "admin-machine-service-file-finalize",
 }
 _MODEL_LOOKUPS = {
+    "admin-membership-request-approve": ("makerspaces.MembershipRequest", "makerspace_id"),
+    "admin-membership-request-revoke": ("makerspaces.MembershipRequest", "makerspace_id"),
+    "admin-membership-revoke-m2": ("makerspaces.MakerspaceMembership", "makerspace_id"),
+    "admin-membership-role-m2": ("makerspaces.MakerspaceMembership", "makerspace_id"),
     "admin-membership-revoke": (
         "makerspaces.MakerspaceMembership",
         "makerspace_id",

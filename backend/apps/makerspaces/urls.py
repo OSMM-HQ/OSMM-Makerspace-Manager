@@ -2,8 +2,17 @@ from django.urls import path
 
 from apps.makerspaces.config_views import PublicConfigView
 from apps.makerspaces.views import BootstrapView
+from apps.makerspaces.views_memberships import (
+    InvitationClaimView, MemberWaiverAcceptView, MemberWaiverView, MyMembershipsView,
+    PublicMembershipRequestView,
+)
 
 urlpatterns = [
     path("bootstrap", BootstrapView.as_view(), name="tenant-bootstrap"),
     path("config", PublicConfigView.as_view(), name="public-config"),
+    path("public/<slug:makerspace_slug>/membership-requests", PublicMembershipRequestView.as_view(), name="public-membership-request"),
+    path("memberships/me", MyMembershipsView.as_view(), name="my-memberships"),
+    path("memberships/<int:pk>/accept-invitation", InvitationClaimView.as_view(), name="membership-invitation-claim"),
+    path("member/makerspaces/<int:makerspace_id>/waiver", MemberWaiverView.as_view(), name="member-waiver"),
+    path("member/makerspaces/<int:makerspace_id>/waiver/accept", MemberWaiverAcceptView.as_view(), name="member-waiver-accept"),
 ]

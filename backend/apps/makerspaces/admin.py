@@ -6,7 +6,7 @@ from unfold.admin import ModelAdmin, TabularInline
 
 from apps.makerspaces.admin_images import MakerspaceAdminForm, MakerspaceImageAdminMixin
 from apps.makerspaces.admin_subdomains import SubdomainRequestAdmin
-from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.makerspaces.models import Makerspace, MakerspaceMembership, MakerspaceWaiver, MembershipRequest
 from config.admin_access import SuperuserOnlyModelAdmin
 
 
@@ -237,3 +237,27 @@ class MakerspaceMembershipAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     search_fields = ("user__username", "user__email")
     autocomplete_fields = ("user", "makerspace")
     readonly_fields = ("created_at",)
+
+
+@admin.register(MakerspaceWaiver)
+class MakerspaceWaiverAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+    list_display = ("makerspace", "version", "is_active", "created_at", "superseded_at")
+    readonly_fields = ("makerspace", "body", "version", "is_active", "created_by", "created_at", "superseded_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return request.method in ("GET", "HEAD") and super().has_change_permission(request, obj)
+
+
+@admin.register(MembershipRequest)
+class MembershipRequestAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+    list_display = ("makerspace", "kind", "state", "user", "invite_email", "created_at")
+    readonly_fields = tuple(field.name for field in MembershipRequest._meta.fields)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return request.method in ("GET", "HEAD") and super().has_change_permission(request, obj)

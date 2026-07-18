@@ -15,7 +15,7 @@ def resolve_scope(actor):
         return set()
     if actor.is_superuser or actor.role == User.Role.SUPERADMIN:
         return _superadmin_visible_ids(actor, None)
-    scope = set(actor.makerspace_memberships.values_list("makerspace_id", flat=True))
+    scope = set(actor.makerspace_memberships.filter(status="active").values_list("makerspace_id", flat=True))
     return _exclude_archived_ids(scope)
 
 
@@ -108,7 +108,7 @@ _HANDOUT_MUTATIONS = frozenset(HANDOUT_ACTIONS - {Action.VIEW_INVENTORY})
 
 def actions_for_membership(membership) -> set:
     """Resolve role actions for a membership, failing closed on invalid role data."""
-    if membership is None:
+    if membership is None or getattr(membership, "status", "active") != "active":
         return set()
     if membership.assigned_role_id is not None:
         role = membership.assigned_role
@@ -138,6 +138,7 @@ def makerspaces_for_action(actor, action):
         return set()
     assigned_scope = set(
         actor.makerspace_memberships.filter(
+            status="active",
             assigned_role__isnull=False,
             assigned_role__makerspace=F("makerspace"),
             assigned_role__granted_actions__contains=[action],
@@ -149,6 +150,7 @@ def makerspaces_for_action(actor, action):
     legacy_scope = (
         set(
             actor.makerspace_memberships.filter(
+                status="active",
                 assigned_role__isnull=True,
                 role__in=legacy_roles,
             ).values_list("makerspace_id", flat=True)
@@ -188,6 +190,7 @@ def scope_by_action(actor, action, queryset, field="makerspace_id"):
 def membership_role(actor, makerspace_id):
     """Return the actor's MakerspaceMembership.role for this makerspace, or None."""
     membership = actor.makerspace_memberships.filter(
+        status="active",
         makerspace_id=makerspace_id
     ).first()
     return membership.role if membership else None
@@ -195,6 +198,7 @@ def membership_role(actor, makerspace_id):
 
 def _membership_for(actor, makerspace_id) -> MakerspaceMembership | None:
     return actor.makerspace_memberships.select_related("assigned_role").filter(
+        status="active",
         makerspace_id=makerspace_id
     ).first()
 
@@ -298,7 +302,7 @@ def _superadmin_hidden_to_exclude(actor, action=None):
     hidden = superadmin_hidden_makerspace_ids()
     if not hidden:
         return set()
-    memberships = actor.makerspace_memberships.filter(makerspace_id__in=hidden)
+    memberships = actor.makerspace_memberships.filter(makerspace_id__in=hidden, status="active")
     if action is None:
         member_ok = set(memberships.values_list("makerspace_id", flat=True))
     elif action in ROLE_FORBIDDEN_ACTIONS:

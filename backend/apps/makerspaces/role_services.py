@@ -27,7 +27,7 @@ def _locked_actor_actions(actor, makerspace):
     membership = (
         MakerspaceMembership.objects.select_for_update(of=("self",))
         .select_related("assigned_role")
-        .filter(makerspace=makerspace, user=actor)
+        .filter(makerspace=makerspace, user=actor, status="active")
         .first()
     )
     if membership and membership.assigned_role_id:

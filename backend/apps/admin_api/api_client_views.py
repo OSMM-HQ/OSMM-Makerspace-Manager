@@ -191,7 +191,7 @@ class ApiKeyRequestListCreateView(generics.ListCreateAPIView):
         user = self.request.user
         is_superadmin = user.is_superuser or user.role == User.Role.SUPERADMIN
         is_member = MakerspaceMembership.objects.filter(
-            user=user, makerspace_id=makerspace.id
+            user=user, makerspace_id=makerspace.id, status="active"
         ).exists()
         if makerspace.archived_at is not None:
             raise PermissionDenied()

@@ -84,6 +84,7 @@ def attach_staff_membership(
             has_active_membership = MakerspaceMembership.objects.filter(
                 user=user,
                 makerspace=makerspace,
+                status="active",
                 user__is_active=True,
                 user__access_status=User.AccessStatus.ACTIVE,
             ).exists()
@@ -96,9 +97,18 @@ def attach_staff_membership(
             # role here: doing so would let a manager add a known non-is_superuser global
             # superadmin as a delegable/custom role and silently strip their global
             # authority (P1). Authority is per-makerspace via the membership anyway.
+            # Re-adding a previously revoked staff member must reactivate the row, not
+            # leave status="revoked" (which the M2 RBAC paths treat as no access).
             membership, _ = MakerspaceMembership.objects.update_or_create(
                 user=user,
                 makerspace=makerspace,
-                defaults={"role": legacy_role, "assigned_role": role},
+                defaults={
+                    "role": legacy_role,
+                    "assigned_role": role,
+                    "status": "active",
+                    "revoked_at": None,
+                    "revoked_by": None,
+                    "revocation_reason": "",
+                },
             )
         return membership, created, is_break_glass

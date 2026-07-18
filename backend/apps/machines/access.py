@@ -28,7 +28,9 @@ def is_active_member(user, makerspace_id):
         return False
     if not getattr(user, "is_active", False):
         return False
-    return user.makerspace_memberships.filter(makerspace_id=makerspace_id).exists()
+    return user.makerspace_memberships.filter(
+        makerspace_id=makerspace_id, status="active"
+    ).exists()
 
 
 def operator_level(actor, machine):
