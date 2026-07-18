@@ -13,6 +13,7 @@ from apps.hardware_requests import notifications as hardware_notifications
 from apps.hardware_requests.models import HardwareRequest
 from apps.integrations.staff_notifications import staff_emails_for_stream
 from apps.makerspaces.models import MakerspaceMembership
+from apps.presence import services as presence
 from apps.printing import workflow as print_workflow
 from apps.printing.models import FilamentSpool, PrintPrinter, PrintRequest
 from tests.return_helpers import (
@@ -68,6 +69,19 @@ def make_staff_user(username, makerspace, membership_role, **kw):
         **kw,
     )
     return add_membership(user, makerspace, membership_role)
+
+
+def make_present_member(username, makerspace, **kwargs):
+    user = make_user(
+        username,
+        access_status=User.AccessStatus.ACTIVE,
+        display_name=f"{username} display",
+        phone="+15550101010",
+        **kwargs,
+    )
+    add_membership(user, makerspace, MakerspaceMembership.Role.CUSTOM)
+    presence.start_session(user, makerspace, 60)
+    return user
 
 
 def public_hardware_submit_url(makerspace):
@@ -215,9 +229,14 @@ def test_hardware_submitted_emails_requester_and_staff(
         MakerspaceMembership.Role.INVENTORY_MANAGER,
         email="hardware-submitted-staff@example.com",
     )
+    requester = make_present_member(
+        "staff-hardware-submitted-requester",
+        makerspace,
+        email="hardware-submitted-requester@example.com",
+    )
 
     with django_capture_on_commit_callbacks(execute=True):
-        response = APIClient().post(
+        response = hardware_authenticated_client(requester).post(
             public_hardware_submit_url(makerspace),
             {
                 "requester_name": "Hardware Requester",
@@ -454,9 +473,14 @@ def test_public_print_submit_emails_printing_staff_once(
     staff = make_print_manager("staff-print-public-submit-manager", makerspace)
     staff.email = "print-public-submit-staff@example.com"
     staff.save(update_fields=["email"])
+    requester = make_present_member(
+        "staff-print-public-submit-requester",
+        makerspace,
+        email="print-public-requester@example.com",
+    )
 
     with django_capture_on_commit_callbacks(execute=True):
-        response = APIClient().post(
+        response = print_authenticated_client(requester).post(
             public_print_submit_url(makerspace),
             {
                 "requester_name": "Print Requester",

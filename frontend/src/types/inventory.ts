@@ -50,10 +50,6 @@ export type RequestCartItem = {
   quantity: number;
 };
 
-export type CheckinVerifyResponse = {
-  username: string;
-};
-
 export type RequestSubmitResponse = {
   public_token: string;
   status: string;

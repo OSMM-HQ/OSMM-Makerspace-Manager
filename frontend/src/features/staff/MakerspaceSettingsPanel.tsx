@@ -234,7 +234,6 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
             >
               <option value="token_only">Token only</option>
               <option value="email_unverified">Email lookup</option>
-              <option value="checkin_verified">Check-In verified</option>
             </select>
           </div>
         </div>
@@ -266,6 +265,5 @@ function statusLookupLabel(policy: Makerspace["public_print_status_lookup_policy
   return {
     token_only: "Token only",
     email_unverified: "Email lookup",
-    checkin_verified: "Check-In verified",
   }[policy ?? "email_unverified"];
 }

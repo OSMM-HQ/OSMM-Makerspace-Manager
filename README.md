@@ -31,7 +31,7 @@ Telegram group, QR namespace, and audit scope — fully isolated from the others
 ## Features
 
 - **Public catalog** — browse by makerspace and category, request to borrow, and (when enabled)
-  **QR self-checkout/return** with Check-In verification and photo evidence. No login required.
+  **QR self-checkout/return** for present members with photo evidence.
 - **Full hardware lifecycle** — request → accept → issue (box QR scan + photo) → return (photo +
   remark) → accountability, all audited. Direct staff handouts too.
 - **3D-printing manager** — public print requests, printer/spool management, filament tracking,
@@ -92,7 +92,7 @@ per-makerspace membership.
 | **Inventory Manager** | Full hardware lifecycle + inventory + QR + evidence + audit — for their space | Printing, staff, settings; Django admin |
 | **Print Manager** | 3D-printing lifecycle, printers & spools | Hardware, inventory, staff; Django admin |
 | **Guest Admin** | Issue accepted requests + process returns (evidence/QR/remark) | Accept/reject, inventory, QR, direct handouts; Django admin |
-| **Public** | Browse, request, self-checkout/return eligible QR tools (Check-In + photo evidence) | Anything authenticated |
+| **Public** | Browse, request, self-checkout/return eligible QR tools (member presence + photo evidence) | Anything authenticated |
 
 > Roles are **defined by the system, not by users** — nobody can invent roles or grant themselves
 > extra powers; they can only assign people to existing roles within their own makerspace.

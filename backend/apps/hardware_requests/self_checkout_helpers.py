@@ -2,20 +2,11 @@ from collections import Counter
 
 from django.utils import timezone
 
-from apps.accounts.models import User
 from apps.boxes.models import Box, QrCode
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem, PublicToolLoan
-from apps.hardware_requests.workflow_errors import RequestValidationError, RequesterBlocked
-from apps.hardware_requests.workflow_utils import get_or_create_requester
+from apps.hardware_requests.workflow_errors import RequestValidationError
 from apps.inventory import availability
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
-
-
-def _requester(external_id):
-    requester = get_or_create_requester(external_id)
-    if requester.access_status != User.AccessStatus.ACTIVE:
-        raise RequesterBlocked("Requester is not active.")
-    return requester
 
 
 def _locked_qr(makerspace, payload):

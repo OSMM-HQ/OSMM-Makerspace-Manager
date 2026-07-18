@@ -105,7 +105,6 @@ class Makerspace(models.Model):
     class PublicPrintStatusLookupPolicy(models.TextChoices):
         TOKEN_ONLY = "token_only", "Token only"
         EMAIL_UNVERIFIED = "email_unverified", "Email unverified"
-        CHECKIN_VERIFIED = "checkin_verified", "Check-In verified"
 
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True, db_index=True)

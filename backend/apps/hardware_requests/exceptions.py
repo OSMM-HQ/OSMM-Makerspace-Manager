@@ -4,7 +4,6 @@ from rest_framework.views import exception_handler
 from drf_spectacular.utils import extend_schema_serializer
 
 from apps.bookings.exceptions import BookingConflict, BookingInvalidTransition
-from apps.checkin.client import CheckinDenied, CheckinUnavailable
 from apps.evidence.storage import StorageUnavailable
 from apps.events.exceptions import (
     CapacityConflict,
@@ -93,16 +92,6 @@ _EXCEPTION_MAP = {
         status.HTTP_403_FORBIDDEN,
         "requester_blocked",
         "Requester is blocked.",
-    ),
-    CheckinDenied: (
-        status.HTTP_403_FORBIDDEN,
-        "checkin_denied",
-        "Check-in was denied.",
-    ),
-    CheckinUnavailable: (
-        status.HTTP_503_SERVICE_UNAVAILABLE,
-        "checkin_unavailable",
-        "Check-in service is unavailable.",
     ),
     InvalidTransition: (
         status.HTTP_409_CONFLICT,

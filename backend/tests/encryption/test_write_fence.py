@@ -208,14 +208,9 @@ def test_mapped_service_paths_fail_with_the_typed_503_exception(monkeypatch):
             starts_at=timezone.now() + timedelta(days=2),
             ends_at=timezone.now() + timedelta(days=2, hours=1),
         )
-    monkeypatch.setattr(
-        request_workflow.checkin,
-        "verify",
-        lambda *_: type("Result", (), {"external_id": "fence", "username": "fence"})(),
-    )
     with pytest.raises(PiiWriteFenced):
         request_workflow.submit_request(
-            space, [], requester_name="Another", contact_email="another@example.test"
+            space, [], requester=actor
         )
     with pytest.raises(PiiWriteFenced):
         dispatch_email(

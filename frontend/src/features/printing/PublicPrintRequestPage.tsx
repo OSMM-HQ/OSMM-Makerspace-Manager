@@ -8,12 +8,7 @@ import { OsmmBadge } from "../../components/OsmmLogo";
 import { useTenant, useTenantPath } from "../../lib/tenant";
 import { formatSlug } from "../inventory/PublicInventoryParts";
 import { useTenantBootstrap } from "../inventory/usePublicInventory";
-import {
-  PrintDetailsForm,
-  initialForm,
-  optional,
-  type FormState,
-} from "./PublicPrintRequestForm";
+import { PrintDetailsForm, initialForm, optional, type FormState } from "./PublicPrintRequestForm";
 import {
   fetchPublicSpools,
   fetchPrintStatus,
@@ -21,39 +16,14 @@ import {
   presignPrintUpload,
   submitPrintRequest,
   uploadToStorage,
-  verifyPrintCheckin,
-  type PrintIdentityBody,
 } from "./publicApi";
 import {
   PrintAccessErrorPanel,
   PrintAccessLoadingPanel,
-  PrintCheckInCard,
   PrintStatusPanel,
   PrintUnavailablePanel,
 } from "./PublicPrintRequestPanels";
 import { uploadPrintFilesBounded } from "./PublicPrintUploads";
-
-function identityFromForm(form: FormState): PrintIdentityBody {
-  return {
-    requester_name: form.requesterName.trim(),
-    contact_email: form.contactEmail.trim(),
-    contact_phone: form.contactPhone.trim(),
-  };
-}
-
-function identityKey(identity: PrintIdentityBody): string {
-  return [
-    identity.requester_name,
-    identity.contact_email,
-    identity.contact_phone,
-  ].join("\n");
-}
-
-function hasCompleteIdentity(identity: PrintIdentityBody): boolean {
-  return Boolean(
-    identity.requester_name && identity.contact_email && identity.contact_phone,
-  );
-}
 
 export function PublicPrintRequestPage() {
   const queryClient = useQueryClient();
@@ -61,8 +31,6 @@ export function PublicPrintRequestPage() {
   const tenant = useTenant();
   const makerspaceSlug = tenant.mode === "single" ? tenant.slug : slug ?? "";
   const tenantPath = useTenantPath(makerspaceSlug);
-  const [verifiedIdentity, setVerifiedIdentity] = useState("");
-  const [verifiedName, setVerifiedName] = useState("");
   const [form, setForm] = useState<FormState>(initialForm);
   const [modelFiles, setModelFiles] = useState<File[]>([]);
   const [screenshotFiles, setScreenshotFiles] = useState<File[]>([]);
@@ -80,10 +48,6 @@ export function PublicPrintRequestPage() {
     [bootstrap?.modules, tenant],
   );
   const enabled = modules.has("printing");
-  const currentIdentity = identityFromForm(form);
-  const currentIdentityKey = identityKey(currentIdentity);
-  const verified = hasCompleteIdentity(currentIdentity) &&
-    currentIdentityKey === verifiedIdentity;
   const displayName =
     bootstrap?.branding.display_name ||
     bootstrap?.makerspace.name ||
@@ -110,15 +74,6 @@ export function PublicPrintRequestPage() {
     mutationFn: (email: string) =>
       fetchPrintStatusByEmail(makerspaceSlug, email.trim()),
   });
-  const verifyMutation = useMutation({
-    mutationFn: (identity: PrintIdentityBody) =>
-      verifyPrintCheckin(makerspaceSlug, identity),
-    onSuccess: (data, identity) => {
-      setVerifiedIdentity(identityKey(identity));
-      setVerifiedName(data.username);
-    },
-  });
-
   const statusStorageKey = makerspaceSlug ? `tinkerspace.printStatus.${makerspaceSlug}` : "";
 
   useEffect(() => {
@@ -138,29 +93,14 @@ export function PublicPrintRequestPage() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  function updateIdentityField(
-    key: "requesterName" | "contactEmail" | "contactPhone",
-    value: string,
-  ) {
-    const nextForm = { ...form, [key]: value };
-    updateField(key, value);
-    if (identityKey(identityFromForm(nextForm)) !== verifiedIdentity) {
-      setVerifiedIdentity("");
-      setVerifiedName("");
-      verifyMutation.reset();
-    }
-  }
-
   const submitMutation = useMutation({
     mutationFn: async () => {
-      const identity = identityFromForm(form);
       const files = [
         ...modelFiles.map((file) => ({ file, kind: "stl" as const })),
         ...screenshotFiles.map((file) => ({ file, kind: "screenshot" as const })),
       ];
       const fileIds = await uploadPrintFilesBounded(files, async (item) => {
         const presigned = await presignPrintUpload(makerspaceSlug, {
-          ...identity,
           kind: item.kind,
           filename: item.file.name,
           content_type:
@@ -177,7 +117,6 @@ export function PublicPrintRequestPage() {
         (spool) => String(spool.id) === form.filamentSpoolId,
       );
       return submitPrintRequest(makerspaceSlug, {
-        ...identity,
         website,
         title: form.title.trim(),
         project_brief: optional(form.projectBrief),
@@ -200,7 +139,6 @@ export function PublicPrintRequestPage() {
       queryClient.invalidateQueries({ queryKey: ["public-print-status"] });
       setUploadProgress("");
       setSubmitted(true);
-      setStatusEmail(form.contactEmail.trim());
       setActiveStatusToken(response.public_token);
     },
     onError: () => setUploadProgress(""),
@@ -208,7 +146,7 @@ export function PublicPrintRequestPage() {
 
   function submitForm(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (verified && form.title.trim()) submitMutation.mutate();
+    if (form.title.trim()) submitMutation.mutate();
   }
 
   function checkStatusByEmail(event: FormEvent<HTMLFormElement>) {
@@ -259,17 +197,6 @@ export function PublicPrintRequestPage() {
       {!bootstrapQuery.isLoading && !bootstrapQuery.isError && enabled ? (
         <section className="mx-auto grid max-w-screen-xl grid-cols-1 gap-5 px-5 py-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="min-w-0 space-y-4">
-            <PrintCheckInCard
-              form={form}
-              verified={verified}
-              verifiedName={verifiedName}
-              verifyPending={verifyMutation.isPending}
-              verifyError={verifyMutation.error}
-              onRequesterNameChange={(value) => updateIdentityField("requesterName", value)}
-              onContactEmailChange={(value) => updateIdentityField("contactEmail", value)}
-              onContactPhoneChange={(value) => updateIdentityField("contactPhone", value)}
-              onVerify={() => verifyMutation.mutate(currentIdentity)}
-            />
             <PrintDetailsForm
               form={form}
               updateField={updateField}
@@ -278,7 +205,6 @@ export function PublicPrintRequestPage() {
               setModelFiles={setModelFiles}
               screenshotFiles={screenshotFiles}
               setScreenshotFiles={setScreenshotFiles}
-              verified={verified}
               submitPending={submitMutation.isPending}
               submitError={submitMutation.error}
               uploadProgress={uploadProgress}

@@ -7,12 +7,13 @@ from apps.hardware_requests.self_checkout_views import (
     PublicToolReturnView,
 )
 from tests.test_public_self_checkout import (
-    api_client,
     checkout_payload,
     checkout_url,
+    eligible_member,
     make_product,
     make_qr,
     make_space,
+    member_client,
 )
 
 pytestmark = pytest.mark.django_db
@@ -28,9 +29,10 @@ def test_public_checkout_response_omits_physical_target_labels():
     )
     qr = make_qr(makerspace, product)
 
-    response = api_client().post(
+    user = eligible_member(makerspace, "checkout-public-shape-member")
+    response = member_client(user).post(
         checkout_url(makerspace),
-        checkout_payload(qr.payload),
+        checkout_payload(makerspace, user, qr.payload),
         format="json",
     )
 
@@ -45,9 +47,10 @@ def test_public_checkout_response_omits_physical_target_labels():
 def test_public_checkout_rejects_overlong_qr_payload():
     makerspace = make_space("checkout-long-payload")
 
-    response = api_client().post(
+    user = eligible_member(makerspace, "checkout-long-payload-member")
+    response = member_client(user).post(
         checkout_url(makerspace),
-        checkout_payload("x" * 65),
+        checkout_payload(makerspace, user, "x" * 65),
         format="json",
     )
 

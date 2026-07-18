@@ -5,13 +5,13 @@ from rest_framework.test import APIClient
 from apps.accounts.models import User
 from apps.boxes.models import QrCode, QrScanEvent
 from apps.evidence.models import EvidencePhoto
-from apps.hardware_requests.workflow_utils import get_or_create_requester
 from apps.hardware_requests.models import (
     HardwareRequest,
     PublicToolLoan,
 )
 from apps.inventory.models import TrackingMode
 from apps.makerspaces.models import MakerspaceMembership
+from apps.presence import services as presence
 from tests.return_helpers import authenticated_client, make_member, make_product, make_space, make_user
 
 pytestmark = pytest.mark.django_db
@@ -193,14 +193,13 @@ def test_rebind_blocked_when_qr_has_outstanding_loan():
     source = make_product(makerspace, public_self_checkout_enabled=True)
     target = make_product(makerspace, name="Loan Target")
     qr = _qr(source, actor)
-    checkout = APIClient().post(
+    borrower = make_member("qr-rebind-loan-borrower", makerspace)
+    presence.start_session(borrower, makerspace, 60)
+    checkout = authenticated_client(borrower).post(
         f"/api/v1/public/{makerspace.slug}/tools/checkout",
         {
             "payload": qr.payload,
-            "requester_name": "QR Borrower",
-            "contact_email": "member-1@example.com",
-            "contact_phone": "+15550101010",
-                "evidence_id": _public_issue_evidence(makerspace, "member-1@example.com").id,
+            "evidence_id": _public_issue_evidence(makerspace, borrower, "member-1").id,
         },
         format="json",
     )
@@ -236,12 +235,12 @@ def test_rebind_destination_conflict_returns_409():
     assert qr.target_id == source.id
 
 
-def _public_issue_evidence(makerspace, identifier):
+def _public_issue_evidence(makerspace, uploaded_by, identifier):
     return EvidencePhoto.objects.create(
         makerspace=makerspace,
         evidence_type=EvidencePhoto.EvidenceType.ISSUE,
         object_key=f"evidence/{makerspace.id}/issue/{identifier}-{EvidencePhoto.objects.count() + 1}",
-        uploaded_by=get_or_create_requester(identifier),
+        uploaded_by=uploaded_by,
     )
 
 

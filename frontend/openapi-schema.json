@@ -3,7 +3,7 @@
     "info": {
         "title": "OSMM API",
         "version": "0.1.0",
-        "description": "Multi-tenant makerspace hardware loan system.\n\nPublic flow: browse inventory, search with `q`, page with `page`, verify Check-In, submit a borrow request, then track it by public token or verified Check-In identifier.\n\nAdmin flow: authenticate with JWT, manage makerspaces, inventory, staff, QR labels, bulk imports, request review, issue, and return.\n\nAuthentication: staff/admin endpoints use `Authorization: Bearer <access>`. Public browser endpoints can use `X-Publishable-Key` when public key hardening is enabled."
+        "description": "Multi-tenant makerspace hardware loan system.\n\nPublic flow: browse inventory, search with `q`, page with `page`, sign in as a member, submit a borrow request, then track it by public token.\n\nAdmin flow: authenticate with JWT, manage makerspaces, inventory, staff, QR labels, bulk imports, request review, issue, and return.\n\nAuthentication: staff/admin endpoints use `Authorization: Bearer <access>`. Public browser endpoints can use `X-Publishable-Key` when public key hardening is enabled."
     },
     "paths": {
         "/api/public/{makerspace_slug}/inventory/": {
@@ -36629,11 +36629,10 @@
             "PublicPrintStatusLookupPolicyEnum": {
                 "enum": [
                     "token_only",
-                    "email_unverified",
-                    "checkin_verified"
+                    "email_unverified"
                 ],
                 "type": "string",
-                "description": "* `token_only` - Token only\n* `email_unverified` - Email unverified\n* `checkin_verified` - Check-In verified"
+                "description": "* `token_only` - Token only\n* `email_unverified` - Email unverified"
             },
             "PublicProduct": {
                 "type": "object",

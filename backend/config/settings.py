@@ -99,7 +99,6 @@ INSTALLED_APPS = [
     "apps.boxes",
     "apps.inventory",
     "apps.hardware_requests",
-    "apps.checkin",
     "apps.printing",
     "apps.audit",
     "apps.evidence",
@@ -300,11 +299,6 @@ PRINT_ALLOWED_SCREENSHOT_MIME = [
     "application/pdf",
 ]
 
-CHECKIN_MODE = env("CHECKIN_MODE", default="stub")
-CHECKIN_API_URL = env("CHECKIN_API_URL", default="")
-CHECKIN_API_KEY = env("CHECKIN_API_KEY", default="")
-CHECKIN_TIMEOUT = env.float("CHECKIN_TIMEOUT", default=5.0)
-
 TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", default="")
 TELEGRAM_API_URL = env("TELEGRAM_API_URL", default="https://api.telegram.org")
 # Secret passed to Telegram's setWebhook(secret_token=...); Telegram echoes it in
@@ -404,11 +398,6 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "EXCEPTION_HANDLER": "apps.hardware_requests.exceptions.workflow_exception_handler",
     "DEFAULT_THROTTLE_RATES": {
-        "checkin_verify": env("THROTTLE_CHECKIN_VERIFY", default="30/min"),
-        "staff_checkin_verify": env(
-            "THROTTLE_STAFF_CHECKIN_VERIFY",
-            default="30/min",
-        ),
         "login": env("THROTTLE_LOGIN", default="10/min"),
         "password_reset_request": env(
             "THROTTLE_PASSWORD_RESET_REQUEST",
@@ -545,8 +534,7 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": (
         "Multi-tenant makerspace hardware loan system.\n\n"
         "Public flow: browse inventory, search with `q`, page with `page`, "
-        "verify Check-In, submit a borrow request, then track it by public token "
-        "or verified Check-In identifier.\n\n"
+        "sign in as a member, submit a borrow request, then track it by public token.\n\n"
         "Admin flow: authenticate with JWT, manage makerspaces, inventory, "
         "staff, QR labels, bulk imports, request review, issue, and return.\n\n"
         "Authentication: staff/admin endpoints use `Authorization: Bearer <access>`. "

@@ -44,13 +44,6 @@ def public_status_url(print_request):
     )
 
 
-def public_status_by_email_url(makerspace):
-    return reverse(
-        "printing:public-request-status-by-email",
-        kwargs={"makerspace_slug": makerspace.slug},
-    )
-
-
 def _results(response):
     data = response.data
     if isinstance(data, dict) and "results" in data:
@@ -270,15 +263,6 @@ def test_price_never_leaks_public():
     response = client.get(public_status_url(print_request))
     assert response.status_code == 200
     _assert_no_keys(response.data, forbidden)
-
-    response = client.post(
-        public_status_by_email_url(makerspace),
-        {"email": "BUYER@example.com"},
-        format="json",
-    )
-    assert response.status_code == 200
-    _assert_no_keys(response.data, forbidden)
-
 
 @pytest.mark.parametrize("event", ["accepted", "completed"])
 def test_price_never_leaks_in_email(settings, event, django_capture_on_commit_callbacks):

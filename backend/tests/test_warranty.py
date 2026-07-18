@@ -697,11 +697,6 @@ def test_warranty_data_does_not_leak_to_public_payloads():
         client.get(reverse("public-makerspace-stats", kwargs={"makerspace_slug": makerspace.slug})),
         client.get(reverse("printing:public-buckets", kwargs={"makerspace_slug": makerspace.slug})),
         client.get(reverse("printing:public-spools", kwargs={"makerspace_slug": makerspace.slug})),
-        client.post(
-            reverse("printing:public-request-status-by-email", kwargs={"makerspace_slug": makerspace.slug}),
-            {"email": "missing@example.com"},
-            format="json",
-        ),
     ]
 
     assert bucket.id

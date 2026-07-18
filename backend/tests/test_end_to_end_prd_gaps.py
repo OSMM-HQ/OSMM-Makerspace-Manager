@@ -5,6 +5,7 @@ from apps.accounts.models import User
 from apps.apiclients.models import ApiClient
 from apps.boxes.models import QrCode, QrScanEvent
 from apps.inventory.models import TrackingMode
+from apps.presence import services as presence
 from tests.return_helpers import authenticated_client, make_issue_evidence, make_member, make_product, make_space, make_user
 
 pytestmark = pytest.mark.django_db
@@ -90,6 +91,8 @@ def test_api_client_scope_metadata_is_persisted():
 def test_individual_mode_manual_direct_handout_requires_asset_scan():
     makerspace = make_space("prd-serialized-handout")
     manager = make_member("prd-serialized-manager", makerspace)
+    borrower = make_member("prd-serialized-borrower", makerspace)
+    presence.start_session(borrower, makerspace, 60)
     product = make_product(
         makerspace,
         tracking_mode=TrackingMode.INDIVIDUAL,
@@ -99,9 +102,7 @@ def test_individual_mode_manual_direct_handout_requires_asset_scan():
     response = authenticated_client(manager).post(
         f"/api/v1/admin/makerspace/{makerspace.id}/direct-loans",
         {
-            "requester_name": "Serialized Member",
-            "contact_email": "member@example.com",
-            "contact_phone": "+15550101010",
+            "borrower_id": borrower.id,
             "evidence_id": make_issue_evidence(makerspace, manager).id,
             "items": [{"product_id": product.id, "quantity": 1}],
         },

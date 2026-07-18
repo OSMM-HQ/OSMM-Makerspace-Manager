@@ -5,6 +5,7 @@ from rest_framework.test import APIClient, APIRequestFactory
 from apps.accounts.models import User
 from apps.makerspaces.cors import origin_is_registered, staff_origin_is_registered
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.presence import services as presence
 from apps.makerspaces.origin_scope import NO_STAFF_ORIGIN_SCOPE, staff_origin_scope
 from tests.return_helpers import make_member, make_product, make_space, make_user
 
@@ -113,8 +114,17 @@ def test_disabled_request_module_blocks_public_submit():
     makerspace.enabled_modules = ["public_inventory"]
     makerspace.save(update_fields=["enabled_modules"])
     product = make_product(makerspace)
+    member = make_user("platform-modules-member")
+    MakerspaceMembership.objects.create(
+        makerspace=makerspace,
+        user=member,
+        role=MakerspaceMembership.Role.CUSTOM,
+    )
+    presence.start_session(member, makerspace, 60)
+    client = APIClient()
+    client.force_authenticate(member)
 
-    response = APIClient().post(
+    response = client.post(
         f"/api/v1/public/{makerspace.slug}/requests",
         {
             "requester_name": "Module Test Member",

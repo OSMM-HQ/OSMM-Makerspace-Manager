@@ -13,7 +13,7 @@ from tests.test_printing import (
     make_space,
     make_user,
 )
-from tests.test_printing_public import print_submit_payload, submit_url
+from tests.test_printing_member_m5 import client as member_client, eligible, urls
 
 pytestmark = pytest.mark.django_db
 
@@ -100,13 +100,13 @@ def test_accept_negative_grams_rejected():
 
 
 def test_public_submit_persists_estimated_grams():
-    from rest_framework.test import APIClient
-
     makerspace = make_space("grams-public-submit")
     bucket = make_bucket(makerspace)
-    response = APIClient().post(
-        submit_url(makerspace),
-        print_submit_payload(bucket_id=bucket.id, estimated_filament_grams="25.00"),
+    user = eligible(makerspace, "grams-public-member")
+    _, submit_url = urls(makerspace)
+    response = member_client(user).post(
+        submit_url,
+        {"bucket_id": bucket.id, "title": "Public grams", "estimated_filament_grams": "25.00"},
         format="json",
     )
 
@@ -116,13 +116,13 @@ def test_public_submit_persists_estimated_grams():
 
 
 def test_public_submit_without_grams_defaults_zero():
-    from rest_framework.test import APIClient
-
     makerspace = make_space("grams-public-default")
     bucket = make_bucket(makerspace)
-    response = APIClient().post(
-        submit_url(makerspace),
-        print_submit_payload(bucket_id=bucket.id),
+    user = eligible(makerspace, "grams-default-member")
+    _, submit_url = urls(makerspace)
+    response = member_client(user).post(
+        submit_url,
+        {"bucket_id": bucket.id, "title": "Public default grams"},
         format="json",
     )
 

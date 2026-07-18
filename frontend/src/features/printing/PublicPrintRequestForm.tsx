@@ -6,7 +6,6 @@ import { FilePicker, TextArea, TextInput } from "./PublicPrintRequestParts";
 import type { PublicFilamentSpool } from "./publicApi";
 
 export type FormState = {
-  requesterName: string;
   title: string;
   projectBrief: string;
   preferredSettings: string;
@@ -16,12 +15,9 @@ export type FormState = {
   color: string;
   quantity: number;
   sourceLink: string;
-  contactEmail: string;
-  contactPhone: string;
 };
 
 export const initialForm: FormState = {
-  requesterName: "",
   title: "",
   projectBrief: "",
   preferredSettings: "",
@@ -31,8 +27,6 @@ export const initialForm: FormState = {
   color: "",
   quantity: 1,
   sourceLink: "",
-  contactEmail: "",
-  contactPhone: "",
 };
 
 export function optional(value: string) {
@@ -63,7 +57,6 @@ type PrintDetailsFormProps = {
   setModelFiles: Dispatch<SetStateAction<File[]>>;
   screenshotFiles: File[];
   setScreenshotFiles: Dispatch<SetStateAction<File[]>>;
-  verified: boolean;
   submitPending: boolean;
   submitError?: Error | null;
   uploadProgress: string;
@@ -80,7 +73,6 @@ export function PrintDetailsForm({
   setModelFiles,
   screenshotFiles,
   setScreenshotFiles,
-  verified,
   submitPending,
   submitError,
   uploadProgress,
@@ -104,7 +96,7 @@ export function PrintDetailsForm({
           value={website}
           onChange={(event) => onWebsiteChange(event.target.value)}
         />
-        <fieldset className="space-y-4" disabled={!verified || submitPending}>
+        <fieldset className="space-y-4" disabled={submitPending}>
           <TextInput
             label="Title"
             required
@@ -203,11 +195,6 @@ export function PrintDetailsForm({
           </div>
         </fieldset>
 
-        {!verified ? (
-          <p className="rounded-lg border border-tone-yellow bg-tone-yellow px-3 py-2 text-sm font-medium text-tone-yellow-ink dark:bg-[#332b00] dark:text-[#fcdf46]">
-            Verify your Check-In before submitting a print request.
-          </p>
-        ) : null}
         {uploadProgress ? <p className="text-sm text-muted">{uploadProgress}</p> : null}
         {submitError ? (
           <p className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
@@ -217,10 +204,6 @@ export function PrintDetailsForm({
         <button
           className="desk-button-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
           disabled={
-            !verified ||
-            !form.requesterName.trim() ||
-            !form.contactEmail.trim() ||
-            !form.contactPhone.trim() ||
             !form.title.trim() ||
             submitPending
           }
