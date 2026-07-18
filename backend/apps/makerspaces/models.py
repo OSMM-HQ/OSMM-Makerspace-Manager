@@ -128,7 +128,7 @@ class Makerspace(models.Model):
     public_print_status_lookup_policy = models.CharField(
         max_length=32,
         choices=PublicPrintStatusLookupPolicy.choices,
-        default=PublicPrintStatusLookupPolicy.EMAIL_UNVERIFIED,
+        default=PublicPrintStatusLookupPolicy.TOKEN_ONLY,
     )
     # 0 = off. When > 0, active filament spools at/below this remaining weight
     # can auto-create a printing procurement item.

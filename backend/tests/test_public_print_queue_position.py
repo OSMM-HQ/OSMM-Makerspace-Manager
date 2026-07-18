@@ -5,7 +5,6 @@ from tests.test_printing import make_bucket, make_space, make_user
 from tests.test_printing_public import (
     enable_printing,
     public_client,
-    status_by_email_url,
     status_url,
 )
 
@@ -102,46 +101,6 @@ def test_token_status_queue_fields_null_for_non_waiting_statuses(request_status)
         "queue_position": None,
         "queue_approved_ahead": None,
         "queue_awaiting_review_ahead": None,
-    }
-
-
-def test_email_status_populates_queue_fields_for_waiting_requests():
-    makerspace = make_space("public-print-queue-email")
-    enable_printing(makerspace)
-    bucket = make_bucket(makerspace)
-    requester = make_user("public-print-queue-email-requester")
-    pending = PrintRequest.objects.create(
-        bucket=bucket,
-        requester=requester,
-        title="Pending",
-        status=PrintRequest.Status.PENDING,
-        contact_email="buyer@example.com",
-    )
-    accepted = PrintRequest.objects.create(
-        bucket=bucket,
-        requester=requester,
-        title="Accepted",
-        status=PrintRequest.Status.ACCEPTED,
-        contact_email="buyer@example.com",
-    )
-
-    response = public_client().post(
-        status_by_email_url(makerspace),
-        {"email": "buyer@example.com"},
-        format="json",
-    )
-
-    assert response.status_code == 200
-    by_token = {item["public_token"]: item for item in response.data["results"]}
-    assert queue_fields(by_token[str(accepted.public_token)]) == {
-        "queue_position": 1,
-        "queue_approved_ahead": 0,
-        "queue_awaiting_review_ahead": 0,
-    }
-    assert queue_fields(by_token[str(pending.public_token)]) == {
-        "queue_position": 2,
-        "queue_approved_ahead": 1,
-        "queue_awaiting_review_ahead": 0,
     }
 
 

@@ -21261,6 +21261,16 @@
                         },
                         "description": "Invalid request."
                     },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Authentication is required."
+                    },
                     "403": {
                         "content": {
                             "application/json": {
@@ -21269,7 +21279,7 @@
                                 }
                             }
                         },
-                        "description": "Check-In denied or permission denied."
+                        "description": "Member presence is required."
                     },
                     "404": {
                         "content": {
@@ -21281,7 +21291,7 @@
                         },
                         "description": "Makerspace or request not found."
                     },
-                    "503": {
+                    "429": {
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -21289,87 +21299,7 @@
                                 }
                             }
                         },
-                        "description": "Check-In or storage is unavailable."
-                    }
-                }
-            }
-        },
-        "/api/v1/printing/public/{makerspace_slug}/checkin/verify": {
-            "post": {
-                "operationId": "api_v1_printing_public_checkin_verify_create",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "makerspace_slug",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "Public printing"
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PrintCheckinVerifyRequest"
-                            }
-                        },
-                        "application/x-www-form-urlencoded": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PrintCheckinVerifyRequest"
-                            }
-                        },
-                        "multipart/form-data": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PrintCheckinVerifyRequest"
-                            }
-                        }
-                    },
-                    "required": true
-                },
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/PrintCheckinVerifyResponse"
-                                }
-                            }
-                        },
-                        "description": ""
-                    },
-                    "400": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        },
-                        "description": "Invalid request."
-                    },
-                    "403": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        },
-                        "description": "Check-In denied or permission denied."
-                    },
-                    "404": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/Error"
-                                }
-                            }
-                        },
-                        "description": "Makerspace or request not found."
+                        "description": "Request rate limit exceeded."
                     },
                     "503": {
                         "content": {
@@ -21379,7 +21309,7 @@
                                 }
                             }
                         },
-                        "description": "Check-In or storage is unavailable."
+                        "description": "Storage is unavailable."
                     }
                 }
             }
@@ -21420,6 +21350,11 @@
                     },
                     "required": true
                 },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
                 "responses": {
                     "201": {
                         "content": {
@@ -21441,6 +21376,16 @@
                         },
                         "description": "Invalid request."
                     },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Authentication is required."
+                    },
                     "403": {
                         "content": {
                             "application/json": {
@@ -21449,7 +21394,7 @@
                                 }
                             }
                         },
-                        "description": "Check-In denied or permission denied."
+                        "description": "Member presence is required."
                     },
                     "404": {
                         "content": {
@@ -21461,6 +21406,16 @@
                         },
                         "description": "Makerspace or request not found."
                     },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Request rate limit exceeded."
+                    },
                     "503": {
                         "content": {
                             "application/json": {
@@ -21469,7 +21424,7 @@
                                 }
                             }
                         },
-                        "description": "Check-In or storage is unavailable."
+                        "description": "Storage is unavailable."
                     }
                 }
             }
@@ -21514,6 +21469,16 @@
                         },
                         "description": "Invalid request."
                     },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Authentication is required."
+                    },
                     "403": {
                         "content": {
                             "application/json": {
@@ -21522,7 +21487,7 @@
                                 }
                             }
                         },
-                        "description": "Check-In denied or permission denied."
+                        "description": "Member presence is required."
                     },
                     "404": {
                         "content": {
@@ -21534,6 +21499,16 @@
                         },
                         "description": "Makerspace or request not found."
                     },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Request rate limit exceeded."
+                    },
                     "503": {
                         "content": {
                             "application/json": {
@@ -21542,57 +21517,7 @@
                                 }
                             }
                         },
-                        "description": "Check-In or storage is unavailable."
-                    }
-                }
-            }
-        },
-        "/api/v1/printing/public/{makerspace_slug}/status-by-email": {
-            "post": {
-                "operationId": "api_v1_printing_public_status_by_email_create",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "makerspace_slug",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "Public printing"
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PublicPrintStatusByEmailRequest"
-                            }
-                        },
-                        "application/x-www-form-urlencoded": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PublicPrintStatusByEmailRequest"
-                            }
-                        },
-                        "multipart/form-data": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PublicPrintStatusByEmailRequest"
-                            }
-                        }
-                    },
-                    "required": true
-                },
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/PublicPrintStatusByEmailResponse"
-                                }
-                            }
-                        },
-                        "description": ""
+                        "description": "Storage is unavailable."
                     }
                 }
             }
@@ -21633,6 +21558,11 @@
                     },
                     "required": true
                 },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
                 "responses": {
                     "201": {
                         "content": {
@@ -21654,6 +21584,16 @@
                         },
                         "description": "Invalid request."
                     },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Authentication is required."
+                    },
                     "403": {
                         "content": {
                             "application/json": {
@@ -21662,7 +21602,7 @@
                                 }
                             }
                         },
-                        "description": "Check-In denied or permission denied."
+                        "description": "Member presence is required."
                     },
                     "404": {
                         "content": {
@@ -21674,6 +21614,16 @@
                         },
                         "description": "Makerspace or request not found."
                     },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Request rate limit exceeded."
+                    },
                     "503": {
                         "content": {
                             "application/json": {
@@ -21682,7 +21632,7 @@
                                 }
                             }
                         },
-                        "description": "Check-In or storage is unavailable."
+                        "description": "Storage is unavailable."
                     }
                 }
             }
@@ -21725,6 +21675,16 @@
                         },
                         "description": "Invalid request."
                     },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Authentication is required."
+                    },
                     "403": {
                         "content": {
                             "application/json": {
@@ -21733,7 +21693,7 @@
                                 }
                             }
                         },
-                        "description": "Check-In denied or permission denied."
+                        "description": "Member presence is required."
                     },
                     "404": {
                         "content": {
@@ -21745,6 +21705,16 @@
                         },
                         "description": "Makerspace or request not found."
                     },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Error"
+                                }
+                            }
+                        },
+                        "description": "Request rate limit exceeded."
+                    },
                     "503": {
                         "content": {
                             "application/json": {
@@ -21753,7 +21723,7 @@
                                 }
                             }
                         },
-                        "description": "Check-In or storage is unavailable."
+                        "description": "Storage is unavailable."
                     }
                 }
             }
@@ -34928,40 +34898,6 @@
                     "updated_at"
                 ]
             },
-            "PrintCheckinVerifyRequest": {
-                "type": "object",
-                "properties": {
-                    "requester_name": {
-                        "type": "string",
-                        "maxLength": 120
-                    },
-                    "contact_email": {
-                        "type": "string",
-                        "format": "email",
-                        "maxLength": 254
-                    },
-                    "contact_phone": {
-                        "type": "string",
-                        "maxLength": 40
-                    }
-                },
-                "required": [
-                    "contact_email",
-                    "contact_phone",
-                    "requester_name"
-                ]
-            },
-            "PrintCheckinVerifyResponse": {
-                "type": "object",
-                "properties": {
-                    "username": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "username"
-                ]
-            },
             "PrintFileUrlResponse": {
                 "type": "object",
                 "properties": {
@@ -34977,19 +34913,6 @@
             "PrintPresignRequest": {
                 "type": "object",
                 "properties": {
-                    "requester_name": {
-                        "type": "string",
-                        "maxLength": 120
-                    },
-                    "contact_email": {
-                        "type": "string",
-                        "format": "email",
-                        "maxLength": 254
-                    },
-                    "contact_phone": {
-                        "type": "string",
-                        "maxLength": 40
-                    },
                     "kind": {
                         "$ref": "#/components/schemas/PrintPresignRequestKindEnum"
                     },
@@ -35003,11 +34926,8 @@
                     }
                 },
                 "required": [
-                    "contact_email",
-                    "contact_phone",
                     "filename",
-                    "kind",
-                    "requester_name"
+                    "kind"
                 ]
             },
             "PrintPresignRequestKindEnum": {
@@ -35520,10 +35440,6 @@
                         "type": "integer",
                         "nullable": true
                     },
-                    "requester_name": {
-                        "type": "string",
-                        "maxLength": 120
-                    },
                     "title": {
                         "type": "string",
                         "maxLength": 200
@@ -35565,15 +35481,6 @@
                         "format": "uri",
                         "maxLength": 200
                     },
-                    "contact_email": {
-                        "type": "string",
-                        "format": "email",
-                        "maxLength": 254
-                    },
-                    "contact_phone": {
-                        "type": "string",
-                        "maxLength": 40
-                    },
                     "file_ids": {
                         "type": "array",
                         "items": {
@@ -35582,9 +35489,6 @@
                     }
                 },
                 "required": [
-                    "contact_email",
-                    "contact_phone",
-                    "requester_name",
                     "title"
                 ]
             },
@@ -36711,32 +36615,6 @@
                     "started_at",
                     "status",
                     "title"
-                ]
-            },
-            "PublicPrintStatusByEmailRequest": {
-                "type": "object",
-                "properties": {
-                    "email": {
-                        "type": "string",
-                        "format": "email"
-                    }
-                },
-                "required": [
-                    "email"
-                ]
-            },
-            "PublicPrintStatusByEmailResponse": {
-                "type": "object",
-                "properties": {
-                    "results": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/PublicPrintStatus"
-                        }
-                    }
-                },
-                "required": [
-                    "results"
                 ]
             },
             "PublicPrintStatusLookupPolicyEnum": {

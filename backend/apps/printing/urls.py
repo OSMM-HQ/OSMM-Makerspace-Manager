@@ -1,12 +1,10 @@
 from django.urls import path
 
 from apps.printing.public_views import (
-    PrintCheckinVerifyView,
     PrintRequestSubmitView,
     PrintUploadPresignView,
     PublicPrintBucketsView,
     PublicPrintSpoolsView,
-    PublicPrintStatusByEmailView,
     PublicPrintStatusView,
 )
 from apps.printing.reports_views import (
@@ -50,11 +48,6 @@ urlpatterns = [
         name="public-spools",
     ),
     path(
-        "public/<slug:makerspace_slug>/checkin/verify",
-        PrintCheckinVerifyView.as_view(),
-        name="public-checkin-verify",
-    ),
-    path(
         "public/<slug:makerspace_slug>/uploads",
         PrintUploadPresignView.as_view(),
         name="public-upload-presign",
@@ -68,11 +61,6 @@ urlpatterns = [
         "public/requests/<uuid:public_token>/status",
         PublicPrintStatusView.as_view(),
         name="public-request-status",
-    ),
-    path(
-        "public/<slug:makerspace_slug>/status-by-email",
-        PublicPrintStatusByEmailView.as_view(),
-        name="public-request-status-by-email",
     ),
     path(
         "admin/makerspace/<int:makerspace_id>/printing/reports",

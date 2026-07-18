@@ -14,29 +14,10 @@ class PublicFilamentSpoolSerializer(serializers.Serializer):
     color = serializers.CharField()
 
 
-class PrintCheckinVerifyRequestSerializer(serializers.Serializer):
-    requester_name = serializers.CharField(max_length=120)
-    contact_email = serializers.EmailField(max_length=254)
-    contact_phone = serializers.CharField(max_length=40)
-
-
-class PrintCheckinVerifyResponseSerializer(serializers.Serializer):
-    # Only a display name â€” never the stable Check-In external_id (avoids identifier
-    # disclosure; the server re-verifies the identifier on submit anyway).
-    username = serializers.CharField()
-
-
 class PrintPresignRequestSerializer(serializers.Serializer):
-    requester_name = serializers.CharField(max_length=120)
-    contact_email = serializers.EmailField(max_length=254)
-    contact_phone = serializers.CharField(max_length=40)
     kind = serializers.ChoiceField(choices=["stl", "screenshot"])
     filename = serializers.CharField(max_length=255)
-    content_type = serializers.CharField(
-        required=False,
-        allow_blank=True,
-        max_length=128,
-    )
+    content_type = serializers.CharField(required=False, allow_blank=True, max_length=128)
 
 
 class PrintPresignResponseSerializer(serializers.Serializer):
@@ -47,9 +28,6 @@ class PrintPresignResponseSerializer(serializers.Serializer):
 class PrintRequestSubmitSerializer(serializers.Serializer):
     website = serializers.CharField(required=False, allow_blank=True)
     bucket_id = serializers.IntegerField(required=False, allow_null=True)
-    requester_name = serializers.CharField(
-        max_length=120,
-    )
     title = serializers.CharField(max_length=200)
     description = serializers.CharField(required=False, allow_blank=True)
     project_brief = serializers.CharField(required=False, allow_blank=True)
@@ -57,25 +35,13 @@ class PrintRequestSubmitSerializer(serializers.Serializer):
     material = serializers.CharField(required=False, allow_blank=True, max_length=100)
     color = serializers.CharField(required=False, allow_blank=True, max_length=100)
     filament_spool_id = serializers.IntegerField(required=False, allow_null=True)
-    # Optional requester estimate of how much filament the job needs; staff can
-    # adjust it at accept. Omitted/null -> 0 on create (never None into the field).
     estimated_filament_grams = serializers.DecimalField(
-        max_digits=8,
-        decimal_places=2,
-        min_value=0,
-        required=False,
-        allow_null=True,
+        max_digits=8, decimal_places=2, min_value=0, required=False, allow_null=True
     )
     quantity = serializers.IntegerField(min_value=1, default=1)
-    # Bound to the model column limits so overlong input is a clean 400, not a DB DataError.
     source_link = serializers.URLField(required=False, allow_blank=True, max_length=200)
-    contact_email = serializers.EmailField(max_length=254)
-    contact_phone = serializers.CharField(max_length=40)
     file_ids = serializers.ListField(
-        child=serializers.IntegerField(),
-        required=False,
-        allow_empty=True,
-        default=list,
+        child=serializers.IntegerField(), required=False, allow_empty=True, default=list
     )
 
 
@@ -92,10 +58,7 @@ class PublicPrintStatusSerializer(serializers.Serializer):
     accepted_at = serializers.DateTimeField(allow_null=True)
     started_at = serializers.DateTimeField(allow_null=True)
     completed_at = serializers.DateTimeField(allow_null=True)
-    # Lets the public page show a live "time left" while printing
-    # (estimated finish = started_at + estimated_minutes).
     estimated_minutes = serializers.IntegerField()
-    # Populated only while the request is pending/accepted; null otherwise.
     queue_position = serializers.SerializerMethodField()
     queue_approved_ahead = serializers.SerializerMethodField()
     queue_awaiting_review_ahead = serializers.SerializerMethodField()

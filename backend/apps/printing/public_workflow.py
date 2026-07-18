@@ -3,11 +3,9 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import ValidationError
 
-from apps.accounts.models import User
 from apps.audit import services as audit
-from apps.hardware_requests.workflow_utils import get_or_create_requester
 from apps.makerspaces import limits
 from apps.printing.emails import notify_print_status
 from apps.printing.models import (
@@ -53,12 +51,8 @@ def _resolve_public_bucket(makerspace, bucket_id):
     return bucket
 
 
-def submit_public_print_request(makerspace, data, result):
+def submit_public_print_request(makerspace, data, member):
     with transaction.atomic():
-        requester = get_or_create_requester(result.external_id)
-        if requester.access_status != User.AccessStatus.ACTIVE:
-            raise PermissionDenied("Requester is not active.")
-
         bucket = _resolve_public_bucket(makerspace, data.get("bucket_id"))
         spool = None
         spool_id = data.get("filament_spool_id")
@@ -87,8 +81,8 @@ def submit_public_print_request(makerspace, data, result):
         limits.check_quota(makerspace, "print", adding=1)
         request = PrintRequest.objects.create(
             bucket=bucket,
-            requester=requester,
-            requester_name=data.get("requester_name", "").strip(),
+            requester=member,
+            requester_name=(member.display_name or "").strip(),
             title=data["title"],
             description=data.get("description", ""),
             project_brief=data.get("project_brief", ""),
@@ -99,8 +93,8 @@ def submit_public_print_request(makerspace, data, result):
             estimated_filament_grams=requested_grams,
             quantity=data.get("quantity", 1),
             source_link=data.get("source_link", ""),
-            contact_email=data.get("contact_email", "").strip(),
-            contact_phone=data.get("contact_phone", "").strip(),
+            contact_email=(member.email or "").strip(),
+            contact_phone=(member.phone or "").strip(),
             status=PrintRequest.Status.PENDING,
         )
 
@@ -109,7 +103,7 @@ def submit_public_print_request(makerspace, data, result):
             locked = list(
                 PrintRequestFile.objects.select_for_update().filter(
                     id__in=file_ids,
-                    owner_checkin_user_id=result.external_id,
+                    owner=member,
                     makerspace=makerspace,
                     attached_at__isnull=True,
                 )
@@ -161,6 +155,6 @@ def submit_public_print_request(makerspace, data, result):
                     update_fields=["print_request", "attached_at", "size_bytes"]
                 )
 
-        audit.record(requester, "print.submitted", makerspace=makerspace, target=request)
+        audit.record(member, "print.submitted", makerspace=makerspace, target=request)
         notify_print_status(request, "submitted")
         return request

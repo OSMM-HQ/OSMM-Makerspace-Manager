@@ -426,12 +426,22 @@ class PrintRequestFile(models.Model):
     content_type = models.CharField(max_length=128, blank=True)
     original_filename = models.CharField(max_length=255, blank=True, default="")
     size_bytes = models.PositiveBigIntegerField(default=0)
-    owner_checkin_user_id = models.CharField(max_length=255, db_index=True)
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    owner_checkin_user_id = models.CharField(
+        max_length=255, blank=True, null=True, db_index=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     attached_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["created_at"]
+        indexes = [models.Index(fields=["owner", "attached_at"])]
 
     def __str__(self):
         return f"{self.kind}:{self.object_key}"
