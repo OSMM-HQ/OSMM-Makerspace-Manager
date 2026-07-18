@@ -10,6 +10,7 @@ from apps.accounts.models import User
 from apps.events import services
 from apps.events.models import Event, EventRegistration
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from tests.member_submission import active_member_client
 
 
 pytestmark = pytest.mark.django_db
@@ -73,12 +74,8 @@ def registration_url(space, event):
     )
 
 
-def registration_payload(email='guest@example.com', **values):
-    payload = {
-        'name': 'Guest',
-        'email': email,
-        'phone': '1234567890',
-    }
+def registration_payload(**values):
+    payload = {}
     payload.update(values)
     return payload
 
@@ -152,7 +149,7 @@ def test_public_event_exposes_form_and_location_and_snapshots_valid_answers():
         location_kind=Event.LocationKind.INDOOR,
         custom_form=FORM,
     )
-    client = APIClient()
+    _, client = active_member_client(space, 'j4-public-form-member')
 
     listed = client.get(
         reverse('public-event-list', kwargs={'makerspace_slug': space.slug})
@@ -187,7 +184,8 @@ def test_public_registration_rejects_invalid_answers_before_creation():
     space = make_space('j4-invalid-public-answer')
     event = make_public_event(space, custom_form=FORM)
 
-    response = APIClient().post(
+    _, client = active_member_client(space, 'j4-invalid-answer-member')
+    response = client.post(
         registration_url(space, event),
         registration_payload(custom_answers={}),
         format='json',
@@ -222,7 +220,8 @@ def test_registration_service_revalidates_against_freshly_locked_form():
 def test_staff_registration_view_includes_private_answer_snapshot():
     space = make_space('j4-staff-answers')
     event = make_public_event(space, custom_form=FORM)
-    APIClient().post(
+    _, client = active_member_client(space, 'j4-staff-answer-member')
+    client.post(
         registration_url(space, event),
         registration_payload(custom_answers={'purpose': 'Training'}),
         format='json',
@@ -244,8 +243,16 @@ def test_staff_registration_view_includes_private_answer_snapshot():
 def test_cancelled_reregistration_replaces_contact_and_answers():
     space = make_space('j4-reregister')
     event = make_public_event(space, custom_form=FORM)
+    user, client = active_member_client(
+        space,
+        'j4-reregister-member',
+        display_name='New name',
+        email='guest@example.com',
+        phone='new-phone',
+    )
     registration = EventRegistration.objects.create(
         event=event,
+        member=user,
         name='Old name',
         email='guest@example.com',
         phone='old-phone',
@@ -253,12 +260,9 @@ def test_cancelled_reregistration_replaces_contact_and_answers():
         status=EventRegistration.Status.CANCELLED,
     )
 
-    response = APIClient().post(
+    response = client.post(
         registration_url(space, event),
         registration_payload(
-            ' Guest@Example.com ',
-            name='New name',
-            phone='new-phone',
             custom_answers={'purpose': 'New answer'},
         ),
         format='json',

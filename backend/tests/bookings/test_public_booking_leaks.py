@@ -10,6 +10,7 @@ from apps.accounts.models import User
 from apps.bookings.models import BookableSpace, Booking
 from apps.bookings.serializers_public import PUBLIC_BOOKABLE_SPACE_FIELDS
 from apps.makerspaces.models import Makerspace
+from tests.member_submission import active_member_client
 
 
 pytestmark = pytest.mark.django_db
@@ -187,7 +188,14 @@ def test_recursive_leak_sweep_across_all_public_booking_payloads(monkeypatch):
         'submitted-phone-private',
         'submitted-answer-private',
     }
-    submitted = client.post(
+    _, member_client = active_member_client(
+        makerspace,
+        'submitted-member',
+        display_name='submitted-name-private',
+        email='submitted-email-private@example.com',
+        phone='submitted-phone-private',
+    )
+    submitted = member_client.post(
         reverse(
             'public-booking-submit',
             kwargs={
@@ -198,9 +206,6 @@ def test_recursive_leak_sweep_across_all_public_booking_payloads(monkeypatch):
         {
             'starts_at': submission_start.isoformat(),
             'ends_at': (submission_start + timedelta(hours=1)).isoformat(),
-            'name': 'submitted-name-private',
-            'email': 'submitted-email-private@example.com',
-            'phone': 'submitted-phone-private',
             'custom_answers': {'safe_question': 'submitted-answer-private'},
         },
         format='json',
@@ -244,11 +249,9 @@ def test_openapi_public_booking_contract_is_leak_safe_and_complete():
 
     assert set(space_schema['properties']) == SPACE_FIELDS
     assert set(input_schema['properties']) == {
-        'starts_at', 'ends_at', 'name', 'email', 'phone', 'custom_answers'
+        'starts_at', 'ends_at', 'custom_answers'
     }
-    assert set(input_schema['required']) == {
-        'starts_at', 'ends_at', 'name', 'email', 'phone'
-    }
+    assert set(input_schema['required']) == {'starts_at', 'ends_at'}
     assert all(
         field['writeOnly'] for field in input_schema['properties'].values()
     )
@@ -268,12 +271,15 @@ def test_openapi_public_booking_contract_is_leak_safe_and_complete():
             'get', {'200', '400', '404', '429'}
         ),
         '/api/v1/public/{makerspace_slug}/spaces/{public_token}/book/': (
-            'post', {'201', '400', '404', '409', '429'}
+            'post', {'201', '400', '401', '403', '404', '409', '429'}
         ),
     }
     for path, (method, codes) in paths.items():
         operation = schema['paths'][path][method]
-        assert operation.get('security', []) == []
+        if method == 'post':
+            assert operation.get('security')
+        else:
+            assert operation.get('security', []) == []
         assert codes <= set(operation['responses'])
         token_parameters = [
             parameter

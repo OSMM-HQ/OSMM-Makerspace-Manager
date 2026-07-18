@@ -10,6 +10,7 @@ from apps.accounts.models import User
 from apps.events.models import Event, EventRegistration
 from apps.events.serializers_public import PUBLIC_EVENT_FIELDS, PublicEventSerializer
 from apps.makerspaces.models import Makerspace
+from tests.member_submission import active_member_client
 
 
 pytestmark = pytest.mark.django_db
@@ -143,7 +144,13 @@ def test_public_event_exact_allowlist_and_recursive_sentinel_leak_sweep():
     assert_no_public_leak(response.data, sentinels)
     assert_no_public_leak(PublicEventSerializer(event).data, sentinels)
 
-    registration_response = APIClient().post(
+    _, member_client = active_member_client(
+        space,
+        'another-event-member',
+        display_name='Another guest',
+        email='another@example.com',
+    )
+    registration_response = member_client.post(
         reverse(
             'public-event-register',
             kwargs={
@@ -152,9 +159,6 @@ def test_public_event_exact_allowlist_and_recursive_sentinel_leak_sweep():
             },
         ),
         {
-            'name': 'Another guest',
-            'email': 'another@example.com',
-            'phone': '1234567890',
             'custom_answers': {'private_note': 'Sentinel private answer'},
         },
         format='json',
@@ -184,10 +188,8 @@ def test_openapi_has_exact_public_contracts_and_documented_errors():
     assert {'id', 'pk', 'makerspace', 'created_by'} & set(
         event_schema['properties']
     ) == set()
-    assert set(input_schema['properties']) == {
-        'name', 'email', 'phone', 'custom_answers',
-    }
-    assert set(input_schema['required']) == {'name', 'email', 'phone'}
+    assert set(input_schema['properties']) == {'custom_answers'}
+    assert input_schema.get('required', []) == []
     assert all(
         field['writeOnly'] for field in input_schema['properties'].values()
     )
@@ -200,8 +202,8 @@ def test_openapi_has_exact_public_contracts_and_documented_errors():
         '/api/v1/public/{makerspace_slug}/events/{public_token}/register/'
     ]['post']
     assert list_operation.get('security', []) == []
-    assert register_operation.get('security', []) == []
-    assert {'201', '400', '404', '409', '429'} <= set(
+    assert register_operation.get('security')
+    assert {'201', '400', '401', '403', '404', '409', '429'} <= set(
         register_operation['responses']
     )
     assert register_operation['responses']['201']['content'][

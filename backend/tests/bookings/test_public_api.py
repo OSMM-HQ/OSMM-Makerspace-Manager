@@ -5,7 +5,7 @@ import pytest
 from django.core.cache import cache
 from django.urls import reverse
 from django.utils import timezone
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.test import APIClient
 
 from apps.apiclients.throttling import ClientTierRateThrottle
@@ -17,6 +17,7 @@ from apps.bookings.views_public import (
     PublicSpaceAvailabilityView,
 )
 from apps.makerspaces.models import Makerspace
+from tests.member_submission import active_member_client
 
 
 pytestmark = pytest.mark.django_db
@@ -81,28 +82,23 @@ def window(start=None, end=None):
     start = start or timezone.now() + timedelta(days=1)
     end = end or start + timedelta(days=7)
     return {'starts_at': start.isoformat(), 'ends_at': end.isoformat()}
-def submission(email='guest@example.com', **values):
+def submission(**values):
     start = timezone.now() + timedelta(days=1)
     payload = {
         'starts_at': start.isoformat(),
         'ends_at': (start + timedelta(hours=1)).isoformat(),
-        'name': 'Guest',
-        'email': email,
-        'phone': '9988776655',
     }
     payload.update(values)
     return payload
 
 
 def test_public_view_authentication_and_throttle_scopes_are_exact():
-    for view in (
-        PublicBookableSpaceListView,
-        PublicSpaceAvailabilityView,
-        PublicBookingSubmissionView,
-    ):
+    for view in (PublicBookableSpaceListView, PublicSpaceAvailabilityView):
         assert view.authentication_classes == []
         assert view.permission_classes == [AllowAny]
         assert view.throttle_classes == [ClientTierRateThrottle]
+    assert PublicBookingSubmissionView.permission_classes == [IsAuthenticated]
+    assert PublicBookingSubmissionView.throttle_classes == [ClientTierRateThrottle]
     assert PublicBookableSpaceListView.throttle_scope == 'public_read'
     assert PublicSpaceAvailabilityView.throttle_scope == 'public_read'
     assert PublicBookingSubmissionView.throttle_scope == 'booking_submit'
@@ -223,7 +219,8 @@ def test_submission_uses_service_approval_mode_and_validates_custom_answers(
         custom_form=custom_form,
     )
 
-    response = APIClient().post(
+    _, client = active_member_client(makerspace, 'booking-form-member')
+    response = client.post(
         booking_url(makerspace, space),
         submission(custom_answers={'purpose': '  Build robot  '}),
         format='json',
@@ -256,7 +253,8 @@ def test_honeypot_is_a_silent_mode_aware_decoy(
     makerspace = make_makerspace()
     space = make_space(makerspace, approval_mode=approval_mode)
 
-    response = APIClient().post(
+    _, client = active_member_client(makerspace, 'booking-honeypot-member')
+    response = client.post(
         booking_url(makerspace, space),
         {'website': ' bot.example '},
         format='json',
@@ -275,12 +273,13 @@ def test_module_disabled_is_400_and_targets_are_public_active_tenant_scoped():
     public = make_space(makerspace)
     private = make_space(makerspace, 'Private', is_public=False)
     inactive = make_space(makerspace, 'Inactive', is_active=False)
-    client = APIClient()
+    _, client = active_member_client(makerspace, 'booking-target-member')
     for target in (private, inactive):
         assert client.get(
             availability_url(makerspace, target), window()
         ).status_code == 404
-    assert client.post(
+    _, other_client = active_member_client(other, 'other-booking-target-member')
+    assert other_client.post(
         booking_url(other, public), submission(), format='json'
     ).status_code == 404
     missing = reverse(

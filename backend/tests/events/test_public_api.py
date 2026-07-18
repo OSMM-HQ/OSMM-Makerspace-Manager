@@ -5,13 +5,14 @@ import pytest
 from django.core.cache import cache
 from django.urls import reverse
 from django.utils import timezone
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.test import APIClient
 
 from apps.audit.models import AuditLog
 from apps.events.models import Event, EventRegistration
 from apps.events.views_public import PublicEventListView, PublicEventRegistrationView
 from apps.makerspaces.models import Makerspace
+from tests.member_submission import active_member_client
 
 
 pytestmark = pytest.mark.django_db
@@ -65,15 +66,15 @@ def register_url(identifier, event):
     )
 
 
-def identity(email='guest@example.com', **values):
-    data = {'name': 'Guest', 'email': email, 'phone': '1234567890'}
+def registration_payload(**values):
+    data = {}
     data.update(values)
     return data
 
 
-def test_public_views_are_allow_any_and_module_gate_is_exact():
+def test_public_read_views_are_allow_any_and_registration_requires_authentication():
     assert PublicEventListView.permission_classes == [AllowAny]
-    assert PublicEventRegistrationView.permission_classes == [AllowAny]
+    assert PublicEventRegistrationView.permission_classes == [IsAuthenticated]
     space = make_space()
     space.enabled_modules = [key for key in space.enabled_modules if key != 'events']
     space.save(update_fields=['enabled_modules'])
@@ -154,12 +155,12 @@ def test_availability_uses_only_confirmed_statuses_and_handles_capacity_edges():
 def test_availability_is_coarse_across_registration_and_bucket_boundaries():
     space = make_space()
     event = make_event(space, capacity=10)
-    client = APIClient()
+    _, client = active_member_client(space, 'coarse-registration-member')
 
     before = client.get(list_url(space.slug)).data[0]
     registered = client.post(
         register_url(space.slug, event),
-        identity(),
+        registration_payload(),
         format='json',
     )
     after = client.get(list_url(space.slug)).data[0]
@@ -193,10 +194,12 @@ def test_registration_by_list_token_returns_status_only_and_waitlists_when_full(
         kwargs={'makerspace_slug': space.slug, 'public_token': public_token},
     )
 
-    registered = APIClient().post(url, identity(), format='json')
-    waitlisted = APIClient().post(
+    _, registered_client = active_member_client(space, 'registered-event-member')
+    _, waitlisted_client = active_member_client(space, 'waitlisted-event-member')
+    registered = registered_client.post(url, registration_payload(), format='json')
+    waitlisted = waitlisted_client.post(
         url,
-        identity('second@example.com'),
+        registration_payload(),
         format='json',
     )
 
@@ -205,36 +208,48 @@ def test_registration_by_list_token_returns_status_only_and_waitlists_when_full(
     assert waitlisted.data == {'status': EventRegistration.Status.WAITLISTED}
 
 
-def test_honeypot_precedes_identity_validation_and_blank_value_proceeds():
+def test_honeypot_precedes_submission_validation_and_blank_value_proceeds():
     space = make_space()
     event = make_event(space)
     url = register_url(space.slug, event)
+    _, client = active_member_client(space, 'honeypot-event-member')
 
-    decoy = APIClient().post(url, {'website': ' bot.example '}, format='json')
+    decoy = client.post(url, {'website': ' bot.example '}, format='json')
 
     assert decoy.status_code == 201
     assert decoy.data == {'status': EventRegistration.Status.REGISTERED}
     assert not event.registrations.exists()
     assert not AuditLog.objects.filter(action='event.registration_created').exists()
 
-    blank = APIClient().post(
+    blank = client.post(
         url,
-        identity(website='   '),
+        registration_payload(website='   '),
         format='json',
     )
     assert blank.status_code == 201
     assert event.registrations.count() == 1
 
 
-def test_missing_identity_is_rejected_when_honeypot_is_blank():
+def test_blank_member_submission_uses_account_derived_identity():
     space = make_space()
-    response = APIClient().post(
-        register_url(space.slug, make_event(space)),
+    event = make_event(space)
+    user, client = active_member_client(
+        space,
+        'derived-event-member',
+        display_name='Account registration name',
+        email='account-registration@example.test',
+        phone='9988776655',
+    )
+    response = client.post(
+        register_url(space.slug, event),
         {'website': ''},
         format='json',
     )
-    assert response.status_code == 400
-    assert set(response.data) == {'name', 'email', 'phone'}
+    assert response.status_code == 201
+    registration = event.registrations.get()
+    assert (registration.member, registration.name, registration.email, registration.phone) == (
+        user, 'Account registration name', 'account-registration@example.test', '9988776655',
+    )
 
 
 def test_registration_targets_are_slug_scoped_and_public_open_only():
@@ -253,51 +268,56 @@ def test_registration_targets_are_slug_scoped_and_public_open_only():
     )
     open_event = make_event(space, 'Open')
 
-    client = APIClient()
+    _, client = active_member_client(space, 'event-target-member')
     for target in (private, draft, cancelled, completed, ended):
         assert client.post(
-            register_url(space.slug, target), identity(), format='json'
+            register_url(space.slug, target), registration_payload(), format='json'
         ).status_code == 404
     assert client.post(
-        register_url(other.slug, open_event), identity(), format='json'
+        register_url(other.slug, open_event), registration_payload(), format='json'
     ).status_code == 404
     assert client.post(
-        register_url(other.public_code, open_event), identity(), format='json'
+        register_url(other.public_code, open_event), registration_payload(), format='json'
     ).status_code == 404
     missing_url = reverse(
         'public-event-register',
         kwargs={'makerspace_slug': space.slug, 'public_token': uuid4()},
     )
-    assert client.post(missing_url, identity(), format='json').status_code == 404
+    assert client.post(missing_url, registration_payload(), format='json').status_code == 404
 
 
 def test_cancelled_email_reregisters_and_active_duplicate_matches_generic_response():
     space = make_space()
     event = make_event(space, capacity=3)
+    user, client = active_member_client(
+        space, 'cancelled-event-member', email='guest@example.com'
+    )
     cancelled = make_registration(
         event,
         'guest@example.com',
         EventRegistration.Status.CANCELLED,
     )
+    cancelled.member = user
+    cancelled.save(update_fields=['member'])
     original_created_at = timezone.now() - timedelta(days=1)
     EventRegistration.objects.filter(pk=cancelled.pk).update(
         created_at=original_created_at,
     )
 
-    client = APIClient()
     reactivated = client.post(
         register_url(space.slug, event),
-        identity(' Guest@Example.com '),
+        registration_payload(),
         format='json',
     )
-    fresh = client.post(
+    _, fresh_client = active_member_client(space, 'fresh-event-member')
+    fresh = fresh_client.post(
         register_url(space.slug, event),
-        identity('new@example.com'),
+        registration_payload(),
         format='json',
     )
     duplicate = client.post(
         register_url(space.slug, event),
-        identity(' Guest@Example.com '),
+        registration_payload(),
         format='json',
     )
 
@@ -324,17 +344,22 @@ def test_cancelled_email_reregisters_and_active_duplicate_matches_generic_respon
 def test_duplicate_on_full_event_matches_fresh_waitlisted_response():
     space = make_space()
     event = make_event(space, capacity=1)
-    make_registration(event, 'guest@example.com')
+    existing_user, existing_client = active_member_client(
+        space, 'full-event-member', email='guest@example.com'
+    )
+    existing = make_registration(event, 'guest@example.com')
+    existing.member = existing_user
+    existing.save(update_fields=['member'])
 
-    client = APIClient()
-    fresh = client.post(
+    _, fresh_client = active_member_client(space, 'fresh-full-event-member')
+    fresh = fresh_client.post(
         register_url(space.slug, event),
-        identity('new@example.com'),
+        registration_payload(),
         format='json',
     )
-    duplicate = client.post(
+    duplicate = existing_client.post(
         register_url(space.slug, event),
-        identity(' Guest@Example.com '),
+        registration_payload(),
         format='json',
     )
 
@@ -346,22 +371,24 @@ def test_duplicate_on_full_event_matches_fresh_waitlisted_response():
     assert 'guest@example.com' not in str(duplicate.data).lower()
 
 
-def test_public_registration_audit_is_actorless_and_pii_free():
+def test_member_registration_audit_is_attributed_and_pii_free():
     space = make_space()
     event = make_event(space)
-    payload = identity(
-        'private-audit@example.com',
-        name='Private Audit Name',
+    user, client = active_member_client(
+        space,
+        'private-audit-member',
+        display_name='Private Audit Name',
+        email='private-audit@example.com',
         phone='9988776655',
     )
 
-    response = APIClient().post(
-        register_url(space.slug, event), payload, format='json'
+    response = client.post(
+        register_url(space.slug, event), registration_payload(), format='json'
     )
 
     assert response.status_code == 201
     log = AuditLog.objects.get(action='event.registration_created')
-    assert log.actor is None
+    assert log.actor == user
     assert log.makerspace == space
     audit_text = str(log.meta).lower()
     for pii in ('private-audit@example.com', 'private audit name', '9988776655'):
@@ -372,17 +399,17 @@ def test_eleventh_hourly_registration_is_throttled_but_listing_is_unaffected():
     space = make_space()
     event = make_event(space, capacity=0)
     url = register_url(space.slug, event)
-    client = APIClient()
+    _, client = active_member_client(space, 'throttled-event-member')
 
     for index in range(10):
         response = client.post(
             url,
-            identity(f'guest-{index}@example.com'),
+            registration_payload(),
             format='json',
         )
         assert response.status_code == 201
 
     assert client.post(
-        url, identity('guest-11@example.com'), format='json'
+        url, registration_payload(), format='json'
     ).status_code == 429
     assert client.get(list_url(space.slug)).status_code == 200
