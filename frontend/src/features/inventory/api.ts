@@ -1,6 +1,5 @@
 import { apiGet, publicV1Request, tenantPublicRequest } from "../../lib/api";
 import type {
-  CheckinVerifyResponse,
   Makerspace,
   PaginatedResponse,
   Product,
@@ -68,26 +67,9 @@ export async function fetchPublicInventory(
 }
 
 
-export async function verifyCheckin(
-  slug: string,
-  identifier: string,
-): Promise<CheckinVerifyResponse> {
-  return tenantPublicRequest<CheckinVerifyResponse>(
-    slug,
-    `/public/${slug}/checkin/verify`,
-    {
-      method: "POST",
-      body: JSON.stringify({ identifier }),
-    },
-  );
-}
-
 export async function submitPublicRequest(
   slug: string,
   payload: {
-    requester_name: string;
-    contact_email: string;
-    contact_phone: string;
     requested_for: string;
     items: { product_id: number; quantity: number }[];
   },
@@ -110,27 +92,10 @@ export async function fetchRequestStatus(
   );
 }
 
-export async function fetchRequestsByIdentifier(
-  slug: string,
-  identifier: string,
-): Promise<PublicRequestStatus[]> {
-  return tenantPublicRequest<PublicRequestStatus[]>(
-    slug,
-    `/public/${slug}/requests/status`,
-    {
-      method: "POST",
-      body: JSON.stringify({ identifier }),
-    },
-  );
-}
-
 export async function publicToolCheckout(
   slug: string,
   payload: {
     payload: string;
-    requester_name: string;
-    contact_email: string;
-    contact_phone: string;
     evidence_id: number;
     remark?: string;
   },
@@ -148,7 +113,6 @@ export async function publicToolCheckout(
 export async function publicToolReturn(
   slug: string,
   payload: {
-    identifier: string;
     payload: string;
     evidence_id: number;
     remark: string;

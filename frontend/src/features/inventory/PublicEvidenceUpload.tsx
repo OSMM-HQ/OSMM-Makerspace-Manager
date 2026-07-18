@@ -7,13 +7,11 @@ import {
 
 export function PublicEvidenceUpload({
   slug,
-  identifier,
   evidenceType,
   disabled = false,
   onUploaded,
 }: {
   slug: string;
-  identifier: string;
   evidenceType: "issue" | "return";
   disabled?: boolean;
   onUploaded: (evidenceId: number | null) => void;
@@ -28,7 +26,7 @@ export function PublicEvidenceUpload({
     setError("");
     setFileName("");
     onUploaded(null);
-  }, [evidenceType, identifier, onUploaded]);
+  }, [evidenceType, onUploaded]);
 
   async function handleFile(file: File) {
     setStatus("uploading");
@@ -37,7 +35,6 @@ export function PublicEvidenceUpload({
     onUploaded(null);
     try {
       const presigned = await requestPublicEvidenceUpload(slug, {
-        identifier: identifier.trim(),
         evidence_type: evidenceType,
         content_type: file.type,
         size_bytes: file.size,
@@ -62,7 +59,7 @@ export function PublicEvidenceUpload({
           aria-label={label}
           type="file"
           accept="image/jpeg,image/png,image/webp"
-          disabled={disabled || status === "uploading" || !identifier.trim()}
+          disabled={disabled || status === "uploading"}
           onChange={(event) => {
             const file = event.target.files?.[0];
             if (file) handleFile(file);

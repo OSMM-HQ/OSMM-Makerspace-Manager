@@ -6,12 +6,10 @@ from apps.hardware_requests.handover_views import (
 )
 from apps.hardware_requests.direct_loan_views import (
     DirectLoanListCreateView,
+    DirectLoanMemberListView,
     DirectLoanReturnView,
-    StaffCheckinVerifyView,
 )
 from apps.hardware_requests.public_views import (
-    CheckinVerifyView,
-    RequestLookupView,
     RequestStatusView,
     RequestSubmitView,
 )
@@ -33,8 +31,8 @@ __all__ = [
     "AcceptRequestView",
     "ActiveLoansView",
     "AssignBoxView",
-    "CheckinVerifyView",
     "DirectLoanListCreateView",
+    "DirectLoanMemberListView",
     "DirectLoanReturnView",
     "IssueRequestView",
     "PendingRequestsView",
@@ -43,10 +41,8 @@ __all__ = [
     "PublicToolReturnView",
     "RejectRequestView",
     "RequestHistoryView",
-    "RequestLookupView",
     "RequestStatusView",
     "RequestSubmitView",
     "ReturnRequestView",
     "SetReturnDueView",
-    "StaffCheckinVerifyView",
 ]

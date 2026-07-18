@@ -11,11 +11,6 @@ class RequestItemInputSerializer(serializers.Serializer):
 
 class RequestSubmitSerializer(serializers.Serializer):
     website = serializers.CharField(required=False, allow_blank=True, write_only=True)
-    requester_name = serializers.CharField(max_length=120)
-    contact_email = serializers.EmailField()
-    contact_phone = serializers.CharField(
-        max_length=32,
-    )
     requested_for = serializers.CharField(
         required=False,
         allow_blank=True,
@@ -48,26 +43,8 @@ class PublicRequestStatusSerializer(serializers.Serializer):
     # identity may be a name / email / badge / student id (PII), and the requester does
     # not need their own identity echoed back to learn a request's status.
     status = serializers.CharField(read_only=True)
-    rejection_reason = serializers.CharField(read_only=True)
     created_at = serializers.DateTimeField(read_only=True)
     items = PublicRequestItemStatusSerializer(many=True, read_only=True)
-
-
-class PublicRequestLookupSerializer(serializers.Serializer):
-    identifier = serializers.CharField()
-
-
-class PublicRequestListItemSerializer(PublicRequestStatusSerializer):
-    public_token = serializers.UUIDField(read_only=True)
-    requested_for = serializers.CharField(read_only=True)
-
-
-class CheckinVerifyRequestSerializer(serializers.Serializer):
-    identifier = serializers.CharField()
-
-
-class CheckinVerifyResponseSerializer(serializers.Serializer):
-    username = serializers.CharField()
 
 
 class IssuedAssetSerializer(serializers.Serializer):

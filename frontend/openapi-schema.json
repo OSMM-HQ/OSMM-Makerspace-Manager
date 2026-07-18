@@ -7958,102 +7958,6 @@
                 }
             }
         },
-        "/api/v1/admin/makerspace/{makerspace_id}/checkin/verify": {
-            "post": {
-                "operationId": "api_v1_admin_makerspace_checkin_verify_create",
-                "summary": "Staff verify Check-In identity",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "makerspace_id",
-                        "schema": {
-                            "type": "integer"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "Admin requests"
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/StaffCheckinVerifyRequest"
-                            }
-                        },
-                        "application/x-www-form-urlencoded": {
-                            "schema": {
-                                "$ref": "#/components/schemas/StaffCheckinVerifyRequest"
-                            }
-                        },
-                        "multipart/form-data": {
-                            "schema": {
-                                "$ref": "#/components/schemas/StaffCheckinVerifyRequest"
-                            }
-                        }
-                    },
-                    "required": true
-                },
-                "security": [
-                    {
-                        "jwtAuth": []
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/StaffCheckinVerifyResponse"
-                                }
-                            }
-                        },
-                        "description": ""
-                    },
-                    "400": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
-                                }
-                            }
-                        },
-                        "description": "Invalid request."
-                    },
-                    "403": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
-                                }
-                            }
-                        },
-                        "description": "Permission denied."
-                    },
-                    "404": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
-                                }
-                            }
-                        },
-                        "description": "Not found."
-                    },
-                    "409": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
-                                }
-                            }
-                        },
-                        "description": "Workflow conflict."
-                    }
-                }
-            }
-        },
         "/api/v1/admin/makerspace/{makerspace_id}/containers": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_containers_list",
@@ -8356,6 +8260,50 @@
                     },
                     "404": {
                         "description": "Makerspace not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/direct-loan-members": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_direct_loan_members_list",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "name": "page",
+                        "required": false,
+                        "in": "query",
+                        "description": "A page number within the paginated result set.",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "tags": [
+                    "api"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaginatedDirectLoanMemberList"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -22877,113 +22825,6 @@
                 }
             }
         },
-        "/api/v1/public/{makerspace_slug}/checkin/verify": {
-            "post": {
-                "operationId": "api_v1_public_checkin_verify_create",
-                "summary": "Verify Check-In email or phone",
-                "parameters": [
-                    {
-                        "in": "header",
-                        "name": "X-Publishable-Key",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "description": "Public API key for a makerspace public client. Required when API_CLIENT_AUTH_REQUIRED is enabled."
-                    },
-                    {
-                        "in": "path",
-                        "name": "makerspace_slug",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "Public requests"
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/CheckinVerifyRequest"
-                            },
-                            "examples": {
-                                "LookupRequestsByCheck-InEmailOrPhone": {
-                                    "value": {
-                                        "identifier": "shaans@example.com"
-                                    },
-                                    "summary": "Lookup requests by Check-In email or phone"
-                                }
-                            }
-                        },
-                        "application/x-www-form-urlencoded": {
-                            "schema": {
-                                "$ref": "#/components/schemas/CheckinVerifyRequest"
-                            }
-                        },
-                        "multipart/form-data": {
-                            "schema": {
-                                "$ref": "#/components/schemas/CheckinVerifyRequest"
-                            }
-                        }
-                    },
-                    "required": true
-                },
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/CheckinVerifyResponse"
-                                }
-                            }
-                        },
-                        "description": ""
-                    },
-                    "400": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
-                                }
-                            }
-                        },
-                        "description": "Invalid request."
-                    },
-                    "403": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
-                                }
-                            }
-                        },
-                        "description": "Permission denied."
-                    },
-                    "404": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
-                                }
-                            }
-                        },
-                        "description": "Not found."
-                    },
-                    "503": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
-                                }
-                            }
-                        },
-                        "description": "Service unavailable."
-                    }
-                }
-            }
-        },
         "/api/v1/public/{makerspace_slug}/events/": {
             "get": {
                 "operationId": "api_v1_public_events_list",
@@ -23782,6 +23623,11 @@
                     },
                     "required": true
                 },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
                 "responses": {
                     "201": {
                         "content": {
@@ -23803,6 +23649,16 @@
                         },
                         "description": "Invalid request."
                     },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Authentication required."
+                    },
                     "403": {
                         "content": {
                             "application/json": {
@@ -23823,7 +23679,7 @@
                         },
                         "description": "Not found."
                     },
-                    "503": {
+                    "409": {
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -23831,99 +23687,9 @@
                                 }
                             }
                         },
-                        "description": "Service unavailable."
-                    }
-                }
-            }
-        },
-        "/api/v1/public/{makerspace_slug}/requests/status": {
-            "post": {
-                "operationId": "api_v1_public_requests_status_create",
-                "summary": "List request statuses by Check-In email or phone",
-                "parameters": [
-                    {
-                        "in": "header",
-                        "name": "X-Publishable-Key",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "description": "Public API key for a makerspace public client. Required when API_CLIENT_AUTH_REQUIRED is enabled."
+                        "description": "Workflow conflict."
                     },
-                    {
-                        "in": "path",
-                        "name": "makerspace_slug",
-                        "schema": {
-                            "type": "string"
-                        },
-                        "required": true
-                    }
-                ],
-                "tags": [
-                    "Public requests"
-                ],
-                "requestBody": {
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PublicRequestLookup"
-                            },
-                            "examples": {
-                                "LookupRequestsByCheck-InEmailOrPhone": {
-                                    "value": {
-                                        "identifier": "shaans@example.com"
-                                    },
-                                    "summary": "Lookup requests by Check-In email or phone"
-                                }
-                            }
-                        },
-                        "application/x-www-form-urlencoded": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PublicRequestLookup"
-                            }
-                        },
-                        "multipart/form-data": {
-                            "schema": {
-                                "$ref": "#/components/schemas/PublicRequestLookup"
-                            }
-                        }
-                    },
-                    "required": true
-                },
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/PublicRequestListItem"
-                                    }
-                                },
-                                "examples": {
-                                    "PublicRequestStatus": {
-                                        "value": [
-                                            {
-                                                "public_token": "4f2b93e1-6ef4-41c2-8407-7f26bb3b2d8f",
-                                                "requested_for": "Electronics workshop diagnostics",
-                                                "status": "pending_approval",
-                                                "rejection_reason": "",
-                                                "created_at": "2026-06-11T10:30:00Z",
-                                                "items": [
-                                                    {
-                                                        "product_name": "Soldering Iron",
-                                                        "requested_quantity": 2
-                                                    }
-                                                ]
-                                            }
-                                        ],
-                                        "summary": "Public request status"
-                                    }
-                                }
-                            }
-                        },
-                        "description": ""
-                    },
-                    "400": {
+                    "429": {
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -23931,27 +23697,7 @@
                                 }
                             }
                         },
-                        "description": "Invalid request."
-                    },
-                    "403": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
-                                }
-                            }
-                        },
-                        "description": "Permission denied."
-                    },
-                    "404": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
-                                }
-                            }
-                        },
-                        "description": "Not found."
+                        "description": "Too many requests."
                     },
                     "503": {
                         "content": {
@@ -24329,6 +24075,11 @@
                     },
                     "required": true
                 },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
                 "responses": {
                     "201": {
                         "content": {
@@ -24350,6 +24101,16 @@
                         },
                         "description": "Invalid request."
                     },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Authentication required."
+                    },
                     "403": {
                         "content": {
                             "application/json": {
@@ -24369,6 +24130,26 @@
                             }
                         },
                         "description": "Not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Workflow conflict."
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Too many requests."
                     },
                     "503": {
                         "content": {
@@ -24428,6 +24209,11 @@
                     },
                     "required": true
                 },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
                 "responses": {
                     "201": {
                         "content": {
@@ -24449,6 +24235,16 @@
                         },
                         "description": "Invalid request."
                     },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Authentication required."
+                    },
                     "403": {
                         "content": {
                             "application/json": {
@@ -24468,6 +24264,26 @@
                             }
                         },
                         "description": "Not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Workflow conflict."
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Too many requests."
                     },
                     "503": {
                         "content": {
@@ -24538,6 +24354,11 @@
                     },
                     "required": true
                 },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
                 "responses": {
                     "200": {
                         "content": {
@@ -24559,6 +24380,16 @@
                         },
                         "description": "Invalid request."
                     },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Authentication required."
+                    },
                     "403": {
                         "content": {
                             "application/json": {
@@ -24578,6 +24409,26 @@
                             }
                         },
                         "description": "Not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Workflow conflict."
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Too many requests."
                     },
                     "503": {
                         "content": {
@@ -26590,28 +26441,6 @@
                 "type": "string",
                 "description": "* `email` - Email\n* `telegram` - Telegram\n* `slack` - Slack\n* `mattermost` - Mattermost"
             },
-            "CheckinVerifyRequest": {
-                "type": "object",
-                "properties": {
-                    "identifier": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "identifier"
-                ]
-            },
-            "CheckinVerifyResponse": {
-                "type": "object",
-                "properties": {
-                    "username": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "username"
-                ]
-            },
             "ClientTypeEnum": {
                 "enum": [
                     "browser",
@@ -27108,17 +26937,8 @@
             "DirectLoanIssue": {
                 "type": "object",
                 "properties": {
-                    "requester_name": {
-                        "type": "string",
-                        "maxLength": 120
-                    },
-                    "contact_email": {
-                        "type": "string",
-                        "format": "email"
-                    },
-                    "contact_phone": {
-                        "type": "string",
-                        "maxLength": 32
+                    "borrower_id": {
+                        "type": "integer"
                     },
                     "evidence_id": {
                         "type": "integer"
@@ -27146,10 +26966,8 @@
                     }
                 },
                 "required": [
-                    "contact_email",
-                    "contact_phone",
-                    "evidence_id",
-                    "requester_name"
+                    "borrower_id",
+                    "evidence_id"
                 ]
             },
             "DirectLoanItem": {
@@ -27168,6 +26986,28 @@
                     "quantity"
                 ]
             },
+            "DirectLoanMember": {
+                "type": "object",
+                "properties": {
+                    "user_id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "display_name": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "username": {
+                        "type": "string",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "display_name",
+                    "user_id",
+                    "username"
+                ]
+            },
             "DirectLoanReturn": {
                 "type": "object",
                 "properties": {
@@ -27180,9 +27020,6 @@
                     "qr_payload": {
                         "type": "string",
                         "maxLength": 64
-                    },
-                    "returned_by_identifier": {
-                        "type": "string"
                     },
                     "resolutions": {
                         "type": "array",
@@ -32995,6 +32832,37 @@
                     }
                 }
             },
+            "PaginatedDirectLoanMemberList": {
+                "type": "object",
+                "required": [
+                    "count",
+                    "results"
+                ],
+                "properties": {
+                    "count": {
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "next": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=4"
+                    },
+                    "previous": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "uri",
+                        "example": "http://api.example.org/accounts/?page=2"
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/DirectLoanMember"
+                        }
+                    }
+                }
+            },
             "PaginatedEmailLogList": {
                 "type": "object",
                 "required": [
@@ -36974,59 +36842,6 @@
                     "requested_quantity"
                 ]
             },
-            "PublicRequestListItem": {
-                "type": "object",
-                "properties": {
-                    "status": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "rejection_reason": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "created_at": {
-                        "type": "string",
-                        "format": "date-time",
-                        "readOnly": true
-                    },
-                    "items": {
-                        "type": "array",
-                        "items": {
-                            "$ref": "#/components/schemas/PublicRequestItemStatus"
-                        },
-                        "readOnly": true
-                    },
-                    "public_token": {
-                        "type": "string",
-                        "format": "uuid",
-                        "readOnly": true
-                    },
-                    "requested_for": {
-                        "type": "string",
-                        "readOnly": true
-                    }
-                },
-                "required": [
-                    "created_at",
-                    "items",
-                    "public_token",
-                    "rejection_reason",
-                    "requested_for",
-                    "status"
-                ]
-            },
-            "PublicRequestLookup": {
-                "type": "object",
-                "properties": {
-                    "identifier": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "identifier"
-                ]
-            },
             "PublicRequestStatus": {
                 "type": "object",
                 "properties": {
@@ -37034,10 +36849,6 @@
                         "type": "string",
                         "readOnly": true
                     },
-                    "rejection_reason": {
-                        "type": "string",
-                        "readOnly": true
-                    },
                     "created_at": {
                         "type": "string",
                         "format": "date-time",
@@ -37054,7 +36865,6 @@
                 "required": [
                     "created_at",
                     "items",
-                    "rejection_reason",
                     "status"
                 ]
             },
@@ -37627,18 +37437,6 @@
                         "type": "string",
                         "maxLength": 64
                     },
-                    "requester_name": {
-                        "type": "string",
-                        "maxLength": 120
-                    },
-                    "contact_email": {
-                        "type": "string",
-                        "format": "email"
-                    },
-                    "contact_phone": {
-                        "type": "string",
-                        "maxLength": 32
-                    },
                     "evidence_id": {
                         "type": "integer"
                     },
@@ -37647,20 +37445,13 @@
                     }
                 },
                 "required": [
-                    "contact_email",
-                    "contact_phone",
                     "evidence_id",
-                    "payload",
-                    "requester_name"
+                    "payload"
                 ]
             },
             "PublicToolEvidenceUrlRequest": {
                 "type": "object",
                 "properties": {
-                    "identifier": {
-                        "type": "string",
-                        "maxLength": 254
-                    },
                     "evidence_type": {
                         "$ref": "#/components/schemas/PublicToolEvidenceUrlRequestEvidenceTypeEnum"
                     },
@@ -37675,8 +37466,7 @@
                 },
                 "required": [
                     "content_type",
-                    "evidence_type",
-                    "identifier"
+                    "evidence_type"
                 ]
             },
             "PublicToolEvidenceUrlRequestEvidenceTypeEnum": {
@@ -37731,10 +37521,6 @@
             "PublicToolScan": {
                 "type": "object",
                 "properties": {
-                    "identifier": {
-                        "type": "string",
-                        "maxLength": 254
-                    },
                     "payload": {
                         "type": "string",
                         "maxLength": 64
@@ -37756,7 +37542,6 @@
                 },
                 "required": [
                     "evidence_id",
-                    "identifier",
                     "payload",
                     "remark"
                 ]
@@ -38374,18 +38159,6 @@
                         "type": "string",
                         "writeOnly": true
                     },
-                    "requester_name": {
-                        "type": "string",
-                        "maxLength": 120
-                    },
-                    "contact_email": {
-                        "type": "string",
-                        "format": "email"
-                    },
-                    "contact_phone": {
-                        "type": "string",
-                        "maxLength": 32
-                    },
                     "requested_for": {
                         "type": "string",
                         "default": ""
@@ -38398,10 +38171,7 @@
                     }
                 },
                 "required": [
-                    "contact_email",
-                    "contact_phone",
-                    "items",
-                    "requester_name"
+                    "items"
                 ]
             },
             "RequestSubmitResponse": {
@@ -39244,29 +39014,6 @@
                 },
                 "required": [
                     "url"
-                ]
-            },
-            "StaffCheckinVerifyRequest": {
-                "type": "object",
-                "properties": {
-                    "identifier": {
-                        "type": "string"
-                    }
-                },
-                "required": [
-                    "identifier"
-                ]
-            },
-            "StaffCheckinVerifyResponse": {
-                "type": "object",
-                "properties": {
-                    "username": {
-                        "type": "string",
-                        "readOnly": true
-                    }
-                },
-                "required": [
-                    "username"
                 ]
             },
             "StaffMembership": {

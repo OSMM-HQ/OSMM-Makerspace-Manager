@@ -23,7 +23,7 @@ type ProductOption = {
 };
 type ContainerOption = { id: number; label: string };
 type ContainerResponse = ContainerOption[] | { results: ContainerOption[] };
-type VerifyResponse = { username: string };
+type DirectLoanMember = { user_id: number; display_name: string; username: string };
 type LineDraft = { key: number; productId: string; quantity: string };
 type ScannedPayload = { payload: string; label: string };
 type ReturnLoanPayload = { loanId: number; evidenceId: number; notes: string; qrPayload: string; resolutions: DirectLoanResolution[] };
@@ -36,9 +36,7 @@ type QrResolveResponse = {
 
 export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   const queryClient = useQueryClient();
-  const [requesterName, setRequesterName] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
+  const [borrowerId, setBorrowerId] = useState("");
   const [lineRows, setLineRows] = useState<LineDraft[]>([{ key: 1, productId: "", quantity: "1" }]);
   const [nextLineKey, setNextLineKey] = useState(2);
   const [scanned, setScanned] = useState<ScannedPayload[]>([]);
@@ -47,10 +45,6 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   const [containerId, setContainerId] = useState("");
   const [showContainerScanner, setShowContainerScanner] = useState(false);
   const [containerScanError, setContainerScanError] = useState("");
-  // Track WHICH email was verified, not just a boolean: editing the field
-  // mid-flight must never approve a stale, mismatched identity.
-  const [verifiedIdentifier, setVerifiedIdentifier] = useState("");
-  const [verifiedUsername, setVerifiedUsername] = useState("");
   const [returningLoan, setReturningLoan] = useState<DirectLoan | null>(null);
   const [issueEvidenceId, setIssueEvidenceId] = useState<number | null>(null);
   const [issueRemark, setIssueRemark] = useState("Issued from direct handout.");
@@ -59,9 +53,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   const [returnNotes, setReturnNotes] = useState("");
   const [returnQrPayload, setReturnQrPayload] = useState("");
   useEffect(() => {
-    setRequesterName("");
-    setContactEmail("");
-    setContactPhone("");
+    setBorrowerId("");
     setLineRows([{ key: 1, productId: "", quantity: "1" }]);
     setNextLineKey(2);
     setScanned([]);
@@ -70,8 +62,6 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
     setContainerId("");
     setShowContainerScanner(false);
     setContainerScanError("");
-    setVerifiedIdentifier("");
-    setVerifiedUsername("");
     setReturningLoan(null);
     setIssueEvidenceId(null);
     setIssueRemark("Issued from direct handout.");
@@ -91,6 +81,10 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
     ["containers-all", makerspace.id],
     `/admin/makerspace/${makerspace.id}/containers?page_size=1000`,
   );
+  const members = useStaffGet<DirectLoanMember[]>(
+    ["direct-loan-members", makerspace.id],
+    `/admin/makerspace/${makerspace.id}/direct-loan-members`,
+  );
   const containerOptions = Array.isArray(containers.data)
     ? containers.data
     : containers.data?.results ?? [];
@@ -101,32 +95,12 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
     path: `/admin/makerspace/${makerspace.id}/direct-loans`,
     resetKey: String(makerspace.id),
   });
-  const verify = useMutation({
-    mutationFn: (submitted: string) =>
-      staffRequest<VerifyResponse>(`/admin/makerspace/${makerspace.id}/checkin/verify`, {
-        method: "POST",
-        body: JSON.stringify({ identifier: submitted }),
-      }),
-    onMutate: () => {
-      setVerifiedIdentifier("");
-      setVerifiedUsername("");
-    },
-    onSuccess: (result, submitted) => {
-      // Bind the success to the exact identifier that was verified.
-      setVerifiedIdentifier(submitted);
-      setVerifiedUsername(result.username);
-    },
-  });
-  const isVerified =
-    verifiedIdentifier !== "" && verifiedIdentifier === contactEmail.trim();
   const issue = useMutation({
     mutationFn: () =>
       staffRequest(`/admin/makerspace/${makerspace.id}/direct-loans`, {
         method: "POST",
         body: JSON.stringify({
-          requester_name: requesterName.trim(),
-          contact_email: contactEmail.trim(),
-          contact_phone: contactPhone.trim(),
+          borrower_id: Number(borrowerId),
           evidence_id: issueEvidenceId as number,
           remark: issueRemark.trim(),
           container_id: containerId ? Number(containerId) : null,
@@ -161,10 +135,7 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   const hasIssueContent =
     validManualLines.length > 0 || scanned.length > 0 || pastedQrPayloads.length > 0 || Boolean(containerId);
   const canIssue =
-    isVerified &&
-    requesterName.trim().length > 0 &&
-    contactEmail.trim().length > 0 &&
-    contactPhone.trim().length > 0 &&
+    Boolean(borrowerId) &&
     hasIssueContent &&
     issueEvidenceId !== null &&
     !issue.isPending;
@@ -222,12 +193,6 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   const removeScanned = (payload: string) => {
     setScanned((items) => items.filter((item) => item.payload !== payload));
   };
-  const updateContactEmail = (value: string) => {
-    setContactEmail(value);
-    setVerifiedIdentifier("");
-    setVerifiedUsername("");
-    verify.reset();
-  };
   const handleScan = async (payload: string) => {
     const cleanPayload = payload.trim();
     if (!cleanPayload || scanned.some((item) => item.payload === cleanPayload)) return;
@@ -274,36 +239,24 @@ export function DirectLoans({ makerspace }: { makerspace: Makerspace }) {
   return (
     <div className="grid gap-4">
       <Panel title="Direct handout">
-        <div className="grid gap-2 md:grid-cols-[1fr_1fr_auto]">
-          <input
-            className="desk-input"
-            placeholder="Borrower name"
-            required
-            value={requesterName}
-            onChange={(e) => setRequesterName(e.target.value)}
-          />
-          <input
-            className="desk-input"
-            placeholder="Borrower email"
-            required
-            type="email"
-            value={contactEmail}
-            onChange={(e) => updateContactEmail(e.target.value)}
-          />
-          <button className="desk-button" type="button" disabled={!contactEmail.trim() || verify.isPending} onClick={() => verify.mutate(contactEmail.trim())}>
-            Verify check-in
-          </button>
-        </div>
-        <input
-          className="desk-input mt-2 w-full"
-          placeholder="Borrower phone"
-          required
-          type="tel"
-          value={contactPhone}
-          onChange={(e) => setContactPhone(e.target.value)}
-        />
-        {isVerified && verifiedUsername ? <p className="mt-2 text-sm text-success-ink">Verified as {verifiedUsername}</p> : null}
-        {verify.error ? <p className="mt-2 text-sm text-danger">{verify.error.message}</p> : null}
+        <label className="block text-sm font-medium text-ink" htmlFor="direct-loan-borrower">
+          Borrowing member
+        </label>
+        <select
+          id="direct-loan-borrower"
+          className="desk-input mt-1 w-full"
+          value={borrowerId}
+          disabled={members.isLoading}
+          onChange={(event) => setBorrowerId(event.target.value)}
+        >
+          <option value="">Select an active member</option>
+          {(members.data ?? []).map((member) => (
+            <option key={member.user_id} value={member.user_id}>
+              {member.display_name || member.username}
+            </option>
+          ))}
+        </select>
+        {members.error ? <p className="mt-2 text-sm text-danger">{members.error.message}</p> : null}
         <label className="mt-4 block text-sm font-medium text-ink" htmlFor="direct-loan-container">Container (optional)</label>
         <div className="mt-1 flex flex-col gap-2 md:flex-row">
           <select

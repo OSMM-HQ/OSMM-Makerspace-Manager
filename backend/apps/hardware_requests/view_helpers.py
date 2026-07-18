@@ -4,15 +4,20 @@ from apps.hardware_requests.exceptions import ErrorSerializer
 from apps.hardware_requests.models import HardwareRequest
 
 ERROR_400 = OpenApiResponse(ErrorSerializer, description="Invalid request.")
+ERROR_401 = OpenApiResponse(ErrorSerializer, description="Authentication required.")
 ERROR_403 = OpenApiResponse(ErrorSerializer, description="Permission denied.")
 ERROR_404 = OpenApiResponse(ErrorSerializer, description="Not found.")
 ERROR_409 = OpenApiResponse(ErrorSerializer, description="Workflow conflict.")
+ERROR_429 = OpenApiResponse(ErrorSerializer, description="Too many requests.")
 ERROR_503 = OpenApiResponse(ErrorSerializer, description="Service unavailable.")
 
 PUBLIC_ERROR_RESPONSES = {
     400: ERROR_400,
+    401: ERROR_401,
     403: ERROR_403,
     404: ERROR_404,
+    409: ERROR_409,
+    429: ERROR_429,
     503: ERROR_503,
 }
 ADMIN_LIST_ERROR_RESPONSES = {

@@ -1,20 +1,14 @@
 import { useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Card } from "../../components/ui/Card";
 import type { RequestCartItem } from "../../types/inventory";
 import { BorrowRequestCard } from "./BorrowRequestCard";
-import {
-  fetchRequestsByIdentifier,
-  submitPublicRequest,
-  verifyCheckin,
-} from "./api";
+import { submitPublicRequest } from "./api";
 import { invalidatePublicInventory } from "../staff/queryInvalidation";
 import { PublicToolScanPanel } from "./PublicToolScanPanel";
-import { RequestSummary } from "./RequestSummary";
-import { readStorage, writeStorage } from "../../lib/safeStorage";
 
-type ActiveTab = "borrow" | "scan" | "requests";
+type ActiveTab = "borrow" | "scan";
 
 type PublicRequestPanelProps = {
   items: RequestCartItem[];
@@ -30,32 +24,17 @@ export function PublicRequestPanel({
   disabled = false,
 }: PublicRequestPanelProps) {
   const queryClient = useQueryClient();
-  const lookupStorageKey = `makerspace.request.lookup.${makerspaceSlug}`;
   const [activeTab, setActiveTab] = useState<ActiveTab>("borrow");
-  const [requesterName, setRequesterName] = useState("");
-  const [verifiedIdentifier, setVerifiedIdentifier] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
   const [requestedFor, setRequestedFor] = useState("");
   const [submitted, setSubmitted] = useState(false);
-  const [lookupValue, setLookupValue] = useState(
-    () => readStorage(lookupStorageKey),
-  );
   const totalItems = useMemo(
     () => items.reduce((total, item) => total + item.quantity, 0),
     [items],
   );
 
-  const verifyMutation = useMutation({
-    mutationFn: (email: string) => verifyCheckin(makerspaceSlug, email),
-    onSuccess: (_data, email) => setVerifiedIdentifier(email),
-  });
   const submitMutation = useMutation({
     mutationFn: () =>
       submitPublicRequest(makerspaceSlug, {
-        requester_name: requesterName.trim(),
-        contact_email: contactEmail.trim(),
-        contact_phone: contactPhone.trim(),
         requested_for: requestedFor.trim(),
         items: items.map((item) => ({
           product_id: item.productId,
@@ -66,32 +45,9 @@ export function PublicRequestPanel({
       invalidatePublicInventory(queryClient, makerspaceSlug);
       void response;
       setSubmitted(true);
-      cacheLookup(contactEmail.trim());
       onClear();
     },
   });
-  const requestsQuery = useQuery({
-    queryKey: ["public-request-statuses", makerspaceSlug, lookupValue],
-    queryFn: () => fetchRequestsByIdentifier(makerspaceSlug, lookupValue),
-    enabled: Boolean(lookupValue),
-    staleTime: 30_000,
-  });
-  const pendingLookup = contactEmail.trim();
-  const verifySuccess =
-    verifyMutation.isSuccess && contactEmail.trim() === verifiedIdentifier;
-
-  function updateContactEmail(value: string) {
-    setContactEmail(value);
-    if (value.trim() !== verifiedIdentifier) {
-      setVerifiedIdentifier("");
-      verifyMutation.reset();
-    }
-  }
-
-  function cacheLookup(value: string) {
-    writeStorage(lookupStorageKey, value);
-    setLookupValue(value);
-  }
 
   // Each tab carries its own palette tone - a touch of colour so the action row
   // doesn't read as flat. Active = filled pastel (+ dark deep-tint); idle = neutral
@@ -107,11 +63,6 @@ export function PublicRequestPanel({
         "border-tone-mint bg-tone-mint text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]",
       idle: "hover:bg-tone-mint/40 hover:text-tone-mint-ink",
     },
-    requests: {
-      active:
-        "border-tone-pink bg-tone-pink text-tone-pink-ink dark:bg-[#3a1326] dark:text-[#f9a8d4]",
-      idle: "hover:bg-tone-pink/40 hover:text-tone-pink-ink",
-    },
   };
 
   function tabClass(tab: ActiveTab) {
@@ -122,11 +73,7 @@ export function PublicRequestPanel({
   }
 
   const canSubmit =
-    requesterName.trim().length > 0 &&
-    contactEmail.trim().length > 0 &&
-    contactPhone.trim().length > 0 &&
     requestedFor.trim().length > 0 &&
-    verifySuccess &&
     items.length > 0 &&
     !submitMutation.isPending;
 
@@ -146,71 +93,16 @@ export function PublicRequestPanel({
         <>
           <Card className="shrink-0" padding="sm">
             <p className="text-xs font-semibold tracking-wide text-accent-ink">
-              Your Details
+              Member borrowing
             </p>
-            <label className="mt-3 block">
-              <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
-                Name
-              </span>
-              <input
-                className="desk-input w-full"
-                placeholder="Your full name"
-                required
-                value={requesterName}
-                onChange={(event) => setRequesterName(event.target.value)}
-              />
-            </label>
-            <label className="mt-3 block">
-              <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
-                Email
-              </span>
-              <input
-                className="desk-input w-full"
-                placeholder="you@example.com"
-                required
-                type="email"
-                value={contactEmail}
-                onChange={(event) => updateContactEmail(event.target.value)}
-              />
-            </label>
-            <label className="mt-3 block">
-              <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
-                Phone
-              </span>
-              <input
-                className="desk-input w-full"
-                placeholder="+91 98765 43210"
-                required
-                type="tel"
-                value={contactPhone}
-                onChange={(event) => setContactPhone(event.target.value)}
-              />
-            </label>
-            <button
-              className="desk-button mt-3 w-full"
-              disabled={!contactEmail.trim() || verifyMutation.isPending}
-              type="button"
-              onClick={() => verifyMutation.mutate(contactEmail.trim())}
-            >
-              {verifyMutation.isPending ? "Verifying..." : "Verify Check-In"}
-            </button>
-            <div aria-live="polite" className="mt-3 space-y-2">
-              {verifySuccess ? (
-                <p className="rounded-lg border border-tone-mint bg-tone-mint px-3 py-2 text-sm font-medium text-tone-mint-ink dark:bg-[#06281a] dark:text-[#74dd9c]">
-                  Check-In verified
-                </p>
-              ) : null}
-              {verifyMutation.error ? (
-                <p className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
-                  {verifyMutation.error.message}
-                </p>
-              ) : null}
-            </div>
+            <p className="mt-2 text-sm text-muted">
+              Requests use your signed-in member account. An active membership, waiver acceptance, and current presence are required.
+            </p>
           </Card>
 
           <div
             aria-label="Request actions"
-            className="grid shrink-0 grid-cols-3 gap-2"
+            className="grid shrink-0 grid-cols-2 gap-2"
           >
             <button
               aria-pressed={activeTab === "borrow"}
@@ -229,15 +121,6 @@ export function PublicRequestPanel({
               onClick={() => setActiveTab("scan")}
             >
               Scan a tool
-            </button>
-            <button
-              aria-pressed={activeTab === "requests"}
-              className={tabClass("requests")}
-              id="public-request-status-tab"
-              type="button"
-              onClick={() => setActiveTab("requests")}
-            >
-              My requests
             </button>
           </div>
 
@@ -268,59 +151,8 @@ export function PublicRequestPanel({
                 role="tabpanel"
               >
                 <PublicToolScanPanel
-                  requesterName={requesterName}
-                  contactEmail={contactEmail}
-                  contactPhone={contactPhone}
                   makerspaceSlug={makerspaceSlug}
                 />
-              </div>
-            ) : null}
-
-            {activeTab === "requests" ? (
-              <div
-                id="public-request-status-panel"
-              >
-                <Card>
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold tracking-wide text-accent-ink">
-                        My Requests
-                      </p>
-                      <h2 className="mt-2 text-xl font-semibold text-ink">
-                        Check by email
-                      </h2>
-                    </div>
-                  </div>
-                  <button
-                    className="desk-button mt-4 w-full"
-                    disabled={!pendingLookup || requestsQuery.isFetching}
-                    type="button"
-                    onClick={() => cacheLookup(pendingLookup)}
-                  >
-                    {requestsQuery.isFetching ? "Checking..." : "Show my requests"}
-                  </button>
-                  {requestsQuery.isError ? (
-                    <p className="mt-3 rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
-                      {requestsQuery.error.message}
-                    </p>
-                  ) : null}
-                  {requestsQuery.isSuccess ? (
-                    <div className="mt-4 space-y-3">
-                      {requestsQuery.data.length === 0 ? (
-                        <p className="rounded-lg border border-line bg-surface px-3 py-2 text-sm text-muted">
-                          No requests found for this email.
-                        </p>
-                      ) : (
-                        requestsQuery.data.map((request) => (
-                          <RequestSummary
-                            key={request.public_token ?? request.created_at}
-                            request={request}
-                          />
-                        ))
-                      )}
-                    </div>
-                  ) : null}
-                </Card>
               </div>
             ) : null}
           </div>

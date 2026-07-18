@@ -6,7 +6,6 @@ from django.utils import timezone
 
 from apps.audit import services as audit
 from apps.boxes.models import Box, QrCode, QrScanEvent
-from apps.checkin import client as checkin
 from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests.models import HardwareRequest, PublicToolLoan
 from apps.hardware_requests.direct_loan_audit import record_item_logs
@@ -15,7 +14,6 @@ from apps.hardware_requests.self_checkout_workflow import (
     _checkout_target,
     _issue_product,
     _issued_request,
-    _requester,
     qr_has_active_loan,
 )
 from apps.hardware_requests.workflow_errors import (
@@ -23,22 +21,21 @@ from apps.hardware_requests.workflow_errors import (
     RequestValidationError,
 )
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
+from apps.presence.guard import require_active_member_presence
 
 
 def issue_direct_loan(
     makerspace,
     actor,
     *,
-    requester_name,
-    contact_email,
-    contact_phone,
+    borrower,
     evidence_id,
     remark,
     qr_payloads,
     items,
     container_id=None,
 ):
-    result = checkin.verify(makerspace, contact_email)
+    require_active_member_presence(borrower, makerspace)
     evidence = EvidencePhoto.objects.filter(
         pk=evidence_id,
         makerspace=makerspace,
@@ -99,7 +96,7 @@ def issue_direct_loan(
                     "or empty the container before assigning it on its own."
                 )
 
-        requester = _requester(result.external_id)
+        requester = borrower
         product_quantities = Counter()
         asset_ids = []
         labels = []
@@ -140,11 +137,11 @@ def issue_direct_loan(
         request = _issued_request(
             makerspace,
             requester,
-            result.username,
+            requester.username,
             dict(product_quantities),
-            requester_name=requester_name,
-            contact_email=contact_email,
-            contact_phone=contact_phone,
+            requester_name=requester.display_name,
+            contact_email=requester.email,
+            contact_phone=requester.phone,
             return_due_at=due_at,
             requested_for="Admin direct handout",
             issued_by=actor,

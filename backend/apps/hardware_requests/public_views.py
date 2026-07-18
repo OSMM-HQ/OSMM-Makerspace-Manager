@@ -4,19 +4,14 @@ from types import SimpleNamespace
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.exceptions import ValidationError
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.apiclients.throttling import ClientTierRateThrottle
-from apps.checkin import client as checkin
+from apps.apiclients.throttling import ClientTierRateThrottle, MemberPrincipalRateThrottle
 from apps.hardware_requests import workflow
 from apps.hardware_requests.models import HardwareRequest
 from apps.hardware_requests.serializers import (
-    CheckinVerifyRequestSerializer,
-    CheckinVerifyResponseSerializer,
-    PublicRequestListItemSerializer,
-    PublicRequestLookupSerializer,
     PublicRequestStatusSerializer,
     RequestSubmitResponseSerializer,
     RequestSubmitSerializer,
@@ -29,47 +24,22 @@ from apps.hardware_requests.view_helpers import (
 from apps.inventory.models import InventoryProduct
 from apps.makerspaces.lookup import get_public_makerspace
 from apps.makerspaces.platform import module_enabled
+from apps.presence.guard import require_active_member_presence
 from apps.openapi import (
-    PUBLIC_REQUEST_LOOKUP_EXAMPLE,
     PUBLIC_REQUEST_STATUS_EXAMPLE,
     PUBLIC_REQUEST_SUBMIT_EXAMPLE,
     PUBLISHABLE_KEY_PARAMETER,
 )
 
 
-class CheckinVerifyView(APIView):
-    permission_classes = [AllowAny]
-    throttle_classes = [ClientTierRateThrottle]
-    throttle_scope = "checkin_verify"
-
-    @extend_schema(
-        tags=["Public requests"],
-        summary="Verify Check-In email or phone",
-        auth=[],
-        parameters=[PUBLISHABLE_KEY_PARAMETER],
-        request=CheckinVerifyRequestSerializer,
-        responses={200: CheckinVerifyResponseSerializer, **PUBLIC_ERROR_RESPONSES},
-        examples=[PUBLIC_REQUEST_LOOKUP_EXAMPLE],
-    )
-    def post(self, request, makerspace_slug, *args, **kwargs):
-        makerspace = get_public_makerspace(makerspace_slug)
-        _require_module(makerspace, "request_workflow")
-        serializer = CheckinVerifyRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        result = checkin.verify(makerspace, serializer.validated_data["identifier"])
-        return Response(CheckinVerifyResponseSerializer(result).data)
-
-
 class RequestSubmitView(APIView):
-    permission_classes = [AllowAny]
-    throttle_classes = [ClientTierRateThrottle]
+    permission_classes = [IsAuthenticated]
+    throttle_classes = [MemberPrincipalRateThrottle]
     throttle_scope = "public_request_submit"
 
     @extend_schema(
         tags=["Public requests"],
         summary="Submit public borrow request",
-        auth=[],
         parameters=[PUBLISHABLE_KEY_PARAMETER],
         request=RequestSubmitSerializer,
         responses={201: RequestSubmitResponseSerializer, **PUBLIC_ERROR_RESPONSES},
@@ -78,6 +48,7 @@ class RequestSubmitView(APIView):
     def post(self, request, makerspace_slug, *args, **kwargs):
         makerspace = get_public_makerspace(makerspace_slug)
         _require_module(makerspace, "request_workflow")
+        require_active_member_presence(request.user, makerspace)
         # Honeypot check FIRST, on the raw payload: a bot that fills `website` must get a
         # normal-looking success even if it also garbled a required field — otherwise a
         # validation error would reveal that the honeypot was the rejection trigger.
@@ -112,9 +83,7 @@ class RequestSubmitView(APIView):
                 for item in data["items"]
             ],
             data["requested_for"],
-            requester_name=data["requester_name"],
-            contact_email=data["contact_email"],
-            contact_phone=data["contact_phone"],
+            requester=request.user,
         )
         return Response(
             RequestSubmitResponseSerializer(hardware_request).data,
@@ -144,45 +113,6 @@ class RequestStatusView(generics.RetrieveAPIView):
     )
     def get(self, request, *args, **kwargs):
         return super().get(request, *args, **kwargs)
-
-
-class RequestLookupView(APIView):
-    permission_classes = [AllowAny]
-    throttle_classes = [ClientTierRateThrottle]
-    throttle_scope = "request_status"
-
-    @extend_schema(
-        tags=["Public requests"],
-        summary="List request statuses by Check-In email or phone",
-        auth=[],
-        parameters=[PUBLISHABLE_KEY_PARAMETER],
-        request=PublicRequestLookupSerializer,
-        responses={200: PublicRequestListItemSerializer(many=True), **PUBLIC_ERROR_RESPONSES},
-        examples=[PUBLIC_REQUEST_LOOKUP_EXAMPLE, PUBLIC_REQUEST_STATUS_EXAMPLE],
-    )
-    def post(self, request, makerspace_slug, *args, **kwargs):
-        makerspace = get_public_makerspace(makerspace_slug)
-        _require_module(makerspace, "request_workflow")
-        serializer = PublicRequestLookupSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        identifier = serializer.validated_data["identifier"].strip()
-
-        # Verify ownership through Check-In before disclosing any history. Matching
-        # free-text contact fields let anyone who knew a requester's email/phone
-        # enumerate their requests (incl. public_token). Instead we verify the
-        # identifier and scope to the resolved Check-In identity. A denied/unknown
-        # identifier raises through the workflow exception handler (403/503).
-        result = checkin.verify(makerspace, identifier)
-        queryset = (
-            request_queryset()
-            .filter(
-                makerspace=makerspace,
-                requester__external_checkin_user_id=result.external_id,
-            )
-            .order_by("-created_at")
-        )
-        return Response(PublicRequestListItemSerializer(queryset, many=True).data)
 
 
 def _honeypot_filled(payload):

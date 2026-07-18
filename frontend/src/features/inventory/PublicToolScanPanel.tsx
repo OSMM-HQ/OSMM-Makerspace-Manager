@@ -9,9 +9,6 @@ import { publicToolCheckout, publicToolReturn } from "./api";
 import { PublicEvidenceUpload } from "./PublicEvidenceUpload";
 
 type PublicToolScanPanelProps = {
-  requesterName: string;
-  contactEmail: string;
-  contactPhone: string;
   makerspaceSlug: string;
 };
 
@@ -34,12 +31,7 @@ function LoanResult({ loan }: { loan: PublicToolLoan }) {
   );
 }
 
-export function PublicToolScanPanel({
-  requesterName,
-  contactEmail,
-  contactPhone,
-  makerspaceSlug,
-}: PublicToolScanPanelProps) {
+export function PublicToolScanPanel({ makerspaceSlug }: PublicToolScanPanelProps) {
   const queryClient = useQueryClient();
   const [scannedToken, setScannedToken] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
@@ -54,9 +46,6 @@ export function PublicToolScanPanel({
     mutationFn: () =>
       publicToolCheckout(makerspaceSlug, {
         payload: effectivePayload,
-        requester_name: requesterName.trim(),
-        contact_email: contactEmail.trim(),
-        contact_phone: contactPhone.trim(),
         evidence_id: issueEvidenceId as number,
       }),
     onSuccess: () => {
@@ -68,7 +57,6 @@ export function PublicToolScanPanel({
   const returnTool = useMutation({
     mutationFn: () =>
       publicToolReturn(makerspaceSlug, {
-        identifier: contactEmail.trim(),
         payload: effectivePayload,
         evidence_id: returnEvidenceId as number,
         remark: returnRemark.trim(),
@@ -85,13 +73,9 @@ export function PublicToolScanPanel({
     },
   });
   const checkoutDisabled =
-    !requesterName.trim() ||
-    !contactEmail.trim() ||
-    !contactPhone.trim() ||
     !effectivePayload ||
     issueEvidenceId === null;
   const returnDisabled =
-    !contactEmail.trim() ||
     !effectivePayload ||
     returnEvidenceId === null ||
     !returnRemark.trim() ||
@@ -106,11 +90,10 @@ export function PublicToolScanPanel({
       </p>
       <h2 className="mt-2 text-xl font-semibold text-ink">Scan public tool</h2>
       <p className="mt-2 text-sm leading-6 text-muted">
-        Use your email above, upload the required photo, then scan the tool QR with your camera.
+        Upload the required photo, then scan the tool QR with your camera.
       </p>
       <button
         className="desk-button mt-4 w-full"
-        disabled={!contactEmail.trim()}
         type="button"
         onClick={() => setScannerOpen(true)}
       >
@@ -135,9 +118,8 @@ export function PublicToolScanPanel({
             <PublicEvidenceUpload
               key={`issue-${uploadKey}`}
               slug={makerspaceSlug}
-              identifier={contactEmail}
               evidenceType="issue"
-              disabled={!contactEmail.trim() || checkout.isPending}
+              disabled={checkout.isPending}
               onUploaded={setIssueEvidenceId}
             />
           </div>
@@ -156,9 +138,8 @@ export function PublicToolScanPanel({
             <PublicEvidenceUpload
               key={`return-${uploadKey}`}
               slug={makerspaceSlug}
-              identifier={contactEmail}
               evidenceType="return"
-              disabled={!contactEmail.trim() || returnTool.isPending}
+              disabled={returnTool.isPending}
               onUploaded={setReturnEvidenceId}
             />
           </div>
