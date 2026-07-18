@@ -312,6 +312,7 @@
                                 "damaged-missing",
                                 "event-attendance",
                                 "fablab-health",
+                                "machine-service",
                                 "machine-usage",
                                 "maintenance-activity",
                                 "most-lent",
@@ -2978,6 +2979,69 @@
                             }
                         },
                         "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machine-service-report": {
+            "get": {
+                "operationId": "api_v1_admin_machine_service_report_retrieve",
+                "summary": "Retrieve aggregate machine-service report",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineServiceReport"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Machine management permission required."
+                    },
+                    "404": {
+                        "description": "Not found."
                     }
                 }
             }
@@ -9704,6 +9768,77 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/machine-service-report": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_machine_service_report_retrieve",
+                "summary": "Retrieve makerspace machine-service report",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineServiceReport"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Machine management permission required."
+                    },
+                    "404": {
+                        "description": "Not found."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/machine-types": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_machine_types_list",
@@ -10569,6 +10704,7 @@
                                 "damaged-missing",
                                 "event-attendance",
                                 "fablab-health",
+                                "machine-service",
                                 "machine-usage",
                                 "maintenance-activity",
                                 "most-lent",
@@ -14227,6 +14363,7 @@
                                 "damaged-missing",
                                 "event-attendance",
                                 "fablab-health",
+                                "machine-service",
                                 "machine-usage",
                                 "maintenance-activity",
                                 "most-lent",
@@ -27688,7 +27825,7 @@
                 "type": "object",
                 "properties": {
                     "measurement": {
-                        "$ref": "#/components/schemas/MeasurementEnum"
+                        "$ref": "#/components/schemas/Measurement883Enum"
                     },
                     "product_id": {
                         "type": "integer",
@@ -27960,7 +28097,7 @@
                     "measurement": {
                         "allOf": [
                             {
-                                "$ref": "#/components/schemas/MeasurementEnum"
+                                "$ref": "#/components/schemas/Measurement883Enum"
                             }
                         ],
                         "readOnly": true
@@ -28162,6 +28299,207 @@
                     "username"
                 ]
             },
+            "MachineServiceConsumption": {
+                "type": "object",
+                "properties": {
+                    "makerspace_id": {
+                        "type": "integer"
+                    },
+                    "machine_id": {
+                        "type": "integer"
+                    },
+                    "machine_name": {
+                        "type": "string"
+                    },
+                    "machine_type": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "measurement": {
+                        "$ref": "#/components/schemas/MachineServiceConsumptionMeasurementEnum"
+                    },
+                    "product_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "product_label": {
+                        "type": "string"
+                    },
+                    "completed_amount": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "failed_partial_amount": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "total_used": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    }
+                },
+                "required": [
+                    "completed_amount",
+                    "failed_partial_amount",
+                    "machine_id",
+                    "machine_name",
+                    "machine_type",
+                    "measurement",
+                    "product_id",
+                    "product_label",
+                    "total_used"
+                ]
+            },
+            "MachineServiceConsumptionMeasurementEnum": {
+                "enum": [
+                    "count",
+                    "grams"
+                ],
+                "type": "string",
+                "description": "* `count` - count\n* `grams` - grams"
+            },
+            "MachineServiceFailure": {
+                "type": "object",
+                "properties": {
+                    "makerspace_id": {
+                        "type": "integer"
+                    },
+                    "machine_id": {
+                        "type": "integer"
+                    },
+                    "machine_name": {
+                        "type": "string"
+                    },
+                    "machine_type": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "outcome": {
+                        "type": "string"
+                    },
+                    "failed_count": {
+                        "type": "integer"
+                    },
+                    "failed_partial_hours": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "failed_count_amount": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "failed_grams_amount": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    }
+                },
+                "required": [
+                    "failed_count",
+                    "failed_count_amount",
+                    "failed_grams_amount",
+                    "failed_partial_hours",
+                    "machine_id",
+                    "machine_name",
+                    "machine_type",
+                    "outcome"
+                ]
+            },
+            "MachineServiceMachine": {
+                "type": "object",
+                "properties": {
+                    "makerspace_id": {
+                        "type": "integer"
+                    },
+                    "machine_id": {
+                        "type": "integer"
+                    },
+                    "machine_name": {
+                        "type": "string"
+                    },
+                    "machine_type": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "request_count": {
+                        "type": "integer"
+                    },
+                    "completed_count": {
+                        "type": "integer"
+                    },
+                    "failed_count": {
+                        "type": "integer"
+                    },
+                    "completed_hours": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "failed_partial_hours": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "total_recorded_service_hours": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "failure_rate": {
+                        "type": "number",
+                        "format": "double",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "completed_count",
+                    "completed_hours",
+                    "failed_count",
+                    "failed_partial_hours",
+                    "failure_rate",
+                    "machine_id",
+                    "machine_name",
+                    "machine_type",
+                    "request_count",
+                    "total_recorded_service_hours"
+                ]
+            },
+            "MachineServiceReport": {
+                "type": "object",
+                "properties": {
+                    "status_totals": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MachineServiceStatusTotals"
+                        }
+                    },
+                    "machines": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MachineServiceMachine"
+                        }
+                    },
+                    "consumption": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MachineServiceConsumption"
+                        }
+                    },
+                    "failure_summary": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MachineServiceFailure"
+                        }
+                    }
+                },
+                "required": [
+                    "consumption",
+                    "failure_summary",
+                    "machines",
+                    "status_totals"
+                ]
+            },
             "MachineServiceRequest": {
                 "type": "object",
                 "properties": {
@@ -28341,6 +28679,44 @@
                 ],
                 "type": "string",
                 "description": "* `pending` - Pending\n* `accepted` - Accepted\n* `in_progress` - In progress\n* `completed` - Completed\n* `collected` - Collected\n* `rejected` - Rejected\n* `failed` - Failed"
+            },
+            "MachineServiceStatusTotals": {
+                "type": "object",
+                "properties": {
+                    "makerspace_id": {
+                        "type": "integer"
+                    },
+                    "submitted": {
+                        "type": "integer"
+                    },
+                    "accepted": {
+                        "type": "integer"
+                    },
+                    "in_progress": {
+                        "type": "integer"
+                    },
+                    "completed": {
+                        "type": "integer"
+                    },
+                    "collected": {
+                        "type": "integer"
+                    },
+                    "rejected": {
+                        "type": "integer"
+                    },
+                    "failed": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "accepted",
+                    "collected",
+                    "completed",
+                    "failed",
+                    "in_progress",
+                    "rejected",
+                    "submitted"
+                ]
             },
             "MachineServiceSubmit": {
                 "type": "object",
@@ -29674,7 +30050,7 @@
                 "type": "string",
                 "description": "* `success` - Success\n* `failed` - Failed"
             },
-            "MeasurementEnum": {
+            "Measurement883Enum": {
                 "enum": [
                     "count",
                     "grams"

@@ -76,6 +76,10 @@ from apps.admin_api.views_machine_service_files import (
     MachineServiceFilePresignView,
     MachineServiceFileUrlView,
 )
+from apps.machines.service_reports_views import (
+    MakerspaceMachineServiceReportView,
+    SuperadminMachineServiceReportView,
+)
 from apps.admin_api.views_machines_actions import (
     MachineErrorLogView,
     MachineRetireView,
@@ -118,6 +122,8 @@ from apps.admin_api.views_roles import CapabilityCatalogView, RoleDetailView, Ro
 from apps.printing.views_printer_image import PrinterImageView
 
 urlpatterns = [
+    path("makerspace/<int:makerspace_id>/machine-service-report", MakerspaceMachineServiceReportView.as_view(), name="admin-makerspace-machine-service-report"),
+    path("machine-service-report", SuperadminMachineServiceReportView.as_view(), name="admin-machine-service-report"),
     path(
         "makerspaces/<int:makerspace_id>/machine-service/requests",
         MachineServiceRequestListCreateView.as_view(),
