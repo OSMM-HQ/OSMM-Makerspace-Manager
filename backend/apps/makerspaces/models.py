@@ -10,7 +10,11 @@ from django.db.models.functions import Lower
 from django.utils.crypto import get_random_string
 
 from apps.makerspaces.secrets import decrypt_value, encrypt_value
-from apps.makerspaces.validators import validate_google_maps_url
+from apps.makerspaces.validators import (
+    DEFAULT_PRESENCE_PRESETS,
+    validate_google_maps_url,
+    validate_presence_presets,
+)
 
 
 def generate_publishable_key():
@@ -85,6 +89,11 @@ def default_branding_config():
         "support_email": "",
         "support_url": "",
     }
+
+
+def presence_presets(makerspace):
+    """Configured presence lengths, with an empty configuration using the defaults."""
+    return makerspace.presence_preset_minutes or list(DEFAULT_PRESENCE_PRESETS)
 
 
 class Makerspace(models.Model):
@@ -182,6 +191,9 @@ class Makerspace(models.Model):
     slack_webhook_url = models.TextField(blank=True, default="")
     mattermost_webhook_url = models.TextField(blank=True, default="")
     default_loan_days = models.PositiveIntegerField(default=7)
+    presence_preset_minutes = models.JSONField(
+        default=list, blank=True, validators=[validate_presence_presets]
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -230,6 +242,8 @@ class Makerspace(models.Model):
         super().save(*args, **kwargs)
 
     def clean(self):
+        if self.presence_preset_minutes:
+            validate_presence_presets(self.presence_preset_minutes)
         if self.hidden_from_central_directory and not self.frontend_domain:
             raise ValidationError(
                 {

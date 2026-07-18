@@ -167,6 +167,9 @@ def revoke_membership(actor, membership, reason=""):
             audit.record(actor, "membership.revoked", makerspace=makerspace, target=membership,
                          meta={"reason": membership.revocation_reason})
         # M3 seam: end active presence here once the presence domain exists.
+        from apps.presence.services import end_sessions_for_membership
+
+        end_sessions_for_membership(actor, membership)
         MembershipRequest.objects.filter(makerspace=makerspace, user=membership.user,
                                          state__in=["requested", "invited"]).update(
             state=MembershipRequest.State.REVOKED, decided_by=actor, decided_at=timezone.now()

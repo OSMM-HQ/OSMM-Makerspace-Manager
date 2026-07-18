@@ -29,6 +29,7 @@ NESTED_MAKERSPACE_LOOKUPS = {
     "machines.servicerequestfile": "machine__makerspace_id",
     "machines.servicerequestconsumption": "service_request__bucket__machine__makerspace_id",
     "bookings.booking": "space__makerspace_id",
+    "presence.presencesession": "makerspace_id",
 }
 
 # Registered admin models that are intentionally NOT makerspace-scoped (account/global).

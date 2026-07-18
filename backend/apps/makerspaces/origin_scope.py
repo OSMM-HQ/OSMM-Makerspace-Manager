@@ -217,6 +217,7 @@ _MODEL_LOOKUPS = {
         "makerspaces.MakerspaceMembership",
         "makerspace_id",
     ),
+    "admin-presence-sessions-current": ("makerspaces.Makerspace", "id"),
     "admin-maintenance-schedule-detail": (
         "maintenance.MaintenanceSchedule",
         "machine__makerspace_id",

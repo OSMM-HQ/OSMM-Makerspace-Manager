@@ -18,7 +18,7 @@ from apps.makerspaces.models import (
     default_branding_config,
     normalize_frontend_domain,
 )
-from apps.makerspaces.validators import validate_google_maps_url
+from apps.makerspaces.validators import validate_google_maps_url, validate_presence_presets
 from apps.admin_api.serializers_makerspace_aux import (
     MakerspaceDisabledRowSerializer,
     MakerspaceSwitcherSerializer,
@@ -128,6 +128,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "mattermost_webhook_url",
             "mattermost_webhook_url_set",
             "default_loan_days",
+            "presence_preset_minutes",
             "created_at",
             "updated_at",
         ]
@@ -224,6 +225,12 @@ class MakerspaceSerializer(serializers.ModelSerializer):
         if value < 0:
             raise serializers.ValidationError("Filament low-stock threshold cannot be negative.")
         return value
+
+    def validate_presence_preset_minutes(self, value):
+        try:
+            return validate_presence_presets(value)
+        except Exception as exc:
+            raise serializers.ValidationError(exc.messages) from exc
 
     def validate(self, attrs):
         if "resource_limit_overrides" in attrs:

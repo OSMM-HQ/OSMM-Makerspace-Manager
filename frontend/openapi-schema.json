@@ -10471,6 +10471,73 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/presence-sessions/current": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_presence_sessions_current_list",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin makerspaces"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PresenceRoster"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid input."
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Membership or staff permission required."
+                    },
+                    "404": {
+                        "description": "Makerspace not found."
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/problem-reports/{id}/resolve": {
             "post": {
                 "operationId": "api_v1_admin_makerspace_problem_reports_resolve_create",
@@ -23441,6 +23508,218 @@
                 }
             }
         },
+        "/api/v1/public/{makerspace_slug}/presence-sessions": {
+            "post": {
+                "operationId": "api_v1_public_presence_sessions_create",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Presence"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PresenceStart"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PresenceStart"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PresenceStart"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PresenceSession"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid input."
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Membership or staff permission required."
+                    },
+                    "404": {
+                        "description": "Makerspace not found."
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded."
+                    }
+                }
+            }
+        },
+        "/api/v1/public/{makerspace_slug}/presence-sessions/current": {
+            "get": {
+                "operationId": "api_v1_public_presence_sessions_current_retrieve",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Presence"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PresenceCurrent"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid input."
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Membership or staff permission required."
+                    },
+                    "404": {
+                        "description": "Makerspace not found."
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded."
+                    }
+                }
+            }
+        },
+        "/api/v1/public/{makerspace_slug}/presence-sessions/current/end": {
+            "post": {
+                "operationId": "api_v1_public_presence_sessions_current_end_create",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Presence"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PresenceCurrent"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid input."
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Membership or staff permission required."
+                    },
+                    "404": {
+                        "description": "Makerspace not found."
+                    },
+                    "429": {
+                        "description": "Rate limit exceeded."
+                    }
+                }
+            }
+        },
         "/api/v1/public/{makerspace_slug}/requests": {
             "post": {
                 "operationId": "api_v1_public_requests_create",
@@ -27350,6 +27629,15 @@
                     "code"
                 ]
             },
+            "EndReasonEnum": {
+                "enum": [
+                    "superseded",
+                    "membership_revoked",
+                    "user_ended"
+                ],
+                "type": "string",
+                "description": "* `superseded` - Superseded\n* `membership_revoked` - Membership revoked\n* `user_ended` - User ended"
+            },
             "Error": {
                 "type": "object",
                 "properties": {
@@ -31136,6 +31424,7 @@
                         "maximum": 2147483647,
                         "minimum": 0
                     },
+                    "presence_preset_minutes": {},
                     "created_at": {
                         "type": "string",
                         "format": "date-time",
@@ -34227,6 +34516,7 @@
                         "maximum": 2147483647,
                         "minimum": 0
                     },
+                    "presence_preset_minutes": {},
                     "created_at": {
                         "type": "string",
                         "format": "date-time",
@@ -34611,6 +34901,102 @@
                     "id",
                     "smtp_password_set",
                     "updated_at"
+                ]
+            },
+            "PresenceCurrent": {
+                "type": "object",
+                "properties": {
+                    "active": {
+                        "type": "boolean"
+                    },
+                    "session": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PresenceSession"
+                            }
+                        ],
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "active",
+                    "session"
+                ]
+            },
+            "PresenceRoster": {
+                "type": "object",
+                "properties": {
+                    "display_name": {
+                        "type": "string"
+                    },
+                    "role_label": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "started_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "expires_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "display_name",
+                    "expires_at",
+                    "role_label",
+                    "started_at"
+                ]
+            },
+            "PresenceSession": {
+                "type": "object",
+                "properties": {
+                    "started_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "expires_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "ended_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "end_reason": {
+                        "oneOf": [
+                            {
+                                "$ref": "#/components/schemas/EndReasonEnum"
+                            },
+                            {
+                                "$ref": "#/components/schemas/BlankEnum"
+                            }
+                        ]
+                    },
+                    "active": {
+                        "type": "boolean",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "active",
+                    "expires_at",
+                    "started_at"
+                ]
+            },
+            "PresenceStart": {
+                "type": "object",
+                "properties": {
+                    "duration_minutes": {
+                        "type": "integer",
+                        "maximum": 480,
+                        "minimum": 15
+                    }
+                },
+                "required": [
+                    "duration_minutes"
                 ]
             },
             "PrintAccept": {

@@ -35,6 +35,11 @@ from apps.maintenance.exceptions import (
 from apps.makerspaces.role_services import RoleConflict
 from apps.encryption.crypto import PiiUnavailable
 from apps.encryption.write_fence import PiiWriteFenced
+from apps.presence.guard import (
+    MemberPresenceRequired,
+    PresenceRequired,
+    WaiverAcceptanceRequired,
+)
 
 
 @extend_schema_serializer(component_name="HardwareRequestError")
@@ -44,6 +49,21 @@ class ErrorSerializer(serializers.Serializer):
 
 
 _EXCEPTION_MAP = {
+    MemberPresenceRequired: (
+        status.HTTP_403_FORBIDDEN,
+        "membership_required",
+        "An active membership is required.",
+    ),
+    WaiverAcceptanceRequired: (
+        status.HTTP_403_FORBIDDEN,
+        "waiver_acceptance_required",
+        "Accept the current makerspace waiver first.",
+    ),
+    PresenceRequired: (
+        status.HTTP_403_FORBIDDEN,
+        "presence_required",
+        "An active presence session is required.",
+    ),
     PiiWriteFenced: (
         status.HTTP_503_SERVICE_UNAVAILABLE,
         "pii_write_fenced",
