@@ -55,6 +55,9 @@ def debit_consumptions(service_request, actor, consumptions, *, outcome):
                 machine_consumable=row,
                 measurement=ServiceRequestConsumption.Measurement.COUNT,
                 product=row.product,
+                # Snapshot the product name so the report's product_label (read from
+                # `label`) isn't blank for count-based consumption rows.
+                label=row.product.name,
                 quantity=quantity,
                 created_by=actor,
                 outcome=outcome,

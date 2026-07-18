@@ -34,9 +34,11 @@ class MakerspaceMachineServiceReportView(APIView):
 
     @extend_schema(tags=["Admin machine service"], summary="Retrieve makerspace machine-service report", request=None, parameters=DATE_RANGE_PARAMETERS, responses={200: MachineServiceReportSerializer, **ERROR_RESPONSES})
     def get(self, request, makerspace_id, *args, **kwargs):
-        require_module(makerspace_id, "machine_service")
+        # Authorize before the module check so a foreign/hidden makerspace returns a
+        # uniform 403 and never leaks its module state via a 400-vs-403 difference.
         if not rbac.can(request.user, rbac.Action.MANAGE_MACHINES, makerspace_id):
             raise PermissionDenied()
+        require_module(makerspace_id, "machine_service")
         return Response(MachineServiceReportSerializer(report_sections(build_machine_service_report(makerspace_id, date_range=_date_range(request)))).data)
 
 

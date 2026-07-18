@@ -189,6 +189,10 @@ def validate_service_object(file, policy):
 
 def finalize_file(service_request, *, file_id, actor):
     file = ServiceRequestFile.objects.select_related("machine__makerspace").get(pk=file_id)
+    # Refuse an already-attached file before touching object storage so a retry or
+    # concurrent finalize can never delete the live object a committed record points at.
+    if file.service_request_id is not None or file.attached_at is not None:
+        raise ValidationError({"file_id": "Attachment is unavailable for this request."}, code="invalid_attachment")
     policy = policy_for_file(file)
     try:
         size = finalize_upload(file.object_key, policy.max_bytes)
@@ -214,7 +218,12 @@ def finalize_file(service_request, *, file_id, actor):
             )
             return locked_file
     except Exception:
-        cleanup_upload(file.object_key)
+        # Only compensate a still-staged upload; if a concurrent finalize won the
+        # race and attached this file, leave its object intact.
+        if ServiceRequestFile.objects.filter(
+            pk=file.pk, service_request__isnull=True, attached_at__isnull=True
+        ).exists():
+            cleanup_upload(file.object_key)
         raise
 
 

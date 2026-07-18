@@ -63,7 +63,7 @@ class MachineServiceFilePresignView(APIView):
     @extend_schema(
         tags=["Admin machine service"], summary="Create a service attachment upload URL",
         request=ServiceFilePresignSerializer,
-        responses={201: ServiceFileFinalizeResponseSerializer, **FILE_ERRORS},
+        responses={201: ServiceFilePresignResponseSerializer, **FILE_ERRORS},
     )
     def post(self, request, pk, *args, **kwargs):
         service_request = _manageable_request(request.user, pk)
@@ -84,7 +84,7 @@ class MachineServiceFileFinalizeView(APIView):
     @extend_schema(
         tags=["Admin machine service"], summary="Finalize a service attachment upload",
         request=ServiceFileFinalizeSerializer,
-        responses={201: ServiceFilePresignResponseSerializer, **FILE_ERRORS},
+        responses={201: ServiceFileFinalizeResponseSerializer, **FILE_ERRORS},
     )
     def post(self, request, pk, *args, **kwargs):
         service_request = _manageable_request(request.user, pk)

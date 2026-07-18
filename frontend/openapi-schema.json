@@ -3606,7 +3606,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ServiceFilePresignResponse"
+                                    "$ref": "#/components/schemas/ServiceFileFinalizeResponse"
                                 }
                             }
                         },
@@ -3694,7 +3694,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/ServiceFileFinalizeResponse"
+                                    "$ref": "#/components/schemas/ServiceFilePresignResponse"
                                 }
                             }
                         },
