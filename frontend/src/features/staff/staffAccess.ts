@@ -1,5 +1,5 @@
 const ALL_TABS = [
-  "dashboard", "notifications", "requests", "direct", "inventory", "needsfix", "categories", "printing", "machines", "events", "bookings", "tobuy", "transfers",
+  "dashboard", "notifications", "requests", "direct", "inventory", "needsfix", "categories", "printing", "machines", "events", "bookings", "members", "tobuy", "transfers",
   "stocktake", "containers", "ledger", "reports", "accountability", "warranty", "bulk", "qr", "scanner", "api", "settings", "emailtemplates", "users", "platform", "audit",
   "email-logs",
 ] as const;
@@ -25,6 +25,7 @@ export const TAB_LABELS: Record<string, string> = {
   machines: "Machines",
   events: "Events",
   bookings: "Bookings",
+  members: "Members",
   tobuy: "To Buy",
   reports: "Reports",
   accountability: "Accountability",
@@ -45,6 +46,7 @@ export const TAB_GROUPS: { label: string; tabs: string[] }[] = [
   { label: "Machines", tabs: ["machines"] },
   { label: "Events", tabs: ["events"] },
   { label: "Bookings", tabs: ["bookings"] },
+  { label: "Members", tabs: ["members"] },
   { label: "Insights", tabs: ["reports", "accountability", "warranty", "audit"] },
   { label: "Admin", tabs: ["users", "settings", "emailtemplates", "email-logs", "api", "platform"] },
 ];
@@ -98,6 +100,7 @@ export function getStaffAccess(actions: readonly string[], isSuperadmin: boolean
     if (tabName === "machines") return enabledModules.includes("machines") && (canManageMachines || canSeePrinting);
     if (tabName === "events") return enabledModules.includes("events") && canManageEvents;
     if (tabName === "bookings") return enabledModules.includes("bookings") && canManageBookings;
+    if (tabName === "members") return canManageMakerspace;
     if (tabName === "requests") return canSeeHardware || canSeePrinting;
     return true;
   });

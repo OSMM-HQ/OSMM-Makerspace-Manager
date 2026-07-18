@@ -10,8 +10,7 @@ import {
 import { AvailabilityCalendar } from "./AvailabilityCalendar";
 import { useSubmitPublicBooking, type PublicBookableSpace } from "./publicBookingsApi";
 
-type Identity = { name: string; email: string; phone: string };
-type StandardErrors = Partial<Record<keyof Identity | "starts_at" | "ends_at", string>>;
+type StandardErrors = Partial<Record<"starts_at" | "ends_at", string>>;
 
 function apiFieldError(error: StructuredApiError | null, field: keyof StandardErrors) {
   const value = error?.body[field];
@@ -24,6 +23,12 @@ function failureMessage(error: StructuredApiError | null) {
   if (!error) return "The booking could not be submitted. Please try again.";
   if (error.status === 409) return "That time now overlaps a confirmed booking. Choose another slot and try again.";
   if (error.status === 429) return "Too many booking attempts were made. Please wait before trying again.";
+  if (error.status === 401) return "Sign in to submit a booking.";
+  if (error.status === 403) {
+    if (error.code === "membership_required") return "Join this makerspace before booking.";
+    if (error.code === "waiver_acceptance_required") return "Accept the current waiver before booking.";
+    if (error.code === "presence_required") return "Start a presence session before booking.";
+  }
   if (error.status === 400) return error.detail ?? "Review the highlighted fields and try again.";
   return error.detail ?? "The booking service is unavailable. Please try again.";
 }
@@ -34,7 +39,6 @@ export function PublicBookingForm({ makerspaceSlug, space }: {
 }) {
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
-  const [identity, setIdentity] = useState<Identity>({ name: "", email: "", phone: "" });
   const [answers, setAnswers] = useState<CustomAnswers>({});
   const [website, setWebsite] = useState("");
   const [standardErrors, setStandardErrors] = useState<StandardErrors>({});
@@ -66,9 +70,6 @@ export function PublicBookingForm({ makerspaceSlug, space }: {
     const nextStandard: StandardErrors = {};
     if (!startsAt) nextStandard.starts_at = "Choose a start time.";
     if (!endsAt) nextStandard.ends_at = "Choose an end time.";
-    if (!identity.name.trim()) nextStandard.name = "Enter your name.";
-    if (!identity.email.trim()) nextStandard.email = "Enter your email.";
-    if (!identity.phone.trim()) nextStandard.phone = "Enter your phone number.";
     if (startsAt && endsAt && new Date(endsAt) <= new Date(startsAt)) nextStandard.ends_at = "End time must be after start time.";
     if (endsAt && new Date(endsAt) <= new Date()) nextStandard.ends_at = "End time must be in the future.";
     const nextAnswers = validateCustomAnswers(space.custom_form, answers);
@@ -79,14 +80,10 @@ export function PublicBookingForm({ makerspaceSlug, space }: {
     booking.mutate({
       starts_at: new Date(startsAt).toISOString(),
       ends_at: new Date(endsAt).toISOString(),
-      name: identity.name.trim(),
-      email: identity.email.trim(),
-      phone: identity.phone.trim(),
       custom_answers: Object.keys(answers).length ? answers : null,
       website,
     });
   };
-  const setIdentityField = (field: keyof Identity, value: string) => setIdentity((current) => ({ ...current, [field]: value }));
   const errorFor = (field: keyof StandardErrors) => standardErrors[field] || apiFieldError(apiError, field);
 
   return (
@@ -100,9 +97,6 @@ export function PublicBookingForm({ makerspaceSlug, space }: {
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Starts" error={errorFor("starts_at")}><input className="desk-input" type="datetime-local" value={startsAt} onChange={(event) => setStartsAt(event.target.value)} required /></Field>
           <Field label="Ends" error={errorFor("ends_at")}><input className="desk-input" type="datetime-local" value={endsAt} onChange={(event) => setEndsAt(event.target.value)} required /></Field>
-          <Field label="Name" error={errorFor("name")}><input className="desk-input" autoComplete="name" maxLength={200} value={identity.name} onChange={(event) => setIdentityField("name", event.target.value)} required /></Field>
-          <Field label="Email" error={errorFor("email")}><input className="desk-input" type="email" autoComplete="email" maxLength={254} value={identity.email} onChange={(event) => setIdentityField("email", event.target.value)} required /></Field>
-          <Field label="Phone" error={errorFor("phone")}><input className="desk-input" type="tel" autoComplete="tel" maxLength={32} value={identity.phone} onChange={(event) => setIdentityField("phone", event.target.value)} required /></Field>
         </div>
         <CustomFormFields schema={space.custom_form} answers={answers} onChange={setAnswers} errors={{ ...answerErrors, ...serverAnswerErrors }} disabled={booking.isPending} />
         <label className="absolute left-[-10000px] top-auto h-px w-px overflow-hidden" aria-hidden="true">Website

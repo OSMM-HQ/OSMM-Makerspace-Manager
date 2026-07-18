@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -18,6 +18,7 @@ from apps.bookings.serializers_public import (
 from apps.hardware_requests.exceptions import ErrorSerializer
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.lookup import get_public_makerspace
+from apps.presence.guard import require_active_member_presence
 
 
 LOOSE_ERROR_SCHEMA = {'type': 'object', 'additionalProperties': {}}
@@ -29,6 +30,8 @@ PUBLIC_BOOKING_ERRORS = {
 }
 PUBLIC_BOOKING_SUBMISSION_ERRORS = {
     **PUBLIC_BOOKING_ERRORS,
+    401: OpenApiResponse(ErrorSerializer, description='Authentication is required.'),
+    403: OpenApiResponse(ErrorSerializer, description='Active membership and presence are required.'),
     409: OpenApiResponse(ErrorSerializer, description='Booking conflict.'),
 }
 
@@ -120,14 +123,12 @@ class PublicSpaceAvailabilityView(APIView):
 
 
 class PublicBookingSubmissionView(APIView):
-    authentication_classes = []
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     throttle_classes = [ClientTierRateThrottle]
     throttle_scope = 'booking_submit'
 
     @extend_schema(
         tags=['Public bookings'],
-        auth=[],
         request=PublicBookingInputSerializer,
         responses={
             201: PublicBookingResponseSerializer,
@@ -141,6 +142,7 @@ class PublicBookingSubmissionView(APIView):
             _public_spaces(makerspace),
             public_token=public_token,
         )
+        require_active_member_presence(request.user, makerspace)
 
         website = request.data.get('website')
         if website and str(website).strip():
@@ -158,7 +160,8 @@ class PublicBookingSubmissionView(APIView):
         serializer.is_valid(raise_exception=True)
         booking = services_bookings.create_booking(
             space,
-            actor=None,
+            member=request.user,
+            actor=request.user,
             **serializer.validated_data,
         )
         return Response(

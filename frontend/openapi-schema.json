@@ -22903,9 +22903,13 @@
                                 "$ref": "#/components/schemas/PublicEventRegistrationInput"
                             }
                         }
-                    },
-                    "required": true
+                    }
                 },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
                 "responses": {
                     "201": {
                         "content": {
@@ -22949,6 +22953,26 @@
                             }
                         },
                         "description": "Rate limit exceeded."
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Authentication is required."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Active membership and presence are required."
                     },
                     "409": {
                         "content": {
@@ -23883,6 +23907,11 @@
                     },
                     "required": true
                 },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
                 "responses": {
                     "201": {
                         "content": {
@@ -23926,6 +23955,26 @@
                             }
                         },
                         "description": "Rate limit exceeded."
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Authentication is required."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Active membership and presence are required."
                     },
                     "409": {
                         "content": {
@@ -36109,32 +36158,13 @@
                         "format": "date-time",
                         "writeOnly": true
                     },
-                    "name": {
-                        "type": "string",
-                        "writeOnly": true,
-                        "maxLength": 200
-                    },
-                    "email": {
-                        "type": "string",
-                        "format": "email",
-                        "writeOnly": true,
-                        "maxLength": 254
-                    },
-                    "phone": {
-                        "type": "string",
-                        "writeOnly": true,
-                        "maxLength": 32
-                    },
                     "custom_answers": {
                         "writeOnly": true,
                         "nullable": true
                     }
                 },
                 "required": [
-                    "email",
                     "ends_at",
-                    "name",
-                    "phone",
                     "starts_at"
                 ]
             },
@@ -36299,29 +36329,8 @@
                     "custom_answers": {
                         "writeOnly": true,
                         "nullable": true
-                    },
-                    "name": {
-                        "type": "string",
-                        "writeOnly": true,
-                        "maxLength": 200
-                    },
-                    "email": {
-                        "type": "string",
-                        "format": "email",
-                        "writeOnly": true,
-                        "maxLength": 254
-                    },
-                    "phone": {
-                        "type": "string",
-                        "writeOnly": true,
-                        "maxLength": 32
                     }
-                },
-                "required": [
-                    "email",
-                    "name",
-                    "phone"
-                ]
+                }
             },
             "PublicEventRegistrationResponse": {
                 "type": "object",

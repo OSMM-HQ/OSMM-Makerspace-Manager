@@ -15,6 +15,7 @@ import { PublicEventsPage } from "./features/inventory/PublicEventsPage";
 import { PublicSelfCheckoutPage } from "./features/inventory/PublicSelfCheckoutPage";
 import { usePublicMakerspaces } from "./features/inventory/usePublicInventory";
 import { PublicPrintRequestPage } from "./features/printing/PublicPrintRequestPage";
+import { MemberArea } from "./features/members/MemberArea";
 import { RoadmapPage } from "./features/roadmap/RoadmapPage";
 import { KioskPage, ScannerPage, SuperadminPage } from "./features/staff/PlatformApps";
 import { ResetPasswordPage } from "./features/staff/ResetPasswordPage";
@@ -311,6 +312,7 @@ export default function App() {
         <Route path="/events" element={<PublicEventsPage />} />
         <Route path="/bookings" element={<PublicBookingsPage />} />
         <Route path="/print" element={<PublicPrintRequestPage />} />
+        <Route path="/member" element={<MemberArea />} />
         <Route path="/stats" element={<PublicStatsPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/roadmap" element={<RoadmapPage />} />
@@ -334,6 +336,7 @@ export default function App() {
       <Route path="/m/:slug/bookings" element={<PublicBookingsPage />} />
       <Route path="/m/:slug/admin/*" element={<StaffApp />} />
       <Route path="/m/:slug/print" element={<PublicPrintRequestPage />} />
+      <Route path="/m/:slug/member" element={<MemberArea />} />
       <Route path="/m/:slug/stats" element={<PublicStatsPage />} />
       <Route path="/kiosk/:slug" element={<KioskPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />

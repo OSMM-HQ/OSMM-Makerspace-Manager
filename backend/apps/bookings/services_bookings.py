@@ -50,8 +50,8 @@ def _refresh(instance):
 
 @transaction.atomic
 def create_booking(
-    space, *, name, email, phone, starts_at, ends_at, custom_answers=None,
-    note='', actor=None,
+    space, *, starts_at, ends_at, member=None, name=None, email=None, phone=None,
+    custom_answers=None, note='', actor=None,
 ):
     from apps.bookings.services_rules import enforce_booking_rules
     from apps.encryption.write_fence import assert_mapped_write_allowed
@@ -67,8 +67,13 @@ def create_booking(
         if locked_space.approval_mode == BookableSpace.ApprovalMode.INSTANT
         else Booking.Status.PENDING
     )
+    if member is not None:
+        name = member.display_name or member.get_full_name() or member.username
+        email = member.email
+        phone = member.phone
     booking = Booking(
         space=locked_space,
+        member=member,
         name=(name or '').strip(),
         email=(email or '').strip().lower(),
         phone=(phone or '').strip(),

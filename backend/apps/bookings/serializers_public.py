@@ -100,9 +100,6 @@ class PublicSpaceAvailabilitySerializer(serializers.Serializer):
 class PublicBookingInputSerializer(serializers.Serializer):
     starts_at = serializers.DateTimeField(write_only=True)
     ends_at = serializers.DateTimeField(write_only=True)
-    name = serializers.CharField(max_length=200, write_only=True)
-    email = serializers.EmailField(max_length=254, write_only=True)
-    phone = serializers.CharField(max_length=32, write_only=True)
     custom_answers = serializers.JSONField(
         allow_null=True,
         required=False,

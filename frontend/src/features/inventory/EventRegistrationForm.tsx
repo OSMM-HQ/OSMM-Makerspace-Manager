@@ -4,7 +4,6 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { ApiPath } from "../../generated/api";
 import { StructuredApiError, tenantPublicRequest } from "../../lib/api";
 
-type RegistrationIdentity = { name: string; email: string; phone: string };
 type RegistrationResult = { status: "registered" | "waitlisted" };
 
 const REGISTER_PATH: ApiPath = "/api/v1/public/{makerspace_slug}/events/{public_token}/register/";
@@ -15,27 +14,25 @@ function registerPath(slug: string, token: string) {
     .replace("{public_token}", encodeURIComponent(token));
 }
 
-function fieldError(error: unknown, field: keyof RegistrationIdentity) {
-  if (!(error instanceof StructuredApiError)) return "";
-  const value = error.body[field];
-  if (typeof value === "string") return value;
-  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string").join(" ");
-  return "";
+function failureMessage(error: StructuredApiError | null) {
+  if (!error) return "The registration could not be submitted.";
+  if (error.status === 401) return "Sign in to register for this event.";
+  if (error.status === 403 && error.code === "membership_required") return "Join this makerspace before registering.";
+  if (error.status === 403 && error.code === "waiver_acceptance_required") return "Accept the current waiver before registering.";
+  if (error.status === 403 && error.code === "presence_required") return "Start a presence session before registering.";
+  if (error.status === 429) return "Too many registration attempts. Please wait and try again.";
+  return error.detail ?? error.message;
 }
 
 export function EventRegistrationForm({ makerspaceSlug, publicToken, waitlist }: {
   makerspaceSlug: string; publicToken: string; waitlist: boolean;
 }) {
   const queryClient = useQueryClient();
-  const [identity, setIdentity] = useState<RegistrationIdentity>({ name: "", email: "", phone: "" });
   const [website, setWebsite] = useState("");
   const successRef = useRef<HTMLDivElement>(null);
   const registration = useMutation({
     mutationFn: async () => {
-      // The honeypot is intentionally outside the validated identity and documented serializer shape.
-      const rawTransportBody: RegistrationIdentity & { website: string } = {
-        name: identity.name.trim(), email: identity.email.trim(), phone: identity.phone.trim(), website,
-      };
+      const rawTransportBody = { website };
       return tenantPublicRequest<RegistrationResult>(makerspaceSlug, registerPath(makerspaceSlug, publicToken), {
         method: "POST", body: JSON.stringify(rawTransportBody),
       });
@@ -56,26 +53,13 @@ export function EventRegistrationForm({ makerspaceSlug, publicToken, waitlist }:
     if (!registration.isPending) registration.mutate();
   };
   const apiError = registration.error instanceof StructuredApiError ? registration.error : null;
-  const setField = (field: keyof RegistrationIdentity, value: string) => setIdentity((current) => ({ ...current, [field]: value }));
 
   return <form className="grid gap-3 rounded-lg border border-line bg-bg p-4" onSubmit={submit} noValidate>
     <h3 className="font-semibold text-ink">{waitlist ? "Join the waitlist" : "Register"}</h3>
-    <label className="grid gap-1 text-sm font-semibold text-ink">Name
-      <input className="desk-input" autoComplete="name" value={identity.name} onChange={(e) => setField("name", e.target.value)} required maxLength={200} aria-invalid={Boolean(fieldError(apiError, "name"))} />
-      {fieldError(apiError, "name") ? <span className="text-xs text-danger">{fieldError(apiError, "name")}</span> : null}
-    </label>
-    <label className="grid gap-1 text-sm font-semibold text-ink">Email
-      <input className="desk-input" type="email" autoComplete="email" value={identity.email} onChange={(e) => setField("email", e.target.value)} required maxLength={254} aria-invalid={Boolean(fieldError(apiError, "email"))} />
-      {fieldError(apiError, "email") ? <span className="text-xs text-danger">{fieldError(apiError, "email")}</span> : null}
-    </label>
-    <label className="grid gap-1 text-sm font-semibold text-ink">Phone
-      <input className="desk-input" type="tel" autoComplete="tel" value={identity.phone} onChange={(e) => setField("phone", e.target.value)} required maxLength={32} aria-invalid={Boolean(fieldError(apiError, "phone"))} />
-      {fieldError(apiError, "phone") ? <span className="text-xs text-danger">{fieldError(apiError, "phone")}</span> : null}
-    </label>
     <label className="absolute left-[-10000px] top-auto h-px w-px overflow-hidden" aria-hidden="true">Website
       <input name="website" tabIndex={-1} autoComplete="off" value={website} onChange={(e) => setWebsite(e.target.value)} />
     </label>
-    {registration.error ? <p className="text-sm text-danger" role="alert">{apiError?.status === 429 ? "Too many registration attempts. Please wait and try again." : apiError?.detail ?? registration.error.message}</p> : null}
+    {registration.error ? <p className="text-sm text-danger" role="alert">{failureMessage(apiError)}</p> : null}
     <button className="desk-button-primary" type="submit" disabled={registration.isPending}>
       {registration.isPending ? "Submitting..." : waitlist ? "Join waitlist" : "Register"}
     </button>

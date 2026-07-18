@@ -117,6 +117,13 @@ class EventRegistration(ScopedPiiModelMixin, models.Model):
     name = models.TextField()
     email = models.TextField()
     phone = models.TextField()
+    member = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="event_registrations",
+    )
     email_exact_hash = models.BinaryField(max_length=32, null=True, editable=False)
     email_hash_generation = models.ForeignKey(
         "encryption.SearchKeyGeneration", on_delete=models.PROTECT,
@@ -141,6 +148,14 @@ class EventRegistration(ScopedPiiModelMixin, models.Model):
                 fields=["event", "email_hash_generation", "email_exact_hash"],
                 condition=Q(email_hash_generation__isnull=False, email_exact_hash__isnull=False),
                 name="uniq_event_registration_email_hash",
+            ),
+            models.UniqueConstraint(
+                fields=["event", "member"],
+                condition=Q(
+                    member__isnull=False,
+                    status__in=("registered", "waitlisted"),
+                ),
+                name="uniq_active_event_registration_member",
             ),
         ]
         indexes = [

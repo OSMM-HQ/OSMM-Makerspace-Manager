@@ -54,10 +54,6 @@ class PublicEventRegistrationInputSerializer(
     CustomFormSubmissionMixin,
     serializers.Serializer,
 ):
-    name = serializers.CharField(max_length=200, write_only=True)
-    email = serializers.EmailField(max_length=254, write_only=True)
-    phone = serializers.CharField(max_length=32, write_only=True)
-
     def custom_form_schema(self):
         return self.context['event'].custom_form
 

@@ -28,9 +28,6 @@ export type PublicAvailability = {
 export type PublicBookingInput = {
   starts_at: string;
   ends_at: string;
-  name: string;
-  email: string;
-  phone: string;
   custom_answers?: CustomAnswers | null;
   website?: string;
 };

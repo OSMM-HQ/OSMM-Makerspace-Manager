@@ -161,6 +161,13 @@ class Booking(ScopedPiiModelMixin, models.Model):
     name = models.TextField()
     email = models.TextField()
     phone = models.TextField()
+    member = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bookings",
+    )
     starts_at = models.DateTimeField()
     ends_at = models.DateTimeField()
     status = models.CharField(

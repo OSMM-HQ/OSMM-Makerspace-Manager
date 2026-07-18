@@ -182,6 +182,7 @@ export async function publicV1Request<T>(
     headers: {
       "Content-Type": "application/json",
       ...(await publicHeaders(publishableKey)),
+      ...authHeaders(),
       ...(options.headers ?? {}),
     },
   });

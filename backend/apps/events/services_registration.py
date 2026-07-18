@@ -12,11 +12,20 @@ from apps.forms_schema.validation import validate_answers
 
 
 @transaction.atomic
-def register(event, *, name, email, phone, custom_answers=None, actor=None):
+def register(
+    event, *, member=None, name=None, email=None, phone=None,
+    custom_answers=None, actor=None,
+):
     from apps.events.services import _audit, _locked_event, _refresh, _validate
 
     assert_mapped_write_allowed(event.makerspace_id)
+    if member is not None:
+        name = member.display_name or member.get_full_name() or member.username
+        email = member.email
+        phone = member.phone
+    name = (name or "").strip()
     normalized_email = (email or "").strip().lower()
+    phone = (phone or "").strip()
     generation = event_hash = None
     if settings.PII_ENCRYPTION_ENABLED:
         from apps.encryption.blind_index import active_generation, event_email_hash
@@ -31,25 +40,34 @@ def register(event, *, name, email, phone, custom_answers=None, actor=None):
         raise EventInvalidTransition("This event is not open for registration.")
     custom_answers = validate_answers(locked.custom_form, custom_answers)
     status = fresh_registration_status(locked)
-    existing = _existing_registration(locked, normalized_email, generation, event_hash)
+    existing = _existing_registration(
+        locked, member, normalized_email, generation, event_hash
+    )
     if existing and existing.status == EventRegistration.Status.CANCELLED:
-        existing.name, existing.email, existing.phone = (name or "").strip(), normalized_email, (phone or "").strip()
+        existing.member = member or existing.member
+        existing.name, existing.email, existing.phone = name, normalized_email, phone
         existing.custom_answers, existing.status, existing.created_at = custom_answers, status, timezone.now()
         _validate(existing)
-        existing.save(update_fields=["name", "email", "phone", "custom_answers", "status", "created_at"])
+        existing.save(update_fields=["member", "name", "email", "phone", "custom_answers", "status", "created_at"])
         return _record_registration(locked, actor, existing, status)
     if existing:
         raise DuplicateRegistration("A registration already exists for this email.", fresh_status=status)
     registration = EventRegistration(
-        event=locked, name=(name or "").strip(), email=normalized_email,
-        phone=(phone or "").strip(), custom_answers=custom_answers, status=status,
+        event=locked, member=member, name=name, email=normalized_email,
+        phone=phone, custom_answers=custom_answers, status=status,
     )
     _validate(registration)
     registration.save()
     return _record_registration(locked, actor, registration, status)
 
 
-def _existing_registration(event, normalized_email, generation, event_hash):
+def _existing_registration(event, member, normalized_email, generation, event_hash):
+    if member is not None:
+        existing = EventRegistration.objects.select_for_update().filter(
+            event=event, member=member
+        ).first()
+        if existing:
+            return existing
     if not settings.PII_ENCRYPTION_ENABLED:
         return EventRegistration.objects.select_for_update().filter(event=event, email=normalized_email).first()
     candidates = EventRegistration.objects.select_for_update().filter(

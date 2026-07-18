@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -19,6 +19,7 @@ from apps.events.serializers_public import (
 from apps.hardware_requests.exceptions import ErrorSerializer
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.lookup import get_public_makerspace
+from apps.presence.guard import require_active_member_presence
 
 
 LOOSE_ERROR_SCHEMA = {'type': 'object', 'additionalProperties': {}}
@@ -30,6 +31,8 @@ PUBLIC_EVENT_ERRORS = {
 }
 PUBLIC_EVENT_REGISTRATION_ERRORS = {
     **PUBLIC_EVENT_ERRORS,
+    401: OpenApiResponse(ErrorSerializer, description='Authentication is required.'),
+    403: OpenApiResponse(ErrorSerializer, description='Active membership and presence are required.'),
     409: OpenApiResponse(ErrorSerializer, description='Event state conflict.'),
 }
 
@@ -76,13 +79,12 @@ class PublicEventListView(APIView):
 
 
 class PublicEventRegistrationView(APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
     throttle_classes = [ClientTierRateThrottle]
     throttle_scope = 'event_register'
 
     @extend_schema(
         tags=['Public events'],
-        auth=[],
         request=PublicEventRegistrationInputSerializer,
         responses={
             201: PublicEventRegistrationResponseSerializer,
@@ -96,6 +98,7 @@ class PublicEventRegistrationView(APIView):
             _public_events(makerspace),
             public_token=public_token,
         )
+        require_active_member_presence(request.user, makerspace)
 
         website = request.data.get('website')
         if website and str(website).strip():
@@ -114,7 +117,8 @@ class PublicEventRegistrationView(APIView):
         try:
             registration = services.register(
                 event,
-                actor=None,
+                member=request.user,
+                actor=request.user,
                 **registration_data,
             )
         except DuplicateRegistration as exc:
