@@ -48,6 +48,9 @@ UserPayloadSerializer = inline_serializer(
         "id": serializers.IntegerField(),
         "username": serializers.CharField(),
         "email": serializers.EmailField(),
+        "display_name": serializers.CharField(),
+        "phone": serializers.CharField(),
+        "email_verified": serializers.BooleanField(),
         "role": serializers.CharField(),
         "is_superuser": serializers.BooleanField(),
         "must_change_password": serializers.BooleanField(),
@@ -103,8 +106,10 @@ class LoginView(TokenObtainPairView):
         request=LoginRequestSerializer,
         responses={
             200: LoginResponseSerializer,
+            400: OpenApiResponse(description="Invalid request."),
             401: OpenApiResponse(description="Invalid credentials or inactive account."),
             403: OpenApiResponse(description="Account access is restricted."),
+            429: OpenApiResponse(description="Request throttled."),
         },
         examples=[LOGIN_EXAMPLE],
     )
@@ -254,7 +259,10 @@ class MeView(APIView):
         request=None,
         responses={
             200: UserPayloadSerializer,
+            400: OpenApiResponse(description="Invalid request."),
             401: OpenApiResponse(description="Authentication credentials were not provided."),
+            403: OpenApiResponse(description="Permission denied."),
+            429: OpenApiResponse(description="Request throttled."),
         },
     )
     def get(self, request, *args, **kwargs):

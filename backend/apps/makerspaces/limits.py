@@ -95,6 +95,31 @@ def reserve_notification_quota(makerspace, channel) -> bool:
         return True
 
 
+def reserve_platform_otp_quota() -> bool:
+    """Reserve one globally capped platform OTP email in managed mode."""
+    if is_self_host():
+        return True
+    limit = settings.MANAGED_RESOURCE_LIMITS.get("otp_email")
+    if limit is None:
+        return True
+    try:
+        from apps.accounts.models import DailyOtpEmailCounter
+
+        with transaction.atomic():
+            counter, _ = DailyOtpEmailCounter.objects.get_or_create(
+                day=timezone.now().date()
+            )
+            counter = DailyOtpEmailCounter.objects.select_for_update().get(pk=counter.pk)
+            if counter.count >= limit:
+                return False
+            counter.count += 1
+            counter.save(update_fields=["count"])
+            return True
+    except Exception:
+        logger.exception("platform_otp_limit_check_failed")
+        return True
+
+
 def custom_domain_allowed(makerspace) -> bool:
     if is_self_host():
         return True

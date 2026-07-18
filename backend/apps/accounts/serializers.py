@@ -38,6 +38,9 @@ def user_payload(user, request=None):
         "id": user.id,
         "username": user.username,
         "email": user.email,
+        "display_name": user.display_name,
+        "phone": user.phone,
+        "email_verified": user.email_verified_at is not None,
         "role": user.role,
         "is_superuser": user.is_superuser,
         "must_change_password": user.must_change_password,
@@ -75,6 +78,13 @@ def _legacy_role_name(role):
 
 class LoginSerializer(TokenObtainPairSerializer):
     def validate(self, attrs):
+        supplied_username = attrs.get(self.username_field, "")
+        if supplied_username and not User.objects.filter(username=supplied_username).exists():
+            email_matches = User.objects.filter(
+                email__iexact=supplied_username, is_active=True
+            ).exclude(email="")
+            if email_matches.count() == 1:
+                attrs[self.username_field] = email_matches.first().username
         data = super().validate(attrs)  # raises AuthenticationFailed on bad creds/inactive
         if self.user.access_status != User.AccessStatus.ACTIVE:
             raise AuthenticationFailed("Account access is restricted.", code="access_denied")

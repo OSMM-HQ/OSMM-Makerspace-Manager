@@ -68,6 +68,7 @@ MANAGED_RESOURCE_LIMITS = {
     "mattermost": 100,
     "api_clients": 1,
     "custom_roles": 20,
+    "otp_email": 200,
 }
 STORAGE_PRESIGN_METHOD = env("STORAGE_PRESIGN_METHOD", default="post")
 CRON_SECRET = env("CRON_SECRET", default="")
@@ -418,6 +419,16 @@ REST_FRAMEWORK = {
         "password_reset_confirm": env(
             "THROTTLE_PASSWORD_RESET_CONFIRM",
             default="10/min",
+        ),
+        "member_sign_up": env("THROTTLE_MEMBER_SIGN_UP", default="5/min"),
+        "email_verification_resend": env(
+            "THROTTLE_EMAIL_VERIFICATION_RESEND", default="5/min"
+        ),
+        "email_verification_confirm": env(
+            "THROTTLE_EMAIL_VERIFICATION_CONFIRM", default="10/min"
+        ),
+        "member_verification_email": env(
+            "THROTTLE_MEMBER_VERIFICATION_EMAIL", default="5/hour"
         ),
         "telegram_webhook": env("THROTTLE_TELEGRAM_WEBHOOK", default="60/min"),
         "public_request_submit": env(

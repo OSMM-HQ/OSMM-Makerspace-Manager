@@ -113,6 +113,28 @@ def send_password_reset_email(recipient, reset_url):
     return 1 if log.status == log.Status.SENT else 0
 
 
+def send_email_verification_otp(recipient, code):
+    from apps.integrations.dispatch import dispatch_email
+
+    log = dispatch_email(
+        to_email=recipient,
+        subject="Verify your email",
+        text_body=(
+            "Use this code to verify your email address:\n\n"
+            f"{code}\n\n"
+            "This code expires in 10 minutes."
+        ),
+        makerspace=None,
+        stream="account",
+        event="email_verification",
+        audience="user",
+        connection="platform",
+        persist_body=False,
+        sync=True,
+    )
+    return 1 if log.status == log.Status.SENT else 0
+
+
 def send_makerspace_email(
     makerspace,
     subject,

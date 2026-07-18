@@ -17146,6 +17146,100 @@
                 }
             }
         },
+        "/api/v1/auth/email-verification/confirm": {
+            "post": {
+                "operationId": "api_v1_auth_email_verification_confirm_create",
+                "tags": [
+                    "Auth"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailVerificationConfirm"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailVerificationConfirm"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/EmailVerificationConfirm"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MemberVerificationAck"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid or expired verification code."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "429": {
+                        "description": "Request throttled."
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/email-verification/resend": {
+            "post": {
+                "operationId": "api_v1_auth_email_verification_resend_create",
+                "tags": [
+                    "Auth"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MemberVerificationAck"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid request."
+                    },
+                    "401": {
+                        "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "429": {
+                        "description": "Request throttled."
+                    }
+                }
+            }
+        },
         "/api/v1/auth/forgot-password": {
             "post": {
                 "operationId": "api_v1_auth_forgot_password_create",
@@ -17228,11 +17322,17 @@
                         },
                         "description": ""
                     },
+                    "400": {
+                        "description": "Invalid request."
+                    },
                     "401": {
                         "description": "Invalid credentials or inactive account."
                     },
                     "403": {
                         "description": "Account access is restricted."
+                    },
+                    "429": {
+                        "description": "Request throttled."
                     }
                 }
             }
@@ -17287,8 +17387,69 @@
                         },
                         "description": ""
                     },
+                    "400": {
+                        "description": "Invalid request."
+                    },
                     "401": {
                         "description": "Authentication credentials were not provided."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "429": {
+                        "description": "Request throttled."
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/member-sign-up": {
+            "post": {
+                "operationId": "api_v1_auth_member_sign_up_create",
+                "tags": [
+                    "Auth"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MemberSignUp"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MemberSignUp"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MemberSignUp"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MemberVerificationAck"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid details."
+                    },
+                    "401": {
+                        "description": "Authentication failed."
+                    },
+                    "403": {
+                        "description": "Permission denied."
+                    },
+                    "429": {
+                        "description": "Request throttled."
                     }
                 }
             }
@@ -23984,6 +24145,15 @@
                         "type": "string",
                         "format": "email"
                     },
+                    "display_name": {
+                        "type": "string"
+                    },
+                    "phone": {
+                        "type": "string"
+                    },
+                    "email_verified": {
+                        "type": "boolean"
+                    },
                     "role": {
                         "type": "string"
                     },
@@ -24001,11 +24171,14 @@
                     }
                 },
                 "required": [
+                    "display_name",
                     "email",
+                    "email_verified",
                     "id",
                     "is_superuser",
                     "makerspaces",
                     "must_change_password",
+                    "phone",
                     "role",
                     "username"
                 ]
@@ -25828,6 +26001,18 @@
                     "html_body",
                     "subject",
                     "text_body"
+                ]
+            },
+            "EmailVerificationConfirm": {
+                "type": "object",
+                "properties": {
+                    "code": {
+                        "type": "string",
+                        "maxLength": 6
+                    }
+                },
+                "required": [
+                    "code"
                 ]
             },
             "Error": {
@@ -30057,6 +30242,50 @@
                 ],
                 "type": "string",
                 "description": "* `count` - Count\n* `grams` - Grams"
+            },
+            "MemberSignUp": {
+                "type": "object",
+                "properties": {
+                    "display_name": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "maxLength": 254
+                    },
+                    "phone": {
+                        "type": "string",
+                        "default": "",
+                        "maxLength": 32
+                    },
+                    "password": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 128
+                    },
+                    "website": {
+                        "type": "string",
+                        "default": ""
+                    }
+                },
+                "required": [
+                    "display_name",
+                    "email",
+                    "password"
+                ]
+            },
+            "MemberVerificationAck": {
+                "type": "object",
+                "properties": {
+                    "detail": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "detail"
+                ]
             },
             "MembershipCreate": {
                 "type": "object",
