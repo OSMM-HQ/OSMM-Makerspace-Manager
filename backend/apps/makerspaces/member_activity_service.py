@@ -102,13 +102,19 @@ def _event_registrations(makerspace_id, member):
 
 def _machine_service_requests(makerspace_id, member):
     from apps.machines.models import MachineServiceRequest
+    from apps.machines.service_queue_position import queue_positions_for
 
     rows = MachineServiceRequest.objects.filter(
-        bucket__machine__makerspace_id=makerspace_id, requester=member,
+        bucket__machine__makerspace_id=makerspace_id, member=member,
     ).only("title", "status", "created_at").order_by("-created_at", "-id")[:ACTIVITY_LIMIT]
-    # Part N has not supplied a member-safe queue calculator in this deployment.
-    # Do not infer a rank from staff queue rows; null is the safe queue contract.
-    return [{"title": row.title, "status": row.status, "created_at": row.created_at, "queue_position": None} for row in rows]
+    rows = list(rows)
+    positions = queue_positions_for(rows)
+    return [{
+        "title": row.title,
+        "status": row.status,
+        "created_at": row.created_at,
+        "queue_position": positions.get(row.pk),
+    } for row in rows]
 
 
 def _presence(makerspace_id, member, now):

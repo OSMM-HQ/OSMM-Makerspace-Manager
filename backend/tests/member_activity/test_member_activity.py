@@ -79,8 +79,8 @@ def test_activity_is_member_owned_and_has_safe_projections_without_presence():
     machine_type = MachineType.objects.create(makerspace=space, slug="activity-type", name="Activity type")
     machine = Machine.objects.create(makerspace=space, machine_type=machine_type, name="Laser")
     service_bucket = ServiceBucket.objects.create(machine=machine, name="Service")
-    MachineServiceRequest.objects.create(bucket=service_bucket, requester=user, title="Own service")
-    MachineServiceRequest.objects.create(bucket=service_bucket, requester=other, title="Other service", contact_email=user.email)
+    MachineServiceRequest.objects.create(bucket=service_bucket, requester=user, member=user, title="Own service")
+    MachineServiceRequest.objects.create(bucket=service_bucket, requester=other, member=other, title="Other service", contact_email=user.email)
     presence_services.start_session(user, space, 60)
 
     response = client(user).get(activity_url(space))
@@ -95,7 +95,7 @@ def test_activity_is_member_owned_and_has_safe_projections_without_presence():
     assert [item["event_title"] for item in response.data["event_registrations"]] == ["Workshop"]
     assert response.data["event_registrations"][0]["waitlist_position"] == 1
     assert [item["title"] for item in response.data["machine_service_requests"]] == ["Own service"]
-    assert response.data["machine_service_requests"][0]["queue_position"] is None
+    assert response.data["machine_service_requests"][0]["queue_position"] == 1
     assert response.data["currently_checked_in"] is True
     assert response.data["accountability"] == {
         "membership_active": True, "waiver_acceptance_required": False, "restriction_code": None,

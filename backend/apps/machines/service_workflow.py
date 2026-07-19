@@ -38,7 +38,7 @@ _ALLOWED = {
 
 def submit(
     bucket_or_machine, requester, *, requester_name, contact_email, contact_phone,
-    title, description="", source_link="", actor=None,
+    title, description="", source_link="", actor=None, member=None,
 ):
     """Create a pending request for an available target machine."""
     with transaction.atomic():
@@ -51,6 +51,7 @@ def submit(
         service_request = MachineServiceRequest.objects.create(
             bucket=bucket,
             requester=requester,
+            member=member,
             requester_name=(requester_name or "").strip(),
             contact_email=(contact_email or "").strip(),
             contact_phone=(contact_phone or "").strip(),

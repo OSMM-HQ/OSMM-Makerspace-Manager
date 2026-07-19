@@ -124,6 +124,7 @@ class MachineServiceRequestListCreateView(APIView):
         requester = member.user
         row = service_workflow.submit(
             machine, requester, actor=request.user,
+            member=requester,
             requester_name=data.get("requester_name") or requester.get_full_name().strip() or requester.username,
             contact_email=data.get("contact_email") or requester.email,
             contact_phone=data.get("contact_phone") or requester.phone,

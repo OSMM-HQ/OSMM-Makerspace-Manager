@@ -79,6 +79,16 @@ class MachineServiceRequest(models.Model):
 
     bucket = models.ForeignKey(ServiceBucket, on_delete=models.PROTECT, related_name="service_requests")
     requester = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="machine_service_requests")
+    # Member ownership was introduced after staff-originated requests already
+    # existed.  Keep those historical rows intact; member surfaces must use this
+    # field rather than the legacy requester relation.
+    member = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="member_machine_service_requests",
+    )
     requester_name = models.TextField(blank=True)
     contact_email = models.TextField(blank=True)
     contact_phone = models.TextField(blank=True)
@@ -117,6 +127,7 @@ class MachineServiceRequest(models.Model):
     class Meta:
         indexes = [
             models.Index(fields=["requester", "-created_at"], name="servicereq_requester_created_idx"),
+            models.Index(fields=["member", "-created_at"], name="servicereq_member_created_idx"),
             models.Index(fields=["bucket", "status", "-created_at"], name="servicereq_bucket_status_idx"),
             models.Index(fields=["assigned_machine", "status", "-created_at"], name="servicereq_machine_status_idx"),
             models.Index(fields=["completed_at"], name="servicereq_completed_idx"),
