@@ -74,7 +74,7 @@ def test_manager_gets_catalog_and_empty_mutes():
         for feature in NotificationFeature
         for channel in NotificationChannel
     ]
-    assert len(response.data["preferences"]) == 20
+    assert len(response.data["preferences"]) == 24
     assert [
         (cell["feature"], cell["channel"])
         for cell in response.data["preferences"]

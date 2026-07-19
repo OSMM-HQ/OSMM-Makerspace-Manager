@@ -28768,10 +28768,11 @@
                     "printing",
                     "events",
                     "bookings",
-                    "maintenance"
+                    "maintenance",
+                    "members"
                 ],
                 "type": "string",
-                "description": "* `hardware_requests` - Hardware requests\n* `printing` - Printing\n* `events` - Events\n* `bookings` - Bookings\n* `maintenance` - Maintenance"
+                "description": "* `hardware_requests` - Hardware requests\n* `printing` - Printing\n* `events` - Events\n* `bookings` - Bookings\n* `maintenance` - Maintenance\n* `members` - Members"
             },
             "FilamentAdjustment": {
                 "type": "object",
@@ -29930,16 +29931,17 @@
                 "type": "string",
                 "description": "* `email` - Email\n* `telegram` - Telegram\n* `slack` - Slack\n* `mattermost` - Mattermost"
             },
-            "Key833Enum": {
+            "KeyD07Enum": {
                 "enum": [
                     "hardware_requests",
                     "printing",
                     "events",
                     "bookings",
-                    "maintenance"
+                    "maintenance",
+                    "members"
                 ],
                 "type": "string",
-                "description": "* `hardware_requests` - Hardware requests\n* `printing` - Printing\n* `events` - Events\n* `bookings` - Bookings\n* `maintenance` - Maintenance"
+                "description": "* `hardware_requests` - Hardware requests\n* `printing` - Printing\n* `events` - Events\n* `bookings` - Bookings\n* `maintenance` - Maintenance\n* `members` - Members"
             },
             "Kind3bfEnum": {
                 "enum": [
@@ -33354,7 +33356,7 @@
                 "type": "object",
                 "properties": {
                     "key": {
-                        "$ref": "#/components/schemas/Key833Enum"
+                        "$ref": "#/components/schemas/KeyD07Enum"
                     },
                     "label": {
                         "type": "string"

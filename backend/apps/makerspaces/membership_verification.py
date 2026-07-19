@@ -49,10 +49,14 @@ def _verification_target(actor, membership):
 def verify_member(actor, membership):
     with transaction.atomic():
         makerspace, membership = _verification_target(actor, membership)
+        newly_verified = membership.verified_at is None
         membership.verified_at = timezone.now()
         membership.verified_by = actor
         membership.save(update_fields=["verified_at", "verified_by"])
         audit.record(actor, "membership.verified", makerspace=makerspace, target=membership)
+        if newly_verified:
+            from apps.makerspaces.membership_notifications import send_member_verified
+            send_member_verified(membership)
         return membership
 
 

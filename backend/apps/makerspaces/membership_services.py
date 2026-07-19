@@ -95,6 +95,8 @@ def request_membership(user, makerspace):
         except IntegrityError as exc:
             raise ValidationError({"detail": "An open membership request already exists."}, code="conflict") from exc
         audit.record(user, "membership.requested", makerspace=makerspace, target=request)
+        from apps.makerspaces.membership_notifications import notify_membership_request_pending
+        notify_membership_request_pending(request)
         return _outcome(outcome="requested", request=request)
 
 

@@ -14,6 +14,7 @@ _FEATURE_ACTIONS = {
     "events": rbac.Action.MANAGE_EVENTS,
     "bookings": rbac.Action.MANAGE_BOOKINGS,
     "maintenance": rbac.Action.MANAGE_MACHINES,
+    "members": rbac.Action.MANAGE_MAKERSPACE,
 }
 
 _FEATURE_STREAMS = {
