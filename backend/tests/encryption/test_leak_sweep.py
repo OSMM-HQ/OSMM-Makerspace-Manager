@@ -19,6 +19,7 @@ from apps.hardware_requests.models import HardwareRequest
 from apps.integrations.admin_email_logs import EmailLogAdmin
 from apps.integrations.models import EmailLog
 from apps.makerspaces.models import Makerspace
+from apps.machines.models import Machine, MachineServiceRequest, MachineType, ServiceBucket
 from apps.printing.models import ManualPrintLog, PrintBucket, PrintRequest
 from tests.encryption.conftest import enabled_encryption
 
@@ -33,12 +34,16 @@ def _objects():
     bucket = PrintBucket.objects.create(makerspace=space, name="Sweep bucket")
     event = Event.objects.create(makerspace=space, title="Sweep event", starts_at=now, ends_at=now + timedelta(hours=1))
     bookable = BookableSpace.objects.create(makerspace=space, name="Sweep bench")
+    machine_type = MachineType.objects.create(makerspace=space, slug=f"sweep-{stamp}", name="Sweep machine")
+    machine = Machine.objects.create(makerspace=space, machine_type=machine_type, name="Sweep machine")
+    service_bucket = ServiceBucket.objects.create(machine=machine, name="Sweep service")
     return {
         "hardware_requests.HardwareRequest": HardwareRequest.objects.create(makerspace=space, requester=user, requester_username=user.username),
         "printing.PrintRequest": PrintRequest.objects.create(bucket=bucket, requester=user, title="Sweep", quantity=1),
         "printing.ManualPrintLog": ManualPrintLog.objects.create(makerspace=space, title="Sweep", grams_used=Decimal("1"), logged_by=user),
         "events.EventRegistration": EventRegistration.objects.create(event=event, name="Base", email=f"base-{stamp}@example.test", phone="1"),
         "bookings.Booking": Booking.objects.create(space=bookable, name="Base", email=f"booking-{stamp}@example.test", phone="1", starts_at=now + timedelta(days=1), ends_at=now + timedelta(days=1, hours=1)),
+        "machines.MachineServiceRequest": MachineServiceRequest.objects.create(bucket=service_bucket, requester=user, title="Sweep service"),
         "integrations.EmailLog": EmailLog.objects.create(makerspace=space, to_email=f"mail-{stamp}@example.test", subject="Base", text_body="", html_body=""),
     }
 

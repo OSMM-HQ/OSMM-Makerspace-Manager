@@ -13,6 +13,7 @@ from apps.encryption.models import PiiBlindIndex, SearchKeyGeneration
 from apps.encryption.search import indexed_candidates, legacy_plaintext_candidates, verified_ids
 from apps.hardware_requests.models import HardwareRequest
 from apps.makerspaces.models import Makerspace
+from apps.machines.models import Machine, MachineServiceRequest, MachineType, ServiceBucket
 from tests.encryption.conftest import enabled_encryption
 
 pytestmark = pytest.mark.django_db
@@ -152,3 +153,24 @@ def test_legacy_adapter_rejects_envelopes_and_matches_plaintext():
         )
         assert legacy.pk in found  # genuine plaintext matched
         assert encrypted.pk not in found  # envelope rejected before comparison
+
+
+def test_machine_service_name_and_email_indexes_are_tenant_scoped_and_verified():
+    space = Makerspace.objects.create(name="Machine index", slug="machine-index")
+    user = get_user_model().objects.create_user(username="machine-index-user")
+    machine_type = MachineType.objects.create(makerspace=space, slug="machine-index", name="Machine index")
+    machine = Machine.objects.create(makerspace=space, machine_type=machine_type, name="Laser")
+    bucket = ServiceBucket.objects.create(machine=machine, name="Service")
+    with enabled_encryption():
+        row = MachineServiceRequest.objects.create(
+            bucket=bucket, requester=user, title="Repair", requester_name="Ada Lovelace",
+            contact_email="ada@example.test", contact_phone="123",
+        )
+        candidates = indexed_candidates(
+            makerspace_id=space.pk, model_label=row._meta.label,
+            field_name="contact_email", term="Ada@Example.test", exact=True,
+        )
+        assert verified_ids(
+            MachineServiceRequest.objects.filter(pk__in=candidates),
+            field_name="contact_email", term="ada@example.test", exact=True,
+        ) == [row.pk]

@@ -24,6 +24,7 @@ _FILTERS = {
     "printing.ManualPrintLog": "makerspace_id",
     "events.EventRegistration": "event__makerspace_id",
     "bookings.Booking": "space__makerspace_id",
+    "machines.MachineServiceRequest": "bucket__machine__makerspace_id",
     "integrations.EmailLog": "makerspace_id",
 }
 

@@ -15,6 +15,7 @@ FILTERS = {
     "printing.ManualPrintLog": {"makerspace_id": None},
     "events.EventRegistration": {"event__makerspace_id": None},
     "bookings.Booking": {"space__makerspace_id": None},
+    "machines.MachineServiceRequest": {"bucket__machine__makerspace_id": None},
     "integrations.EmailLog": {"makerspace_id": None},
 }
 

@@ -8,6 +8,7 @@ from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import IntegrityError, models, transaction
 from django.db.models import Q
 
+from apps.encryption.mappers import ScopedPiiModelMixin, ScopedPiiQuerySet
 
 class ServiceBucket(models.Model):
     machine = models.ForeignKey(
@@ -67,7 +68,7 @@ def get_or_create_default_bucket(machine, *, makerspace=None):
         return bucket
 
 
-class MachineServiceRequest(models.Model):
+class MachineServiceRequest(ScopedPiiModelMixin, models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"
         ACCEPTED = "accepted", "Accepted"
@@ -116,7 +117,7 @@ class MachineServiceRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    class ServiceRequestQuerySet(models.QuerySet):
+    class ServiceRequestQuerySet(ScopedPiiQuerySet):
         def update(self, **kwargs):
             if "status" in kwargs:
                 raise RuntimeError("MachineServiceRequest status is workflow-managed.")

@@ -25,6 +25,7 @@ from apps.events.models import Event, EventRegistration
 from apps.hardware_requests.models import HardwareRequest
 from apps.integrations.models import EmailLog
 from apps.makerspaces.models import Makerspace
+from apps.machines.models import Machine, MachineServiceRequest, MachineType, ServiceBucket
 from apps.printing.models import ManualPrintLog, PrintBucket, PrintRequest
 
 
@@ -40,6 +41,9 @@ def _rows():
         makerspace=space, title="Fence event", starts_at=now, ends_at=now + timedelta(hours=2)
     )
     bookable = BookableSpace.objects.create(makerspace=space, name="Fence bench")
+    machine_type = MachineType.objects.create(makerspace=space, slug=f"fence-{uuid.uuid4().hex[:8]}", name="Fence machine")
+    machine = Machine.objects.create(makerspace=space, machine_type=machine_type, name="Fence machine")
+    service_bucket = ServiceBucket.objects.create(machine=machine, name="Fence service")
     return space, user, [
         HardwareRequest.objects.create(
             makerspace=space, requester=user, requester_username=user.username,
@@ -53,6 +57,10 @@ def _rows():
         Booking.objects.create(
             space=bookable, name="Fence booker", email="booking@example.test", phone="1",
             starts_at=now + timedelta(days=1), ends_at=now + timedelta(days=1, hours=1),
+        ),
+        MachineServiceRequest.objects.create(
+            bucket=service_bucket, requester=user, title="Fence service",
+            requester_name="Fence requester", contact_email="service@example.test", contact_phone="1",
         ),
         EmailLog.objects.create(
             makerspace=space, to_email="mail@example.test", subject="Fence", text_body="body"
@@ -193,6 +201,7 @@ def test_mapped_service_paths_fail_with_the_typed_503_exception(monkeypatch):
     from apps.hardware_requests import request_workflow
     from apps.hardware_requests.exceptions import workflow_exception_handler
     from apps.integrations.dispatch import dispatch_email
+    from apps.machines import service_workflow
 
     space, actor, rows = _rows()
     event = rows[3].event
@@ -212,6 +221,13 @@ def test_mapped_service_paths_fail_with_the_typed_503_exception(monkeypatch):
         request_workflow.submit_request(
             space, [], requester=actor
         )
+    with pytest.raises(PiiWriteFenced):
+        service_workflow.submit(
+            rows[5].bucket.machine, actor, requester_name="Another",
+            contact_email="another@example.test", contact_phone="1", title="Fence",
+        )
+    with pytest.raises(PiiWriteFenced):
+        service_workflow.accept(rows[5], actor)
     with pytest.raises(PiiWriteFenced):
         dispatch_email(
             makerspace=space, to_email="another@example.test", subject="Fence", text_body="body"

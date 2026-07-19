@@ -8,6 +8,7 @@ from django.test import override_settings
 
 from apps.audit.models import AuditLog
 from apps.inventory import availability
+from apps.machines import service_workflow
 from apps.machines.models import (
     Machine,
     MachineConsumable,
@@ -126,6 +127,25 @@ def test_status_queryset_updates_are_workflow_guarded():
     row = request(make_space("service-status-guard"))
     with pytest.raises(RuntimeError, match="workflow-managed"):
         MachineServiceRequest.objects.filter(pk=row.pk).update(status="accepted")
+
+
+def test_submit_acquires_the_pii_fence_before_locking_the_machine(monkeypatch):
+    space = make_space("service-fence-before-lock")
+    target = machine(space)
+    calls = []
+    original = service_workflow._locked_submission_machine
+
+    monkeypatch.setattr(
+        "apps.machines.service_workflow._assert_submission_write_allowed",
+        lambda value: calls.append(("fence", value.pk)),
+    )
+
+    def locked(value):
+        assert calls == [("fence", target.pk)]
+        return original(value)
+
+    monkeypatch.setattr("apps.machines.service_workflow._locked_submission_machine", locked)
+    request(space, target=target)
 
 
 @override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")

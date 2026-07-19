@@ -26,6 +26,7 @@ SOURCE_FIELDS = (
     *_fields("printing.ManualPrintLog", ("requester_name", "contact_email", "contact_phone", "note"), "makerspace_id", "source", ((120, 254, 40, None), ("bloom", "bloom_exact", "none", "none"))),
     *_fields("events.EventRegistration", ("name", "email", "phone"), "event.makerspace_id", "source", ((200, 254, 32), ("none", "event_exact", "none"))),
     *_fields("bookings.Booking", ("name", "email", "phone", "note"), "space.makerspace_id", "source", ((200, 254, 32, None), ("none", "none", "none", "none"))),
+    *_fields("machines.MachineServiceRequest", ("requester_name", "contact_email", "contact_phone"), "bucket.machine.makerspace_id", "source", ((None, None, None), ("bloom", "bloom_exact", "none"))),
 )
 
 SECONDARY_FIELDS = _fields(

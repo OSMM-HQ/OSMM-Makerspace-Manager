@@ -42,6 +42,7 @@ def submit(
 ):
     """Create a pending request for an available target machine."""
     with transaction.atomic():
+        _assert_submission_write_allowed(bucket_or_machine)
         machine = _locked_submission_machine(bucket_or_machine)
         _require_module(machine.makerspace)
         _require_available(machine)
@@ -70,6 +71,7 @@ def submit(
 
 def accept(service_request, actor, *, estimated_minutes=None, note=""):
     with transaction.atomic():
+        _assert_request_write_allowed(service_request)
         locked = _locked_request(service_request)
         _require_module(locked.bucket.machine.makerspace)
         _require_edge(locked, MachineServiceRequest.Status.ACCEPTED)
@@ -92,6 +94,7 @@ def accept(service_request, actor, *, estimated_minutes=None, note=""):
 
 def reject(service_request, actor, *, reason):
     with transaction.atomic():
+        _assert_request_write_allowed(service_request)
         if not str(reason or "").strip():
             raise ServiceConsumptionInvalid("A rejection reason is required.")
         locked = _locked_request(service_request)
@@ -108,6 +111,7 @@ def reject(service_request, actor, *, reason):
 
 def start(service_request, actor, *, machine_id, estimated_minutes=None):
     with transaction.atomic():
+        _assert_request_write_allowed(service_request)
         if machine_id is None:
             raise ServiceMachineUnavailable("A machine is required to start service.")
         locked = _locked_request(service_request)
@@ -134,6 +138,7 @@ def start(service_request, actor, *, machine_id, estimated_minutes=None):
 
 def complete(service_request, actor, *, actual_minutes, consumptions):
     with transaction.atomic():
+        _assert_request_write_allowed(service_request)
         locked = _locked_request(service_request)
         _require_module(locked.bucket.machine.makerspace)
         _require_edge(locked, MachineServiceRequest.Status.COMPLETED)
@@ -151,6 +156,7 @@ def complete(service_request, actor, *, actual_minutes, consumptions):
 
 def fail(service_request, actor, *, reason, percent_complete, actual_minutes, consumptions):
     with transaction.atomic():
+        _assert_request_write_allowed(service_request)
         if not str(reason or "").strip():
             raise ServiceConsumptionInvalid("A failure reason is required.")
         locked = _locked_request(service_request)
@@ -174,6 +180,7 @@ def fail(service_request, actor, *, reason, percent_complete, actual_minutes, co
 
 def collect(service_request, actor):
     with transaction.atomic():
+        _assert_request_write_allowed(service_request)
         locked = _locked_request(service_request)
         _require_module(locked.bucket.machine.makerspace)
         _require_edge(locked, MachineServiceRequest.Status.COLLECTED)
@@ -192,6 +199,23 @@ def _locked_submission_machine(bucket_or_machine):
         bucket = ServiceBucket.objects.select_related("machine__makerspace").get(pk=bucket_or_machine.pk)
         return Machine.objects.select_for_update().select_related("makerspace").get(pk=bucket.machine_id)
     return Machine.objects.select_for_update().select_related("makerspace").get(pk=bucket_or_machine.pk)
+
+
+def _assert_submission_write_allowed(bucket_or_machine):
+    from apps.encryption.write_fence import assert_mapped_write_allowed
+
+    machine_id = bucket_or_machine.machine_id if isinstance(bucket_or_machine, ServiceBucket) else bucket_or_machine.pk
+    makerspace_id = Machine.objects.only("makerspace_id").get(pk=machine_id).makerspace_id
+    assert_mapped_write_allowed(makerspace_id)
+
+
+def _assert_request_write_allowed(service_request):
+    from apps.encryption.write_fence import assert_mapped_write_allowed
+
+    makerspace_id = MachineServiceRequest.objects.filter(pk=service_request.pk).values_list(
+        "bucket__machine__makerspace_id", flat=True
+    ).get()
+    assert_mapped_write_allowed(makerspace_id)
 
 
 def _locked_request(service_request):

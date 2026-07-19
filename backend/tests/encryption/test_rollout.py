@@ -11,12 +11,13 @@ from django.core.exceptions import ValidationError
 from django.db import DatabaseError, connection, models, transaction
 from django.test import override_settings
 
-from apps.encryption.crypto import is_envelope
+from apps.encryption.crypto import LegacyPlaintextRejected, is_envelope
 from apps.encryption.models import PiiBlindIndex
 from apps.encryption.write_fence import PiiWriteFenced, close_global, reopen
 from apps.hardware_requests.models import HardwareRequest
 from apps.integrations.models import EmailLog
 from apps.makerspaces.models import Makerspace
+from apps.machines.models import Machine, MachineServiceRequest, MachineType, ServiceBucket
 from tests.encryption.conftest import enabled_encryption
 
 pytestmark = pytest.mark.django_db
@@ -34,6 +35,19 @@ def _request(name="Rollout"):
 
 def _actor():
     return get_user_model().objects.create_user(username=f"operator-{uuid.uuid4().hex[:8]}", is_active=True, is_superuser=True)
+
+
+def _machine_request():
+    stamp = uuid.uuid4().hex[:8]
+    space = Makerspace.objects.create(name=f"Machine rollout {stamp}", slug=f"machine-rollout-{stamp}")
+    user = get_user_model().objects.create_user(username=f"machine-rollout-{stamp}")
+    machine_type = MachineType.objects.create(makerspace=space, slug=f"machine-rollout-{stamp}", name="Machine rollout")
+    machine = Machine.objects.create(makerspace=space, machine_type=machine_type, name="Laser")
+    bucket = ServiceBucket.objects.create(machine=machine, name="Service")
+    return space, user, MachineServiceRequest.objects.create(
+        bucket=bucket, requester=user, title="Repair", requester_name="Ada Lovelace",
+        contact_email="ada@example.test", contact_phone="123",
+    )
 
 
 def test_flag_off_mutations_refuse_then_closed_enable_transition_redacts_platform_logs():
@@ -119,3 +133,28 @@ def test_backfill_uses_bounded_pk_batches_and_resume_checkpoint(capsys):
         assert not is_envelope(values[first.pk])
         assert is_envelope(values[second.pk])
         assert f"checkpoint={second.pk}" in capsys.readouterr().out
+
+
+def test_machine_service_backfill_encrypts_mapped_snapshots_and_flag_off_stays_plaintext():
+    space, _, row = _machine_request()
+    assert (row.requester_name, row.contact_email, row.contact_phone) == ("Ada Lovelace", "ada@example.test", "123")
+    with enabled_encryption():
+        call_command("backfill_scoped_pii", makerspace=space.pk, model=row._meta.label)
+        with connection.cursor() as cursor:
+            cursor.execute(
+                'SELECT requester_name, contact_email, contact_phone FROM machines_machineservicerequest WHERE id = %s',
+                [row.pk],
+            )
+            assert all(is_envelope(value) for value in cursor.fetchone())
+        row.refresh_from_db()
+        assert (row.requester_name, row.contact_email, row.contact_phone) == ("Ada Lovelace", "ada@example.test", "123")
+        with override_settings(PII_ENCRYPTION_DUAL_READ=False):
+            strict = MachineServiceRequest.objects.get(pk=row.pk)
+            assert (strict.requester_name, strict.contact_email, strict.contact_phone) == ("Ada Lovelace", "ada@example.test", "123")
+
+
+def test_machine_service_legacy_plaintext_is_rejected_when_dual_read_is_disabled():
+    _, _, row = _machine_request()
+    with enabled_encryption(dual_read=False):
+        with pytest.raises(LegacyPlaintextRejected):
+            row.refresh_from_db()

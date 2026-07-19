@@ -3,8 +3,11 @@ from datetime import timedelta
 from decimal import Decimal
 
 import pytest
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
+from apps.encryption.crypto import is_envelope
 from apps.machines.models import (
     Machine, MachineConsumable, MachineServiceRequest, MachineType,
     ServiceBucket, ServiceRequestConsumption,
@@ -12,6 +15,7 @@ from apps.machines.models import (
 from apps.machines.service_reports import build_machine_service_report, report_sections
 from apps.machines.service_reports_serializers import MachineServiceReportSerializer
 from tests.return_helpers import make_product, make_space, make_user
+from tests.encryption.conftest import enabled_encryption
 
 
 pytestmark = pytest.mark.django_db
@@ -119,3 +123,25 @@ def test_report_queries_are_constant_as_requests_grow(django_assert_num_queries)
     with django_assert_num_queries(3):
         result = build_machine_service_report(space.id)
         assert rows(result, "machine")[0]["request_count"] == 8
+
+
+def test_report_uses_no_plaintext_pii_columns_when_snapshots_are_encrypted():
+    space = make_space("service-report-encrypted")
+    target = machine(space)
+    at = timezone.now()
+    with enabled_encryption():
+        row = service_request(space, target, status="completed", created_at=at, completed_at=at, actual=15)
+        with CaptureQueriesContext(connection) as queries:
+            report = build_machine_service_report(space.id)
+        assert rows(report, "status")[0]["completed"] == 1
+        assert all(
+            field not in query["sql"]
+            for query in queries.captured_queries
+            for field in ("requester_name", "contact_email", "contact_phone")
+        )
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT requester_name, contact_email, contact_phone FROM machines_machineservicerequest WHERE id = %s",
+                [row.pk],
+            )
+            assert all(is_envelope(value) for value in cursor.fetchone())
