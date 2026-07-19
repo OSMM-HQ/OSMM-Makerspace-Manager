@@ -70,10 +70,14 @@ def test_join_policies_default_request_and_open_reactivation():
     assert joined["outcome"] == "joined"
     assert membership.status == old.state == MembershipRequest.State.ACTIVE
     membership.status = "revoked"
-    membership.save(update_fields=["status"])
+    membership.can_refer = True
+    membership.can_verify = True
+    membership.save(update_fields=["status", "can_refer", "can_verify"])
     rejoined = membership_services.request_membership(applicant, open_space)
+    membership.refresh_from_db()
     assert rejoined.id == membership.id
     assert MakerspaceMembership.objects.filter(makerspace=open_space, user=applicant).count() == 1
+    assert not membership.can_refer and not membership.can_verify
 
 
 def test_referral_is_member_only_non_escalating_and_claim_requires_verified_email():

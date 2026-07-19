@@ -70,6 +70,10 @@ def _activate_membership(actor, makerspace, user, role, *, request=None, source)
             membership.revoked_at = None
             membership.revoked_by = None
             membership.revocation_reason = ""
+            # A revoked row may predate the delegation-clearing revoke path.
+            # Reactivation must never restore referral or verifier authority.
+            membership.can_refer = False
+            membership.can_verify = False
             membership.save()
         elif source == "approval":
             membership.assigned_role = role
