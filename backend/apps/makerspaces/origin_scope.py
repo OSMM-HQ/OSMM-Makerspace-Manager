@@ -345,11 +345,11 @@ _MODEL_LOOKUPS = {
     "admin-machine-error-logs": ("machines.Machine", "makerspace_id"),
     "admin-machine-document-url": ("machines.MachineDocument", "machine__makerspace_id"),
     "admin-machine-document-detail": ("machines.MachineDocument", "machine__makerspace_id"),
-    "admin-machine-service-file-url": ("machines.ServiceRequestFile", "machine__makerspace_id"),
-    "admin-machine-service-file-detail": ("machines.ServiceRequestFile", "machine__makerspace_id"),
+    "admin-machine-service-file-url": ("machines.ServiceRequestFile", "makerspace_id"),
+    "admin-machine-service-file-detail": ("machines.ServiceRequestFile", "makerspace_id"),
     **{name: ("hardware_requests.HardwareRequest", "makerspace_id") for name in _REQUEST_ACTIONS},
     **{name: ("printing.PrintRequest", "makerspace_id") for name in _PRINT_ACTIONS},
-    **{name: ("machines.MachineServiceRequest", "bucket__machine__makerspace_id") for name in _MACHINE_SERVICE_ACTIONS},
+    **{name: ("machines.MachineServiceRequest", "makerspace_id") for name in _MACHINE_SERVICE_ACTIONS},
 }
 
 

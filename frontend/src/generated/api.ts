@@ -1852,7 +1852,7 @@ export type MachineUsageEntry = {
   "created_at": string;
 };
 
-export type MachineUsageEntrySourceEnum = "manual";
+export type MachineUsageEntrySourceEnum = "manual" | "typed_manual";
 
 export type MachineUsageReport = {
   "rows": Array<Array<unknown>>;
@@ -4076,8 +4076,10 @@ export type ServiceRequester = {
 };
 
 export type ServiceStart = {
-  "machine_id": number;
+  "machine_id"?: number | null;
   "estimated_minutes"?: number;
+  "consumable_pool_id"?: number;
+  "planned_grams"?: string;
 };
 
 export type SetStatus = {

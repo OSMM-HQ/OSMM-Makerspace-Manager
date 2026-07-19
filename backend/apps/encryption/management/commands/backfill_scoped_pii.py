@@ -15,7 +15,7 @@ FILTERS = {
     "printing.ManualPrintLog": {"makerspace_id": None},
     "events.EventRegistration": {"event__makerspace_id": None},
     "bookings.Booking": {"space__makerspace_id": None},
-    "machines.MachineServiceRequest": {"bucket__machine__makerspace_id": None},
+    "machines.MachineServiceRequest": {"makerspace_id": None},
     "integrations.EmailLog": {"makerspace_id": None},
 }
 
@@ -39,7 +39,8 @@ class Command(BaseCommand):
             raise CommandError("PII_ENCRYPTION_ENABLED must be enabled before backfill.")
         label, makerspace_id = options["model"], options["makerspace"]
         model = apps.get_model(label)
-        filters = FILTERS[label].copy()
+        filters = FILTERS[label]
+        filters = filters.copy()
         for key in filters:
             filters[key] = makerspace_id
         counts = {key: 0 for key in ("plaintext", "encrypted", "empty", "corrupt", "missing_key")}

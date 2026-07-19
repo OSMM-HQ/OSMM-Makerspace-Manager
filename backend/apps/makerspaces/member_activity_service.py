@@ -105,7 +105,7 @@ def _machine_service_requests(makerspace_id, member):
     from apps.machines.service_queue_position import queue_positions_for
 
     rows = MachineServiceRequest.objects.filter(
-        bucket__machine__makerspace_id=makerspace_id, member=member,
+        makerspace_id=makerspace_id, member=member,
     ).only("title", "status", "created_at").order_by("-created_at", "-id")[:ACTIVITY_LIMIT]
     rows = list(rows)
     positions = queue_positions_for(rows)

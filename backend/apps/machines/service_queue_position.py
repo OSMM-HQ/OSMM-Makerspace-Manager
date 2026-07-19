@@ -13,41 +13,16 @@ WAITING_STATUSES = (
 
 
 def queue_positions_for(requests) -> dict[int, int]:
-    """Return positions within each service bucket, with accepted work first."""
+    """Return positions within each bucket or pooled queue, accepted work first."""
     targets = [row for row in requests if row.status in WAITING_STATUSES]
     if not targets:
         return {}
-    before = Q(created_at__lt=OuterRef("created_at")) | Q(
-        created_at=OuterRef("created_at"), id__lt=OuterRef("id")
-    )
-    waiting = MachineServiceRequest.objects.filter(
-        bucket_id=OuterRef("bucket_id"), status__in=WAITING_STATUSES,
-    ).filter(before).order_by()
-    accepted_total = MachineServiceRequest.objects.filter(
-        bucket_id=OuterRef("bucket_id"), status=MachineServiceRequest.Status.ACCEPTED,
-    ).values("bucket_id").annotate(total=Count("id")).values("total")[:1]
-    accepted_before = waiting.filter(
-        status=MachineServiceRequest.Status.ACCEPTED,
-    ).values("bucket_id").annotate(total=Count("id")).values("total")[:1]
-    pending_before = waiting.filter(
-        status=MachineServiceRequest.Status.PENDING,
-    ).values("bucket_id").annotate(total=Count("id")).values("total")[:1]
-    rows = MachineServiceRequest.objects.filter(pk__in=[row.pk for row in targets]).annotate(
-        accepted_ahead=Case(
-            When(
-                status=MachineServiceRequest.Status.ACCEPTED,
-                then=Coalesce(Subquery(accepted_before, output_field=IntegerField()), Value(0)),
-            ),
-            default=Coalesce(Subquery(accepted_total, output_field=IntegerField()), Value(0)),
-            output_field=IntegerField(),
-        ),
-        pending_ahead=Case(
-            When(
-                status=MachineServiceRequest.Status.PENDING,
-                then=Coalesce(Subquery(pending_before, output_field=IntegerField()), Value(0)),
-            ),
-            default=Value(0),
-            output_field=IntegerField(),
-        ),
-    )
-    return {row.pk: row.accepted_ahead + row.pending_ahead + 1 for row in rows}
+    positions = {}
+    for bucket_id, queue_id in {(row.bucket_id, row.queue_id) for row in targets}:
+        scope = {"bucket_id": bucket_id} if bucket_id else {"queue_id": queue_id}
+        ranked = MachineServiceRequest.objects.filter(**scope, status__in=WAITING_STATUSES).order_by(
+            Case(When(status=MachineServiceRequest.Status.ACCEPTED, then=Value(0)), default=Value(1)),
+            "created_at", "id",
+        )
+        positions.update({row.pk: index for index, row in enumerate(ranked, 1)})
+    return {row.pk: positions[row.pk] for row in targets}

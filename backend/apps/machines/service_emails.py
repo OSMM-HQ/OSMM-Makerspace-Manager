@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 def notify_service_status(service_request, event):
     """Emit a staff notification without allowing delivery to break the workflow."""
     try:
-        makerspace = service_request.bucket.machine.makerspace
+        makerspace = service_request.makerspace
         emit_notification(
             makerspace,
             event=f"machine_service.{event}",

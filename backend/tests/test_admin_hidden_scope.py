@@ -101,10 +101,8 @@ def test_every_registered_admin_resolves_a_makerspace_decision():
 
 def test_machine_service_models_have_explicit_nested_scope_decisions():
     assert NESTED_MAKERSPACE_LOOKUPS["machines.servicebucket"] == "machine__makerspace_id"
-    assert NESTED_MAKERSPACE_LOOKUPS["machines.machineservicerequest"] == "bucket__machine__makerspace_id"
-    assert NESTED_MAKERSPACE_LOOKUPS["machines.servicerequestfile"] == "machine__makerspace_id"
     assert NESTED_MAKERSPACE_LOOKUPS["machines.servicerequestconsumption"] == (
-        "service_request__bucket__machine__makerspace_id"
+        "service_request__makerspace_id"
     )
 
 

@@ -39,19 +39,24 @@ def _manageable_file(actor, pk, *, attached=False):
     visible = get_object_or_404(
         rbac.scope_by_makerspace(
             actor,
-            ServiceRequestFile.objects.select_related("machine__makerspace", "service_request"),
-            makerspace_field="machine__makerspace_id",
+            ServiceRequestFile.objects.select_related("makerspace", "machine__makerspace", "service_request"),
+            makerspace_field="makerspace_id",
         ),
         pk=pk,
     )
-    require_module(visible.machine.makerspace, "machine_service")
-    if not rbac.can(actor, rbac.Action.MANAGE_MACHINES, visible.machine.makerspace_id):
+    require_module(visible.makerspace, "machine_service")
+    if not rbac.can(actor, rbac.Action.MANAGE_MACHINES, visible.makerspace_id):
         raise PermissionDenied()
-    field = "service_request__bucket__machine__makerspace_id" if attached else "machine__makerspace_id"
+    field = "makerspace_id"
+    scoped_files = ServiceRequestFile.objects.select_related(
+        "makerspace", "machine__makerspace", "service_request__makerspace"
+    )
+    if attached:
+        scoped_files = scoped_files.filter(service_request__isnull=False, attached_at__isnull=False)
     return get_object_or_404(
         rbac.scope_by_action(
             actor, rbac.Action.MANAGE_MACHINES,
-            ServiceRequestFile.objects.select_related("machine__makerspace", "service_request__bucket__machine"),
+            scoped_files,
             field=field,
         ), pk=visible.pk,
     )

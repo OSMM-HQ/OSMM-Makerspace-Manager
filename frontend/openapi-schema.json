@@ -3855,8 +3855,7 @@
                                 "$ref": "#/components/schemas/ServiceStart"
                             }
                         }
-                    },
-                    "required": true
+                    }
                 },
                 "security": [
                     {
@@ -31489,10 +31488,11 @@
             },
             "MachineUsageEntrySourceEnum": {
                 "enum": [
-                    "manual"
+                    "manual",
+                    "typed_manual"
                 ],
                 "type": "string",
-                "description": "* `manual` - Manual"
+                "description": "* `manual` - Manual hours\n* `typed_manual` - Typed manual service"
             },
             "MachineUsageReport": {
                 "type": "object",
@@ -40311,16 +40311,23 @@
                 "properties": {
                     "machine_id": {
                         "type": "integer",
-                        "minimum": 1
+                        "minimum": 1,
+                        "nullable": true
                     },
                     "estimated_minutes": {
                         "type": "integer",
                         "minimum": 0
+                    },
+                    "consumable_pool_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "planned_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
                     }
-                },
-                "required": [
-                    "machine_id"
-                ]
+                }
             },
             "SetStatus": {
                 "type": "object",

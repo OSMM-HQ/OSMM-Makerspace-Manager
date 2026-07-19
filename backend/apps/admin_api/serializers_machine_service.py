@@ -85,8 +85,12 @@ class ServiceRejectSerializer(serializers.Serializer):
 
 
 class ServiceStartSerializer(serializers.Serializer):
-    machine_id = serializers.IntegerField(min_value=1)
+    machine_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
     estimated_minutes = serializers.IntegerField(required=False, min_value=0)
+    consumable_pool_id = serializers.IntegerField(required=False, min_value=1)
+    planned_grams = serializers.DecimalField(
+        required=False, max_digits=12, decimal_places=2, min_value=Decimal("0.01")
+    )
 
 
 class ServiceConsumptionInputSerializer(serializers.Serializer):

@@ -10,6 +10,44 @@ from django.db.models import Q
 
 from apps.encryption.mappers import ScopedPiiModelMixin, ScopedPiiQuerySet
 
+
+class ServiceQueue(models.Model):
+    """A makerspace-wide, machine-type-compatible service queue."""
+
+    class AllocationPolicy(models.TextChoices):
+        FIRST_IDLE = "first_idle", "First compatible idle machine"
+        STAFF_SELECT = "staff_select", "Staff selects machine"
+
+    makerspace = models.ForeignKey(
+        "makerspaces.Makerspace", on_delete=models.PROTECT, related_name="service_queues"
+    )
+    machine_type = models.ForeignKey(
+        "machines.MachineType", on_delete=models.PROTECT, related_name="service_queues"
+    )
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    is_active = models.BooleanField(default=True)
+    capacity = models.PositiveIntegerField(null=True, blank=True)
+    allocation_policy = models.CharField(
+        max_length=24, choices=AllocationPolicy.choices, default=AllocationPolicy.STAFF_SELECT
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["makerspace", "name"], name="uniq_service_queue_makerspace_name"),
+        ]
+        indexes = [models.Index(fields=["makerspace", "machine_type", "is_active"], name="service_queue_scope_active_idx")]
+        ordering = ["makerspace__name", "name"]
+
+    def clean(self):
+        if self.machine_type_id and self.machine_type.makerspace_id not in (None, self.makerspace_id):
+            raise ValidationError("Queue machine type must be global or belong to its makerspace.")
+
+    def __str__(self):
+        return f"{self.makerspace}: {self.name}"
+
 class ServiceBucket(models.Model):
     machine = models.ForeignKey(
         "machines.Machine", on_delete=models.PROTECT, related_name="service_buckets"
@@ -78,7 +116,9 @@ class MachineServiceRequest(ScopedPiiModelMixin, models.Model):
         REJECTED = "rejected", "Rejected"
         FAILED = "failed", "Failed"
 
-    bucket = models.ForeignKey(ServiceBucket, on_delete=models.PROTECT, related_name="service_requests")
+    bucket = models.ForeignKey(ServiceBucket, null=True, blank=True, on_delete=models.PROTECT, related_name="service_requests")
+    queue = models.ForeignKey(ServiceQueue, null=True, blank=True, on_delete=models.PROTECT, related_name="service_requests")
+    makerspace = models.ForeignKey("makerspaces.Makerspace", on_delete=models.PROTECT, related_name="machine_service_requests")
     requester = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="machine_service_requests")
     # Member ownership was introduced after staff-originated requests already
     # existed.  Keep those historical rows intact; member surfaces must use this
@@ -114,6 +154,27 @@ class MachineServiceRequest(ScopedPiiModelMixin, models.Model):
     estimated_minutes = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0)])
     actual_minutes = models.PositiveIntegerField(default=0, validators=[MinValueValidator(0)])
     fail_percent_complete = models.PositiveSmallIntegerField(default=0, validators=[MinValueValidator(0), MaxValueValidator(100)])
+    capability_payload = models.JSONField(default=dict, blank=True)
+    planned_grams = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    reserved_grams = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    actual_consumed_grams = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    run_consumable_pool = models.ForeignKey(
+        "machines.MachineConsumablePool", null=True, blank=True, on_delete=models.PROTECT,
+        related_name="run_service_requests",
+    )
+    payment_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    payment_status = models.CharField(max_length=16, default="none")
+    paid_at = models.DateTimeField(null=True, blank=True)
+    run_machine_name = models.CharField(max_length=200, blank=True)
+    run_machine_model = models.CharField(max_length=200, blank=True)
+    run_consumable_label = models.CharField(max_length=255, blank=True)
+    run_consumable_material = models.CharField(max_length=100, blank=True)
+    run_consumable_color = models.CharField(max_length=100, blank=True)
+    run_estimated_minutes = models.PositiveIntegerField(default=0)
+    run_planned_grams = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    reprint_of = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.PROTECT, related_name="reprints"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -130,6 +191,7 @@ class MachineServiceRequest(ScopedPiiModelMixin, models.Model):
             models.Index(fields=["requester", "-created_at"], name="servicereq_requester_created_idx"),
             models.Index(fields=["member", "-created_at"], name="servicereq_member_created_idx"),
             models.Index(fields=["bucket", "status", "-created_at"], name="servicereq_bucket_status_idx"),
+            models.Index(fields=["queue", "status", "-created_at"], name="servicereq_queue_status_idx"),
             models.Index(fields=["assigned_machine", "status", "-created_at"], name="servicereq_machine_status_idx"),
             models.Index(fields=["completed_at"], name="servicereq_completed_idx"),
             models.Index(fields=["failed_at"], name="servicereq_failed_idx"),
@@ -138,18 +200,19 @@ class MachineServiceRequest(ScopedPiiModelMixin, models.Model):
             models.CheckConstraint(condition=Q(estimated_minutes__gte=0), name="service_req_est_minutes_nonnegative"),
             models.CheckConstraint(condition=Q(actual_minutes__gte=0), name="service_req_actual_minutes_nonnegative"),
             models.CheckConstraint(condition=Q(fail_percent_complete__gte=0, fail_percent_complete__lte=100), name="service_req_fail_percent_range"),
+            models.CheckConstraint(
+                condition=(Q(bucket__isnull=False, queue__isnull=True) | Q(bucket__isnull=True, queue__isnull=False)),
+                name="service_req_bucket_xor_queue",
+            ),
+            models.CheckConstraint(condition=Q(planned_grams__gte=0), name="service_req_planned_grams_nonnegative"),
+            models.CheckConstraint(condition=Q(reserved_grams__gte=0), name="service_req_reserved_grams_nonnegative"),
+            models.CheckConstraint(condition=Q(actual_consumed_grams__gte=0), name="service_req_actual_grams_nonnegative"),
         ]
         ordering = ["-created_at"]
 
-    @property
-    def makerspace(self):
-        return self.bucket.machine.makerspace
-
-    @property
-    def makerspace_id(self):
-        return self.bucket.machine.makerspace_id
-
     def save(self, *args, **kwargs):
+        if self._state.adding and self.makerspace_id is None:
+            self.makerspace_id = self.bucket.machine.makerspace_id if self.bucket_id else self.queue.makerspace_id
         if self._state.adding and self.assigned_machine_id is None and self.bucket_id:
             self.assigned_machine_id = self.bucket.machine_id
         return super().save(*args, **kwargs)
@@ -161,11 +224,17 @@ class MachineServiceRequest(ScopedPiiModelMixin, models.Model):
 class ServiceRequestFile(models.Model):
     class Kind(models.TextChoices):
         ATTACHMENT = "attachment", "Attachment"
+        MODEL = "model", "Model"
+        ESTIMATE = "estimate", "Estimate"
+        PREVIEW = "preview", "Preview"
+        SCREENSHOT = "screenshot", "Screenshot"
 
     service_request = models.ForeignKey(
         MachineServiceRequest, null=True, blank=True, on_delete=models.CASCADE, related_name="files"
     )
-    machine = models.ForeignKey("machines.Machine", on_delete=models.PROTECT, related_name="service_request_files")
+    makerspace = models.ForeignKey("makerspaces.Makerspace", on_delete=models.PROTECT, related_name="service_request_files")
+    machine = models.ForeignKey("machines.Machine", null=True, blank=True, on_delete=models.SET_NULL, related_name="service_request_files")
+    queue = models.ForeignKey(ServiceQueue, null=True, blank=True, on_delete=models.PROTECT, related_name="staged_files")
     kind = models.CharField(max_length=16, choices=Kind.choices)
     object_key = models.CharField(max_length=255, unique=True)
     content_type = models.CharField(max_length=128, blank=True)
@@ -181,6 +250,8 @@ class ServiceRequestFile(models.Model):
         ordering = ["created_at"]
 
     def save(self, *args, **kwargs):
+        if self._state.adding and self.makerspace_id is None and self.machine_id:
+            self.makerspace_id = self.machine.makerspace_id
         if self.pk:
             original = type(self).objects.only(
                 "attached_at", "owner_user_id", "object_key", "size_bytes", "content_type", "original_filename",
@@ -198,6 +269,81 @@ class ServiceRequestFile(models.Model):
 
     def __str__(self):
         return f"{self.kind}:{self.object_key}"
+
+
+class MachineConsumablePool(models.Model):
+    """A makerspace gram pool with an optional compatible-machine affinity."""
+
+    makerspace = models.ForeignKey("makerspaces.Makerspace", on_delete=models.PROTECT, related_name="machine_consumable_pools")
+    machine = models.ForeignKey("machines.Machine", null=True, blank=True, on_delete=models.PROTECT, related_name="consumable_pools")
+    material = models.CharField(max_length=100)
+    color = models.CharField(max_length=100, blank=True)
+    brand = models.CharField(max_length=100, blank=True)
+    lot_code = models.CharField(max_length=100, blank=True)
+    initial_grams = models.DecimalField(max_digits=12, decimal_places=2)
+    remaining_grams = models.DecimalField(max_digits=12, decimal_places=2)
+    low_threshold_grams = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+    opened_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["makerspace", "is_active"], name="consumable_pool_scope_active_idx")]
+        constraints = [
+            models.CheckConstraint(condition=Q(initial_grams__gte=0), name="consumable_pool_initial_nonnegative"),
+            models.CheckConstraint(condition=Q(remaining_grams__gte=0) & Q(remaining_grams__lte=models.F("initial_grams")), name="consumable_pool_balance_capped"),
+        ]
+
+    @property
+    def label(self):
+        return " ".join(item for item in (self.brand, self.material, self.color, self.lot_code) if item)
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            original = type(self).objects.only("initial_grams").get(pk=self.pk)
+            if original.initial_grams != self.initial_grams:
+                raise RuntimeError("MachineConsumablePool initial grams are immutable.")
+        return super().save(*args, **kwargs)
+
+
+class MachineConsumableAdjustmentQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        raise RuntimeError("MachineConsumableAdjustment rows are append-only.")
+
+    def delete(self):
+        raise RuntimeError("MachineConsumableAdjustment rows are append-only.")
+
+
+class MachineConsumableAdjustment(models.Model):
+    class Kind(models.TextChoices):
+        RESERVE = "reserve", "Reserve"
+        RECONCILE = "reconcile", "Reconcile"
+        MANUAL = "manual", "Manual"
+        CORRECTION = "correction", "Correction"
+        RETIRE = "retire", "Retire"
+
+    consumable_pool = models.ForeignKey(MachineConsumablePool, on_delete=models.PROTECT, related_name="adjustments")
+    makerspace = models.ForeignKey("makerspaces.Makerspace", on_delete=models.PROTECT, related_name="machine_consumable_adjustments")
+    kind = models.CharField(max_length=16, choices=Kind.choices)
+    quantity_delta = models.DecimalField(max_digits=12, decimal_places=2)
+    service_request = models.ForeignKey(MachineServiceRequest, null=True, blank=True, on_delete=models.PROTECT, related_name="consumable_adjustments")
+    usage_entry = models.ForeignKey("machines.MachineUsageEntry", null=True, blank=True, on_delete=models.PROTECT, related_name="consumable_adjustments")
+    reason = models.TextField(blank=True)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = MachineConsumableAdjustmentQuerySet.as_manager()
+
+    class Meta:
+        ordering = ["created_at", "id"]
+        constraints = [models.CheckConstraint(condition=~Q(quantity_delta=0), name="consumable_adjustment_nonzero")]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise RuntimeError("MachineConsumableAdjustment rows are append-only.")
+        return super().save(*args, **kwargs)
 
 
 class ServiceRequestConsumptionQuerySet(models.QuerySet):

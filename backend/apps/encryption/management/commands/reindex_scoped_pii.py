@@ -15,7 +15,7 @@ FILTERS = {
     "printing.PrintRequest": "bucket__makerspace_id",
     "printing.ManualPrintLog": "makerspace_id",
     "events.EventRegistration": "event__makerspace_id",
-    "machines.MachineServiceRequest": "bucket__machine__makerspace_id",
+    "machines.MachineServiceRequest": "makerspace_id",
 }
 
 

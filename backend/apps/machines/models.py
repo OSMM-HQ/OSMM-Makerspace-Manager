@@ -9,8 +9,11 @@ from apps.machines.service_file_policies import (
 # Service-request models are kept separate so the long-lived machine catalog stays
 # compact; importing here preserves the app's established public model surface.
 from apps.machines.models_service import (
+    MachineConsumableAdjustment,
+    MachineConsumablePool,
     MachineServiceRequest,
     ServiceBucket,
+    ServiceQueue,
     ServiceRequestConsumption,
     ServiceRequestFile,
     get_or_create_default_bucket,
@@ -35,6 +38,9 @@ class MachineType(models.Model):
     # manage machines of this type (e.g. 3d_printer -> "MANAGE_PRINTING"). Blank for
     # custom types. Never client-settable.
     managing_action = models.CharField(max_length=64, blank=True, default="")
+    # Versioned, server-validated capability contract.  Type packs own the
+    # interpretation; an empty object keeps existing generic types unchanged.
+    capability_config = models.JSONField(default=dict, blank=True)
 
     class Meta:
         ordering = ["makerspace__name", "name"]
@@ -150,20 +156,42 @@ class MachineOperator(models.Model):
         return f"{self.user} @ {self.machine} ({self.access_level})"
 
 
+class MachineUsageEntryQuerySet(models.QuerySet):
+    def update(self, **kwargs):
+        raise RuntimeError("MachineUsageEntry rows are append-only.")
+
+    def delete(self):
+        raise RuntimeError("MachineUsageEntry rows are append-only.")
+
+
 class MachineUsageEntry(models.Model):
-    """Append-only usage-hours ledger. Machine total is derived via Sum."""
+    """Append-only generic and typed service-usage ledger."""
 
     class Source(models.TextChoices):
-        MANUAL = "manual", "Manual"
+        MANUAL = "manual", "Manual hours"
+        TYPED_MANUAL = "typed_manual", "Typed manual service"
 
     machine = models.ForeignKey(
         Machine, on_delete=models.CASCADE, related_name="usage_entries"
     )
-    hours = models.DecimalField(max_digits=10, decimal_places=2)
+    hours = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     source = models.CharField(
         max_length=16, choices=Source.choices, default=Source.MANUAL
     )
     note = models.CharField(max_length=255, blank=True)
+    service_request = models.ForeignKey(
+        "machines.MachineServiceRequest", null=True, blank=True,
+        on_delete=models.PROTECT, related_name="usage_entries",
+    )
+    consumable_pool = models.ForeignKey(
+        "machines.MachineConsumablePool", null=True, blank=True,
+        on_delete=models.PROTECT, related_name="usage_entries",
+    )
+    duration_minutes = models.PositiveIntegerField(default=0)
+    outcome = models.CharField(max_length=16, blank=True, default="")
+    percent_complete = models.PositiveSmallIntegerField(default=100)
+    reason = models.TextField(blank=True)
+    consumed_grams = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     logged_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,
@@ -172,6 +200,8 @@ class MachineUsageEntry(models.Model):
         related_name="+",
     )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = MachineUsageEntryQuerySet.as_manager()
 
     class Meta:
         ordering = ["-created_at"]
@@ -183,13 +213,26 @@ class MachineUsageEntry(models.Model):
         ]
         constraints = [
             models.CheckConstraint(
-                condition=Q(hours__gt=0),
-                name="machineusage_hours_positive",
+                condition=Q(hours__gte=0),
+                name="machineusage_hours_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=Q(percent_complete__gte=0, percent_complete__lte=100),
+                name="machineusage_percent_complete_range",
+            ),
+            models.CheckConstraint(
+                condition=Q(consumed_grams__gte=0),
+                name="machineusage_grams_nonnegative",
             ),
         ]
 
     def __str__(self):
         return f"{self.machine}: {self.hours}h"
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            raise RuntimeError("MachineUsageEntry rows are append-only.")
+        return super().save(*args, **kwargs)
 
 
 class MachineDocument(models.Model):

@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 from django.conf import settings
 from django.db import transaction
+from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers
 
@@ -224,7 +225,7 @@ def _machine_service_open(makerspace) -> int:
     from apps.machines.models import MachineServiceRequest
 
     return MachineServiceRequest.objects.filter(
-        bucket__machine__makerspace=makerspace,
+        makerspace=makerspace,
         status__in=(
             MachineServiceRequest.Status.PENDING,
             MachineServiceRequest.Status.ACCEPTED,
@@ -239,7 +240,7 @@ def _machine_service_submit(makerspace) -> int:
     now = datetime.now(UTC)
     day_start = datetime(now.year, now.month, now.day, tzinfo=UTC)
     return MachineServiceRequest.objects.filter(
-        bucket__machine__makerspace=makerspace,
+        makerspace=makerspace,
         created_at__gte=day_start,
         created_at__lt=day_start + timedelta(days=1),
     ).count()

@@ -78,7 +78,7 @@ def debit_consumptions(service_request, actor, consumptions, *, outcome):
     audit.record(
         actor,
         "machine_service.consumption_recorded",
-        makerspace=service_request.bucket.machine.makerspace,
+        makerspace=service_request.makerspace,
         target=service_request,
         meta={
             "request_id": service_request.pk,

@@ -4,9 +4,7 @@
 def collect_private_object_keys(makerspace, add):
     from apps.machines.models import ServiceRequestFile
 
-    for key in ServiceRequestFile.objects.filter(
-        machine__makerspace=makerspace
-    ).values_list("object_key", flat=True):
+    for key in ServiceRequestFile.objects.filter(makerspace=makerspace).values_list("object_key", flat=True):
         add(key)
 
 
@@ -14,6 +12,8 @@ def delete_for_makerspace(makerspace, cursor):
     """Clear N1 rows in dependency order inside the authorized purge context."""
     from apps.machines.models import (
         MachineServiceRequest,
+        MachineConsumablePool,
+        ServiceQueue,
         ServiceBucket,
         ServiceRequestFile,
     )
@@ -21,7 +21,7 @@ def delete_for_makerspace(makerspace, cursor):
 
     charged_bytes = sum(
         ServiceRequestFile.objects.filter(
-            machine__makerspace=makerspace,
+            makerspace=makerspace,
             service_request__isnull=False,
         ).values_list("size_bytes", flat=True)
     )
@@ -33,11 +33,13 @@ def delete_for_makerspace(makerspace, cursor):
         "DELETE FROM machines_servicerequestconsumption "
         "WHERE service_request_id IN ("
         "SELECT request.id FROM machines_machineservicerequest request "
-        "JOIN machines_servicebucket bucket ON request.bucket_id = bucket.id "
-        "JOIN machines_machine machine ON bucket.machine_id = machine.id "
-        "WHERE machine.makerspace_id = %s)",
+        "WHERE request.makerspace_id = %s)",
         [makerspace.id],
     )
-    ServiceRequestFile.objects.filter(machine__makerspace=makerspace).delete()
-    MachineServiceRequest.objects.filter(bucket__machine__makerspace=makerspace).delete()
+    cursor.execute("DELETE FROM machines_machineconsumableadjustment WHERE makerspace_id = %s", [makerspace.id])
+    cursor.execute("DELETE FROM machines_machineusageentry WHERE machine_id IN (SELECT id FROM machines_machine WHERE makerspace_id = %s)", [makerspace.id])
+    ServiceRequestFile.objects.filter(makerspace=makerspace).delete()
+    MachineServiceRequest.objects.filter(makerspace=makerspace).delete()
     ServiceBucket.objects.filter(machine__makerspace=makerspace).delete()
+    MachineConsumablePool.objects.filter(makerspace=makerspace).delete()
+    ServiceQueue.objects.filter(makerspace=makerspace).delete()

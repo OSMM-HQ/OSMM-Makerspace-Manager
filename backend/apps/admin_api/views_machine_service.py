@@ -49,10 +49,10 @@ def _visible_makerspace(actor, makerspace_id):
 
 def _request_queryset(actor):
     queryset = MachineServiceRequest.objects.select_related(
-        "bucket__machine", "assigned_machine", "requester"
+        "makerspace", "bucket__machine", "queue", "assigned_machine", "requester"
     ).prefetch_related("files", "consumptions")
     return rbac.scope_by_action(actor, rbac.Action.MANAGE_MACHINES, queryset,
-                                field="bucket__machine__makerspace_id")
+                                field="makerspace_id")
 
 
 def _manageable_request(actor, pk):
@@ -62,13 +62,13 @@ def _manageable_request(actor, pk):
         rbac.scope_by_makerspace(
             actor,
             MachineServiceRequest.objects.select_related(
-                "bucket__machine__makerspace", "assigned_machine", "requester"
+                "makerspace", "bucket__machine__makerspace", "queue", "assigned_machine", "requester"
             ).prefetch_related("files", "consumptions"),
-            makerspace_field="bucket__machine__makerspace_id",
+            makerspace_field="makerspace_id",
         ), pk=pk,
     )
-    require_module(row.bucket.machine.makerspace, "machine_service")
-    if not rbac.can(actor, rbac.Action.MANAGE_MACHINES, row.bucket.machine.makerspace_id):
+    require_module(row.makerspace, "machine_service")
+    if not rbac.can(actor, rbac.Action.MANAGE_MACHINES, row.makerspace_id):
         raise PermissionDenied()
     return get_object_or_404(_request_queryset(actor), pk=row.pk)
 
@@ -85,7 +85,7 @@ def _query_int(request, name):
 
 def _response(row, code=status.HTTP_200_OK):
     row = MachineServiceRequest.objects.select_related(
-        "bucket__machine", "assigned_machine", "requester"
+        "makerspace", "bucket__machine", "queue", "assigned_machine", "requester"
     ).prefetch_related("files", "consumptions").get(pk=row.pk)
     return Response(MachineServiceRequestSerializer(row).data, status=code)
 
@@ -98,7 +98,7 @@ class MachineServiceRequestListCreateView(APIView):
                    responses={200: MachineServiceRequestSerializer(many=True), **SERVICE_ERRORS})
     def get(self, request, makerspace_id, *args, **kwargs):
         makerspace = _visible_makerspace(request.user, makerspace_id)
-        rows = _request_queryset(request.user).filter(bucket__machine__makerspace=makerspace)
+        rows = _request_queryset(request.user).filter(makerspace=makerspace)
         status_value = request.query_params.get("status")
         if status_value not in (None, ""):
             rows = rows.filter(status=status_value)

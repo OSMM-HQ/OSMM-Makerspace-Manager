@@ -52,8 +52,8 @@ def _status_rows(ids, aggregate, date_range):
     created = _date_filter("created_at", date_range)
     # .order_by() strips the model's Meta ordering (by created_at) so it can't leak
     # into the GROUP BY of the values()/annotate() aggregation.
-    requests = MachineServiceRequest.objects.filter(bucket__machine__makerspace_id__in=ids).order_by()
-    rows = requests.values("bucket__machine__makerspace_id") if aggregate else requests.annotate(_group=Value(1)).values("_group")
+    requests = MachineServiceRequest.objects.filter(makerspace_id__in=ids).order_by()
+    rows = requests.values("makerspace_id") if aggregate else requests.annotate(_group=Value(1)).values("_group")
     rows = rows.annotate(
         submitted=Count("id", filter=created),
         accepted=Count("id", filter=created & Q(status=MachineServiceRequest.Status.ACCEPTED)),
@@ -71,8 +71,7 @@ def _machine_rows(ids, aggregate, date_range):
     completed = _date_filter("completed_at", date_range)
     failed = _date_filter("failed_at", date_range)
     requests = MachineServiceRequest.objects.filter(
-        assigned_machine_id=OuterRef("pk"),
-        bucket__machine__makerspace_id=OuterRef("makerspace_id"),
+        assigned_machine_id=OuterRef("pk"), makerspace_id=OuterRef("makerspace_id"),
     ).order_by().values("assigned_machine_id")
     partial_minutes = ExpressionWrapper(
         F("estimated_minutes") * F("fail_percent_complete") / Value(100.0), output_field=FloatField()
@@ -86,7 +85,7 @@ def _machine_rows(ids, aggregate, date_range):
     )
     qs = Machine.objects.filter(
         makerspace_id__in=ids,
-        assigned_service_requests__bucket__machine__makerspace_id=F("makerspace_id"),
+        assigned_service_requests__assigned_machine__makerspace_id=F("makerspace_id"),
     ).order_by().distinct().values("id", "makerspace_id", "name", "machine_type__name").annotate(
         requested=Coalesce(Subquery(stats.values("requested")[:1], output_field=IntegerField()), Value(0)),
         completed_count=Coalesce(Subquery(stats.values("completed_count")[:1], output_field=IntegerField()), Value(0)),
@@ -105,9 +104,9 @@ def _consumption_rows(ids, aggregate, date_range):
     qualifying = (Q(outcome=ServiceRequestConsumption.Outcome.COMPLETED) & completed) | (Q(outcome=ServiceRequestConsumption.Outcome.FAILED) & failed)
     values = ["service_request__assigned_machine_id", "service_request__assigned_machine__name", "service_request__assigned_machine__machine_type__name", "measurement", "product_id", "label"]
     if aggregate:
-        values.insert(0, "service_request__bucket__machine__makerspace_id")
+        values.insert(0, "service_request__makerspace_id")
     rows = ServiceRequestConsumption.objects.filter(
-        service_request__bucket__machine__makerspace_id__in=ids,
+        service_request__makerspace_id__in=ids,
         service_request__assigned_machine__isnull=False,
     ).filter(qualifying).order_by().values(*values).annotate(
         completed_amount=Coalesce(Sum("quantity", filter=Q(outcome=ServiceRequestConsumption.Outcome.COMPLETED) & completed), Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2))),
@@ -143,7 +142,7 @@ def _failed_usage(rows):
 
 
 def _record(kind, row, aggregate):
-    makerspace_id = row.get("bucket__machine__makerspace_id", row.get("makerspace_id", row.get("service_request__bucket__machine__makerspace_id")))
+    makerspace_id = row.get("makerspace_id", row.get("service_request__makerspace_id"))
     if kind == "status":
         record = {"row_kind": kind, **{key: row[key] for key in FIELDS[1:8]}}
     elif kind == "machine":

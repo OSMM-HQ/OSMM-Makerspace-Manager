@@ -1,3 +1,4 @@
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
@@ -5,6 +6,7 @@ from django.urls import reverse
 
 from apps.accounts.models import User
 from apps.machines.models import Machine, MachineServiceRequest, MachineType
+from apps.machines.service_consumable_pools import create_pool
 from apps.machines.service_workflow import submit
 from apps.makerspaces.models import MakerspaceMembership
 from tests.return_helpers import authenticated_client, make_member, make_space, make_user
@@ -73,6 +75,25 @@ def test_manager_can_run_lifecycle_and_invalid_edge_is_conflict():
     row.refresh_from_db()
     assert row.status == MachineServiceRequest.Status.COLLECTED
     assert (response.status_code, response.data["code"]) == (409, "service_invalid_transition")
+
+
+def test_start_endpoint_reserves_requested_consumable_grams():
+    space = make_space("service-api-pool-reserve")
+    manager = make_member("service-api-pool-reserve-manager", space, MakerspaceMembership.Role.MACHINE_MANAGER)
+    row = request_row(space)
+    pool = create_pool(space, manager, material="PLA", initial_grams="50", machine=row.bucket.machine)
+    client = authenticated_client(manager)
+
+    assert client.post(action_url(row, "accept"), {}, format="json").status_code == 200
+    response = client.post(action_url(row, "start"), {
+        "machine_id": row.bucket.machine_id,
+        "consumable_pool_id": pool.pk,
+        "planned_grams": "12.50",
+    }, format="json")
+
+    row.refresh_from_db(); pool.refresh_from_db()
+    assert response.status_code == 200
+    assert (row.run_consumable_pool_id, row.reserved_grams, pool.remaining_grams) == (pool.pk, Decimal("12.50"), Decimal("37.50"))
 
 
 def test_manager_can_reject_and_fail_a_service_request():
