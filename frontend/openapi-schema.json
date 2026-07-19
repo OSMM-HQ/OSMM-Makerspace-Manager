@@ -315,6 +315,7 @@
                                 "machine-service",
                                 "machine-usage",
                                 "maintenance-activity",
+                                "member-activity",
                                 "most-lent",
                                 "qr-scans",
                                 "recently-added",
@@ -6978,6 +6979,105 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/analytics/member-activity": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_analytics_member_activity_retrieve",
+                "summary": "Get analytics report",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    }
+                ],
+                "tags": [
+                    "Analytics"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AnalyticsReportResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportError"
+                                }
+                            }
+                        },
+                        "description": "Invalid report request."
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportError"
+                                }
+                            }
+                        },
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportError"
+                                }
+                            }
+                        },
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportError"
+                                }
+                            }
+                        },
+                        "description": "Makerspace or report not found."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/analytics/most-lent": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_analytics_most_lent_retrieve",
@@ -10827,6 +10927,7 @@
                                 "machine-service",
                                 "machine-usage",
                                 "maintenance-activity",
+                                "member-activity",
                                 "most-lent",
                                 "qr-scans",
                                 "recently-added",
@@ -15453,6 +15554,7 @@
                                 "machine-service",
                                 "machine-usage",
                                 "maintenance-activity",
+                                "member-activity",
                                 "most-lent",
                                 "qr-scans",
                                 "recently-added",
@@ -25613,6 +25715,9 @@
                         "$ref": "#/components/schemas/MaintenanceActivityReport"
                     },
                     {
+                        "$ref": "#/components/schemas/MemberActivityReport"
+                    },
+                    {
                         "$ref": "#/components/schemas/FabLabHealthReport"
                     }
                 ]
@@ -32485,6 +32590,85 @@
                     "active_hardware_loans",
                     "currently_checked_in",
                     "recent_presence_sessions"
+                ]
+            },
+            "MemberActivityReport": {
+                "type": "object",
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {}
+                        }
+                    },
+                    "typed_rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MemberActivityRow"
+                        }
+                    }
+                },
+                "required": [
+                    "rows",
+                    "typed_rows"
+                ]
+            },
+            "MemberActivityRow": {
+                "type": "object",
+                "properties": {
+                    "makerspace_id": {
+                        "type": "integer"
+                    },
+                    "makerspace_name": {
+                        "type": "string"
+                    },
+                    "membership_policy": {
+                        "type": "string"
+                    },
+                    "referrals_enabled": {
+                        "type": "boolean"
+                    },
+                    "new_members": {
+                        "type": "integer",
+                        "description": "Current activated_at values in the selected [start, end) range, not event history."
+                    },
+                    "active_members": {
+                        "type": "integer",
+                        "description": "Current membership snapshot."
+                    },
+                    "revoked_members": {
+                        "type": "integer",
+                        "description": "Current revoked_at values in the selected [start, end) range, not event history."
+                    },
+                    "pending_requests": {
+                        "type": "integer",
+                        "description": "Current membership-request snapshot."
+                    },
+                    "open_invites": {
+                        "type": "integer",
+                        "description": "Current membership-request snapshot."
+                    },
+                    "referred_joins": {
+                        "type": "integer",
+                        "description": "Active automatic referrals with decided_at in the selected [start, end) range."
+                    },
+                    "verified_members": {
+                        "type": "integer",
+                        "description": "Current verified_at snapshot."
+                    }
+                },
+                "required": [
+                    "active_members",
+                    "makerspace_name",
+                    "membership_policy",
+                    "new_members",
+                    "open_invites",
+                    "pending_requests",
+                    "referrals_enabled",
+                    "referred_joins",
+                    "revoked_members",
+                    "verified_members"
                 ]
             },
             "MemberEventRegistrationActivity": {

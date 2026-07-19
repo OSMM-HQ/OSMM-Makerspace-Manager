@@ -98,5 +98,6 @@ from apps.operations.serializers_reports_fablab import (  # noqa: E402
     FabLabHealthReportSerializer,
     MachineUsageReportSerializer,
     MaintenanceActivityReportSerializer,
+    MemberActivityReportSerializer,
     ReportErrorSerializer,
 )

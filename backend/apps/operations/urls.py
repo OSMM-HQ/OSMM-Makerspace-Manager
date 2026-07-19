@@ -45,6 +45,7 @@ urlpatterns = [
     path("admin/makerspace/<int:makerspace_id>/analytics/event-attendance", views.AnalyticsView.as_view(), {"report_key": "event-attendance"}, name="analytics-event-attendance"),
     path("admin/makerspace/<int:makerspace_id>/analytics/booking-utilization", views.AnalyticsView.as_view(), {"report_key": "booking-utilization"}, name="analytics-booking-utilization"),
     path("admin/makerspace/<int:makerspace_id>/analytics/maintenance-activity", views.AnalyticsView.as_view(), {"report_key": "maintenance-activity"}, name="analytics-maintenance-activity"),
+    path("admin/makerspace/<int:makerspace_id>/analytics/member-activity", views.AnalyticsView.as_view(), {"report_key": "member-activity"}, name="analytics-member-activity"),
     path("admin/makerspace/<int:makerspace_id>/analytics/fablab-health", views.AnalyticsView.as_view(), {"report_key": "fablab-health"}, name="analytics-fablab-health"),
     path("admin/makerspace/<int:makerspace_id>/reports/<slug:report_key>/export", views.ReportExportView.as_view(), name="report-export"),
     path("admin/makerspace/<int:makerspace_id>/qr-print-batches", views.QrPrintBatchListCreateView.as_view(), name="qr-print-batches"),

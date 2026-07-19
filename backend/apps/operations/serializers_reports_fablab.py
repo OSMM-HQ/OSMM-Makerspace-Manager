@@ -85,6 +85,19 @@ class FabLabHealthRowSerializer(TypedReportBaseSerializer):
     maintenance_overdue_schedules = serializers.IntegerField(allow_null=True)
 
 
+class MemberActivityRowSerializer(TypedReportBaseSerializer):
+    makerspace_name = serializers.CharField()
+    membership_policy = serializers.CharField()
+    referrals_enabled = serializers.BooleanField()
+    new_members = serializers.IntegerField(help_text="Current activated_at values in the selected [start, end) range, not event history.")
+    active_members = serializers.IntegerField(help_text="Current membership snapshot.")
+    revoked_members = serializers.IntegerField(help_text="Current revoked_at values in the selected [start, end) range, not event history.")
+    pending_requests = serializers.IntegerField(help_text="Current membership-request snapshot.")
+    open_invites = serializers.IntegerField(help_text="Current membership-request snapshot.")
+    referred_joins = serializers.IntegerField(help_text="Active automatic referrals with decided_at in the selected [start, end) range.")
+    verified_members = serializers.IntegerField(help_text="Current verified_at snapshot.")
+
+
 def _report_serializer(name, row_serializer):
     return type(name, (ReportRowsFieldMixin,), {"typed_rows": row_serializer(many=True)})
 
@@ -94,6 +107,7 @@ EventAttendanceReportSerializer = _report_serializer("EventAttendanceReportSeria
 BookingUtilizationReportSerializer = _report_serializer("BookingUtilizationReportSerializer", BookingUtilizationRowSerializer)
 MaintenanceActivityReportSerializer = _report_serializer("MaintenanceActivityReportSerializer", MaintenanceActivityRowSerializer)
 FabLabHealthReportSerializer = _report_serializer("FabLabHealthReportSerializer", FabLabHealthRowSerializer)
+MemberActivityReportSerializer = _report_serializer("MemberActivityReportSerializer", MemberActivityRowSerializer)
 
 
 class ReportErrorSerializer(serializers.Serializer):

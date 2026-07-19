@@ -156,6 +156,7 @@ export const openApiPaths = [
   "/api/v1/admin/makerspace/{makerspace_id}/analytics/fablab-health",
   "/api/v1/admin/makerspace/{makerspace_id}/analytics/machine-usage",
   "/api/v1/admin/makerspace/{makerspace_id}/analytics/maintenance-activity",
+  "/api/v1/admin/makerspace/{makerspace_id}/analytics/member-activity",
   "/api/v1/admin/makerspace/{makerspace_id}/analytics/most-lent",
   "/api/v1/admin/makerspace/{makerspace_id}/analytics/qr-scans",
   "/api/v1/admin/makerspace/{makerspace_id}/analytics/recently-added",
