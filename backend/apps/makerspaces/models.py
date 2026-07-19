@@ -97,6 +97,11 @@ def presence_presets(makerspace):
 
 
 class Makerspace(models.Model):
+    class MembershipPolicy(models.TextChoices):
+        REQUEST = "request", "Request"
+        OPEN = "open", "Open"
+        INVITE_ONLY = "invite_only", "Invite only"
+
     class DomainStatus(models.TextChoices):
         PENDING = "pending", "Pending"
         VERIFIED = "verified", "Verified"
@@ -129,6 +134,12 @@ class Makerspace(models.Model):
         choices=PublicPrintStatusLookupPolicy.choices,
         default=PublicPrintStatusLookupPolicy.TOKEN_ONLY,
     )
+    membership_policy = models.CharField(
+        max_length=16,
+        choices=MembershipPolicy.choices,
+        default=MembershipPolicy.REQUEST,
+    )
+    referrals_enabled = models.BooleanField(default=False)
     # 0 = off. When > 0, active filament spools at/below this remaining weight
     # can auto-create a printing procurement item.
     filament_low_stock_threshold_grams = models.DecimalField(
@@ -316,6 +327,16 @@ class MakerspaceMembership(models.Model):
     # existing behavior (every relevant manager is notified); the space manager can turn
     # an individual manager off in Settings without removing their access.
     receives_notifications = models.BooleanField(default=True)
+    can_refer = models.BooleanField(default=True)
+    can_verify = models.BooleanField(default=False)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    verified_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="verified_memberships",
+    )
     status = models.CharField(
         max_length=16,
         choices=(("active", "Active"), ("revoked", "Revoked")),
@@ -477,6 +498,7 @@ class MembershipRequest(models.Model):
     invited_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="invited_memberships")
     decided_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="decided_membership_requests")
     assigned_role = models.ForeignKey("makerspaces.MakerspaceRole", null=True, blank=True, on_delete=models.PROTECT, related_name="membership_requests")
+    auto_activate_on_claim = models.BooleanField(default=False)
     decision_note = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     decided_at = models.DateTimeField(null=True, blank=True)
