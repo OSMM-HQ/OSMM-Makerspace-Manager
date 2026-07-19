@@ -57,11 +57,15 @@ def test_user_payload_scopes_memberships_to_branded_staff_origin_and_excludes_ar
             "slug": space_a.slug,
             "role": MakerspaceMembership.Role.SPACE_MANAGER,
             "role_id": None,
-            "role_name": "Space Manager",
-            "role_slug": MakerspaceMembership.Role.SPACE_MANAGER,
-            "actions": sorted(rbac.effective_actions(user, space_a.id)),
-        }
-    ]
+                "role_name": "Space Manager",
+                "role_slug": MakerspaceMembership.Role.SPACE_MANAGER,
+                "actions": sorted(rbac.effective_actions(user, space_a.id)),
+                "can_refer": True,
+                "can_verify": False,
+                "verified_at": None,
+                "referrals_enabled": False,
+            }
+        ]
 
 
 def test_user_payload_without_origin_keeps_all_non_archived_memberships():
