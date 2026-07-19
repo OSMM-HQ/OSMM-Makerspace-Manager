@@ -6,6 +6,7 @@ import { DataState, StatCards } from "./OperationsReportsParts";
 import { OperationsReportsFablab } from "./OperationsReportsFablab";
 import { OperationsReportsHardware } from "./OperationsReportsHardware";
 import { OperationsReportsMachineService } from "./OperationsReportsMachineService";
+import { OperationsReportsMembers } from "./OperationsReportsMembers";
 import { PrintingReportSection } from "./OperationsReportsPrinting";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 
@@ -30,6 +31,7 @@ const reportDefinitions = [
   { key: "event-attendance", title: "Event attendance" },
   { key: "booking-utilization", title: "Booking utilization" },
   { key: "maintenance-activity", title: "Maintenance activity" },
+  { key: "member-activity", title: "Member activity" },
   { key: "fablab-health", title: "FabLab health" },
 ] as const;
 
@@ -287,6 +289,7 @@ export function OperationsReports({
       </Panel>
 
       <OperationsReportsHardware analyticsBase={analyticsBase} scopeKey={scopeKey} startDate={startDate} endDate={endDate} enabled={hardwareEnabled} aggregate={aggregate} makerspaceName={makerspaceName} />
+      <OperationsReportsMembers makerspaceId={makerspace.id} aggregate={aggregate} startDate={startDate} endDate={endDate} enabled={hardwareEnabled} />
       </>
       ) : null}
 
