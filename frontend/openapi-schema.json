@@ -14003,6 +14003,110 @@
                 }
             }
         },
+        "/api/v1/admin/memberships/{id}/capabilities": {
+            "patch": {
+                "operationId": "api_v1_admin_memberships_capabilities_partial_update",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin memberships"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMembershipCapabilities"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMembershipCapabilities"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMembershipCapabilities"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AdminMembership"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/memberships/{id}/revoke": {
             "post": {
                 "operationId": "api_v1_admin_memberships_revoke_create",
@@ -14142,6 +14246,176 @@
                         }
                     }
                 },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AdminMembership"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/memberships/{id}/unverify": {
+            "post": {
+                "operationId": "api_v1_admin_memberships_unverify_create",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin memberships"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AdminMembership"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/memberships/{id}/verify": {
+            "post": {
+                "operationId": "api_v1_admin_memberships_verify_create",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin memberships"
+                ],
                 "security": [
                     {
                         "jwtAuth": []
@@ -19037,7 +19311,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/InvitationClaimResponse"
+                                    "$ref": "#/components/schemas/InvitationClaimOutcome"
                                 }
                             }
                         },
@@ -19082,8 +19356,33 @@
                             }
                         },
                         "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/memberships/invitations": {
+            "get": {
+                "operationId": "api_v1_memberships_invitations_retrieve",
+                "tags": [
+                    "Memberships"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InvitationList"
+                                }
+                            }
+                        },
+                        "description": ""
                     },
-                    "409": {
+                    "400": {
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -19093,7 +19392,102 @@
                         },
                         "description": ""
                     },
-                    "429": {
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/memberships/invitations/{id}/claim": {
+            "post": {
+                "operationId": "api_v1_memberships_invitations_claim_create",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Memberships"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/InvitationClaimOutcome"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -19122,7 +19516,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                    "$ref": "#/components/schemas/MyMemberships"
                                 }
                             }
                         },
@@ -23449,7 +23843,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                    "$ref": "#/components/schemas/MembershipOutcome"
                                 }
                             }
                         },
@@ -24887,6 +25281,17 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "can_refer": {
+                        "type": "boolean"
+                    },
+                    "can_verify": {
+                        "type": "boolean"
+                    },
+                    "verified_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
                     "activated_at": {
                         "type": "string",
                         "format": "date-time",
@@ -25779,16 +26184,34 @@
                         "items": {
                             "type": "string"
                         }
+                    },
+                    "can_refer": {
+                        "type": "boolean"
+                    },
+                    "can_verify": {
+                        "type": "boolean"
+                    },
+                    "verified_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "referrals_enabled": {
+                        "type": "boolean"
                     }
                 },
                 "required": [
                     "actions",
+                    "can_refer",
+                    "can_verify",
                     "id",
+                    "referrals_enabled",
                     "role",
                     "role_id",
                     "role_name",
                     "role_slug",
-                    "slug"
+                    "slug",
+                    "verified_at"
                 ]
             },
             "AuthUserPayload": {
@@ -26634,6 +27057,36 @@
                 ],
                 "type": "string",
                 "description": "* `email` - Email\n* `telegram` - Telegram\n* `slack` - Slack\n* `mattermost` - Mattermost"
+            },
+            "ClaimableInvitation": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "makerspace": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    },
+                    "inviter": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "auto_activates": {
+                        "type": "boolean"
+                    },
+                    "role": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "auto_activates",
+                    "id",
+                    "inviter",
+                    "makerspace",
+                    "role"
+                ]
             },
             "ClientTypeEnum": {
                 "enum": [
@@ -29379,19 +29832,41 @@
                     "role_id"
                 ]
             },
-            "InvitationClaimResponse": {
+            "InvitationClaimOutcome": {
                 "type": "object",
                 "properties": {
                     "id": {
                         "type": "integer"
                     },
-                    "state": {
-                        "type": "string"
+                    "outcome": {
+                        "$ref": "#/components/schemas/InvitationClaimOutcomeOutcomeEnum"
                     }
                 },
                 "required": [
                     "id",
-                    "state"
+                    "outcome"
+                ]
+            },
+            "InvitationClaimOutcomeOutcomeEnum": {
+                "enum": [
+                    "active",
+                    "pending_approval"
+                ],
+                "type": "string",
+                "description": "* `active` - active\n* `pending_approval` - pending_approval"
+            },
+            "InvitationList": {
+                "type": "object",
+                "properties": {
+                    "invitations": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ClaimableInvitation"
+                        }
+                    }
+                },
+                "required": [
+                    "invitations"
                 ]
             },
             "IssueReject": {
@@ -31288,6 +31763,12 @@
                     "public_print_status_lookup_policy": {
                         "$ref": "#/components/schemas/PublicPrintStatusLookupPolicyEnum"
                     },
+                    "membership_policy": {
+                        "$ref": "#/components/schemas/MembershipPolicyEnum"
+                    },
+                    "referrals_enabled": {
+                        "type": "boolean"
+                    },
                     "filament_low_stock_threshold_grams": {
                         "type": "string",
                         "format": "decimal",
@@ -32312,6 +32793,44 @@
                     "user"
                 ]
             },
+            "MembershipOutcome": {
+                "type": "object",
+                "properties": {
+                    "outcome": {
+                        "$ref": "#/components/schemas/MembershipOutcomeOutcomeEnum"
+                    },
+                    "membership_id": {
+                        "type": "integer"
+                    },
+                    "request_id": {
+                        "type": "integer"
+                    },
+                    "state": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "outcome",
+                    "state"
+                ]
+            },
+            "MembershipOutcomeOutcomeEnum": {
+                "enum": [
+                    "joined",
+                    "requested"
+                ],
+                "type": "string",
+                "description": "* `joined` - joined\n* `requested` - requested"
+            },
+            "MembershipPolicyEnum": {
+                "enum": [
+                    "request",
+                    "open",
+                    "invite_only"
+                ],
+                "type": "string",
+                "description": "* `request` - Request\n* `open` - Open\n* `invite_only` - Invite only"
+            },
             "MembershipRequest": {
                 "type": "object",
                 "properties": {
@@ -32642,6 +33161,100 @@
                 ],
                 "type": "string",
                 "description": "* `active` - active\n* `maintenance` - maintenance\n* `offline` - offline"
+            },
+            "MyMembershipRequest": {
+                "type": "object",
+                "properties": {
+                    "makerspace": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    },
+                    "state": {
+                        "type": "string"
+                    },
+                    "kind": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "kind",
+                    "makerspace",
+                    "state"
+                ]
+            },
+            "MyMembershipRow": {
+                "type": "object",
+                "properties": {
+                    "makerspace": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    },
+                    "membership_status": {
+                        "type": "string"
+                    },
+                    "role": {
+                        "type": "string"
+                    },
+                    "actions": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
+                    "can_refer": {
+                        "type": "boolean"
+                    },
+                    "can_verify": {
+                        "type": "boolean"
+                    },
+                    "verified_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "referrals_enabled": {
+                        "type": "boolean"
+                    },
+                    "waiver_accepted": {
+                        "type": "boolean"
+                    },
+                    "waiver_acceptance_required": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "actions",
+                    "can_refer",
+                    "can_verify",
+                    "makerspace",
+                    "membership_status",
+                    "referrals_enabled",
+                    "role",
+                    "verified_at",
+                    "waiver_acceptance_required",
+                    "waiver_accepted"
+                ]
+            },
+            "MyMemberships": {
+                "type": "object",
+                "properties": {
+                    "memberships": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MyMembershipRow"
+                        }
+                    },
+                    "requests": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MyMembershipRequest"
+                        }
+                    }
+                },
+                "required": [
+                    "memberships",
+                    "requests"
+                ]
             },
             "NeedsFixAction": {
                 "type": "object",
@@ -34659,6 +35272,12 @@
                     "public_print_status_lookup_policy": {
                         "$ref": "#/components/schemas/PublicPrintStatusLookupPolicyEnum"
                     },
+                    "membership_policy": {
+                        "$ref": "#/components/schemas/MembershipPolicyEnum"
+                    },
+                    "referrals_enabled": {
+                        "type": "boolean"
+                    },
                     "filament_low_stock_threshold_grams": {
                         "type": "string",
                         "format": "decimal",
@@ -34836,6 +35455,17 @@
                         "type": "string",
                         "format": "date-time",
                         "readOnly": true
+                    }
+                }
+            },
+            "PatchedMembershipCapabilities": {
+                "type": "object",
+                "properties": {
+                    "can_refer": {
+                        "type": "boolean"
+                    },
+                    "can_verify": {
+                        "type": "boolean"
                     }
                 }
             },
@@ -40059,6 +40689,9 @@
                     },
                     "public_stats_enabled": {
                         "type": "boolean"
+                    },
+                    "membership_policy": {
+                        "$ref": "#/components/schemas/MembershipPolicyEnum"
                     }
                 },
                 "required": [
@@ -40067,6 +40700,7 @@
                     "location",
                     "logo_url",
                     "map_url",
+                    "membership_policy",
                     "name",
                     "public_code",
                     "public_stats_enabled",

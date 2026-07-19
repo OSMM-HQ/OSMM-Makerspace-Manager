@@ -6,7 +6,7 @@ import { bootstrapTenant, refreshAccessToken, setAccessToken, StructuredApiError
 import { LoginPanel } from "../staff/LoginPanel";
 import { MemberActivityPanel, type MemberActivity } from "./MemberActivity";
 
-type Membership = { makerspace: { slug: string; name: string }; membership_status: string; role: string; waiver_acceptance_required: boolean };
+type Membership = { makerspace: { slug: string; name: string }; membership_status: string; role: string; waiver_acceptance_required: boolean; can_refer: boolean; can_verify: boolean; verified_at: string | null; referrals_enabled: boolean };
 type Memberships = { memberships: Membership[]; requests: { makerspace: { slug: string; name: string }; state: string; kind: string }[] };
 type Waiver = { has_waiver: boolean; body?: string; version?: string };
 type Presence = { active: boolean; session: { expires_at: string } | null };

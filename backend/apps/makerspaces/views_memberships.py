@@ -10,9 +10,13 @@ from rest_framework.views import APIView
 from apps.admin_api.permissions import active_user
 from apps.accounts.models import User
 from apps.hardware_requests.exceptions import ErrorSerializer
-from apps.makerspaces.membership_services import claim_invitation, request_membership
+from apps.makerspaces.membership_services import request_membership
 from apps.makerspaces.models import Makerspace, MakerspaceMembership, MakerspaceWaiver, MembershipRequest
-from apps.makerspaces.serializers_memberships import MembershipRequestCreateSerializer
+from apps.makerspaces.serializers_memberships import (
+    MembershipOutcomeSerializer,
+    MembershipRequestCreateSerializer,
+    MyMembershipsSerializer,
+)
 from apps.makerspaces.waiver_services import accept_waiver
 
 ERRORS = {400: ErrorSerializer, 401: ErrorSerializer, 403: ErrorSerializer, 404: ErrorSerializer, 409: ErrorSerializer, 429: ErrorSerializer}
@@ -32,21 +36,25 @@ class PublicMembershipRequestView(APIView):
     throttle_classes = [ScopedRateThrottle]
     throttle_scope = "membership_request"
 
-    @extend_schema(tags=["Memberships"], request=MembershipRequestCreateSerializer, responses={201: ErrorSerializer, **ERRORS})
+    @extend_schema(
+        tags=["Memberships"],
+        request=MembershipRequestCreateSerializer,
+        responses={201: MembershipOutcomeSerializer, **ERRORS},
+    )
     def post(self, request, makerspace_slug):
         if not active_user(request.user):
             raise PermissionDenied()
         makerspace = get_object_or_404(Makerspace.objects.filter(archived_at__isnull=True), slug=makerspace_slug)
         serializer = MembershipRequestCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        created = request_membership(request.user, makerspace)
-        return Response({"id": created.id, "state": created.state}, status=201)
+        outcome = request_membership(request.user, makerspace)
+        return Response(MembershipOutcomeSerializer(outcome).data, status=201)
 
 
 class MyMembershipsView(APIView):
     permission_classes = [IsAuthenticated]
 
-    @extend_schema(tags=["Memberships"], responses={200: ErrorSerializer, **ERRORS})
+    @extend_schema(tags=["Memberships"], responses={200: MyMembershipsSerializer, **ERRORS})
     def get(self, request):
         if not active_user(request.user):
             raise PermissionDenied()
@@ -59,23 +67,16 @@ class MyMembershipsView(APIView):
                          "membership_status": membership.status,
                          "role": membership.assigned_role.name if membership.assigned_role_id else membership.get_role_display(),
                          "actions": sorted(membership.assigned_role.granted_actions) if membership.assigned_role_id else [],
+                         "can_refer": membership.can_refer,
+                         "can_verify": membership.can_verify,
+                         "verified_at": membership.verified_at,
+                         "referrals_enabled": membership.makerspace.referrals_enabled,
                          "waiver_accepted": bool(membership.waiver_accepted_at),
                          "waiver_acceptance_required": bool(active and membership.waiver_version_accepted != active.version)})
         return Response({"memberships": rows, "requests": [
             {"makerspace": {"slug": item.makerspace.slug, "name": item.makerspace.name}, "state": item.state, "kind": item.kind}
             for item in requests
         ]})
-
-
-class InvitationClaimView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    @extend_schema(request=None, tags=["Memberships"], responses={200: inline_serializer("InvitationClaimResponse", {"id": serializers.IntegerField(), "state": serializers.CharField()}), **ERRORS})
-    def post(self, request, pk):
-        if not active_user(request.user):
-            raise PermissionDenied()
-        invitation = claim_invitation(request.user, pk)
-        return Response({"id": invitation.id, "state": invitation.state})
 
 
 class MemberWaiverView(APIView):

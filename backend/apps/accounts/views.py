@@ -40,6 +40,10 @@ AuthMembershipSerializer = inline_serializer(
         "role_name": serializers.CharField(),
         "role_slug": serializers.CharField(),
         "actions": serializers.ListField(child=serializers.CharField()),
+        "can_refer": serializers.BooleanField(),
+        "can_verify": serializers.BooleanField(),
+        "verified_at": serializers.DateTimeField(allow_null=True),
+        "referrals_enabled": serializers.BooleanField(),
     },
 )
 UserPayloadSerializer = inline_serializer(

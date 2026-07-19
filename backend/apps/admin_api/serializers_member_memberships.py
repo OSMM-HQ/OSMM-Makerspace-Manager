@@ -22,7 +22,7 @@ class AdminMembershipSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MakerspaceMembership
-        fields = ("id", "status", "user", "assigned_role", "activated_at", "revoked_at", "revocation_reason", "waiver_accepted_at", "waiver_version_accepted", "waiver_current")
+        fields = ("id", "status", "user", "assigned_role", "can_refer", "can_verify", "verified_at", "activated_at", "revoked_at", "revocation_reason", "waiver_accepted_at", "waiver_version_accepted", "waiver_current")
 
     def get_user(self, obj):
         return {"id": obj.user_id, "username": obj.user.username, "email": obj.user.email, "display_name": obj.user.display_name}
@@ -35,6 +35,16 @@ class AdminMembershipSerializer(serializers.ModelSerializer):
     def get_waiver_current(self, obj):
         version = self.context.get("active_waiver_version")
         return bool(version and obj.waiver_version_accepted == version)
+
+
+class MembershipCapabilitiesSerializer(serializers.Serializer):
+    can_refer = serializers.BooleanField(required=False)
+    can_verify = serializers.BooleanField(required=False)
+
+    def validate(self, attrs):
+        if not attrs:
+            raise serializers.ValidationError("Provide at least one capability.")
+        return attrs
 
 
 class MembershipRequestSerializer(serializers.ModelSerializer):

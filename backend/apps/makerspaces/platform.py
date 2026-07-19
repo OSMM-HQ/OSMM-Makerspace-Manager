@@ -104,6 +104,7 @@ def bootstrap_payload(makerspace):
             "logo_url": logo_url,
             "cover_image_url": cover_image_url,
             "public_stats_enabled": makerspace.public_stats_enabled,
+            "membership_policy": makerspace.membership_policy,
         },
         "frontend": {
             "type": "makerspace",

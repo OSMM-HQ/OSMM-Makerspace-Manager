@@ -123,6 +123,11 @@ from apps.admin_api.views_member_memberships import (
     AdminMembershipRoleM2View, AdminMembershipRosterView, AdminRequestApproveView,
     AdminRequestRevokeView, AdminWaiverView,
 )
+from apps.admin_api.views_member_capabilities import (
+    AdminMembershipCapabilitiesView,
+    AdminMembershipUnverifyView,
+    AdminMembershipVerifyView,
+)
 from apps.admin_api.views_roles import CapabilityCatalogView, RoleDetailView, RoleListCreateView
 from apps.printing.views_printer_image import PrinterImageView
 from apps.presence.views import PresenceRosterView
@@ -140,6 +145,9 @@ urlpatterns = [
     path("membership-requests/<int:pk>/revoke", AdminRequestRevokeView.as_view(), name="admin-membership-request-revoke"),
     path("memberships/<int:pk>/revoke", AdminMembershipRevokeM2View.as_view(), name="admin-membership-revoke-m2"),
     path("memberships/<int:pk>/role", AdminMembershipRoleM2View.as_view(), name="admin-membership-role-m2"),
+    path("memberships/<int:pk>/capabilities", AdminMembershipCapabilitiesView.as_view(), name="admin-membership-capabilities"),
+    path("memberships/<int:pk>/verify", AdminMembershipVerifyView.as_view(), name="admin-membership-verify"),
+    path("memberships/<int:pk>/unverify", AdminMembershipUnverifyView.as_view(), name="admin-membership-unverify"),
     path("makerspaces/<int:makerspace_id>/waiver", AdminWaiverView.as_view(), name="admin-makerspace-waiver"),
     path("makerspace/<int:makerspace_id>/machine-service-report", MakerspaceMachineServiceReportView.as_view(), name="admin-makerspace-machine-service-report"),
     path("machine-service-report", SuperadminMachineServiceReportView.as_view(), name="admin-machine-service-report"),

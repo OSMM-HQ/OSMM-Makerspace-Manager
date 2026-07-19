@@ -56,6 +56,10 @@ def test_seeded_default_role_includes_metadata_and_effective_actions():
         "role_name": membership.assigned_role.name,
         "role_slug": membership.assigned_role.slug,
         "actions": sorted(rbac.effective_actions(user, makerspace.id)),
+        "can_refer": True,
+        "can_verify": False,
+        "verified_at": None,
+        "referrals_enabled": False,
     }
     assert payload["actions"] == sorted(membership.assigned_role.granted_actions)
 

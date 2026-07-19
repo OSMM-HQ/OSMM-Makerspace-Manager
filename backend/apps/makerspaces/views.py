@@ -9,6 +9,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.makerspaces.models import Makerspace
 from apps.makerspaces.platform import bootstrap_payload, resolve_frontend
 
 TenantBootstrapSerializer = inline_serializer(
@@ -28,6 +29,9 @@ TenantBootstrapSerializer = inline_serializer(
                     allow_blank=True, allow_null=True
                 ),
                 "public_stats_enabled": serializers.BooleanField(),
+                "membership_policy": serializers.ChoiceField(
+                    choices=Makerspace.MembershipPolicy.choices
+                ),
             },
         ),
         "frontend": inline_serializer(

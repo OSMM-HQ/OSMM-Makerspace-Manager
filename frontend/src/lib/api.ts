@@ -24,6 +24,7 @@ export type TenantBootstrap = {
     logo_url?: string | null;
     cover_image_url?: string | null;
     public_stats_enabled?: boolean;
+    membership_policy: "request" | "open" | "invite_only";
   };
   frontend: {
     type: string;
@@ -55,6 +56,10 @@ export type StaffAuthUser = {
     role_name: string;
     role_slug: string;
     actions: string[];
+    can_refer: boolean;
+    can_verify: boolean;
+    verified_at: string | null;
+    referrals_enabled: boolean;
   }[];
 };
 

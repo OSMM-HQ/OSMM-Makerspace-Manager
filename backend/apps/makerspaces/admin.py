@@ -236,7 +236,7 @@ class MakerspaceMembershipAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     list_filter = ("makerspace", "role")
     search_fields = ("user__username", "user__email")
     autocomplete_fields = ("user", "makerspace")
-    readonly_fields = ("created_at",)
+    readonly_fields = ("can_refer", "can_verify", "verified_at", "verified_by", "created_at")
 
 
 @admin.register(MakerspaceWaiver)

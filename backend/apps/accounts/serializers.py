@@ -61,6 +61,10 @@ def user_payload(user, request=None):
                     else m.role
                 ),
                 "actions": _membership_actions(m),
+                "can_refer": m.can_refer,
+                "can_verify": m.can_verify,
+                "verified_at": m.verified_at,
+                "referrals_enabled": m.makerspace.referrals_enabled,
             }
             for m in memberships
         ],
