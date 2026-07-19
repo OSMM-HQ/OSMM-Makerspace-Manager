@@ -19,8 +19,42 @@ function literal(value) {
   return JSON.stringify(value, null, 2);
 }
 
+function typeName(reference) {
+  return reference.split("/").at(-1);
+}
+
+function schemaType(schema = {}) {
+  const nullable = schema.nullable ? " | null" : "";
+  if (schema.$ref) return `${typeName(schema.$ref)}${nullable}`;
+  if (schema.enum) return `${schema.enum.map((value) => JSON.stringify(value)).join(" | ")}${nullable}`;
+  if (schema.allOf) return `${schema.allOf.map(schemaType).join(" & ")}${nullable}`;
+  if (schema.oneOf || schema.anyOf) return `${(schema.oneOf ?? schema.anyOf).map(schemaType).join(" | ")}${nullable}`;
+  if (schema.type === "array") return `Array<${schemaType(schema.items)}>${nullable}`;
+  if (schema.type === "object" || schema.properties) {
+    const properties = Object.entries(schema.properties ?? {});
+    const required = new Set(schema.required ?? []);
+    const fields = properties.map(([name, value]) => `  ${JSON.stringify(name)}${required.has(name) ? "" : "?"}: ${schemaType(value)};`);
+    if (schema.additionalProperties && schema.additionalProperties !== true) {
+      fields.push(`  [key: string]: ${schemaType(schema.additionalProperties)};`);
+    }
+    return `${fields.length ? `{\n${fields.join("\n")}\n}` : "Record<string, unknown>"}${nullable}`;
+  }
+  if (schema.type === "integer" || schema.type === "number") return `number${nullable}`;
+  if (schema.type === "boolean") return `boolean${nullable}`;
+  if (schema.type === "string") return `string${nullable}`;
+  return `unknown${nullable}`;
+}
+
+function schemaTypes(schemas) {
+  return Object.entries(schemas ?? {})
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([name, schema]) => `export type ${name} = ${schemaType(schema)};`)
+    .join("\n\n");
+}
+
 const schema = await readSchema();
 const paths = Object.keys(schema.paths ?? {}).sort();
+const types = schemaTypes(schema.components?.schemas);
 const tags = Array.from(
   new Set(
     paths.flatMap((path) =>
@@ -42,6 +76,10 @@ export const openApiTags = ${literal(tags)} as const;
 export const openApiPaths = ${literal(paths)} as const;
 
 export type ApiPath = (typeof openApiPaths)[number];
+
+// Schema types generated from the same OpenAPI contract as the route constants.
+// Use these at API boundaries so console code cannot silently drift from DRF serializers.
+${types}
 
 export class MakerspaceApiClient {
   constructor(

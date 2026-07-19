@@ -26,6 +26,8 @@ export type Makerspace = {
   booking_requester_notifications_enabled?: boolean;
   public_stats_enabled?: boolean;
   public_print_status_lookup_policy?: "token_only" | "email_unverified";
+  membership_policy?: "request" | "open" | "invite_only";
+  referrals_enabled?: boolean;
   filament_low_stock_threshold_grams?: string | number;
   logo_url?: string | null;
   cover_image_url?: string | null;

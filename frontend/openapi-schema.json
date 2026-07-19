@@ -25376,11 +25376,20 @@
                         "$ref": "#/components/schemas/Status37fEnum"
                     },
                     "user": {
-                        "type": "string",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AdminMembershipUser"
+                            }
+                        ],
                         "readOnly": true
                     },
                     "assigned_role": {
-                        "type": "string",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/AdminMembershipRole"
+                            }
+                        ],
+                        "nullable": true,
                         "readOnly": true
                     },
                     "can_refer": {
@@ -25418,7 +25427,7 @@
                         "maxLength": 64
                     },
                     "waiver_current": {
-                        "type": "string",
+                        "type": "boolean",
                         "readOnly": true
                     }
                 },
@@ -25427,6 +25436,49 @@
                     "id",
                     "user",
                     "waiver_current"
+                ]
+            },
+            "AdminMembershipRole": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "slug": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name",
+                    "slug"
+                ]
+            },
+            "AdminMembershipUser": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "username": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email"
+                    },
+                    "display_name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "display_name",
+                    "email",
+                    "id",
+                    "username"
                 ]
             },
             "AdminRequest": {
@@ -33035,11 +33087,21 @@
                         "maxLength": 254
                     },
                     "user": {
-                        "type": "string",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MembershipRequestUser"
+                            }
+                        ],
+                        "nullable": true,
                         "readOnly": true
                     },
                     "assigned_role": {
-                        "type": "string",
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/MembershipRequestRole"
+                            }
+                        ],
+                        "nullable": true,
                         "readOnly": true
                     },
                     "decision_note": {
@@ -33081,6 +33143,41 @@
                 ],
                 "type": "string",
                 "description": "* `request` - Request\n* `invite` - Invite"
+            },
+            "MembershipRequestRole": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "id",
+                    "name"
+                ]
+            },
+            "MembershipRequestUser": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "username": {
+                        "type": "string"
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email"
+                    }
+                },
+                "required": [
+                    "email",
+                    "id",
+                    "username"
+                ]
             },
             "MembershipRoleSummary": {
                 "type": "object",

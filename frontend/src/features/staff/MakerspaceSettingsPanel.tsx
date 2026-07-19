@@ -11,6 +11,7 @@ import { MakerspaceFilamentSettings } from "./MakerspaceFilamentSettings";
 import { MakerspaceGeneralSettings } from "./MakerspaceGeneralSettings";
 import { IntegrationHealthPanel } from "./IntegrationHealthPanel";
 import { MakerspaceLocationSettings } from "./MakerspaceLocationSettings";
+import { MakerspaceMembershipSettings } from "./MakerspaceMembershipSettings";
 import { MakerspaceModuleSettings } from "./MakerspaceModuleSettings";
 import { MakerspaceSubdomainSettings } from "./MakerspaceSubdomainSettings";
 import { MakerspaceWebhookSettings } from "./MakerspaceWebhookSettings";
@@ -118,6 +119,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
           settings={settings.data}
           loading={settings.isLoading}
         />
+        <MakerspaceMembershipSettings makerspace={makerspace} settings={settings.data} loading={settings.isLoading} />
         <IntegrationHealthPanel makerspace={makerspace} />
         <div className="min-w-0 rounded-md border border-line bg-bg p-4">
           <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
