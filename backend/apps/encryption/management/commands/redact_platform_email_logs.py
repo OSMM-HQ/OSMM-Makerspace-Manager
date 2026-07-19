@@ -2,7 +2,6 @@
 
 from uuid import UUID
 
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.db import connection, transaction
@@ -31,8 +30,6 @@ class Command(BaseCommand):
         ).first()
         if actor is None:
             raise CommandError("--actor-id must reference an active superuser.")
-        if not settings.PII_ENCRYPTION_ENABLED:
-            raise CommandError("PII_ENCRYPTION_ENABLED must be enabled before redaction.")
         operation = self._operation(options)
         pending = self._pending_count()
         if options["dry_run"]:

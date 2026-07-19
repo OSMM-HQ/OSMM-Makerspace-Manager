@@ -174,7 +174,9 @@ class Command(BaseCommand):
                 row.email_exact_hash is not None or row.email_hash_generation_id is not None
             ):
                 raise CommandError("Rollback verification found an event hash.")
-        if PiiBlindIndex.objects.filter(makerspace_id=makerspace_id).exists():
+        if PiiBlindIndex.objects.filter(
+            makerspace_id=makerspace_id, model_label=model._meta.label
+        ).exists():
             raise CommandError("Rollback verification found blind-index rows.")
 
     def _verify_global(self):

@@ -12,7 +12,7 @@ from django.db import DatabaseError, connection, models, transaction
 from django.test import override_settings
 
 from apps.encryption.crypto import LegacyPlaintextRejected, is_envelope
-from apps.encryption.models import PiiBlindIndex
+from apps.encryption.models import PiiBlindIndex, SearchKeyGeneration
 from apps.encryption.write_fence import PiiWriteFenced, close_global, reopen
 from apps.hardware_requests.models import HardwareRequest
 from apps.integrations.models import EmailLog
@@ -64,6 +64,16 @@ def test_flag_off_mutations_refuse_then_closed_enable_transition_redacts_platfor
         reopen(operation, actor.pk)
 
 
+def test_closed_enable_transition_can_redact_platform_logs_before_encryption_is_enabled():
+    actor = _actor()
+    log = EmailLog.objects.create(to_email="platform@example.test", subject="Legacy", text_body="body")
+    operation = close_global("enable_transition", actor.pk, all_makerspaces=True)
+    call_command("redact_platform_email_logs", apply=True, actor_id=actor.pk, fence_operation=str(operation))
+    log.refresh_from_db()
+    assert (log.to_email, log.subject, log.text_body) == ("", "Platform email", "")
+    reopen(operation, actor.pk)
+
+
 def test_decrypt_rollback_is_fenced_authenticated_resumable_and_removes_indexes():
     actor = _actor()
     with enabled_encryption():
@@ -78,6 +88,30 @@ def test_decrypt_rollback_is_fenced_authenticated_resumable_and_removes_indexes(
         assert not PiiBlindIndex.objects.filter(makerspace=space).exists()
         call_command("decrypt_scoped_pii", makerspace=space.pk, model=first._meta.label, verify_only=True, actor_id=actor.pk)
         call_command("decrypt_scoped_pii", global_verify=True, verify_only=True, actor_id=actor.pk)
+        reopen(operation, actor.pk)
+
+
+def test_model_rollback_verification_ignores_other_mapped_model_indexes():
+    actor = _actor()
+    with enabled_encryption():
+        space, _, row = _request()
+        operation = close_global("decrypt_rollback", actor.pk, all_makerspaces=True)
+        call_command(
+            "decrypt_scoped_pii", makerspace=space.pk, model=row._meta.label,
+            actor_id=actor.pk, confirm_makerspace=space.pk, fence_operation=str(operation),
+        )
+        PiiBlindIndex.objects.create(
+            makerspace=space,
+            model_label="printing.PrintRequest",
+            object_id=1,
+            field_name="requester_name",
+            search_generation=SearchKeyGeneration.objects.get(status="active"),
+            bloom_bits=b"x" * 256,
+        )
+        call_command(
+            "decrypt_scoped_pii", makerspace=space.pk, model=row._meta.label,
+            verify_only=True, actor_id=actor.pk,
+        )
         reopen(operation, actor.pk)
 
 

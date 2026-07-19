@@ -409,12 +409,16 @@ latest tags, then creates `vX.Y.Z` and a GitHub Release
 
 ## 11. Scan notes and assumption corrections
 
-- M1-M7 are explicitly identified in the `dev` commit history through `73a480c`; N6/N7 are
-  represented by member machine-service submission and scoped-PII hardening through `7d91633`.
-  No commit subject on this branch is labelled M8 or M9, so their completion cannot be confirmed
-  from commit labels alone. M7 removed Check-In runtime code. The remaining
-  `backend/apps/checkin/` directory contains only `__pycache__`, not Python source or an installed
-  app.
+- M1-M7 are explicitly identified in the `dev` commit history through `73a480c`; the member activity
+  portal and member machine-service submission are represented by `610abea` and `cb003a7`, and N6/N7
+  scoped-PII hardening is represented by `7d91633`. M7 removed Check-In runtime code. The remaining
+  `backend/apps/checkin/` directory contains only `__pycache__`, not Python source or an installed app.
+- M9 closeout (2026-07-19) proved clean migrations from an empty PostgreSQL database, ran the three
+  required foreground test chunks (2,107 passing tests), regenerated the 302-path OpenAPI client, and
+  passed `tsc -b` plus the production Vite build. The isolated H4 review found two rollback/runbook
+  defects, both fixed with regression tests: model-scoped rollback index verification and pre-enable
+  fenced platform-email-log redaction. User QA, database flush, merge, and release remain intentional
+  gates outside this scan.
 - The requested brief described React 18/Vite 5. The actual committed frontend is React 19.2 and
   Vite 8.1 (`frontend/package.json`), so this document records the code rather than that older
   assumption.
