@@ -3,15 +3,19 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 
 import type { MembershipOutcome, MembershipPolicyEnum } from "../../generated/api";
-import { bootstrapTenant, refreshAccessToken, setAccessToken, StructuredApiError, staffRequest } from "../../lib/api";
+import { bootstrapTenant, fetchMe, refreshAccessToken, setAccessToken, StructuredApiError, staffRequest } from "../../lib/api";
 import { LoginPanel } from "../staff/LoginPanel";
 import { JoinMembershipCta } from "./JoinMembershipCta";
 import { MemberActivityPanel, type MemberActivity } from "./MemberActivity";
+import { MemberReferrals, type ClaimableInvitation } from "./MemberReferrals";
 
 type Membership = { makerspace: { slug: string; name: string }; membership_status: string; role: string; waiver_acceptance_required: boolean; can_refer: boolean; can_verify: boolean; verified_at: string | null; referrals_enabled: boolean };
 type Memberships = { memberships: Membership[]; requests: { makerspace: { slug: string; name: string }; state: string; kind: string }[] };
 type Waiver = { has_waiver: boolean; body?: string; version?: string };
 type Presence = { active: boolean; session: { expires_at: string } | null };
+type Invitations = { invitations: ClaimableInvitation[] };
+type ReferralOutcome = { state: "invited" };
+type ClaimOutcome = { id: number; outcome: "active" | "pending_approval" };
 
 function message(error: unknown) {
   if (error instanceof StructuredApiError && error.status === 401) return "Sign in to manage your membership.";
@@ -33,6 +37,8 @@ export function MemberArea() {
   const unauthenticated = memberships.error instanceof StructuredApiError && memberships.error.status === 401;
   const membership = memberships.data?.memberships.find((row) => row.makerspace.slug === resolvedSlug);
   const requested = memberships.data?.requests.some((row) => row.makerspace.slug === resolvedSlug && row.state === "requested");
+  const profile = useQuery({ queryKey: ["member", "profile"], queryFn: fetchMe, enabled: Boolean(memberships.data), retry: false });
+  const invitations = useQuery({ queryKey: ["member", "invitations"], queryFn: () => staffRequest<Invitations>("/memberships/invitations"), enabled: Boolean(memberships.data), retry: false });
   const waiver = useQuery({ queryKey: ["member", resolvedSlug, "waiver"], queryFn: () => staffRequest<Waiver>(`/member/makerspaces/${makerspaceId}/waiver`), enabled: makerspaceId >= 0 && membership?.membership_status === "active", retry: false });
   const presence = useQuery({ queryKey: ["member", resolvedSlug, "presence"], queryFn: () => staffRequest<Presence>(`/public/${resolvedSlug}/presence-sessions/current`), enabled: Boolean(resolvedSlug) && membership?.membership_status === "active", retry: false });
   const activity = useQuery({ queryKey: ["member", resolvedSlug, "activity"], queryFn: () => staffRequest<MemberActivity>(`/member/makerspaces/${makerspaceId}/activity`), enabled: makerspaceId >= 0 && membership?.membership_status === "active", retry: false });
@@ -41,6 +47,9 @@ export function MemberArea() {
   const accept = useMutation({ mutationFn: () => staffRequest(`/member/makerspaces/${makerspaceId}/waiver/accept`, { method: "POST" }), onSuccess: refresh });
   const start = useMutation({ mutationFn: () => staffRequest(`/public/${resolvedSlug}/presence-sessions`, { method: "POST", body: JSON.stringify({ duration_minutes: 120 }) }), onSuccess: refresh });
   const end = useMutation({ mutationFn: () => staffRequest(`/public/${resolvedSlug}/presence-sessions/current/end`, { method: "POST" }), onSuccess: refresh });
+  const refer = useMutation({ mutationFn: (inviteEmail: string) => staffRequest<ReferralOutcome>(`/member/makerspaces/${makerspaceId}/referrals`, { method: "POST", body: JSON.stringify({ invite_email: inviteEmail }) }), onSuccess: refresh });
+  const claim = useMutation({ mutationFn: (id: number) => staffRequest<ClaimOutcome>(`/memberships/invitations/${id}/claim`, { method: "POST" }), onSuccess: refresh });
+  const spaceInvitations = invitations.data?.invitations.filter((item) => item.makerspace.slug === resolvedSlug) ?? [];
   const error = bootstrap.error ?? (!unauthenticated ? memberships.error : null) ?? request.error ?? accept.error ?? start.error ?? end.error ?? activity.error;
   const login = useMutation({ mutationFn: (payload: { username: string; password: string }) => staffRequest<{ access: string }>("/auth/login", { method: "POST", credentials: "include", body: JSON.stringify(payload) }), onSuccess: (data) => { setAccessToken(data.access); setShowSignIn(false); client.invalidateQueries({ queryKey: ["member"] }); } });
   const policy: MembershipPolicyEnum | undefined = bootstrap.data?.makerspace.membership_policy;
@@ -58,6 +67,22 @@ export function MemberArea() {
       {waiver.data?.has_waiver ? <section className="desk-panel p-5"><h2 className="font-semibold text-ink">Current waiver ({waiver.data.version})</h2><p className="mt-3 whitespace-pre-wrap text-sm text-muted">{waiver.data.body}</p><button className="desk-button-primary mt-4" disabled={accept.isPending} onClick={() => accept.mutate()}>Accept waiver</button></section> : null}
       <section className="desk-panel p-5"><h2 className="font-semibold text-ink">Presence</h2><p className="mt-1 text-sm text-muted">{presence.data?.active ? `Active until ${new Date(presence.data.session?.expires_at ?? "").toLocaleTimeString()}` : "No active session."}</p><button className="desk-button-primary mt-4" disabled={start.isPending || end.isPending} onClick={() => presence.data?.active ? end.mutate() : start.mutate()}>{presence.data?.active ? "End presence" : "Start 2-hour presence"}</button></section>
       {activity.data ? <MemberActivityPanel activity={activity.data} /> : null}</> : null}
+    {memberships.data && resolvedSlug && makerspaceId >= 0 ? <MemberReferrals
+      canRefer={membership?.membership_status === "active" && membership.can_refer}
+      referralsEnabled={membership?.membership_status === "active" && membership.referrals_enabled}
+      emailVerified={profile.data?.email_verified}
+      invitations={spaceInvitations}
+      invitationsLoading={invitations.isLoading}
+      invitationError={invitations.error instanceof Error ? invitations.error : null}
+      onRefer={(email) => refer.mutateAsync(email)}
+      onClaim={(id) => claim.mutate(id)}
+      isReferring={refer.isPending}
+      claimingId={claim.isPending ? claim.variables : null}
+      referralError={refer.error instanceof Error ? refer.error : null}
+      referralSuccess={refer.data ? "Referral invitation sent." : null}
+      claimError={claim.error instanceof Error ? claim.error : null}
+      claimSuccess={claim.data ? claim.data.outcome === "active" ? "You are now an active member." : "Your invitation is waiting for manager approval." : null}
+    /> : null}
     {unauthenticated && !showSignIn && policy?.startsWith("invite") ? <p className="text-sm text-muted">Sign in to view memberships or claim an invitation.</p> : null}
     {error ? <p className="text-sm text-danger" role="alert">{message(error)}</p> : null}
     {memberships.isError && !unauthenticated ? <Link className="desk-button-primary inline-flex" to="/admin">Sign in</Link> : null}

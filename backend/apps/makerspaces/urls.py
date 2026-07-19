@@ -7,6 +7,7 @@ from apps.makerspaces.views_memberships import (
     MemberWaiverAcceptView, MemberWaiverView, MyMembershipsView,
     PublicMembershipRequestView,
 )
+from apps.makerspaces.views_member_referrals import MemberReferralView
 from apps.makerspaces.member_activity_views import MemberActivityView
 
 urlpatterns = [
@@ -20,4 +21,5 @@ urlpatterns = [
     path("member/makerspaces/<int:makerspace_id>/waiver", MemberWaiverView.as_view(), name="member-waiver"),
     path("member/makerspaces/<int:makerspace_id>/waiver/accept", MemberWaiverAcceptView.as_view(), name="member-waiver-accept"),
     path("member/makerspaces/<int:makerspace_id>/activity", MemberActivityView.as_view(), name="member-activity"),
+    path("member/makerspaces/<int:makerspace_id>/referrals", MemberReferralView.as_view(), name="member-referrals"),
 ]

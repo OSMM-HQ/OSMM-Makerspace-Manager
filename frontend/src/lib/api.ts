@@ -45,6 +45,7 @@ export type TenantBootstrap = {
 
 export type StaffAuthUser = {
   username: string;
+  email_verified: boolean;
   role: string;
   is_superuser: boolean;
   must_change_password: boolean;

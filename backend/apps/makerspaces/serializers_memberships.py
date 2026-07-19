@@ -34,6 +34,14 @@ class InvitationClaimOutcomeSerializer(serializers.Serializer):
     outcome = serializers.ChoiceField(choices=("active", "pending_approval"))
 
 
+class ReferralCreateSerializer(serializers.Serializer):
+    invite_email = serializers.EmailField(max_length=254)
+
+
+class ReferralOutcomeSerializer(serializers.Serializer):
+    state = serializers.CharField()
+
+
 class MyMembershipRowSerializer(serializers.Serializer):
     makerspace = serializers.DictField()
     membership_status = serializers.CharField()

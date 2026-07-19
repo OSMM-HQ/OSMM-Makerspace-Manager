@@ -155,7 +155,14 @@ def refer_membership(actor, makerspace, invite_email):
             raise ValidationError({"detail": "An open invitation already exists."}, code="conflict") from exc
         audit.record(actor, "membership.referred", makerspace=makerspace, target=request,
                      meta={"role_id": role.id})
-        return request
+    from apps.integrations.email import send_makerspace_email
+    send_makerspace_email(
+        makerspace,
+        "Makerspace membership invitation",
+        "You have been invited to join this makerspace. Sign in with this email to claim the invitation.",
+        [email], stream="membership", event="invitation", audience="member",
+    )
+    return request
 
 
 def claim_invitation(user, request_id):

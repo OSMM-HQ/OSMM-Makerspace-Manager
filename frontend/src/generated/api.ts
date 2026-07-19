@@ -303,6 +303,7 @@ export const openApiPaths = [
   "/api/v1/internal/cron/return-reminders",
   "/api/v1/internal/tls-check",
   "/api/v1/member/makerspaces/{makerspace_id}/activity",
+  "/api/v1/member/makerspaces/{makerspace_id}/referrals",
   "/api/v1/member/makerspaces/{makerspace_id}/waiver",
   "/api/v1/member/makerspaces/{makerspace_id}/waiver/accept",
   "/api/v1/memberships/invitations",
@@ -3832,6 +3833,14 @@ export type RecentlyAddedReportRow = {
   "product_name": string;
   "created_at": string;
   "total_quantity": number;
+};
+
+export type ReferralCreate = {
+  "invite_email": string;
+};
+
+export type ReferralOutcome = {
+  "state": string;
 };
 
 export type RefreshResponse = {
