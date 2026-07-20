@@ -1,4 +1,4 @@
-# OSMM — Advanced configuration
+# Space Works — Advanced configuration
 
 Optional configuration for operators. None of this is needed for a standard self-hosted install —
 the [Quick start](../README.md#quick-start-run-it) covers the common case. See

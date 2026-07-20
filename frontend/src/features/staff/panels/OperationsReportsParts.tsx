@@ -201,7 +201,7 @@ export function PieChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: 
 }
 
 // Aggregate ("All makerspaces") leaderboards must read PER MAKERSPACE, not as one
-// blended cross-OSMM ranking. Given rows whose first/identified column is the
+// blended cross-Space Works ranking. Given rows whose first/identified column is the
 // makerspace, this groups them and renders a separate ranked table per makerspace
 // (heading = makerspace name), dropping the now-redundant makerspace column.
 export function PerMakerspaceTables({

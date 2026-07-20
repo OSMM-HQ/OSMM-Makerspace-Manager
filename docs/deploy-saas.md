@@ -1,6 +1,6 @@
-# SaaS deployment on `osmm.me`
+# SaaS deployment on `space-works.tech`
 
-This runbook deploys one OSMM application stack behind Caddy, with Cloudflare-fronted platform
+This runbook deploys one Space Works application stack behind Caddy, with Cloudflare-fronted platform
 subdomains and Caddy on-demand TLS for verified tenant custom domains. Run commands from the
 repository root on the VPS.
 
@@ -15,29 +15,29 @@ repository root on the VPS.
 
 ## 2. Cloudflare setup
 
-Add the `osmm.me` zone to Cloudflare and update the registrar nameservers. Create these records,
+Add the `space-works.tech` zone to Cloudflare and update the registrar nameservers. Create these records,
 replacing `VPS_IP` with the server address:
 
 | Type | Name | Target | Proxy |
 | --- | --- | --- | --- |
-| A | `osmm.me` | `VPS_IP` | Proxied |
-| A | `origin.osmm.me` | `VPS_IP` | DNS only |
-| CNAME | `files.osmm.me` | `osmm.me` | Proxied |
-| A | `*.osmm.me` | `VPS_IP` | Proxied |
+| A | `space-works.tech` | `VPS_IP` | Proxied |
+| A | `origin.space-works.tech` | `VPS_IP` | DNS only |
+| CNAME | `files.space-works.tech` | `space-works.tech` | Proxied |
+| A | `*.space-works.tech` | `VPS_IP` | Proxied |
 
-`origin.osmm.me` must be DNS-only when arbitrary tenant domains CNAME to it. Otherwise Cloudflare
+`origin.space-works.tech` must be DNS-only when arbitrary tenant domains CNAME to it. Otherwise Cloudflare
 would receive the tenant hostname instead of sending it to this Caddy instance for on-demand TLS.
 The apex, wildcard, and files host can remain proxied.
 
 In **SSL/TLS**, select **Full (strict)**. Create a Cloudflare Origin CA certificate covering
-`osmm.me` and `*.osmm.me`, then place the PEM files on the VPS at:
+`space-works.tech` and `*.space-works.tech`, then place the PEM files on the VPS at:
 
 ```text
-deploy/certs/osmm.crt
-deploy/certs/osmm.key
+deploy/certs/spaceworks.crt
+deploy/certs/spaceworks.key
 ```
 
-Restrict the private key, for example with `chmod 600 deploy/certs/osmm.key`. Never commit either
+Restrict the private key, for example with `chmod 600 deploy/certs/spaceworks.key`. Never commit either
 file. Cloudflare Origin CA certificates are trusted between Cloudflare and the origin; they are not
 general-purpose browser certificates.
 
@@ -60,9 +60,9 @@ Create the first superadmin and makerspace with an explicit strong password:
 docker compose -f docker-compose.prod.yml -f docker/compose.saas.yml exec backend \
   python manage.py setup_instance \
   --username admin \
-  --email admin@osmm.me \
+  --email admin@space-works.tech \
   --password 'REPLACE_WITH_A_STRONG_PASSWORD' \
-  --makerspace-name 'OSMM'
+  --makerspace-name 'Space Works'
 ```
 
 The command is idempotent. Confirm container health before provisioning domains.
@@ -96,7 +96,7 @@ Content-Type: application/json
 {"label":"kochi"}
 ```
 
-This assigns `kochi.osmm.me`; do not set a platform-suffix domain through the normal makerspace
+This assigns `kochi.space-works.tech`; do not set a platform-suffix domain through the normal makerspace
 settings update. The wildcard DNS record and Cloudflare Origin CA certificate already cover it.
 
 ## 5. Onboard a tenant custom domain
@@ -104,9 +104,9 @@ settings update. The wildcard DNS record and Cloudflare Origin CA certificate al
 1. In the makerspace staff console, open **Settings -> Custom domain**, enter the complete hostname
    (for example `tools.example.org`), and save it.
 2. Copy the displayed verification token. At the tenant DNS provider, create
-   `_osmm-verify.tools.example.org TXT <token>`.
-3. Create `tools.example.org CNAME origin.osmm.me`. If that DNS provider offers proxying, keep the
-   record DNS-only so the request reaches OSMM's Caddy with the tenant hostname intact.
+   `_spaceworks-verify.tools.example.org TXT <token>`.
+3. Create `tools.example.org CNAME origin.space-works.tech`. If that DNS provider offers proxying, keep the
+   record DNS-only so the request reaches Space Works's Caddy with the tenant hostname intact.
 4. Wait for both records to propagate, then select **Verify domain** in Settings. Verification
    requires the TXT token and the CNAME (or matching A address) before the domain becomes active.
 5. Visit the domain. Caddy asks the fail-closed internal endpoint for authorization before issuing
@@ -131,7 +131,7 @@ Inventory every browser-upload flow before changing CORS. Today the logical uplo
 Evidence, print, machine-document, and warranty-document objects share the private bucket by
 default, but each remains a separate browser-upload flow that must be reviewed if storage layout or
 headers change. `public-images` is the only download-anonymous bucket exposed through
-`https://files.osmm.me`; never grant anonymous reads to the private bucket.
+`https://files.space-works.tech`; never grant anonymous reads to the private bucket.
 
 Set `MINIO_CORS_ALLOWED_ORIGINS_JSON` for the origins that perform direct browser uploads, including
 the platform HTTPS origins and each verified custom domain. A presigned URL is a bearer credential:
@@ -149,7 +149,7 @@ replace bucket policy or API authorization.
 
 - Domain changes invalidate the backend's verified-host cache. If a domain appears stale, inspect
   the update/verification response and shared cache health before restarting services.
-- DNS must resolve to `origin.osmm.me` before verification and before Caddy can complete an ACME
+- DNS must resolve to `origin.space-works.tech` before verification and before Caddy can complete an ACME
   challenge. Propagation and negative caching can delay the first certificate; retry only after
   authoritative and public resolvers agree.
 - Detaching a domain immediately removes it from the TLS ask allowlist, preventing new issuance or

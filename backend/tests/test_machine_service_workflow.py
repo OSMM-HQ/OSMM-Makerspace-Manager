@@ -148,7 +148,7 @@ def test_submit_acquires_the_pii_fence_before_locking_the_machine(monkeypatch):
     request(space, target=target)
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_submit_enforces_managed_open_and_daily_caps():
     open_limited = make_space("service-cap-open")
     open_limited.resource_limit_overrides = {"machine_service_open": 0, "machine_service_submit": 10}

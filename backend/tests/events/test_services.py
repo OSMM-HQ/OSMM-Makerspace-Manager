@@ -144,7 +144,7 @@ def test_managed_limit_blocks_publish_and_self_host_ignores_cap():
     space, actor = make_space(), make_actor()
     space.resource_limit_overrides = {"events": 0}
     space.save(update_fields=["resource_limit_overrides"])
-    with override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me"):
+    with override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech"):
         with pytest.raises(ValidationError) as caught:
             services.publish(make_event(space, status=Event.Status.DRAFT), actor=actor)
         assert caught.value.get_codes() == {"limit": "limit_reached"}

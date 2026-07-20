@@ -1,16 +1,16 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 
-type OsmmLogoProps = {
+type SpaceWorksLogoProps = {
   size?: number;
   withWordmark?: boolean;
   className?: string;
 };
 
-function OsmmMark({ size, className }: { size: number; className?: string }) {
+function SpaceWorksMark({ size, className }: { size: number; className?: string }) {
   return (
     <svg
-      aria-label="OSMM"
+      aria-label="Space Works"
       className={className}
       fill="none"
       height={size}
@@ -49,11 +49,11 @@ function OsmmMark({ size, className }: { size: number; className?: string }) {
   );
 }
 
-export function OsmmLogo({
+export function SpaceWorksLogo({
   size = 28,
   withWordmark = false,
   className,
-}: OsmmLogoProps) {
+}: SpaceWorksLogoProps) {
   if (withWordmark) {
     return (
       <span
@@ -62,16 +62,16 @@ export function OsmmLogo({
           className,
         ].filter(Boolean).join(" ")}
       >
-        <OsmmMark className="shrink-0" size={size} />
-        <span className="font-semibold tracking-wide">OSMM</span>
+        <SpaceWorksMark className="shrink-0" size={size} />
+        <span className="font-semibold tracking-wide">Space Works</span>
       </span>
     );
   }
 
-  return <OsmmMark className={className} size={size} />;
+  return <SpaceWorksMark className={className} size={size} />;
 }
 
-export function OsmmHomeLink({
+export function SpaceWorksHomeLink({
   children,
   className,
 }: {
@@ -92,15 +92,15 @@ export function OsmmHomeLink({
   );
 }
 
-export function OsmmBadge({ className }: { className?: string }) {
+export function SpaceWorksBadge({ className }: { className?: string }) {
   return (
-    <OsmmHomeLink
+    <SpaceWorksHomeLink
       className={[
         "text-muted",
         className,
       ].filter(Boolean).join(" ")}
     >
-      <OsmmLogo size={22} withWordmark />
-    </OsmmHomeLink>
+      <SpaceWorksLogo size={22} withWordmark />
+    </SpaceWorksHomeLink>
   );
 }

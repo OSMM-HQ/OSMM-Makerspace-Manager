@@ -40,7 +40,7 @@ tracked in the assistant's memory, not here.
   "staged index is read-only" error (no files written). Keep the index clean during
   implementation; only `git add` right before the Stage-4 `codex review` (so it sees new
   untracked files), then `git reset` before the next Codex build.
-- **Test harness.** Local `osmm-db` (:5433), `osmm-redis`, `osmm-minio` (:9100) must be running. Run
+- **Test harness.** Local `spaceworks-db` (:5433), `spaceworks-redis`, `spaceworks-minio` (:9100) must be running. Run
   tests with `DATABASE_URL="postgres://makerspace:makerspace@localhost:5433/makerspace_manager"` (or
   the worktree's dedicated DB). **Never run two `pytest` procs against one DB** (TRUNCATE-FK teardown
   races + false concurrency failures) and **never run the full suite concurrently with `codex review`**
@@ -63,7 +63,7 @@ and single-domain behavior is byte-for-byte unchanged (self-hosters unaffected).
 superadmin-set custom `frontend_domain` immediately (no DNS TXT challenge — the challenge only ever
 defended the shared managed box). The self-host branch is strictly superadmin-only (the staff-origin/
 CORS allowlist is process-global; letting any tenant set a trusted origin is a cross-tenant token-theft
-vector). Managed mode adds `<slug>.osmm.me` provisioning + tenant self-serve custom domains on one
+vector). Managed mode adds `<slug>.space-works.tech` provisioning + tenant self-serve custom domains on one
 shared instance (no per-tenant DB). **VERIFIED is the trust gate** — a `frontend_domain` grants CORS/
 staff-origin/bootstrap/Host/TLS trust only when `frontend_domain_status=VERIFIED` and non-archived.
 
@@ -161,7 +161,7 @@ invariants above). Use `git log --oneline`/`git blame` for the implementing comm
   docs/errors), 3-tier authz (`MANAGE_MACHINES` + type-managers via `MachineType.managing_action` +
   per-machine operators), services single-source-of-truth, printer auto-link, custom types, photo,
   warranty (3rd host), consumables (count via inventory + grams ledger), public exposure.
-- **Self-host-first + SaaS hosting Parts A/B + osmm.me** (2026-07-15/16): self-host custom-domain
+- **Self-host-first + SaaS hosting Parts A/B + space-works.tech** (2026-07-15/16): self-host custom-domain
   auto-trust, managed fair-use limits + subdomain request→approve, one-shared-instance multi-tenant
   hosting (all dormant on blank `PLATFORM_DOMAIN_SUFFIX`). AGPL relicense + repo professionalization.
 - **Audit fixes + dependency upgrade P1–P17** (2026-07-08): integration health center, scan-first
@@ -250,7 +250,7 @@ Stack (in use):
 - **API documentation:** drf-spectacular / OpenAPI (snapshot `frontend/openapi-schema.json` + generated
   `frontend/src/generated/api.ts`; regenerate both when routes/models change — spectacular needs
   `--format openapi-json`).
-- **Admin theme:** django-unfold; site name via `ADMIN_SITE_NAME` (default "OSMM").
+- **Admin theme:** django-unfold; site name via `ADMIN_SITE_NAME` (default "Space Works").
 - **Telegram:** request alerts, test alerts, authenticated webhook accept/reject callbacks.
 
 ### Local development

@@ -1,6 +1,6 @@
 # Contributors
 
-OSMM ("Open Source Makerspace Manager") is a collaborative project for the makerspace community.
+Space Works ("Open Source Makerspace Manager") is a collaborative project for the makerspace community.
 Everyone whose contribution is merged is credited here, in the order they first contributed.
 
 Contributions are offered under the project's [AGPL-3.0-or-later license](../LICENSE)

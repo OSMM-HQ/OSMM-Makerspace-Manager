@@ -25,5 +25,5 @@
 - [ ] The change follows the project's contribution terms and licensing requirements.
 - [ ] I understand that contributions are licensed under AGPL-3.0-or-later.
 
-Contributions to OSMM are made under the GNU Affero General Public License,
+Contributions to Space Works are made under the GNU Affero General Public License,
 version 3 or any later version (`AGPL-3.0-or-later`).

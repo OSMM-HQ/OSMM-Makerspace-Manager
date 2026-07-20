@@ -12,7 +12,7 @@ import {
   staffRequest,
   type StaffAuthUser,
 } from "../../lib/api";
-import { OsmmBadge } from "../../components/OsmmLogo";
+import { SpaceWorksBadge } from "../../components/SpaceWorksLogo";
 import { ChangePasswordGate } from "./ChangePasswordGate";
 import { LoginPanel } from "./LoginPanel";
 import { MakerspacePicker } from "./MakerspacePicker";
@@ -37,7 +37,7 @@ function StaffLoading({ message, restoring = false }: { message: string; restori
   return (
     <main className="desk-shell grid place-items-center px-5">
       <div className={panelClass}>
-        <OsmmBadge className={restoring ? undefined : "mb-5"} />
+        <SpaceWorksBadge className={restoring ? undefined : "mb-5"} />
         <span>{message}</span>
       </div>
     </main>

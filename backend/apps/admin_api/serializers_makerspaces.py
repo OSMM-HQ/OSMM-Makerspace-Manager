@@ -306,8 +306,8 @@ class MakerspaceSerializer(serializers.ModelSerializer):
                             )
                         }
                     )
-            # Reject a tenant claiming a platform host — BOTH the apex (osmm.me) and any
-            # subdomain (*.osmm.me). Only when the value is actually changing, so a no-op
+            # Reject a tenant claiming a platform host — BOTH the apex (space-works.tech) and any
+            # subdomain (*.space-works.tech). Only when the value is actually changing, so a no-op
             # PATCH that resends an already-provisioned platform domain (e.g. toggling
             # hidden_from_central_directory) still succeeds.
             platform_apex = platform_suffix.lstrip(".")

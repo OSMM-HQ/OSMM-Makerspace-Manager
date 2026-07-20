@@ -17,7 +17,7 @@ export function applyTenantBranding(bootstrap: TenantBootstrap) {
   const name =
     bootstrap.branding.display_name ||
     bootstrap.makerspace.name ||
-    "OSMM";
+    "Space Works";
   document.title = name;
   if (typeof bootstrap.theme.logo_url === "string" && bootstrap.theme.logo_url) {
     setFavicon(bootstrap.theme.logo_url);

@@ -1,4 +1,4 @@
-﻿from datetime import timedelta
+from datetime import timedelta
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -24,8 +24,8 @@ def normalize_platform_domain_suffix(raw):
 
     Blank/whitespace/None => "" (self-host). Otherwise lowercase + strip and
     prepend a leading "." if missing, so an operator may set PLATFORM_DOMAIN_SUFFIX
-    as either "osmm.me" or ".osmm.me" and the stored value is always ".osmm.me".
-    The leading dot is what makes endswith(suffix) reject look-alikes (evilosmm.me)
+    as either "space-works.tech" or ".space-works.tech" and the stored value is always ".space-works.tech".
+    The leading dot is what makes endswith(suffix) reject look-alikes (evilspace-works.tech)
     and what provisioning.provision_subdomain requires.
     """
     value = str(raw or "").strip().lower()
@@ -45,7 +45,7 @@ INFRA_HOSTS = set(
 )
 PLATFORM_STAFF_ORIGINS = env.list("PLATFORM_STAFF_ORIGINS", default=[])
 BEHIND_TRUSTED_PROXY = env.bool("BEHIND_TRUSTED_PROXY", default=False)
-PLATFORM_ORIGIN_HOST = env("PLATFORM_ORIGIN_HOST", default="")  # e.g. origin.osmm.me; blank => resolution gate dormant
+PLATFORM_ORIGIN_HOST = env("PLATFORM_ORIGIN_HOST", default="")  # e.g. origin.space-works.tech; blank => resolution gate dormant
 DOMAIN_CHANGE_COOLDOWN_SECONDS = env.int("DOMAIN_CHANGE_COOLDOWN_SECONDS", default=0)  # 0 => no cooldown
 if BEHIND_TRUSTED_PROXY:
     ALLOWED_HOSTS = ["*"]
@@ -73,7 +73,7 @@ MANAGED_RESOURCE_LIMITS = {
 }
 STORAGE_PRESIGN_METHOD = env("STORAGE_PRESIGN_METHOD", default="post")
 CRON_SECRET = env("CRON_SECRET", default="")
-ADMIN_SITE_NAME = env("ADMIN_SITE_NAME", default="OSMM")
+ADMIN_SITE_NAME = env("ADMIN_SITE_NAME", default="Space Works")
 
 INSTALLED_APPS = [
     "unfold",
@@ -530,7 +530,7 @@ AUTH_COOKIE_SAMESITE = env("AUTH_COOKIE_SAMESITE", default="None")
 AUTH_COOKIE_SECURE = env.bool("AUTH_COOKIE_SECURE", default=True)
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "OSMM API",
+    "TITLE": "Space Works API",
     "DESCRIPTION": (
         "Multi-tenant makerspace hardware loan system.\n\n"
         "Public flow: browse inventory, search with `q`, page with `page`, "

@@ -3,7 +3,7 @@ import { Link, Navigate, Route, Routes } from "react-router-dom";
 
 import { MakerspaceBrand } from "./components/MakerspaceBrand";
 import { MakerspaceMapLink } from "./components/MakerspaceMapLink";
-import { OsmmBadge, OsmmHomeLink, OsmmLogo } from "./components/OsmmLogo";
+import { SpaceWorksBadge, SpaceWorksHomeLink, SpaceWorksLogo } from "./components/SpaceWorksLogo";
 import { SiteFooter } from "./components/SiteFooter";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Card } from "./components/ui/Card";
@@ -76,13 +76,13 @@ function LandingPage() {
     <main className="desk-shell flex min-h-screen flex-col">
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-          <OsmmHomeLink className="flex min-w-0 items-center gap-3 text-ink">
-            <OsmmLogo className="shrink-0" size={36} />
+          <SpaceWorksHomeLink className="flex min-w-0 items-center gap-3 text-ink">
+            <SpaceWorksLogo className="shrink-0" size={36} />
             <div className="min-w-0">
-              <p className="text-sm font-semibold">OSMM</p>
+              <p className="text-sm font-semibold">Space Works</p>
               <p className="text-xs text-muted">Shared equipment portal</p>
             </div>
-          </OsmmHomeLink>
+          </SpaceWorksHomeLink>
           <div className="flex flex-wrap items-center gap-2">
             <Link className="desk-button" to="/roadmap">
               Roadmap
@@ -283,7 +283,7 @@ export default function App() {
     return (
       <main className="desk-shell grid place-items-center px-5">
         <div className="desk-panel w-full max-w-md p-6 text-sm font-semibold text-muted">
-          <OsmmBadge className="mb-5" />
+          <SpaceWorksBadge className="mb-5" />
           Loading site...
         </div>
       </main>
@@ -294,7 +294,7 @@ export default function App() {
     return (
       <main className="desk-shell grid place-items-center px-5">
         <div className="desk-panel w-full max-w-md p-6">
-          <OsmmBadge className="mb-5" />
+          <SpaceWorksBadge className="mb-5" />
           <h1 className="text-xl font-bold text-ink">Site unavailable</h1>
           <p className="mt-2 text-sm text-muted">
             The configured tenant could not be resolved.

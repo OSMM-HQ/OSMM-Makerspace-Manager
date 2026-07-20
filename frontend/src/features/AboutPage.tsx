@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-import { OsmmHomeLink, OsmmLogo } from "../components/OsmmLogo";
+import { SpaceWorksHomeLink, SpaceWorksLogo } from "../components/SpaceWorksLogo";
 import { SiteFooter } from "../components/SiteFooter";
 import { ThemeToggle } from "../components/ThemeToggle";
 
@@ -9,13 +9,13 @@ export function AboutPage() {
     <main className="desk-shell flex min-h-screen flex-col">
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-          <OsmmHomeLink className="flex min-w-0 items-center gap-3 text-ink">
-            <OsmmLogo className="shrink-0" size={36} />
+          <SpaceWorksHomeLink className="flex min-w-0 items-center gap-3 text-ink">
+            <SpaceWorksLogo className="shrink-0" size={36} />
             <div className="min-w-0">
-              <p className="text-sm font-semibold">OSMM</p>
+              <p className="text-sm font-semibold">Space Works</p>
               <p className="text-xs text-muted">Shared equipment portal</p>
             </div>
-          </OsmmHomeLink>
+          </SpaceWorksHomeLink>
           <div className="flex flex-wrap items-center gap-2">
             <ThemeToggle />
             <Link className="desk-button" to="/admin">
@@ -32,7 +32,7 @@ export function AboutPage() {
         </h1>
         <div className="mt-5 space-y-4 text-sm leading-6 text-muted">
           <p>
-            OSMM is a platform for running community makerspaces &mdash;
+            Space Works is a platform for running community makerspaces &mdash;
             public equipment catalogs, hardware lending with traceable handovers,
             3D-print request queues, and multi-makerspace operations in one place.
           </p>
@@ -42,10 +42,10 @@ export function AboutPage() {
             handle approvals, issue and return with evidence, and reporting.
           </p>
           <p className="text-xs text-muted">
-            OSMM is free and open source software, licensed under the{" "}
+            Space Works is free and open source software, licensed under the{" "}
             <a
               className="underline hover:text-ink"
-              href="https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/blob/main/LICENSE"
+              href="https://github.com/SpaceWorks-HQ/Space Works-Makerspace-Manager/blob/main/LICENSE"
               target="_blank"
               rel="noreferrer"
             >

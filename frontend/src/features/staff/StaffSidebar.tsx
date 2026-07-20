@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { OsmmBadge } from "../../components/OsmmLogo";
+import { SpaceWorksBadge } from "../../components/SpaceWorksLogo";
 import { staffRequest } from "../../lib/api";
 import type { Makerspace } from "./panels/shared";
 import { TAB_GROUPS, TAB_LABELS } from "./staffAccess";
@@ -54,7 +54,7 @@ export function StaffSidebar({
   return (
     <aside className="min-w-0 border-b border-line bg-panel lg:min-h-screen lg:border-b-0 lg:border-r">
       <div className="flex min-w-0 items-center gap-3 border-b border-line px-5 py-4">
-        <OsmmBadge className="shrink-0" />
+        <SpaceWorksBadge className="shrink-0" />
         <div className="min-w-0">
           <p className="truncate font-mono text-xs uppercase text-muted">
             {guestOnly ? "Guest admin" : isSuperadmin ? "Super Admin" : printingOnly ? "Print Manager" : "Space Manager"}

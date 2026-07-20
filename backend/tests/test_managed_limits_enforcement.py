@@ -1,4 +1,4 @@
-﻿from io import StringIO
+from io import StringIO
 
 import pytest
 from django.contrib import admin as djadmin
@@ -103,7 +103,7 @@ def _attempt_second_row(case, mode):
 
 
 @override_settings(
-    PLATFORM_DOMAIN_SUFFIX=".osmm.me",
+    PLATFORM_DOMAIN_SUFFIX=".space-works.tech",
     INFRA_HOSTS={"testserver"},
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
 )
@@ -140,7 +140,7 @@ def _import_rows(count):
     ]
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_managed_bulk_import_checks_all_new_names_before_writing():
     makerspace = make_space("limits-bulk-import")
     actor = make_member("limits-bulk-import-manager", makerspace)
@@ -170,7 +170,7 @@ def _dispatch(makerspace=None, *, connection="makerspace", subject="Quota email"
 
 
 @override_settings(
-    PLATFORM_DOMAIN_SUFFIX=".osmm.me",
+    PLATFORM_DOMAIN_SUFFIX=".space-works.tech",
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
 )
 def test_managed_makerspace_email_daily_cap_blocks_delivery(mailoutbox):
@@ -207,7 +207,7 @@ def test_self_host_makerspace_email_is_never_capped(mailoutbox):
 
 
 @override_settings(
-    PLATFORM_DOMAIN_SUFFIX=".osmm.me",
+    PLATFORM_DOMAIN_SUFFIX=".space-works.tech",
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
 )
 def test_managed_platform_email_is_never_capped(mailoutbox):
@@ -221,7 +221,7 @@ def test_managed_platform_email_is_never_capped(mailoutbox):
     assert DailyEmailCounter.objects.count() == 0
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_managed_storage_add_free_boundary_and_clamp_without_outer_atomic():
     makerspace = make_space("limits-storage-managed")
     makerspace.resource_limit_overrides = {"storage": 100}
@@ -278,7 +278,7 @@ def test_recompute_storage_sums_authoritative_evidence_sizes():
     assert makerspace.storage_bytes_used == 100
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech", INFRA_HOSTS={"testserver"})
 def test_managed_tenant_custom_domain_blocked_without_grant():
     makerspace = make_space("limits-custom-domain-blocked")
     manager = make_member("limits-custom-domain-blocked-manager", makerspace)
@@ -297,7 +297,7 @@ def test_managed_tenant_custom_domain_blocked_without_grant():
     assert makerspace.frontend_domain == original_domain
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech", INFRA_HOSTS={"testserver"})
 def test_managed_tenant_custom_domain_allowed_with_override():
     makerspace = make_space("limits-custom-domain-allowed")
     makerspace.resource_limit_overrides = {"custom_domain": True}

@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 
-import { OsmmHomeLink, OsmmLogo } from "../../components/OsmmLogo";
+import { SpaceWorksHomeLink, SpaceWorksLogo } from "../../components/SpaceWorksLogo";
 import { SiteFooter } from "../../components/SiteFooter";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Card } from "../../components/ui/Card";
@@ -50,13 +50,13 @@ export function RoadmapPage() {
     <main className="desk-shell flex min-h-screen flex-col">
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex w-full max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-          <OsmmHomeLink className="items-center gap-3 text-ink">
-            <OsmmLogo className="shrink-0" size={36} />
+          <SpaceWorksHomeLink className="items-center gap-3 text-ink">
+            <SpaceWorksLogo className="shrink-0" size={36} />
             <div className="min-w-0">
-              <p className="text-sm font-semibold">OSMM</p>
+              <p className="text-sm font-semibold">Space Works</p>
               <p className="text-xs text-muted">Public roadmap</p>
             </div>
-          </OsmmHomeLink>
+          </SpaceWorksHomeLink>
           <nav aria-label="Public navigation" className="flex flex-wrap items-center gap-2">
             <Link className="desk-button" to="/">
               Catalog

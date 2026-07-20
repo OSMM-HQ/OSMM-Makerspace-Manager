@@ -1,6 +1,6 @@
-# OSMM — Development
+# Space Works — Development
 
-Running OSMM from source for local development or contributing. If you just want to **run** OSMM,
+Running Space Works from source for local development or contributing. If you just want to **run** Space Works,
 use the [Quick start](../README.md#quick-start-run-it) instead — you don't need any of this.
 
 **Toolchain prerequisites:** Python 3.12+ and Node 20.19+ (or 22.12+, for Vite 8). The Docker path
@@ -9,8 +9,8 @@ bundles everything, so these only matter when you run the backend/frontend direc
 ## 0. Get the code
 
 ```bash
-git clone https://github.com/OSMM-HQ/OSMM-Makerspace-Manager.git
-cd OSMM-Makerspace-Manager
+git clone https://github.com/SpaceWorks-HQ/Space Works-Makerspace-Manager.git
+cd Space Works-Makerspace-Manager
 ```
 
 ## 1. Database
@@ -74,8 +74,8 @@ Releases are driven straight from `main` — **Docker images only, no GitHub Rel
 2. Commit and push to `main`.
 
 Changing `VERSION` on `main` triggers `.github/workflows/release.yml`, which validates the version
-and publishes `:X.Y.Z`, `:X.Y`, and `:latest` for both `osmm-backend` and `osmm-frontend`. That is the
+and publishes `:X.Y.Z`, `:X.Y`, and `:latest` for both `spaceworks-backend` and `spaceworks-frontend`. That is the
 **only** thing that publishes images — an ordinary push to `main` (no `VERSION` change) builds nothing.
 
-> One-time org setup: the `osmm-backend` and `osmm-frontend` GHCR packages must be set to **Public**
+> One-time org setup: the `spaceworks-backend` and `spaceworks-frontend` GHCR packages must be set to **Public**
 > (org → Packages → each package → visibility) so anyone can `docker compose pull` without logging in.

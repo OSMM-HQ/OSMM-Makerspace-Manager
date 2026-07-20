@@ -16,7 +16,7 @@ def docs_root(_request):
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>OSMM API</title>
+    <title>Space Works API</title>
     <script>
       window.location.replace(window.location.hash ? "/redoc/" : "/docs/");
     </script>

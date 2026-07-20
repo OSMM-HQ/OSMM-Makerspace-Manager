@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
-import { OsmmBadge } from "../../components/OsmmLogo";
+import { SpaceWorksBadge } from "../../components/SpaceWorksLogo";
 import { Card } from "../../components/ui/Card";
 import QrScanner from "../../components/ui/QrScanner";
 import { useTenant, useTenantPath } from "../../lib/tenant";
@@ -131,7 +131,7 @@ export function PublicSelfCheckoutPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <OsmmBadge />
+              <SpaceWorksBadge />
               <Link className="desk-button" to={tenantPath()}>
                 Back to inventory
               </Link>

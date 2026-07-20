@@ -32,8 +32,8 @@ const PATH_TABS = Object.fromEntries(
   Object.entries(TAB_PATHS).map(([tab, path]) => [path, tab]),
 );
 
-export const STAFF_SELECTED_MAKERSPACE_KEY = "osmm.staff.selectedMakerspace";
-export const STAFF_ACTIVE_TAB_KEY = "osmm.staff.activeTab";
+export const STAFF_SELECTED_MAKERSPACE_KEY = "spaceworks.staff.selectedMakerspace";
+export const STAFF_ACTIVE_TAB_KEY = "spaceworks.staff.activeTab";
 
 export function filterTabsByEnabledModules(tabs: readonly string[], makerspace?: Makerspace) {
   const modules = makerspace?.enabled_modules;

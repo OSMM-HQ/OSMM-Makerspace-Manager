@@ -118,7 +118,7 @@ def test_member_submit_snapshots_account_identity_and_honeypot_is_a_noop():
     assert not set(recursive_values(response.data)) & {user.email, user.phone, str(user.pk)}
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech", INFRA_HOSTS={"testserver"})
 def test_member_submit_enforces_both_managed_caps():
     open_space = Makerspace.objects.create(
         name="N6 open cap", slug="n6-open-cap",

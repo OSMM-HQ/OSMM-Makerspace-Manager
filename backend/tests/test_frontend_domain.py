@@ -280,7 +280,7 @@ def test_selfhost_non_superadmin_noop_domain_patch_is_allowed():
     assert makerspace.default_loan_days == 9
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_managed_patch_custom_domain_stays_pending():
     makerspace = make_space("a2-managed-pending")
     superadmin = _superadmin("a2-managed-pending-user")
@@ -384,7 +384,7 @@ def test_reconcile_command_promotes_selfhost_domains():
     assert ms.frontend_domain_status == Makerspace.DomainStatus.VERIFIED
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_reconcile_signal_dormant_on_managed(monkeypatch):
     # Managed mode: a pending custom domain must NOT be auto-promoted by the signal.
     monkeypatch.setattr(

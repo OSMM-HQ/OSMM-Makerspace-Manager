@@ -1,7 +1,7 @@
-OSMM — Open Source Makerspace Manager
-Copyright (C) 2026 OSMM contributors.
+Space Works — Open Source Makerspace Manager
+Copyright (C) 2026 Space Works contributors.
 
-OSMM is a self-hostable, multi-tenant management platform built for makerspace
+Space Works is a self-hostable, multi-tenant management platform built for makerspace
 communities — covering inventory, tool and equipment lending, and 3D printing in
 one place — so a community can see what tools and equipment exist, who borrowed
 what, what is available, and how every loan and print job moves from request to
@@ -9,13 +9,13 @@ completion, without spreadsheets or guesswork.
 
 LICENSING
 ---------
-OSMM is free and open source software, licensed under the
+Space Works is free and open source software, licensed under the
 GNU Affero General Public License, version 3 or (at your option) any later
 version (AGPL-3.0-or-later).
 
-You may use, study, share, and modify OSMM freely — for any purpose, commercial
+You may use, study, share, and modify Space Works freely — for any purpose, commercial
 or noncommercial — subject to the terms of the AGPL. In particular, because the
-AGPL is a "network" copyleft license: if you run a modified version of OSMM and
+AGPL is a "network" copyleft license: if you run a modified version of Space Works and
 let users interact with it over a network, you must offer those users the
 corresponding source code of your modified version under the same license.
 

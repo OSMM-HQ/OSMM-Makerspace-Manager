@@ -1,6 +1,6 @@
 # Backend
 
-Django REST API for OSMM.
+Django REST API for Space Works.
 
 ## Run Locally
 

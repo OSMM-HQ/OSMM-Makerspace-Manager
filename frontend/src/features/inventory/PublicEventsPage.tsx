@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
-import { OsmmBadge } from "../../components/OsmmLogo";
+import { SpaceWorksBadge } from "../../components/SpaceWorksLogo";
 import { SiteFooter } from "../../components/SiteFooter";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Card, EmptyState, Skeleton, StatusBadge } from "../../components/ui";
@@ -62,7 +62,7 @@ export function PublicEventsPage() {
         <div><p className="text-xs font-semibold uppercase tracking-wide text-accent-ink">Public Events</p>
           <MakerspaceBrand name={displayName} logoUrl={bootstrap?.makerspace.logo_url} size="lg" />
         </div>
-        <div className="flex flex-wrap items-center gap-2"><OsmmBadge /><Link className="desk-button" to={tenantPath()}>Inventory</Link><ThemeToggle /></div>
+        <div className="flex flex-wrap items-center gap-2"><SpaceWorksBadge /><Link className="desk-button" to={tenantPath()}>Inventory</Link><ThemeToggle /></div>
       </div>
     </header>
     <section className="mx-auto w-full max-w-5xl flex-1 px-5 py-8">

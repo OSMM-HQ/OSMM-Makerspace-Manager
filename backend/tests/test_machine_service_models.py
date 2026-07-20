@@ -197,7 +197,7 @@ def test_printing_module_requires_machine_service():
     assert "enabled_modules" in serializer.errors
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_managed_service_limits_have_defaults_and_validate():
     makerspace = make_space("service-managed-limits")
     assert limits.resource_limit(makerspace, "machine_service_open") == 100

@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/banner.svg" alt="OSMM — Open Source Makerspace Manager" width="100%">
+  <img src="docs/banner.svg" alt="Space Works — Open Source Makerspace Manager" width="100%">
 </p>
 
-<h1 align="center">OSMM — Open Source Makerspace Manager</h1>
+<h1 align="center">Space Works — Open Source Makerspace Manager</h1>
 
 <p align="center">
   Self-hostable, multi-tenant <strong>management platform for makerspaces</strong> — run your
@@ -12,14 +12,14 @@
 
 <p align="center">
   <a href="LICENSE"><img alt="License: AGPL-3.0-or-later" src="https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg"></a>
-  <a href="https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/actions/workflows/release.yml"><img alt="Release" src="https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/actions/workflows/release.yml/badge.svg"></a>
+  <a href="https://github.com/SpaceWorks-HQ/Space Works-Makerspace-Manager/actions/workflows/release.yml"><img alt="Release" src="https://github.com/SpaceWorks-HQ/Space Works-Makerspace-Manager/actions/workflows/release.yml/badge.svg"></a>
   <img alt="Stack" src="https://img.shields.io/badge/stack-Django%206%20%C2%B7%20React%2019-0b7285.svg">
   <a href=".github/CONTRIBUTING.md"><img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg"></a>
 </p>
 
 ---
 
-OSMM started inside the **TinkerSpace Kochi** community, from a simple need: make it easy for a
+Space Works started inside the **TinkerSpace Kochi** community, from a simple need: make it easy for a
 makerspace to know **what tools and equipment exist, who borrowed what, what's available, and how
 every loan and print job moves from request to done** — with enough traceability that accountability
 for shared gear is never a guessing game. It's built by makers, for makers: run it at your space, fork it, remix it, or use it as
@@ -44,7 +44,7 @@ Telegram group, QR namespace, and audit scope — fully isolated from the others
 
 ## Quick start
 
-OSMM runs entirely through Docker Compose — it brings up **PostgreSQL, Redis, MinIO storage, the
+Space Works runs entirely through Docker Compose — it brings up **PostgreSQL, Redis, MinIO storage, the
 Celery worker/beat, and database migrations** and wires them to the app for you (the images don't bake
 in any addresses; the compose file passes them in). Pick one path:
 
@@ -52,8 +52,8 @@ in any addresses; the compose file passes them in). Pick one path:
 `.env`, builds everything, and creates your first admin + makerspace:
 
 ```bash
-git clone https://github.com/OSMM-HQ/OSMM-Makerspace-Manager.git
-cd OSMM-Makerspace-Manager
+git clone https://github.com/SpaceWorks-HQ/Space Works-Makerspace-Manager.git
+cd Space Works-Makerspace-Manager
 bash setup.sh                                          # macOS / Linux
 powershell -ExecutionPolicy Bypass -File setup.ps1     # Windows
 ```
@@ -68,7 +68,7 @@ export MAKERSPACE_IMAGE_TAG=latest        # or pin a version, e.g. 0.25.0
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-This pulls **`ghcr.io/osmm-hq/osmm-backend`** + **`ghcr.io/osmm-hq/osmm-frontend`** and brings up the
+This pulls **`ghcr.io/spaceworks-hq/spaceworks-backend`** + **`ghcr.io/spaceworks-hq/spaceworks-frontend`** and brings up the
 full stack automatically.
 
 ## Documentation
@@ -124,7 +124,7 @@ With no arguments it seeds **`superadmin` / `super123`** and forces a password c
 Pin `MAKERSPACE_IMAGE_TAG` to a version (e.g. `0.25.0`) in production — see
 **[docs/self-hosting.md](docs/self-hosting.md)** for env vars, TLS, and upgrades.
 
-**No server of your own?** OSMM is multi-tenant — partner with a nearby makerspace to run your space
+**No server of your own?** Space Works is multi-tenant — partner with a nearby makerspace to run your space
 as a tenant on their instance. **Prefer managed Postgres?** Point `DATABASE_URL` at any managed
 Postgres (e.g. Supabase) and host the app anywhere; a fully-managed free-tier path is documented in
 **[docs/supabase-deployment.md](docs/supabase-deployment.md)** (best for demo/pilot, not dependable
@@ -134,11 +134,11 @@ production).
 
 Django 6 + DRF · React 19 + Vite 8 + Tailwind CSS 4 + TypeScript (TanStack Query v5) · PostgreSQL 16 ·
 Celery + Redis · MinIO (S3-compatible) · django-unfold admin · drf-spectacular / OpenAPI. Delivered as
-two Docker images (`osmm-backend`, `osmm-frontend`); everything else is official upstream images.
+two Docker images (`spaceworks-backend`, `spaceworks-frontend`); everything else is official upstream images.
 
 ## Contributing
 
-OSMM is a collaborative project for the makerspace community, and **contributors are very welcome** —
+Space Works is a collaborative project for the makerspace community, and **contributors are very welcome** —
 code, docs, translations, or just running it at your space and reporting what's rough. See
 **[.github/CONTRIBUTING.md](.github/CONTRIBUTING.md)**. **No CLA is required** — by opening a pull
 request you agree your contribution is offered under the project's AGPL-3.0-or-later license
@@ -147,21 +147,21 @@ request you agree your contribution is offered under the project's AGPL-3.0-or-l
 
 ## License
 
-OSMM is **free and open source software**, licensed under the
+Space Works is **free and open source software**, licensed under the
 **[GNU Affero General Public License v3](LICENSE)** (`AGPL-3.0-or-later`).
 
-You are free to use, study, share, and modify OSMM — for **any** purpose, commercial or
+You are free to use, study, share, and modify Space Works — for **any** purpose, commercial or
 noncommercial — subject to the AGPL. Because the AGPL is a **network copyleft** license: if you run
 a modified version and let users interact with it over a network, you must offer those users the
 corresponding source code of your modified version under the same license.
 
 ## Contributors
 
-Thanks to **everyone** who has contributed to OSMM — code, docs, bug reports, or running it at their
+Thanks to **everyone** who has contributed to Space Works — code, docs, bug reports, or running it at their
 space. The wall below is pulled live from this repository's
-[GitHub contributor graph](https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/graphs/contributors) and
+[GitHub contributor graph](https://github.com/SpaceWorks-HQ/Space Works-Makerspace-Manager/graphs/contributors) and
 shows **all** contributors — bots and automation included, no filtering:
 
-[![Contributors](https://contrib.rocks/image?repo=OSMM-HQ/OSMM-Makerspace-Manager&max=100)](https://github.com/OSMM-HQ/OSMM-Makerspace-Manager/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=SpaceWorks-HQ/Space Works-Makerspace-Manager&max=100)](https://github.com/SpaceWorks-HQ/Space Works-Makerspace-Manager/graphs/contributors)
 
 <sub>Contributor image by [contrib.rocks](https://contrib.rocks).</sub>

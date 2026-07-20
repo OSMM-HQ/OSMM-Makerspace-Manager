@@ -13,7 +13,7 @@ def subdomain_request_url(makerspace):
     )
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech", INFRA_HOSTS={"testserver"})
 @pytest.mark.django_db
 def test_manager_can_create_managed_subdomain_request():
     makerspace = make_space("subdomain-create")
@@ -50,7 +50,7 @@ def test_self_host_rejects_subdomain_request_without_creating_row():
     assert not SubdomainRequest.objects.exists()
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech", INFRA_HOSTS={"testserver"})
 @pytest.mark.django_db
 def test_second_pending_request_for_same_makerspace_is_rejected():
     makerspace = make_space("subdomain-duplicate")
@@ -83,7 +83,7 @@ def test_second_pending_request_for_same_makerspace_is_rejected():
     )
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech", INFRA_HOSTS={"testserver"})
 @pytest.mark.django_db
 def test_manager_cannot_request_subdomain_for_another_makerspace():
     own_space = make_space("subdomain-cross-tenant-own")
@@ -101,7 +101,7 @@ def test_manager_cannot_request_subdomain_for_another_makerspace():
     assert not SubdomainRequest.objects.exists()
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech", INFRA_HOSTS={"testserver"})
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     ("requested_label", "message"),
@@ -128,13 +128,13 @@ def test_reserved_or_invalid_subdomain_label_is_rejected(requested_label, messag
     assert not SubdomainRequest.objects.exists()
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech", INFRA_HOSTS={"testserver"})
 @pytest.mark.django_db
 def test_already_taken_verified_subdomain_label_is_rejected():
     makerspace = make_space("subdomain-collision-requester")
     manager = make_member("subdomain-collision-manager", makerspace)
     owner = make_space("subdomain-collision-owner")
-    owner.frontend_domain = "claimed.osmm.me"
+    owner.frontend_domain = "claimed.space-works.tech"
     owner.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
     owner.save()
 
@@ -145,18 +145,18 @@ def test_already_taken_verified_subdomain_label_is_rejected():
         HTTP_HOST="testserver",
     )
 
-    assert owner.frontend_domain == "claimed.osmm.me"
+    assert owner.frontend_domain == "claimed.space-works.tech"
     assert owner.frontend_domain_status == Makerspace.DomainStatus.VERIFIED
     assert response.status_code == 400
     assert "already taken" in str(response.data).lower()
     assert not SubdomainRequest.objects.exists()
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech", INFRA_HOSTS={"testserver"})
 @pytest.mark.django_db
 def test_already_provisioned_makerspace_cannot_request_another_subdomain():
     makerspace = make_space("subdomain-already-provisioned")
-    makerspace.frontend_domain = "existing.osmm.me"
+    makerspace.frontend_domain = "existing.space-works.tech"
     makerspace.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
     makerspace.save()
     manager = make_member("subdomain-already-provisioned-manager", makerspace)
@@ -173,7 +173,7 @@ def test_already_provisioned_makerspace_cannot_request_another_subdomain():
     assert not SubdomainRequest.objects.exists()
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech", INFRA_HOSTS={"testserver"})
 @pytest.mark.django_db
 def test_requested_label_is_trimmed_and_lowercased():
     makerspace = make_space("subdomain-normalized")
@@ -191,7 +191,7 @@ def test_requested_label_is_trimmed_and_lowercased():
     assert SubdomainRequest.objects.get(makerspace=makerspace).requested_label == "mylab"
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech", INFRA_HOSTS={"testserver"})
 @pytest.mark.django_db
 def test_get_lists_only_requests_for_managers_own_makerspace():
     own_space = make_space("subdomain-list-own")

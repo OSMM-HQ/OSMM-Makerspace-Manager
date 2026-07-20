@@ -24,7 +24,7 @@ def set_domain(makerspace, domain="verify.example"):
     return makerspace
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_verify_domain_marks_verified_when_token_present(monkeypatch):
     makerspace = set_domain(make_space("domain-verified"))
     monkeypatch.setattr(
@@ -42,8 +42,23 @@ def test_verify_domain_marks_verified_when_token_present(monkeypatch):
     assert verified_at == makerspace.domain_verified_at
     assert detail == "Domain verified."
 
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
+def test_verify_domain_accepts_legacy_osmm_txt_label(monkeypatch):
+    makerspace = set_domain(make_space("legacy-domain-verified"))
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+    def resolve_txt(name):
+        if name.startswith("_osmm-verify."):
+            return [makerspace.domain_verification_token]
+        return []
+
+    monkeypatch.setattr(domain_verification, "_resolve_txt", resolve_txt)
+
+    status, _, detail = domain_verification.verify_domain(makerspace)
+
+    assert status == Makerspace.DomainStatus.VERIFIED
+    assert detail == "Domain verified."
+
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_verify_domain_marks_failed_when_token_absent(monkeypatch):
     makerspace = set_domain(make_space("domain-token-absent"))
     old_verified_at = timezone.now()
@@ -62,7 +77,7 @@ def test_verify_domain_marks_failed_when_token_absent(monkeypatch):
     assert "not found" in detail
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_verify_endpoint_handles_resolver_error_and_audits(monkeypatch):
     makerspace = set_domain(make_space("domain-resolver-error"))
     manager = make_member("domain-resolver-error-manager", makerspace)
@@ -81,7 +96,7 @@ def test_verify_endpoint_handles_resolver_error_and_audits(monkeypatch):
     assert response.data["status"] == Makerspace.DomainStatus.FAILED
     assert response.data["token"] == makerspace.domain_verification_token
     assert response.data["expected_record"] == {
-        "host": f"_osmm-verify.{makerspace.frontend_domain}",
+        "host": f"_spaceworks-verify.{makerspace.frontend_domain}",
         "type": "TXT",
         "value": makerspace.domain_verification_token,
     }
@@ -121,7 +136,7 @@ def test_verify_endpoint_manage_makerspace_gating():
     assert authenticated_client(superadmin).post(verify_url(hidden)).status_code == 404
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_frontend_domain_change_resets_status_and_keeps_token_stable():
     # Managed mode: changing a custom domain re-enters the TXT flow => PENDING.
     makerspace = set_domain(make_space("domain-reset"), "old-reset.example")
@@ -211,7 +226,7 @@ def test_selfhost_domain_is_trusted_without_txt():
     assert ms.domain_verified_at is not None
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_managed_custom_domain_without_txt_fails(monkeypatch):
     # Managed path unchanged: a non-platform domain with no TXT record => FAILED.
     monkeypatch.setattr(domain_verification, "_resolve_txt", lambda name: [])
@@ -245,9 +260,9 @@ def test_middleware_passes_through_on_whitespace_suffix():
 def test_platform_suffix_normalization_prepends_leading_dot():
     from config.settings import normalize_platform_domain_suffix
 
-    assert normalize_platform_domain_suffix("osmm.me") == ".osmm.me"
-    assert normalize_platform_domain_suffix(".osmm.me") == ".osmm.me"
-    assert normalize_platform_domain_suffix("OSMM.ME") == ".osmm.me"
+    assert normalize_platform_domain_suffix("space-works.tech") == ".space-works.tech"
+    assert normalize_platform_domain_suffix(".space-works.tech") == ".space-works.tech"
+    assert normalize_platform_domain_suffix("space-works.tech") == ".space-works.tech"
     assert normalize_platform_domain_suffix("  ") == ""
     assert normalize_platform_domain_suffix("") == ""
     assert normalize_platform_domain_suffix(None) == ""

@@ -28,8 +28,8 @@ MAKERSPACE_IMAGE_TAG=latest
 Optional image overrides:
 
 ```env
-MAKERSPACE_BACKEND_IMAGE=ghcr.io/osmm-hq/osmm-backend
-MAKERSPACE_FRONTEND_IMAGE=ghcr.io/osmm-hq/osmm-frontend
+MAKERSPACE_BACKEND_IMAGE=ghcr.io/spaceworks-hq/spaceworks-backend
+MAKERSPACE_FRONTEND_IMAGE=ghcr.io/spaceworks-hq/spaceworks-frontend
 ```
 
 ### Build from source (no published images)
@@ -115,7 +115,7 @@ zip). It's driven straight from `main` by the root **`VERSION`** file (`release.
 Changing `VERSION` on `main` builds and pushes `:X.Y.Z`, `:X.Y`, and `:latest` for both images. Ordinary
 pushes to `main` publish nothing.
 
-The `osmm-backend` / `osmm-frontend` GHCR packages must be set to **Public** (org → Packages)
+The `spaceworks-backend` / `spaceworks-frontend` GHCR packages must be set to **Public** (org → Packages)
 so operators can `docker compose pull` without authenticating.
 
 ## HTTPS & security hardening
@@ -160,7 +160,7 @@ previously stored tokens/passwords can no longer be decrypted.
 
 On a self-hosted instance (the default — `PLATFORM_DOMAIN_SUFFIX` is **blank**) you own both DNS and
 the server, so a makerspace's custom domain is **trusted the moment a superadmin sets it** — there is
-no DNS TXT challenge. (The TXT-verification flow only exists to defend the shared managed `osmm.me`
+no DNS TXT challenge. (The TXT-verification flow only exists to defend the shared managed `space-works.tech`
 box; it stays dormant here.) End-to-end:
 
 1. **Point DNS at the server.** Create an `A`/`AAAA` record for the hostname (for example

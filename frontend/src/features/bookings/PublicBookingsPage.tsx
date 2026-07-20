@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
-import { OsmmBadge } from "../../components/OsmmLogo";
+import { SpaceWorksBadge } from "../../components/SpaceWorksLogo";
 import { SiteFooter } from "../../components/SiteFooter";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Badge, Card, EmptyState, Skeleton } from "../../components/ui";
@@ -45,7 +45,7 @@ export function PublicBookingsPage() {
             <MakerspaceBrand name={displayName} logoUrl={bootstrap?.makerspace.logo_url} size="lg" />
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <OsmmBadge />
+            <SpaceWorksBadge />
             <Link className="desk-button" to={tenantPath()}>Inventory</Link>
             {modules.has("events") ? <Link className="desk-button" to={tenantPath("events")}>Events</Link> : null}
             <ThemeToggle />

@@ -2,7 +2,7 @@
 
 ## 1. System overview
 
-OSMM is a multi-tenant makerspace platform for public discovery and staff operation of
+Space Works is a multi-tenant makerspace platform for public discovery and staff operation of
 hardware lending, QR/box custody, self-checkout, 3D printing, bookable spaces, events,
 machines, maintenance, procurement, and machine-service requests. Its central design
 concern is a traceable physical handover: staff actions are backed by QR scans, evidence
@@ -388,7 +388,7 @@ npm install
 npm run dev
 ```
 
-`docker compose up` additionally supplies `osmm-db`, MinIO bucket creation, Redis, migration,
+`docker compose up` additionally supplies `spaceworks-db`, MinIO bucket creation, Redis, migration,
 backend, worker/beat, and nginx frontend services (`docker-compose.yml`). The backend pytest
 configuration discovers `backend/tests/test_*.py`; tests use the Postgres-backed Django harness,
 while integration behavior covers storage, presence, encryption, workflows, and tenant isolation

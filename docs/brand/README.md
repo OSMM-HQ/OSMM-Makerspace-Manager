@@ -1,8 +1,8 @@
-# OSMM Brand
+# Space Works Brand
 
-The **OSMM — Open Source Makerspace Manager** visual identity. This folder is the single source of
+The **Space Works — Open Source Makerspace Manager** visual identity. This folder is the single source of
 truth for the logo, colour, and type. The live app consumes the same values via
-`frontend/src/components/OsmmLogo.tsx`, `frontend/public/osmm-logo.svg` (favicon), and the Tailwind
+`frontend/src/components/SpaceWorksLogo.tsx`, `frontend/public/spaceworks-logo.svg` (favicon), and the Tailwind
 theme tokens.
 
 ## Concept — the "Parts-Crate"
@@ -11,7 +11,7 @@ The logomark is a **parts bin**: an open crate whose **four compartments** are t
 in the lettered variant, spell **O-S-M-M** in pixel type. It says "a place for every part" — the
 whole point of the product.
 
-- **Plain crate** — pair with the "OSMM" wordmark in horizontal/stacked lockups (headers, banners).
+- **Plain crate** — pair with the "Space Works" wordmark in horizontal/stacked lockups (headers, banners).
 - **Lettered crate** — stands alone where there's no wordmark: favicons, app icons, avatars.
 
 ## Assets in this folder
@@ -22,7 +22,7 @@ whole point of the product.
 | `logomark-lettered.svg` | Crate with O-S-M-M pixels — standalone mark |
 | `app-icon.svg` | Dark rounded tile + lettered mark — app/store icon |
 
-The banner lockup lives at `../banner.svg`; the browser favicon at `../../frontend/public/osmm-logo.svg`.
+The banner lockup lives at `../banner.svg`; the browser favicon at `../../frontend/public/spaceworks-logo.svg`.
 
 ## Colour
 
@@ -47,7 +47,7 @@ Neutrals:
 
 ## Type
 
-- **Clash Display** (700) — the "OSMM" wordmark, letter-spacing ≈ 0.04em.
+- **Clash Display** (700) — the "Space Works" wordmark, letter-spacing ≈ 0.04em.
 - **Space Grotesk** — supporting UI / marketing text.
 - **Press Start 2P** — the O-S-M-M pixels inside the bins (lettered mark only).
 
