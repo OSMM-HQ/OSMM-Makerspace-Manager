@@ -15,6 +15,7 @@ class PublicFilamentSpoolSerializer(serializers.Serializer):
 
 
 class PrintPresignRequestSerializer(serializers.Serializer):
+    bucket_id = serializers.IntegerField(required=False, allow_null=True)
     kind = serializers.ChoiceField(choices=["stl", "screenshot"])
     filename = serializers.CharField(max_length=255)
     content_type = serializers.CharField(required=False, allow_blank=True, max_length=128)

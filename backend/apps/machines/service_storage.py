@@ -91,6 +91,34 @@ def create_staged_file(service_request, *, actor, filename, content_type):
     return upload, presigned
 
 
+def create_staged_queue_file(queue, *, actor, filename, content_type, kind=ServiceRequestFile.Kind.MODEL):
+    """Stage a public queued-service file before its request exists.
+
+    Public printing uses this during the B4 compatibility period: the queue is
+    already authoritative, while the request is only created after upload.
+    """
+    policy = policy_for_queue(queue)
+    validate_upload_declaration(policy, filename, content_type)
+    upload = ServiceRequestFile.objects.create(
+        makerspace=queue.makerspace, queue=queue,
+        kind=kind,
+        object_key=service_object_key(queue.makerspace_id, f"queue-{queue.pk}"),
+        content_type=content_type.lower().strip(), original_filename=filename,
+        owner_user_id=actor.pk, file_policy_name=policy.name,
+        file_policy_version=policy.version,
+    )
+    try:
+        presigned = presigned_upload(upload.object_key, upload.content_type, policy.max_bytes)
+    except Exception:
+        upload.delete()
+        raise
+    audit.record(
+        actor, "machine_service.file_staged", makerspace=queue.makerspace,
+        target=upload, meta={"queue_id": queue.pk, "file_id": upload.pk},
+    )
+    return upload, presigned
+
+
 def presigned_upload(object_key, content_type, max_bytes):
     try:
         if settings.STORAGE_PRESIGN_METHOD == "put":

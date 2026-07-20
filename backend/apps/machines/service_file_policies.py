@@ -26,14 +26,15 @@ def _documents_policy():
 
 
 def _printer_policy():
+    # This is also the policy used by the B4 public-print compatibility route.
+    # Its contract must therefore remain identical to the established public
+    # print upload contract, including octet-stream model uploads and the
+    # larger public model-file limit.
     return ServiceFilePolicy(
         name="printer", version=1,
-        allowed_extensions=("stl", "3mf", "step", "stp", "obj", "pdf", "png", "jpg", "jpeg", "webp"),
-        allowed_mimes=(
-            "model/stl", "application/sla", "application/vnd.ms-package.3dmanufacturing-3dmodel+xml",
-            "model/step", "application/step", "model/obj", "application/pdf", "image/png", "image/jpeg", "image/webp",
-        ),
-        max_bytes=settings.MACHINE_DOC_MAX_BYTES,
+        allowed_extensions=tuple(settings.PRINT_ALLOWED_MODEL_EXT) + tuple(settings.PRINT_ALLOWED_SCREENSHOT_EXT),
+        allowed_mimes=tuple(settings.PRINT_ALLOWED_MODEL_MIME) + tuple(settings.PRINT_ALLOWED_SCREENSHOT_MIME),
+        max_bytes=settings.PRINT_UPLOAD_MAX_BYTES,
     )
 
 

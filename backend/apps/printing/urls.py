@@ -73,7 +73,9 @@ urlpatterns = [
         name="admin-report",
     ),
     path("requests/", PrintRequestCreateListView.as_view(), name="request-list"),
-    path("requests/<int:pk>/", PrintRequestDetailView.as_view(), name="request-detail"),
+    # Kernel-backed personal rows are exposed as negative ids, keeping the
+    # retained positive legacy PK namespace unambiguous during B4.
+    path("requests/<str:pk>/", PrintRequestDetailView.as_view(), name="request-detail"),
     path("buckets/", PrintBucketListView.as_view(), name="bucket-list"),
     path(
         "manage/requests/",
@@ -111,47 +113,47 @@ urlpatterns = [
         name="managed-manual-log-list",
     ),
     path(
-        "manage/requests/<int:pk>/",
+        "manage/requests/<str:pk>/",
         ManagedPrintRequestDetailView.as_view(),
         name="managed-request-detail",
     ),
     path(
-        "manage/requests/<int:pk>/accept",
+        "manage/requests/<str:pk>/accept",
         PrintRequestAcceptView.as_view(),
         name="managed-request-accept",
     ),
     path(
-        "manage/requests/<int:pk>/reject",
+        "manage/requests/<str:pk>/reject",
         PrintRequestRejectView.as_view(),
         name="managed-request-reject",
     ),
     path(
-        "manage/requests/<int:pk>/start",
+        "manage/requests/<str:pk>/start",
         PrintRequestStartView.as_view(),
         name="managed-request-start",
     ),
     path(
-        "manage/requests/<int:pk>/complete",
+        "manage/requests/<str:pk>/complete",
         PrintRequestCompleteView.as_view(),
         name="managed-request-complete",
     ),
     path(
-        "manage/requests/<int:pk>/collect",
+        "manage/requests/<str:pk>/collect",
         PrintRequestCollectView.as_view(),
         name="managed-request-collect",
     ),
     path(
-        "manage/requests/<int:pk>/fail",
+        "manage/requests/<str:pk>/fail",
         PrintRequestFailView.as_view(),
         name="managed-request-fail",
     ),
     path(
-        "manage/requests/<int:pk>/reprint",
+        "manage/requests/<str:pk>/reprint",
         PrintRequestReprintView.as_view(),
         name="managed-request-reprint",
     ),
     path(
-        "manage/files/<int:pk>/url",
+        "manage/files/<str:pk>/url",
         ManagedPrintFileUrlView.as_view(),
         name="managed-file-url",
     ),

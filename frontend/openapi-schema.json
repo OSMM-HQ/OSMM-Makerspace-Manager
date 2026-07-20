@@ -20199,7 +20199,7 @@
                         "in": "path",
                         "name": "id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         },
                         "required": true
                     }
@@ -20846,7 +20846,7 @@
                         "in": "path",
                         "name": "id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         },
                         "required": true
                     }
@@ -20901,7 +20901,7 @@
                         "in": "path",
                         "name": "id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         },
                         "required": true
                     }
@@ -20985,7 +20985,7 @@
                         "in": "path",
                         "name": "id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         },
                         "required": true
                     }
@@ -21050,7 +21050,7 @@
                         "in": "path",
                         "name": "id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         },
                         "required": true
                     }
@@ -21134,7 +21134,7 @@
                         "in": "path",
                         "name": "id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         },
                         "required": true
                     }
@@ -21219,7 +21219,7 @@
                         "in": "path",
                         "name": "id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         },
                         "required": true
                     }
@@ -21304,7 +21304,7 @@
                         "in": "path",
                         "name": "id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         },
                         "required": true
                     }
@@ -21369,7 +21369,7 @@
                         "in": "path",
                         "name": "id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         },
                         "required": true
                     }
@@ -22393,6 +22393,7 @@
         "/api/v1/printing/requests/": {
             "get": {
                 "operationId": "api_v1_printing_requests_list",
+                "description": "Read each request from the source authoritative for its makerspace.",
                 "summary": "List or create personal print requests",
                 "parameters": [
                     {
@@ -22447,6 +22448,7 @@
             },
             "post": {
                 "operationId": "api_v1_printing_requests_create",
+                "description": "Read each request from the source authoritative for its makerspace.",
                 "summary": "List or create personal print requests",
                 "tags": [
                     "Printing"
@@ -22512,13 +22514,14 @@
         "/api/v1/printing/requests/{id}/": {
             "get": {
                 "operationId": "api_v1_printing_requests_retrieve",
+                "description": "Read each request from the source authoritative for its makerspace.",
                 "summary": "Retrieve personal print request",
                 "parameters": [
                     {
                         "in": "path",
                         "name": "id",
                         "schema": {
-                            "type": "integer"
+                            "type": "string"
                         },
                         "required": true
                     }
@@ -36413,6 +36416,10 @@
             "PrintPresignRequest": {
                 "type": "object",
                 "properties": {
+                    "bucket_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
                     "kind": {
                         "$ref": "#/components/schemas/PrintPresignRequestKindEnum"
                     },

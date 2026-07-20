@@ -1,4 +1,5 @@
 from decimal import Decimal
+import json
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
@@ -20,6 +21,23 @@ from apps.printing.storage import (
     validate_print_model_object,
 )
 from apps.machines.printing_cutover import kernel_is_authoritative
+
+
+def _kernel_preferred_settings(value):
+    """Translate the legacy text field to the printer pack's JSON object."""
+    if not value:
+        return None
+    if isinstance(value, dict):
+        return value
+    try:
+        parsed = json.loads(value)
+    except (TypeError, ValueError) as exc:
+        raise ValidationError({
+            "preferred_settings": "Printer preferred settings must be a JSON object after cutover.",
+        }) from exc
+    if not isinstance(parsed, dict):
+        raise ValidationError({"preferred_settings": "Printer preferred settings must be a JSON object."})
+    return parsed
 
 
 def _resolve_public_bucket(makerspace, bucket_id):
@@ -52,26 +70,93 @@ def _resolve_public_bucket(makerspace, bucket_id):
     return bucket
 
 
+def resolve_kernel_public_queue(makerspace, bucket_id):
+    """Resolve the kernel queue without creating or modifying a legacy bucket."""
+    from apps.machines.models import ServiceQueue
+
+    queues = ServiceQueue.objects.filter(
+        makerspace=makerspace,
+        is_active=True,
+        legacy_print_bucket_id__isnull=False,
+        machine_type__slug="3d_printer",
+    )
+    if bucket_id is not None:
+        queue = queues.filter(legacy_print_bucket_id=bucket_id).first()
+        if queue is None:
+            raise ValidationError({"bucket_id": "Invalid or inactive bucket."})
+        return queue
+    queue = queues.filter(name="Public Requests").first()
+    if queue is None:
+        raise ValidationError({"bucket_id": "Select an active reconciled printing queue."})
+    return queue
+
+
 def submit_public_print_request(makerspace, data, member):
     if kernel_is_authoritative(makerspace):
-        # Compatibility URL, kernel write.  The legacy bucket is resolved by its
-        # provenance key and is never created or updated after B4.
-        from apps.machines.models import ServiceQueue
+        # Compatibility URL, kernel write.  No legacy queue is created or
+        # changed after B4; queued uploads are staged directly against the
+        # reconciled ServiceQueue and attached after submit.
+        from apps.machines.models import MachineConsumablePool, ServiceRequestFile
         from apps.machines.service_workflow import submit
-        legacy_bucket = _resolve_public_bucket(makerspace, data.get("bucket_id"))
-        queue = ServiceQueue.objects.filter(legacy_print_bucket_id=legacy_bucket.pk, makerspace=makerspace).first()
-        if queue is None:
-            raise ValidationError({"bucket_id": "This printing queue has not been reconciled."})
-        spool = FilamentSpool.objects.filter(pk=data.get("filament_spool_id"), makerspace=makerspace).first() if data.get("filament_spool_id") else None
+        from apps.machines.service_storage import finalize_file
+
+        queue = resolve_kernel_public_queue(makerspace, data.get("bucket_id"))
+        spool = None
+        spool_id = data.get("filament_spool_id")
+        if spool_id is not None:
+            spool = FilamentSpool.objects.filter(
+                pk=spool_id, makerspace=makerspace, is_active=True,
+            ).first()
+            if spool is None:
+                raise ValidationError({"filament_spool_id": "Invalid or inactive spool."})
+            pool = MachineConsumablePool.objects.filter(
+                legacy_filament_spool_id=spool.pk, makerspace=makerspace, is_active=True,
+            ).first()
+            if pool is None:
+                raise ValidationError({"filament_spool_id": "This spool has not been reconciled."})
+        else:
+            pool = None
+        config = queue.machine_type.capability_config
+        material = data.get("material") or getattr(spool, "material", "")
+        color = data.get("color") or getattr(spool, "color", "")
+        no_filament_preference = spool is None and not material and not color
+        # The kernel requires concrete, type-valid values.  The default is a
+        # representation of an omitted legacy preference, not a forced spool:
+        # ``no_filament_preference`` tells start validation to accept any
+        # compatible pool selected by staff.
+        material = material or config["accepted_materials"][0]
+        color = color or config["accepted_colours"][0]
+        estimated_grams = data.get("estimated_filament_grams")
+        preferred_settings = _kernel_preferred_settings(data.get("preferred_settings", ""))
         payload = {
-            "requested_material": data.get("material") or getattr(spool, "material", ""),
-            "requested_color": data.get("color") or getattr(spool, "color", ""),
+            "requested_material": material,
+            "requested_color": color,
             "quantity": data.get("quantity", 1), "project_brief": data.get("project_brief", ""),
-            **({"requested_consumable_pool": spool.id} if spool else {}),
+            **({"no_filament_preference": True} if no_filament_preference else {}),
+            **({"estimated_grams": str(estimated_grams)} if estimated_grams is not None and estimated_grams > 0 else {}),
+            **({"requested_consumable_pool": pool.id} if pool else {}),
+            **({"preferred_settings": preferred_settings} if preferred_settings is not None else {}),
         }
-        return submit(queue, member, requester_name=(member.display_name or ""), contact_email=(member.email or ""),
-                      contact_phone=(member.phone or ""), title=data["title"], description=data.get("description", ""),
-                      source_link=data.get("source_link", ""), actor=member, member=member, capability_payload=payload)
+        with transaction.atomic():
+            # The compatibility URL retains the printing product's monthly
+            # quota in addition to the kernel's general service-request
+            # limits.  Those limits have different scopes and periods.
+            limits.check_quota(makerspace, "print", adding=1)
+            request = submit(queue, member, requester_name=(member.display_name or ""), contact_email=(member.email or ""),
+                             contact_phone=(member.phone or ""), title=data["title"], description=data.get("description", ""),
+                             source_link=data.get("source_link", ""), actor=member, member=member, capability_payload=payload)
+            file_ids = data.get("file_ids") or []
+            if file_ids:
+                files = list(ServiceRequestFile.objects.select_for_update().filter(
+                    id__in=file_ids, makerspace=makerspace, queue=queue,
+                    owner_user_id=member.pk, service_request__isnull=True,
+                    attached_at__isnull=True,
+                ))
+                if len(files) != len(set(file_ids)):
+                    raise ValidationError({"file_ids": "One or more uploads are invalid, already used, or not yours."})
+                for file in files:
+                    finalize_file(request, file_id=file.pk, actor=member)
+            return request
     with transaction.atomic():
         bucket = _resolve_public_bucket(makerspace, data.get("bucket_id"))
         spool = None

@@ -28,7 +28,10 @@ class PrintRequestActionView(ManagedPrintRequestQuerysetMixin, generics.GenericA
         require_module(print_request.bucket.makerspace, "printing")
         input_serializer = None
         if self.request_serializer_class is not None:
-            input_serializer = self.request_serializer_class(data=request.data)
+            kwargs = {"data": request.data}
+            if self.request_serializer_class is PrintStartSerializer:
+                kwargs["kernel_request"] = hasattr(print_request, "_service_request")
+            input_serializer = self.request_serializer_class(**kwargs)
             input_serializer.is_valid(raise_exception=True)
 
         try:

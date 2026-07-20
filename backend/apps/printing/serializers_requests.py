@@ -87,7 +87,7 @@ class PrintRequestSerializer(serializers.ModelSerializer):
             files = list(obj.reprint_of.files.all())
         return [
             {
-                "id": f.id,
+                "id": -f.id if hasattr(obj, "_service_request") else f.id,
                 "kind": f.kind,
                 "original_filename": f.original_filename,
                 "content_type": f.content_type,
@@ -232,5 +232,14 @@ class PrintStartSerializer(serializers.Serializer):
         decimal_places=2,
         min_value=Decimal("0.01"),
     )
+
+    def __init__(self, *args, **kwargs):
+        kernel_request = kwargs.pop("kernel_request", False)
+        super().__init__(*args, **kwargs)
+        if kernel_request:
+            # A kernel accept may already have established the immutable plan.
+            # Retained legacy requests keep the existing required-field contract.
+            self.fields["estimated_filament_grams"].required = False
+            self.fields["estimated_filament_grams"].allow_null = True
 
 

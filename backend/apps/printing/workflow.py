@@ -1,4 +1,5 @@
 from decimal import Decimal
+import json
 
 from django.db import transaction
 from django.utils import timezone
@@ -26,6 +27,8 @@ _ALLOWED = {
 
 def _kernel_request(legacy):
     """Resolve one legacy compatibility target without ever aggregating sides."""
+    if isinstance(legacy, LegacyPrintRequestAdapter):
+        return legacy._service_request
     from apps.machines.models import MachineServiceRequest
     try:
         return MachineServiceRequest.objects.get(legacy_print_request_id=legacy.pk)
@@ -34,7 +37,124 @@ def _kernel_request(legacy):
 
 
 def _kernel_enabled(legacy):
+    if isinstance(legacy, LegacyPrintRequestAdapter):
+        return True
     return kernel_is_authoritative(legacy.bucket.makerspace)
+
+
+def _legacy_status(status):
+    return PrintRequest.Status.PRINTING if status == "in_progress" else status
+
+
+class _KernelFiles:
+    """Small related-manager facade for the legacy response serializer."""
+
+    def __init__(self, service_request):
+        self.service_request = service_request
+
+    def all(self):
+        return self.service_request.files.all()
+
+
+class LegacyPrintRequestAdapter:
+    """Expose a kernel mutation through the established managed-print contract.
+
+    The legacy print row remains immutable after cutover; this is a response
+    projection only, not a reverse synchronisation path.
+    """
+
+    def __init__(self, service_request, legacy=None, *, identifier=None):
+        from apps.printing.models import PrintBucket
+
+        self._service_request = service_request
+        source_legacy = legacy._legacy if isinstance(legacy, LegacyPrintRequestAdapter) else legacy
+        self._legacy = source_legacy
+        # Kernel requests live in a distinct, negative namespace.  A retained
+        # legacy PK can otherwise collide with an unrelated kernel request.
+        self.id = -service_request.pk if identifier is None else identifier
+        self.bucket = legacy.bucket if legacy is not None else PrintBucket.objects.get(
+            pk=service_request.queue.legacy_print_bucket_id,
+        )
+        self.requester = service_request.requester
+        self.requester_name = service_request.requester_name
+        self.contact_email = service_request.contact_email
+        self.contact_phone = service_request.contact_phone
+        self.title = service_request.title
+        self.description = service_request.description
+        self.source_link = service_request.source_link
+        payload = service_request.capability_payload or {}
+        self.material = payload.get("requested_material", "")
+        self.color = payload.get("requested_color", "")
+        self.quantity = payload.get("quantity", 1)
+        self.project_brief = payload.get("project_brief", "")
+        settings = payload.get("preferred_settings", "")
+        self.preferred_settings = json.dumps(settings, sort_keys=True) if isinstance(settings, dict) else settings
+        self.model_file = ""
+        self.estimate_screenshot = ""
+        self.preview_screenshot = ""
+        self.status = _legacy_status(service_request.status)
+        self.reason = service_request.reason
+        self.handled_by = service_request.handled_by
+        self.accepted_by = service_request.accepted_by
+        self.accepted_at = service_request.accepted_at
+        self.started_at = service_request.started_at
+        self.completed_at = service_request.completed_at
+        self.collected_at = service_request.collected_at
+        self.collected_by = service_request.collected_by
+        self.created_at = service_request.created_at
+        self.updated_at = service_request.updated_at
+        self.estimated_minutes = service_request.estimated_minutes
+        self.estimated_filament_grams = service_request.planned_grams
+        self.filament_grams_reserved = service_request.reserved_grams
+        self.filament_grams_used = service_request.actual_consumed_grams
+        self.run_printer_name = service_request.run_machine_name
+        self.run_printer_model = service_request.run_machine_model
+        self.run_spool_label = service_request.run_consumable_label
+        self.run_spool_material = service_request.run_consumable_material
+        self.run_spool_color = service_request.run_consumable_color
+        self.run_estimated_minutes = service_request.run_estimated_minutes
+        self.run_planned_filament_grams = service_request.run_planned_grams
+        self.price = service_request.payment_amount or Decimal("0.00")
+        self.payment_status = service_request.payment_status
+        self.paid_at = service_request.paid_at
+        self.files = _KernelFiles(service_request)
+        self.requested_filament_spool = None
+        # A kernel start owns the authoritative assignment.  Project its
+        # reconciled legacy identities for the compatibility serializer instead
+        # of falling back to the frozen pre-cutover request values.
+        self.printer = None
+        self.filament_spool = None
+        if service_request.assigned_machine_id:
+            from apps.printing.models import PrintPrinter
+            self.printer = PrintPrinter.objects.filter(
+                pk=service_request.assigned_machine.legacy_print_printer_id,
+            ).first()
+        if service_request.run_consumable_pool_id:
+            from apps.printing.models import FilamentSpool
+            self.filament_spool = FilamentSpool.objects.filter(
+                pk=service_request.run_consumable_pool.legacy_filament_spool_id,
+            ).first()
+        requested_pool_id = payload.get("requested_consumable_pool")
+        if requested_pool_id:
+            from apps.machines.models import MachineConsumablePool
+            from apps.printing.models import FilamentSpool
+            legacy_pool = MachineConsumablePool.objects.filter(pk=requested_pool_id).first()
+            if legacy_pool is not None:
+                self.requested_filament_spool = FilamentSpool.objects.filter(
+                    pk=legacy_pool.legacy_filament_spool_id,
+                ).first()
+        self.reprint_of = service_request.reprint_of if service_request.reprint_of_id else None
+        self.reprint_of_id = -service_request.reprint_of_id if service_request.reprint_of_id else None
+        self.public_token = service_request.public_token
+
+    def __getattr__(self, name):
+        if self._legacy is None:
+            raise AttributeError(name)
+        return getattr(self._legacy, name)
+
+
+def legacy_compatible_response(service_request, legacy=None, *, identifier=None):
+    return LegacyPrintRequestAdapter(service_request, legacy, identifier=identifier)
 
 
 def _locked_request(pk, *related):
@@ -160,8 +280,11 @@ def _reconcile_spool(actor, locked, grams, reason):
 def accept(print_request, actor, *, price=0, estimated_filament_grams=None):
     if _kernel_enabled(print_request):
         from apps.machines import service_workflow
-        return service_workflow.accept(_kernel_request(print_request), actor,
-                                       estimated_minutes=None, payment_amount=price)
+        result = service_workflow.accept(
+            _kernel_request(print_request), actor, estimated_minutes=None,
+            planned_grams=estimated_filament_grams, payment_amount=price,
+        )
+        return legacy_compatible_response(result, print_request)
     return _transition(
         print_request,
         actor,
@@ -174,7 +297,8 @@ def accept(print_request, actor, *, price=0, estimated_filament_grams=None):
 def reject(print_request, actor, reason):
     if _kernel_enabled(print_request):
         from apps.machines import service_workflow
-        return service_workflow.reject(_kernel_request(print_request), actor, reason=reason)
+        result = service_workflow.reject(_kernel_request(print_request), actor, reason=reason)
+        return legacy_compatible_response(result, print_request)
     return _transition(print_request, actor, PrintRequest.Status.REJECTED, "rejected", reason=reason)
 
 def start(
@@ -184,11 +308,22 @@ def start(
     if _kernel_enabled(print_request):
         from apps.machines import service_workflow
         from apps.machines.models import Machine, MachineConsumablePool
-        machine = Machine.objects.get(legacy_print_printer_id=printer_id)
-        pool = MachineConsumablePool.objects.get(legacy_filament_spool_id=filament_spool_id)
-        return service_workflow.start(_kernel_request(print_request), actor, machine_id=machine.pk,
-                                      consumable_pool_id=pool.pk, estimated_minutes=estimated_minutes,
-                                      planned_grams=estimated_filament_grams)
+        machine = Machine.objects.filter(
+            legacy_print_printer_id=printer_id, makerspace=print_request.bucket.makerspace,
+        ).first()
+        if machine is None:
+            raise PrintStartValidationError("Invalid printer for this print request.")
+        pool = MachineConsumablePool.objects.filter(
+            legacy_filament_spool_id=filament_spool_id,
+            makerspace=print_request.bucket.makerspace,
+        ).first()
+        if pool is None:
+            raise PrintStartValidationError("Invalid filament spool for this print request.")
+        target = _kernel_request(print_request)
+        result = service_workflow.start(target, actor, machine_id=machine.pk,
+                                        consumable_pool_id=pool.pk, estimated_minutes=estimated_minutes,
+                                        planned_grams=(target.planned_grams if estimated_filament_grams is None else estimated_filament_grams))
+        return legacy_compatible_response(result, print_request)
     return _transition(
         print_request,
         actor,
@@ -204,8 +339,9 @@ def complete(print_request, actor, *, actual_filament_grams=None):
     if _kernel_enabled(print_request):
         from apps.machines import service_workflow
         target = _kernel_request(print_request)
-        return service_workflow.complete(target, actor, actual_minutes=target.estimated_minutes,
-                                         consumptions=[], actual_grams=actual_filament_grams)
+        result = service_workflow.complete(target, actor, actual_minutes=target.estimated_minutes,
+                                           consumptions=[], actual_grams=actual_filament_grams)
+        return legacy_compatible_response(result, print_request)
     if actual_filament_grams is not None:
         actual_filament_grams = coerce_filament_grams(actual_filament_grams)
     return _transition(
@@ -220,8 +356,9 @@ def fail(print_request, actor, reason, percent_complete=0):
     if _kernel_enabled(print_request):
         from apps.machines import service_workflow
         target = _kernel_request(print_request)
-        return service_workflow.fail(target, actor, reason=reason, percent_complete=percent_complete,
-                                     actual_minutes=target.estimated_minutes, consumptions=[])
+        result = service_workflow.fail(target, actor, reason=reason, percent_complete=percent_complete,
+                                       actual_minutes=target.estimated_minutes, consumptions=[])
+        return legacy_compatible_response(result, print_request)
     result = _transition(
         print_request, actor, PrintRequest.Status.FAILED, "failed",
         reason=reason, percent_complete=percent_complete,
@@ -241,7 +378,8 @@ def fail(print_request, actor, reason, percent_complete=0):
 def mark_collected(print_request, actor):
     if _kernel_enabled(print_request):
         from apps.machines import service_workflow
-        return service_workflow.collect(_kernel_request(print_request), actor)
+        result = service_workflow.collect(_kernel_request(print_request), actor)
+        return legacy_compatible_response(result, print_request)
     with transaction.atomic():
         locked = _locked_request(print_request.pk, "bucket__makerspace")
         if PrintRequest.Status.COLLECTED not in _ALLOWED.get(locked.status, set()):
@@ -275,7 +413,10 @@ def mark_collected(print_request, actor):
 def reprint(failed_request, actor):
     if _kernel_enabled(failed_request):
         from apps.machines import service_workflow
-        return service_workflow.create_reprint(_kernel_request(failed_request), actor)
+        result = service_workflow.create_reprint(_kernel_request(failed_request), actor)
+        # This is a new kernel request, not a mutation of the failed source.
+        # Return its identifier so clients do not target the failed request.
+        return legacy_compatible_response(result, failed_request)
     with transaction.atomic():
         locked = _locked_request(failed_request.pk, "bucket__makerspace")
         if locked.status != PrintRequest.Status.FAILED:

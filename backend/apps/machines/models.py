@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from apps.encryption.mappers import ScopedPiiModelMixin, ScopedPiiQuerySet
+from apps.machines.model_fields import PreservableCreatedAtField
 from apps.machines.service_file_policies import (
     default_service_file_policy,
     validate_service_file_policy,
@@ -226,7 +227,7 @@ class MachineUsageEntry(ScopedPiiModelMixin, models.Model):
         on_delete=models.SET_NULL,
         related_name="+",
     )
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = PreservableCreatedAtField(auto_now_add=True)
 
     objects = MachineUsageEntryQuerySet.as_manager()
 
@@ -256,10 +257,19 @@ class MachineUsageEntry(ScopedPiiModelMixin, models.Model):
     def __str__(self):
         return f"{self.machine}: {self.hours}h"
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, preserve_created_at=False, **kwargs):
         if self.pk:
             raise RuntimeError("MachineUsageEntry rows are append-only.")
-        return super().save(*args, **kwargs)
+        # Cutover imports are append-only inserts too.  Django's auto_now_add
+        # would otherwise replace the source-ledger timestamp at insert time.
+        # Keep this opt-in so normal callers cannot backdate usage entries.
+        if not preserve_created_at:
+            return super().save(*args, **kwargs)
+        self._preserve_created_at = True
+        try:
+            return super().save(*args, **kwargs)
+        finally:
+            del self._preserve_created_at
 
 
 class MachineDocument(models.Model):

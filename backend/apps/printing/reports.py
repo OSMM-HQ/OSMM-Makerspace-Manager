@@ -33,6 +33,41 @@ COMPLETED_STATUSES = [PrintRequest.Status.COMPLETED, PrintRequest.Status.COLLECT
 
 
 def build_printing_report(makerspace_id=None, *, include_makerspace=False, date_range=None):
+    """Build from the source authoritative for each makerspace during B4."""
+    from apps.machines.printing_cutover import kernel_is_authoritative
+    from apps.printing.reports_kernel import build_kernel_printing_report
+
+    if makerspace_id is not None:
+        from apps.makerspaces.models import Makerspace
+
+        makerspace = Makerspace.objects.get(pk=makerspace_id)
+        if kernel_is_authoritative(makerspace):
+            return build_kernel_printing_report(
+                makerspace_id, include_makerspace=include_makerspace, date_range=date_range,
+            )
+        return _build_legacy_printing_report(
+            makerspace_id, include_makerspace=include_makerspace, date_range=date_range,
+        )
+
+    # Preserve the existing SQL report path whenever every eligible tenant is
+    # still legacy.  Mixed global reports are composed from one authoritative
+    # per-tenant projection, so imported provenance is never double counted.
+    from apps.makerspaces.models import Makerspace
+
+    excluded = rbac.superadmin_hidden_makerspace_ids() | rbac.archived_makerspace_ids()
+    spaces = Makerspace.objects.exclude(pk__in=excluded).order_by("pk")
+    if not spaces.filter(printing_cutover_state__kernel_authoritative_at__isnull=False).exists():
+        return _build_legacy_printing_report(
+            include_makerspace=include_makerspace, date_range=date_range,
+        )
+    reports = [
+        build_printing_report(space.pk, include_makerspace=True, date_range=date_range)
+        for space in spaces
+    ]
+    return _merge_tenant_reports(reports, include_makerspace=include_makerspace)
+
+
+def _build_legacy_printing_report(makerspace_id=None, *, include_makerspace=False, date_range=None):
     requests, spools, manual_logs = _scoped_querysets(makerspace_id)
     request_period = _apply_date_range(requests, "created_at", date_range)
     completed_period = _apply_date_range(requests, "completed_at", date_range)
@@ -60,6 +95,44 @@ def build_printing_report(makerspace_id=None, *, include_makerspace=False, date_
             "by_day": estimated_filament_by_period(completed_period, TruncDay, "%Y-%m-%d"),
             "by_hour": estimated_filament_by_period(completed_period, TruncHour, "%Y-%m-%d %H:00"),
         },
+    }
+
+
+def _merge_tenant_reports(reports, *, include_makerspace):
+    totals = {key: 0 for key in ("total_requests", *STATUS_KEYS.values())}
+    payments = {"paid_amount": Decimal("0.00"), "paid_count": 0, "outstanding_amount": Decimal("0.00"), "outstanding_count": 0}
+    rows = {key: [] for key in ("printer_hours", "printer_outcomes", "filament_used", "top_requesters")}
+    brands, periods = {}, {key: {} for key in ("by_month", "by_day", "by_hour")}
+    total_grams = 0.0
+    for report in reports:
+        for key in totals:
+            totals[key] += report["totals"][key]
+        for key in payments:
+            payments[key] += report["payments"][key]
+        total_grams += report["total_grams_used"]
+        for key in rows:
+            rows[key].extend(report[key])
+        for brand in report["filament_by_brand"]:
+            row = brands.setdefault(brand["brand"], {"brand": brand["brand"], "grams_used": 0.0, "spools": 0})
+            row["grams_used"] += brand["grams_used"]
+            row["spools"] += brand["spools"]
+        for grain, entries in report["filament_estimated_by_period"].items():
+            for entry in entries:
+                periods[grain][entry["period"]] = periods[grain].get(entry["period"], 0.0) + entry["grams"]
+    if not include_makerspace:
+        for key in rows:
+            for row in rows[key]:
+                row.pop("makerspace_id", None)
+    return {
+        "totals": totals,
+        "printer_hours": sorted(rows["printer_hours"], key=lambda row: (row.get("makerspace_id") or 0, row["printer_name"], row["printer_id"])),
+        "printer_outcomes": sorted(rows["printer_outcomes"], key=lambda row: (row.get("makerspace_id") or 0, row["printer_name"], row["printer_id"])),
+        "filament_used": rows["filament_used"],
+        "filament_by_brand": sorted(brands.values(), key=lambda row: row["grams_used"], reverse=True),
+        "top_requesters": rows["top_requesters"],
+        "total_grams_used": round(total_grams, 2),
+        "payments": payments,
+        "filament_estimated_by_period": {grain: [{"period": period, "grams": grams} for period, grams in sorted(values.items())] for grain, values in periods.items()},
     }
 
 

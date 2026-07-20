@@ -9,6 +9,7 @@ from django.db import IntegrityError, models, transaction
 from django.db.models import Q
 
 from apps.encryption.mappers import ScopedPiiModelMixin, ScopedPiiQuerySet
+from apps.machines.model_fields import PreservableCreatedAtField
 
 
 class ServiceQueue(models.Model):
@@ -336,7 +337,7 @@ class MachineConsumableAdjustment(models.Model):
     usage_entry = models.ForeignKey("machines.MachineUsageEntry", null=True, blank=True, on_delete=models.PROTECT, related_name="consumable_adjustments")
     reason = models.TextField(blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = PreservableCreatedAtField(auto_now_add=True)
     legacy_filament_adjustment_id = models.PositiveIntegerField(null=True, blank=True, unique=True, editable=False)
 
     objects = MachineConsumableAdjustmentQuerySet.as_manager()
@@ -345,10 +346,18 @@ class MachineConsumableAdjustment(models.Model):
         ordering = ["created_at", "id"]
         constraints = [models.CheckConstraint(condition=~Q(quantity_delta=0), name="consumable_adjustment_nonzero")]
 
-    def save(self, *args, **kwargs):
+    def save(self, *args, preserve_created_at=False, **kwargs):
         if self.pk:
             raise RuntimeError("MachineConsumableAdjustment rows are append-only.")
-        return super().save(*args, **kwargs)
+        # The cutover may preserve the historical ledger timestamp on its one
+        # permitted insert.  It must never update an existing adjustment.
+        if not preserve_created_at:
+            return super().save(*args, **kwargs)
+        self._preserve_created_at = True
+        try:
+            return super().save(*args, **kwargs)
+        finally:
+            del self._preserve_created_at
 
 
 class ServiceRequestConsumptionQuerySet(models.QuerySet):

@@ -3171,6 +3171,7 @@ export type PrintingReportTotals = {
 };
 
 export type PrintPresignRequest = {
+  "bucket_id"?: number | null;
   "kind": PrintPresignRequestKindEnum;
   "filename": string;
   "content_type"?: string;

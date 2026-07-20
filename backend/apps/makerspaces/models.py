@@ -247,6 +247,22 @@ class Makerspace(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
+        # A flipped printing tenant writes its request workflow through the
+        # machine-service kernel.  Allowing this supporting module to be
+        # disabled would strand every print request while the legacy tables are
+        # deliberately read-only.
+        update_fields = kwargs.get("update_fields")
+        if (
+            self.pk
+            and (update_fields is None or "enabled_modules" in update_fields)
+            and "machine_service" not in set(self.enabled_modules or [])
+        ):
+            from apps.machines.printing_cutover import kernel_is_authoritative
+
+            if kernel_is_authoritative(self):
+                raise ValidationError(
+                    {"enabled_modules": "Machine service cannot be disabled after the printing-kernel cutover."}
+                )
         self.public_code = (self.public_code or "").upper()
         self.frontend_domain = normalize_frontend_domain(self.frontend_domain)
         super().save(*args, **kwargs)

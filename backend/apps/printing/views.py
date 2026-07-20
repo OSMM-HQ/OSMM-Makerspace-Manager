@@ -39,9 +39,11 @@ from apps.printing.views_requests import (
     ManagedPrintRequestDetailView,
     ManagedPrintRequestListView,
     ManagedPrintRequestQuerysetMixin,
+    PrintedListView,
+)
+from apps.printing.views_personal_requests import (
     PrintRequestCreateListView,
     PrintRequestDetailView,
-    PrintedListView,
 )
 from apps.printing.views_request_actions import (
     PrintRequestAcceptView,

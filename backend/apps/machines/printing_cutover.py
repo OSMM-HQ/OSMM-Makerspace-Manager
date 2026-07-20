@@ -10,6 +10,7 @@ from decimal import Decimal
 
 from django.db import transaction
 from django.utils import timezone
+from django.core.exceptions import ValidationError
 
 from apps.audit import services as audit
 from apps.machines.models import (
@@ -234,28 +235,33 @@ def _backfill_manual_and_ledger(makerspace, machines, pools, requests):
         if machine is None:
             _repair(makerspace, "invalid_source", "printing.ManualPrintLog", row.pk, reason="manual log has no printer machine")
             raise CutoverMismatch("Manual log missing machine")
-        target, _ = MachineUsageEntry.objects.get_or_create(
-            legacy_manual_print_log_id=row.pk,
-            defaults={"machine": machine, "hours": (Decimal(row.duration_minutes) * Decimal(row.percent_complete) / Decimal("6000")).quantize(Decimal("0.01")),
-                      "source": "typed_manual", "consumable_pool": pools.get(row.filament_spool_id), "duration_minutes": row.duration_minutes,
-                      "outcome": row.outcome, "percent_complete": row.percent_complete, "reason": row.reason,
-                      "consumed_grams": row.grams_used, "title": row.title, "requester_name": row.requester_name,
-                      "contact_email": row.contact_email, "contact_phone": row.contact_phone, "note": row.note, "logged_by": row.logged_by},
-        )
-        _timestamp(MachineUsageEntry, target.pk, row.created_at)
+        target = MachineUsageEntry.objects.filter(legacy_manual_print_log_id=row.pk).first()
+        if target is None:
+            target = MachineUsageEntry(
+                legacy_manual_print_log_id=row.pk, machine=machine,
+                hours=(Decimal(row.duration_minutes) * Decimal(row.percent_complete) / Decimal("6000")).quantize(Decimal("0.01")),
+                source="typed_manual", consumable_pool=pools.get(row.filament_spool_id), duration_minutes=row.duration_minutes,
+                outcome=row.outcome, percent_complete=row.percent_complete, reason=row.reason,
+                consumed_grams=row.grams_used, title=row.title, requester_name=row.requester_name,
+                contact_email=row.contact_email, contact_phone=row.contact_phone, note=row.note,
+                logged_by=row.logged_by, created_at=row.created_at,
+            )
+            target.save(preserve_created_at=True)
         manual[row.pk] = target
     for row in FilamentAdjustment.objects.filter(makerspace=makerspace).order_by("created_at", "id"):
         pool = pools.get(row.filament_spool_id)
         if pool is None:
             _repair(makerspace, "invalid_source", "printing.FilamentAdjustment", row.pk, reason="missing imported pool")
             raise CutoverMismatch("Ledger pool missing")
-        target, _ = MachineConsumableAdjustment.objects.get_or_create(
-            legacy_filament_adjustment_id=row.pk,
-            defaults={"consumable_pool": pool, "makerspace": makerspace, "kind": row.kind, "quantity_delta": row.grams,
-                      "service_request": requests.get(row.print_request_id), "usage_entry": manual.get(row.manual_log_id),
-                      "reason": row.reason, "created_by": row.created_by},
-        )
-        _timestamp(MachineConsumableAdjustment, target.pk, row.created_at)
+        target = MachineConsumableAdjustment.objects.filter(legacy_filament_adjustment_id=row.pk).first()
+        if target is None:
+            target = MachineConsumableAdjustment(
+                legacy_filament_adjustment_id=row.pk, consumable_pool=pool, makerspace=makerspace,
+                kind=row.kind, quantity_delta=row.grams, service_request=requests.get(row.print_request_id),
+                usage_entry=manual.get(row.manual_log_id), reason=row.reason,
+                created_by=row.created_by, created_at=row.created_at,
+            )
+            target.save(preserve_created_at=True)
     # Pool balance is derived only from imported signed history.  A gap is a
     # repair, never an invented adjustment that would rewrite audit provenance.
     for legacy_id, pool in pools.items():
@@ -300,6 +306,10 @@ def reconcile(makerspace):
 
 @transaction.atomic
 def flip_authority(makerspace, *, actor=None):
+    if "machine_service" not in set(makerspace.enabled_modules or []):
+        raise ValidationError(
+            "Machine service must remain enabled before printing can use the machine kernel."
+        )
     reconcile(makerspace)
     state, _ = PrintingCutoverState.objects.select_for_update().get_or_create(makerspace=makerspace)
     if state.kernel_authoritative_at is None:

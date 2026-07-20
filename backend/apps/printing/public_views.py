@@ -31,6 +31,22 @@ from apps.printing.storage import (
     print_object_key,
     validate_print_upload,
 )
+from apps.machines.printing_cutover import kernel_is_authoritative
+
+
+class _KernelPublicPrintStatus:
+    """Public, legacy-shaped status projection for an authoritative kernel row."""
+
+    def __init__(self, service_request):
+        self.id = service_request.pk
+        self.public_token = service_request.public_token
+        self.status = "printing" if service_request.status == "in_progress" else service_request.status
+        self.title = service_request.title
+        self.created_at = service_request.created_at
+        self.accepted_at = service_request.accepted_at
+        self.started_at = service_request.started_at
+        self.completed_at = service_request.completed_at
+        self.estimated_minutes = service_request.estimated_minutes
 
 
 def _require_module(makerspace):
@@ -99,6 +115,21 @@ class PrintUploadPresignView(APIView):
             content_type = validate_print_upload(data["kind"], data["filename"], data.get("content_type", ""))
         except ValueError as exc:
             raise ValidationError({"file": str(exc)}) from exc
+        if kernel_is_authoritative(makerspace):
+            from apps.machines.service_storage import create_staged_queue_file
+
+            queue = public_workflow.resolve_kernel_public_queue(
+                makerspace, data.get("bucket_id"),
+            )
+            upload_file, upload = create_staged_queue_file(
+                queue, actor=request.user, filename=data["filename"],
+                content_type=content_type,
+                kind="model" if data["kind"] == "stl" else "screenshot",
+            )
+            return Response(
+                {"file_id": upload_file.id, "upload": upload},
+                status=status.HTTP_201_CREATED,
+            )
         object_key = print_object_key(makerspace.id, data["kind"])
         upload_file = PrintRequestFile.objects.create(
             makerspace=makerspace, kind=data["kind"], object_key=object_key,
@@ -136,6 +167,28 @@ class PublicPrintStatusView(generics.RetrieveAPIView):
 
     @extend_schema(tags=["Public printing"], auth=[], responses={200: PublicPrintStatusSerializer, **PUBLIC_PRINT_ERROR_RESPONSES})
     def get(self, request, *args, **kwargs):
+        public_token = kwargs[self.lookup_field]
+        from apps.machines.models import MachineServiceRequest
+
+        # A token is bearer-like on this AllowAny route.  Limit the kernel
+        # projection to the reconciled printer queues that this compatibility
+        # endpoint owns; other machine-service requests must remain private to
+        # their own public surfaces.
+        kernel = MachineServiceRequest.objects.select_related("makerspace").filter(
+            public_token=public_token, makerspace__archived_at__isnull=True,
+            queue__legacy_print_bucket_id__isnull=False,
+            queue__machine_type__slug="3d_printer",
+        ).first()
+        if kernel is not None and kernel_is_authoritative(kernel.makerspace):
+            from apps.machines.service_queue_position import (
+                queue_counts_for as kernel_queue_counts_for,
+            )
+
+            obj = _KernelPublicPrintStatus(kernel)
+            queue_counts = kernel_queue_counts_for([kernel])
+            return Response(PublicPrintStatusSerializer(
+                obj, context={"request": request, "queue_counts": queue_counts},
+            ).data)
         obj = self.get_object()
         serializer = PublicPrintStatusSerializer(obj, context={"request": request, "queue_counts": queue_counts_for(obj.bucket.makerspace, [obj])})
         return Response(serializer.data)

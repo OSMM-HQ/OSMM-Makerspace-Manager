@@ -63,7 +63,7 @@ def validate_service_payload(machine_type, payload):
         if payload:
             raise ValidationError("This machine type does not accept a capability payload.")
         return
-    allowed = {"requested_material", "requested_color", "quantity", "preferred_settings", "estimated_grams", "project_brief", "requested_consumable_pool"}
+    allowed = {"requested_material", "requested_color", "quantity", "preferred_settings", "estimated_grams", "project_brief", "requested_consumable_pool", "no_filament_preference"}
     if set(payload) - allowed:
         raise ValidationError("capability_payload contains unsupported printer fields.")
     for key, config_key in (("requested_material", "accepted_materials"), ("requested_color", "accepted_colours")):
@@ -79,6 +79,8 @@ def validate_service_payload(machine_type, payload):
         _positive_decimal(payload["estimated_grams"], "estimated_grams")
     if "requested_consumable_pool" in payload and (isinstance(payload["requested_consumable_pool"], bool) or not isinstance(payload["requested_consumable_pool"], int) or payload["requested_consumable_pool"] <= 0):
         raise ValidationError("requested_consumable_pool must be a positive identifier.")
+    if "no_filament_preference" in payload and not isinstance(payload["no_filament_preference"], bool):
+        raise ValidationError("no_filament_preference must be true or false.")
     if "preferred_settings" in payload and not isinstance(payload["preferred_settings"], dict):
         raise ValidationError("preferred_settings must be an object.")
     if "project_brief" in payload and not isinstance(payload["project_brief"], str):
@@ -95,7 +97,7 @@ def validate_pool(machine, pool, payload=None):
         raise ValidationError({"consumable_pool": "Pool material is not accepted by this printer type."})
     if color not in {item.casefold() for item in config["accepted_colours"]}:
         raise ValidationError({"consumable_pool": "Pool colour is not accepted by this printer type."})
-    if payload:
+    if payload and not payload.get("no_filament_preference", False):
         if material != payload["requested_material"].casefold() or color != payload["requested_color"].casefold():
             raise ValidationError({"consumable_pool": "Pool material and colour must match the print request."})
 

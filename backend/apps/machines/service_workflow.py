@@ -53,7 +53,7 @@ def submit(bucket_or_machine, requester, *, requester_name, contact_email, conta
         return service_request
 
 
-def accept(service_request, actor, *, estimated_minutes=None, note="", payment_amount=None):
+def accept(service_request, actor, *, estimated_minutes=None, planned_grams=None, note="", payment_amount=None):
     with transaction.atomic():
         _assert_request_write_allowed(service_request)
         locked = _locked_request(service_request)
@@ -61,6 +61,17 @@ def accept(service_request, actor, *, estimated_minutes=None, note="", payment_a
         _require_edge(locked, MachineServiceRequest.Status.ACCEPTED)
         if estimated_minutes is not None:
             locked.estimated_minutes = _minutes(estimated_minutes, "estimated_minutes")
+        if planned_grams is not None:
+            grams = _decimal(planned_grams, "planned_grams")
+            if grams < 0:
+                raise ServiceConsumptionInvalid("planned_grams must be non-negative.")
+            locked.planned_grams = grams
+            payload = dict(locked.capability_payload or {})
+            if grams:
+                payload["estimated_grams"] = str(grams)
+            else:
+                payload.pop("estimated_grams", None)
+            locked.capability_payload = payload
         if note:
             locked.reason = str(note).strip()
         if payment_amount is not None:
@@ -73,7 +84,7 @@ def accept(service_request, actor, *, estimated_minutes=None, note="", payment_a
             locked.payment_amount = amount
             locked.payment_status = "pending" if amount else "none"
         locked.status, locked.handled_by, locked.accepted_by, locked.accepted_at = MachineServiceRequest.Status.ACCEPTED, actor, actor, timezone.now()
-        locked.save(update_fields=["status", "handled_by", "accepted_by", "accepted_at", "estimated_minutes", "reason", "payment_amount", "payment_status", "updated_at"])
+        locked.save(update_fields=["status", "handled_by", "accepted_by", "accepted_at", "estimated_minutes", "planned_grams", "capability_payload", "reason", "payment_amount", "payment_status", "updated_at"])
         _audit_transition(actor, locked, "accepted")
         _notify_after_commit(locked, "accepted")
         return locked
