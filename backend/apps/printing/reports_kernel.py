@@ -95,6 +95,8 @@ def _printer_rows(completed, failed, manual, include_makerspace, *, outcomes=Fal
             rows.append(value)
         return by_key[key]
     for request in completed:
+        if request.status not in COMPLETED:
+            continue
         if request.assigned_machine_id:
             value = item(request.assigned_machine)
             if outcomes:

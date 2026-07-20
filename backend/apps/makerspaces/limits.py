@@ -206,14 +206,27 @@ def _custom_roles(makerspace) -> int:
 
 
 def _print_requests(makerspace) -> int:
-    from apps.printing.models import PrintRequest
-
     now = datetime.now(UTC)
     month_start = datetime(now.year, now.month, 1, tzinfo=UTC)
     if now.month == 12:
         next_month = datetime(now.year + 1, 1, 1, tzinfo=UTC)
     else:
         next_month = datetime(now.year, now.month + 1, 1, tzinfo=UTC)
+    from apps.machines.printing_cutover import kernel_is_authoritative
+
+    if kernel_is_authoritative(makerspace):
+        from apps.machines.models import MachineServiceRequest
+
+        return MachineServiceRequest.objects.filter(
+            makerspace=makerspace,
+            queue__legacy_print_bucket_id__isnull=False,
+            queue__machine_type__slug="3d_printer",
+            created_at__gte=month_start,
+            created_at__lt=next_month,
+        ).count()
+
+    from apps.printing.models import PrintRequest
+
     return PrintRequest.objects.filter(
         bucket__makerspace=makerspace,
         created_at__gte=month_start,

@@ -7,6 +7,7 @@ repairs add kernel records or repair rows.
 
 from collections import Counter
 from decimal import Decimal
+import logging
 
 from django.db import transaction
 from django.utils import timezone
@@ -20,11 +21,18 @@ from apps.machines.models import (
 )
 from apps.machines.printer_capabilities import PRINTER_SLUG
 
+logger = logging.getLogger(__name__)
+
 
 class CutoverMismatch(RuntimeError):
     """Raised after durable repair evidence is written for a failed gate."""
 
 
+
+    def __init__(self, message, *, repairs=None, details=None):
+        super().__init__(message)
+        self.repairs = repairs or []
+        self.details = details or []
 def kernel_is_authoritative(makerspace):
     return PrintingCutoverState.objects.filter(
         makerspace=makerspace, kernel_authoritative_at__isnull=False
@@ -123,9 +131,10 @@ def _request(legacy, queue_by_legacy, machine_by_legacy, pool_by_legacy):
             "run_consumable_color": legacy.run_spool_color, "run_estimated_minutes": legacy.run_estimated_minutes or 0,
             "run_planned_grams": legacy.run_planned_filament_grams or 0,
             "capability_payload": {"requested_material": legacy.material, "requested_color": legacy.color,
-                                   "quantity": legacy.quantity, "project_brief": legacy.project_brief,
-                                   **({"requested_consumable_pool": pool_by_legacy[legacy.requested_filament_spool_id].pk}
-                                      if legacy.requested_filament_spool_id in pool_by_legacy else {})},
+                                    "quantity": legacy.quantity, "project_brief": legacy.project_brief,
+                                    "no_filament_preference": True,
+                                    **({"requested_consumable_pool": pool_by_legacy[legacy.requested_filament_spool_id].pk}
+                                       if legacy.requested_filament_spool_id in pool_by_legacy else {})},
             "requester_name": legacy.requester_name, "contact_email": legacy.contact_email, "contact_phone": legacy.contact_phone,
         },
     )
@@ -159,9 +168,10 @@ def backfill(makerspace, *, actor=None):
     except CutoverMismatch as exc:
         # The import transaction rolls back; this durable row is intentionally
         # written afterwards so operators have evidence for forward repair.
+        for repair in exc.repairs:
+            _repair(makerspace, **repair)
         _repair(makerspace, "mismatch", "machines.printing_cutover", None, error=str(exc))
         raise
-
 
 def _backfill_warranties(makerspace, machines):
     from apps.warranty.models import Warranty
@@ -178,7 +188,7 @@ def _backfill_warranties(makerspace, machines):
 def _backfill_reprints(makerspace, requests):
     from apps.printing.models import PrintRequest
     for legacy in PrintRequest.objects.filter(bucket__makerspace=makerspace, reprint_of__isnull=False):
-        child, root = requests[legacy.pk], requests.get(legacy.reprint_of_id)
+        child, root = requests[legacy.pk], _legacy_reprint_root(legacy, requests)
         if root is None:
             _repair(makerspace, "invalid_source", "printing.PrintRequest", legacy.pk, reason="missing reprint root")
             raise CutoverMismatch("Missing reprint root")
@@ -200,9 +210,10 @@ def _backfill_files(makerspace, requests):
         if duplicate:
             _repair(makerspace, "collision", "printing.PrintRequestFile", row.pk, object_key=row.object_key, kernel_file_id=duplicate.pk)
             raise CutoverMismatch("Object key collision")
+        root = _legacy_reprint_root(row.print_request, requests) or request
         target, _ = ServiceRequestFile.objects.get_or_create(
             legacy_print_request_file_id=row.pk,
-            defaults={"service_request": request, "makerspace": makerspace, "machine": request.assigned_machine,
+            defaults={"service_request": root, "makerspace": makerspace, "machine": root.assigned_machine,
                       "kind": "model" if row.kind == "stl" else "screenshot", "object_key": row.object_key,
                       "content_type": row.content_type, "original_filename": row.original_filename,
                       "size_bytes": row.size_bytes, "owner_user_id": row.owner_id or 0,
@@ -213,7 +224,7 @@ def _backfill_files(makerspace, requests):
     # keys are retained without claiming a byte size the legacy DB never knew.
     for legacy in PrintRequest.objects.filter(bucket__makerspace=makerspace):
         request = requests[legacy.pk]
-        root = requests.get(legacy.reprint_of_id, request)
+        root = _legacy_reprint_root(legacy, requests) or request
         for field, kind in (("model_file", "model"), ("estimate_screenshot", "estimate"), ("preview_screenshot", "preview")):
             key = getattr(legacy, field).name
             if not key:
@@ -275,15 +286,102 @@ def _backfill_manual_and_ledger(makerspace, machines, pools, requests):
         MachineConsumablePool.objects.filter(pk=pool.pk).update(remaining_grams=expected)
 
 
+def _legacy_reprint_root(legacy, requests):
+    """Resolve a legacy reprint chain to its original imported request."""
+    seen = set()
+    while legacy.reprint_of_id:
+        if legacy.pk in seen:
+            return None
+        seen.add(legacy.pk)
+        legacy = legacy.reprint_of
+    return requests.get(legacy.pk)
+
+
+def _json_value(value):
+    if isinstance(value, Decimal):
+        return str(value)
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {key: _json_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_json_value(item) for item in value]
+    return value
+
+
+def _normalise_report(value):
+    """Make ordered/decimal report output safe for deterministic comparison."""
+    if isinstance(value, Decimal):
+        return round(float(value), 2)
+    if isinstance(value, float):
+        return round(value, 2)
+    if isinstance(value, dict):
+        return {key: _normalise_report(item) for key, item in sorted(value.items())}
+    if isinstance(value, (list, tuple)):
+        normalised = [_normalise_report(item) for item in value]
+        if all(isinstance(item, dict) for item in normalised):
+            return sorted(normalised, key=lambda item: repr(sorted(item.items())))
+        return normalised
+    return value
+
+
+def _storage_reconciliation(makerspace, legacy_requests, legacy_files, kernel_files):
+    """Verify imported storage without charging or fabricating replacement objects."""
+    from apps.printing.storage import print_object_size
+
+    expected = {}
+    for row in legacy_files:
+        if row.print_request_id:
+            expected[row.object_key] = {
+                "legacy_model": "printing.PrintRequestFile", "legacy_id": row.pk,
+                "size_bytes": row.size_bytes or None,
+            }
+    for legacy in legacy_requests:
+        for field in ("model_file", "estimate_screenshot", "preview_screenshot"):
+            key = getattr(legacy, field).name
+            if key:
+                expected.setdefault(key, {
+                    "legacy_model": "printing.PrintRequest", "legacy_id": legacy.pk,
+                    "size_bytes": None,
+                })
+
+    actual_keys = set(kernel_files.values_list("object_key", flat=True))
+    expected_keys = set(expected)
+    bad, repairs = [], []
+    if actual_keys != expected_keys:
+        bad.append(("storage_object_keys", sorted(expected_keys), sorted(actual_keys)))
+    total = 0
+    for key in sorted(expected_keys):
+        expected_size = expected[key]["size_bytes"]
+        actual_size = print_object_size(key)
+        if actual_size is None:
+            repairs.append({
+                "kind": PrintingCutoverRepair.Kind.MISSING_OBJECT,
+                "model": expected[key]["legacy_model"], "legacy_id": expected[key]["legacy_id"],
+                "object_key": key,
+            })
+            bad.append(("storage_missing_object", key, None))
+            continue
+        total += actual_size
+        if expected_size is not None and actual_size != expected_size:
+            bad.append(("storage_size", key, {"legacy": expected_size, "storage": actual_size}))
+    summary = {"objects": len(expected_keys), "bytes": total, "storage_bytes_used": makerspace.storage_bytes_used}
+    logger.info("printing_cutover_storage_reconciliation", extra={"makerspace_id": makerspace.pk, **summary})
+    if total != makerspace.storage_bytes_used:
+        bad.append(("storage_bytes", makerspace.storage_bytes_used, total))
+    return bad, repairs, summary
+
+
 def reconcile(makerspace):
     """Gate authority on deterministic provenance and aggregate parity."""
     from apps.printing.models import FilamentAdjustment, FilamentSpool, ManualPrintLog, PrintBucket, PrintPrinter, PrintRequest, PrintRequestFile
+
     pairs = (
         ("printing.PrintPrinter", PrintPrinter.objects.filter(makerspace=makerspace).count(), Machine.objects.filter(makerspace=makerspace, legacy_print_printer_id__isnull=False).count()),
         ("printing.PrintBucket", PrintBucket.objects.filter(makerspace=makerspace).count(), ServiceQueue.objects.filter(makerspace=makerspace, legacy_print_bucket_id__isnull=False).count()),
         ("printing.FilamentSpool", FilamentSpool.objects.filter(makerspace=makerspace).count(), MachineConsumablePool.objects.filter(makerspace=makerspace, legacy_filament_spool_id__isnull=False).count()),
         ("printing.PrintRequest", PrintRequest.objects.filter(bucket__makerspace=makerspace).count(), MachineServiceRequest.objects.filter(makerspace=makerspace, legacy_print_request_id__isnull=False).count()),
-        ("printing.PrintRequestFile", PrintRequestFile.objects.filter(makerspace=makerspace).count(), ServiceRequestFile.objects.filter(makerspace=makerspace, legacy_print_request_file_id__isnull=False).count()),
+        ("printing.PrintRequestFile", PrintRequestFile.objects.filter(makerspace=makerspace, print_request_id__isnull=False).count(), ServiceRequestFile.objects.filter(makerspace=makerspace, legacy_print_request_file_id__isnull=False).count()),
         ("printing.ManualPrintLog", ManualPrintLog.objects.filter(makerspace=makerspace).count(), MachineUsageEntry.objects.filter(machine__makerspace=makerspace, legacy_manual_print_log_id__isnull=False).count()),
         ("printing.FilamentAdjustment", FilamentAdjustment.objects.filter(makerspace=makerspace).count(), MachineConsumableAdjustment.objects.filter(makerspace=makerspace, legacy_filament_adjustment_id__isnull=False).count()),
     )
@@ -297,12 +395,74 @@ def reconcile(makerspace):
     new_tokens = set(MachineServiceRequest.objects.filter(makerspace=makerspace, legacy_print_request_id__isnull=False).values_list("public_token", flat=True))
     if old_tokens != new_tokens:
         bad.append(("public_tokens", len(old_tokens), len(new_tokens)))
+
+    legacy_requests = list(PrintRequest.objects.filter(bucket__makerspace=makerspace).select_related("reprint_of"))
+    kernel_requests = {
+        row.legacy_print_request_id: row
+        for row in MachineServiceRequest.objects.filter(
+            makerspace=makerspace, legacy_print_request_id__isnull=False,
+        ).select_related("reprint_of")
+    }
+    legacy_roots = {row.pk: kernel_requests.get(row.pk) for row in legacy_requests}
+    for legacy in legacy_requests:
+        kernel = kernel_requests.get(legacy.pk)
+        if kernel is None:
+            continue
+        payment = (legacy.price, legacy.payment_status, legacy.paid_at, legacy.collected_at, legacy.collected_by_id)
+        kernel_payment = (kernel.payment_amount, kernel.payment_status, kernel.paid_at, kernel.collected_at, kernel.collected_by_id)
+        if payment != kernel_payment:
+            bad.append(("request_payment", legacy.pk, {"legacy": payment, "kernel": kernel_payment}))
+        grams = (legacy.estimated_filament_grams, legacy.filament_grams_reserved, legacy.filament_grams_used)
+        kernel_grams = (kernel.planned_grams, kernel.reserved_grams, kernel.actual_consumed_grams)
+        if grams != kernel_grams:
+            bad.append(("request_grams", legacy.pk, {"legacy": grams, "kernel": kernel_grams}))
+        root = _legacy_reprint_root(legacy, legacy_roots)
+        if legacy.reprint_of_id and kernel.reprint_of_id != getattr(root, "pk", None):
+            bad.append(("reprint_root", legacy.pk, {
+                "legacy_root": getattr(root, "legacy_print_request_id", None),
+                "kernel_root": getattr(kernel.reprint_of, "legacy_print_request_id", None),
+            }))
+
+    legacy_files = PrintRequestFile.objects.filter(makerspace=makerspace).select_related("print_request__reprint_of")
+    kernel_files = ServiceRequestFile.objects.filter(makerspace=makerspace, service_request__legacy_print_request_id__isnull=False).select_related("service_request")
+    for legacy_file in legacy_files:
+        if not legacy_file.print_request_id:
+            continue
+        root = _legacy_reprint_root(legacy_file.print_request, legacy_roots)
+        imported = kernel_files.filter(legacy_print_request_file_id=legacy_file.pk).first()
+        if imported and imported.service_request_id != getattr(root, "pk", None):
+            bad.append(("reprint_attachment_root", legacy_file.pk, {
+                "legacy_root": getattr(root, "legacy_print_request_id", None),
+                "kernel_request": imported.service_request.legacy_print_request_id,
+            }))
+    storage_bad, missing_repairs, storage_summary = _storage_reconciliation(
+        makerspace, legacy_requests, legacy_files, kernel_files,
+    )
+    bad.extend(storage_bad)
+
+    from apps.printing.reports import _build_legacy_printing_report
+    from apps.printing.reports_kernel import build_kernel_printing_report
+    legacy_report = _normalise_report(_build_legacy_printing_report(makerspace.pk))
+    kernel_report = _normalise_report(build_kernel_printing_report(makerspace.pk))
+    if legacy_report != kernel_report:
+        bad.append(("report_json", legacy_report, kernel_report))
+
+    for spool in FilamentSpool.objects.filter(makerspace=makerspace):
+        pool = MachineConsumablePool.objects.filter(legacy_filament_spool_id=spool.pk).first()
+        if pool is None:
+            continue
+        legacy_sum = sum((row.grams for row in FilamentAdjustment.objects.filter(filament_spool=spool)), Decimal("0"))
+        kernel_sum = sum((row.quantity_delta for row in MachineConsumableAdjustment.objects.filter(consumable_pool=pool)), Decimal("0"))
+        if legacy_sum != kernel_sum or spool.remaining_weight_grams != pool.remaining_grams:
+            bad.append(("ledger_balance", spool.pk, {
+                "legacy_sum": legacy_sum, "kernel_sum": kernel_sum,
+                "legacy_remaining": spool.remaining_weight_grams, "kernel_remaining": pool.remaining_grams,
+            }))
     if bad:
         for label, old, new in bad:
-            _repair(makerspace, "mismatch", label, None, legacy=old, kernel=new)
-        raise CutoverMismatch("Printing reconciliation failed")
-    return {"ok": True, "requests": pairs[3][1], "tokens": len(old_tokens)}
-
+            _repair(makerspace, "mismatch", label, None, legacy=_json_value(old), kernel=_json_value(new))
+        raise CutoverMismatch("Printing reconciliation failed", repairs=missing_repairs)
+    return {"ok": True, "requests": pairs[3][1], "tokens": len(old_tokens), "storage": storage_summary}
 
 @transaction.atomic
 def flip_authority(makerspace, *, actor=None):

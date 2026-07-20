@@ -17,9 +17,9 @@ from apps.machines.models import (
     PrintingCutoverRepair, ServiceBucket, ServiceQueue,
 )
 from apps.machines.service_file_policies import get_policy
-from apps.machines.printing_cutover import CutoverMismatch, backfill, flip_authority, kernel_is_authoritative
+from apps.machines.printing_cutover import CutoverMismatch, backfill, flip_authority, kernel_is_authoritative, reconcile
 from apps.printing import workflow
-from apps.printing.models import FilamentSpool, PrintBucket, PrintPrinter, PrintRequest
+from apps.printing.models import FilamentAdjustment, FilamentSpool, PrintBucket, PrintPrinter, PrintRequest, PrintRequestFile
 from apps.printing.public_workflow import submit_public_print_request
 from apps.printing.reports import build_printing_report
 from apps.printing.serializers import ManagedPrintRequestSerializer
@@ -447,3 +447,124 @@ def test_kernel_public_status_returns_real_approved_and_pending_queue_counts():
     assert response.data["queue_approved_ahead"] == 1
     assert response.data["queue_awaiting_review_ahead"] == 1
     assert response.data["queue_position"] == 3
+
+
+def test_staged_unsubmitted_file_does_not_block_reconciliation():
+    space, _, _, _, _, _ = _legacy_space("b4-staged-file")
+    PrintRequestFile.objects.create(
+        makerspace=space, kind="stl", object_key="print/staged-only.stl", size_bytes=12,
+    )
+
+    backfill(space)
+    flip_authority(space)
+    assert kernel_is_authoritative(space)
+
+
+@pytest.mark.parametrize("material,color", [("", "Blue"), ("PLA", ""), ("PETG", "Red")])
+def test_imported_legacy_filament_preferences_never_block_start(material, color):
+    slug = f"b4-import-any-{material or 'blank'}-{color or 'blank'}"
+    space, user, _, printer, spool, legacy = _legacy_space(slug)
+    legacy.material, legacy.color = material, color
+    legacy.save(update_fields=["material", "color"])
+    space.enabled_modules = ["printing", "machine_service"]
+    space.save(update_fields=["enabled_modules"])
+
+    backfill(space)
+    flip_authority(space)
+    workflow.accept(legacy, user, estimated_filament_grams=Decimal("1"))
+    workflow.start(
+        legacy, user, printer_id=printer.pk, filament_spool_id=spool.pk,
+        estimated_minutes=10,
+    )
+    assert MachineServiceRequest.objects.get(legacy_print_request_id=legacy.pk).status == "in_progress"
+
+
+def test_print_quota_uses_exactly_one_authoritative_side():
+    from apps.makerspaces.limits import _print_requests
+
+    space, user, _, _, _, _ = _legacy_space("b4-quota-authority")
+    assert _print_requests(space) == 1
+    space.enabled_modules = ["printing", "machine_service"]
+    space.save(update_fields=["enabled_modules"])
+    backfill(space)
+    flip_authority(space)
+    queue = ServiceQueue.objects.get(makerspace=space, legacy_print_bucket_id__isnull=False)
+    MachineServiceRequest.objects.create(
+        makerspace=space, queue=queue, requester=user, title="Kernel-only print",
+        capability_payload={"requested_material": "PLA", "requested_color": "Blue", "quantity": 1},
+    )
+    assert _print_requests(space) == 2
+
+
+@pytest.mark.parametrize("dimension", ["payment", "grams", "reprint", "report"])
+def test_reconcile_rejects_injected_request_and_report_mismatches(monkeypatch, dimension):
+    space, user, _, _, _, legacy = _legacy_space(f"b4-parity-{dimension}")
+    if dimension == "reprint":
+        child = PrintRequest.objects.create(
+            bucket=legacy.bucket, requester=user, title="Retry", material="PLA", color="Blue", reprint_of=legacy,
+        )
+    backfill(space)
+    kernel = MachineServiceRequest.objects.get(legacy_print_request_id=legacy.pk)
+    if dimension == "payment":
+        MachineServiceRequest.objects.filter(pk=kernel.pk).update(payment_amount=Decimal("9"))
+    elif dimension == "grams":
+        MachineServiceRequest.objects.filter(pk=kernel.pk).update(planned_grams=Decimal("9"))
+    elif dimension == "reprint":
+        child_kernel = MachineServiceRequest.objects.get(legacy_print_request_id=child.pk)
+        MachineServiceRequest.objects.filter(pk=child_kernel.pk).update(reprint_of=None)
+    else:
+        monkeypatch.setattr(
+            "apps.printing.reports_kernel.build_kernel_printing_report",
+            lambda *args, **kwargs: {"injected": "mismatch"},
+        )
+    with pytest.raises(CutoverMismatch):
+        reconcile(space)
+
+
+def test_missing_storage_object_records_durable_repair_after_backfill_rollback(monkeypatch):
+    space, _, _, _, _, legacy = _legacy_space("b4-missing-object")
+    staged = PrintRequestFile.objects.create(
+        makerspace=space, print_request=legacy, kind="stl", object_key="print/missing.stl", size_bytes=12,
+    )
+    space.storage_bytes_used = 12
+    space.save(update_fields=["storage_bytes_used"])
+    monkeypatch.setattr("apps.printing.storage.print_object_size", lambda key: None)
+
+    with pytest.raises(CutoverMismatch):
+        backfill(space)
+    assert PrintingCutoverRepair.objects.filter(
+        makerspace=space, kind=PrintingCutoverRepair.Kind.MISSING_OBJECT,
+        legacy_model="printing.PrintRequestFile", legacy_id=staged.pk,
+    ).exists()
+
+
+def test_imported_in_flight_completion_reconciles_once_without_double_debit():
+    space, user, _, printer, spool, legacy = _legacy_space("b4-inflight-complete")
+    legacy.status = PrintRequest.Status.PRINTING
+    legacy.printer, legacy.filament_spool = printer, spool
+    legacy.estimated_minutes = 10
+    legacy.estimated_filament_grams = Decimal("5")
+    legacy.filament_grams_reserved = Decimal("5")
+    legacy.save(update_fields=[
+        "status", "printer", "filament_spool", "estimated_minutes", "estimated_filament_grams", "filament_grams_reserved",
+    ])
+    spool.remaining_weight_grams = Decimal("95")
+    spool.save(update_fields=["remaining_weight_grams"])
+    FilamentAdjustment.objects.create(
+        makerspace=space, filament_spool=spool, print_request=legacy,
+        kind=FilamentAdjustment.Kind.RESERVE, grams=Decimal("-5"), created_by=user,
+    )
+    space.enabled_modules = ["printing", "machine_service"]
+    space.save(update_fields=["enabled_modules"])
+
+    backfill(space)
+    flip_authority(space)
+    workflow.complete(legacy, user, actual_filament_grams=Decimal("7"))
+
+    kernel = MachineServiceRequest.objects.get(legacy_print_request_id=legacy.pk)
+    pool = MachineConsumablePool.objects.get(legacy_filament_spool_id=spool.pk)
+    assert MachineConsumableAdjustment.objects.filter(
+        service_request=kernel, kind=MachineConsumableAdjustment.Kind.RECONCILE,
+    ).count() == 1
+    assert kernel.reserved_grams == Decimal("0")
+    assert pool.remaining_grams == Decimal("93")
