@@ -6,7 +6,7 @@ from apps.evidence.models import EvidencePhoto
 from apps.inventory import public_image_storage
 from apps.inventory.models import InventoryProduct
 from apps.machines import storage as machine_storage
-from apps.machines.models import Machine, MachineDocument
+from apps.machines.models import Machine, MachineDocument, PrintingCutoverState, ServiceRequestFile
 from apps.makerspaces.models import Makerspace
 from apps.printing import storage as printing_storage
 from apps.printing.models import PrintPrinter, PrintRequestFile
@@ -54,13 +54,13 @@ class Command(BaseCommand):
                     evidence_storage.object_size,
                     fallback_to_recorded=True,
                 )
-                print_bytes = self._sum_observed_sizes(
-                    PrintRequestFile.objects.filter(
-                        print_request__bucket__makerspace=makerspace
-                    ).values_list("object_key", "size_bytes"),
-                    printing_storage.print_object_size,
-                    fallback_to_recorded=True,
-                )
+                # The B4 boundary chooses one source.  Summing legacy and
+                # provenance-imported kernel records would double charge bytes.
+                if PrintingCutoverState.objects.filter(makerspace=makerspace, kernel_authoritative_at__isnull=False).exists():
+                    print_rows = ServiceRequestFile.objects.filter(makerspace=makerspace).values_list("object_key", "size_bytes")
+                else:
+                    print_rows = PrintRequestFile.objects.filter(print_request__bucket__makerspace=makerspace).values_list("object_key", "size_bytes")
+                print_bytes = self._sum_observed_sizes(print_rows, printing_storage.print_object_size, fallback_to_recorded=True)
                 public_bytes = self._sum_observed_sizes(
                     ((key, None) for key in self._public_image_keys(makerspace)),
                     public_image_storage.object_size,

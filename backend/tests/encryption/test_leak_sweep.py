@@ -19,7 +19,13 @@ from apps.hardware_requests.models import HardwareRequest
 from apps.integrations.admin_email_logs import EmailLogAdmin
 from apps.integrations.models import EmailLog
 from apps.makerspaces.models import Makerspace
-from apps.machines.models import Machine, MachineServiceRequest, MachineType, ServiceBucket
+from apps.machines.models import (
+    Machine,
+    MachineServiceRequest,
+    MachineType,
+    MachineUsageEntry,
+    ServiceBucket,
+)
 from apps.printing.models import ManualPrintLog, PrintBucket, PrintRequest
 from tests.encryption.conftest import enabled_encryption
 
@@ -44,6 +50,7 @@ def _objects():
         "events.EventRegistration": EventRegistration.objects.create(event=event, name="Base", email=f"base-{stamp}@example.test", phone="1"),
         "bookings.Booking": Booking.objects.create(space=bookable, name="Base", email=f"booking-{stamp}@example.test", phone="1", starts_at=now + timedelta(days=1), ends_at=now + timedelta(days=1, hours=1)),
         "machines.MachineServiceRequest": MachineServiceRequest.objects.create(bucket=service_bucket, requester=user, title="Sweep service"),
+        "machines.MachineUsageEntry": MachineUsageEntry.objects.create(machine=machine, logged_by=user),
         "integrations.EmailLog": EmailLog.objects.create(makerspace=space, to_email=f"mail-{stamp}@example.test", subject="Base", text_body="", html_body=""),
     }
 
@@ -58,8 +65,17 @@ def test_every_mapped_value_is_an_envelope_and_not_a_raw_database_leak(item, cap
     with enabled_encryption():
         row = _objects()[item.model_label]
         value = _sentinel(item)
-        setattr(row, item.field_name, value)
-        row.save(update_fields=[item.field_name])
+        if item.model_label == "machines.MachineUsageEntry":
+            # The typed usage ledger is append-only. Its scoped PII must be
+            # encrypted at creation rather than through an invalid update.
+            row = MachineUsageEntry.objects.create(
+                machine=row.machine,
+                logged_by=row.logged_by,
+                **{item.field_name: value},
+            )
+        else:
+            setattr(row, item.field_name, value)
+            row.save(update_fields=[item.field_name])
         assert getattr(row, item.field_name) == value
         column = row._meta.get_field(item.field_name).column
         with connection.cursor() as cursor:

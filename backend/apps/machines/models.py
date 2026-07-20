@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.db.models import Q
+from apps.encryption.mappers import ScopedPiiModelMixin, ScopedPiiQuerySet
 from apps.machines.service_file_policies import (
     default_service_file_policy,
     validate_service_file_policy,
@@ -19,6 +20,7 @@ from apps.machines.models_service import (
     ServiceRequestFile,
     get_or_create_default_bucket,
 )
+from apps.machines.printing_cutover_models import PrintingCutoverRepair, PrintingCutoverState
 
 
 class MachineType(models.Model):
@@ -117,6 +119,11 @@ class Machine(models.Model):
         on_delete=models.SET_NULL,
         related_name="machine",
     )
+    # B4 provenance.  The bridge remains authoritative only until the printing
+    # cutover has reconciled this immutable source identity.
+    legacy_print_printer_id = models.PositiveIntegerField(
+        null=True, blank=True, unique=True, editable=False
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(
@@ -168,7 +175,7 @@ class MachineOperator(models.Model):
         return f"{self.user} @ {self.machine} ({self.access_level})"
 
 
-class MachineUsageEntryQuerySet(models.QuerySet):
+class MachineUsageEntryQuerySet(ScopedPiiQuerySet):
     def update(self, **kwargs):
         raise RuntimeError("MachineUsageEntry rows are append-only.")
 
@@ -176,7 +183,7 @@ class MachineUsageEntryQuerySet(models.QuerySet):
         raise RuntimeError("MachineUsageEntry rows are append-only.")
 
 
-class MachineUsageEntry(models.Model):
+class MachineUsageEntry(ScopedPiiModelMixin, models.Model):
     """Append-only generic and typed service-usage ledger."""
 
     class Source(models.TextChoices):
@@ -204,6 +211,14 @@ class MachineUsageEntry(models.Model):
     percent_complete = models.PositiveSmallIntegerField(default=100)
     reason = models.TextField(blank=True)
     consumed_grams = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    # Typed print usage keeps the historical manual-log contract rather than
+    # flattening it into generic hours.  These are encrypted when scoped PII is
+    # enabled and are deliberately absent from public projections.
+    legacy_manual_print_log_id = models.PositiveIntegerField(null=True, blank=True, unique=True, editable=False)
+    title = models.CharField(max_length=200, blank=True)
+    requester_name = models.TextField(blank=True)
+    contact_email = models.TextField(blank=True)
+    contact_phone = models.TextField(blank=True)
     logged_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,

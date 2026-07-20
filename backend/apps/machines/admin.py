@@ -11,6 +11,8 @@ from apps.machines.models import (
     MachineOperator,
     MachineType,
     MachineUsageEntry,
+    PrintingCutoverRepair,
+    PrintingCutoverState,
     MachineConsumablePool,
     MachineConsumableAdjustment,
     MachineServiceRequest,
@@ -125,6 +127,19 @@ class MachineUsageEntryAdmin(_ReadOnlyMachineChildAdmin):
     list_display = ("id", "machine", "hours", "source", "logged_by", "created_at")
     list_filter = ("source",)
     search_fields = ("machine__name",)
+
+
+@admin.register(PrintingCutoverState)
+class PrintingCutoverStateAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = ("makerspace", "reconciled_at", "kernel_authoritative_at")
+    list_filter = ("makerspace",)
+
+
+@admin.register(PrintingCutoverRepair)
+class PrintingCutoverRepairAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = ("id", "makerspace", "kind", "legacy_model", "legacy_id", "created_at", "resolved_at")
+    list_filter = ("kind", "makerspace")
+    search_fields = ("legacy_model", "legacy_id")
 
 
 @admin.register(MachineDocument)

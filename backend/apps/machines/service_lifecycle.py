@@ -13,6 +13,8 @@ def delete_for_makerspace(makerspace, cursor):
     from apps.machines.models import (
         MachineServiceRequest,
         MachineConsumablePool,
+        PrintingCutoverRepair,
+        PrintingCutoverState,
         ServiceQueue,
         ServiceBucket,
         ServiceRequestFile,
@@ -43,3 +45,5 @@ def delete_for_makerspace(makerspace, cursor):
     ServiceBucket.objects.filter(machine__makerspace=makerspace).delete()
     MachineConsumablePool.objects.filter(makerspace=makerspace).delete()
     ServiceQueue.objects.filter(makerspace=makerspace).delete()
+    PrintingCutoverRepair.objects.filter(makerspace=makerspace).delete()
+    PrintingCutoverState.objects.filter(makerspace=makerspace).delete()

@@ -13,6 +13,7 @@ from apps.printing.spool_reservations import (
 )
 from apps.printing.workflow_errors import InvalidTransition, PrintStartValidationError
 from apps.printing.workflow_start import assign_print_job, coerce_filament_grams, coerce_price
+from apps.machines.printing_cutover import kernel_is_authoritative
 
 
 _ALLOWED = {
@@ -21,6 +22,19 @@ _ALLOWED = {
     PrintRequest.Status.PRINTING: {PrintRequest.Status.COMPLETED, PrintRequest.Status.FAILED},
     PrintRequest.Status.COMPLETED: {PrintRequest.Status.COLLECTED},
 }
+
+
+def _kernel_request(legacy):
+    """Resolve one legacy compatibility target without ever aggregating sides."""
+    from apps.machines.models import MachineServiceRequest
+    try:
+        return MachineServiceRequest.objects.get(legacy_print_request_id=legacy.pk)
+    except MachineServiceRequest.DoesNotExist as exc:
+        raise InvalidTransition("Print request has not been reconciled to the machine kernel.") from exc
+
+
+def _kernel_enabled(legacy):
+    return kernel_is_authoritative(legacy.bucket.makerspace)
 
 
 def _locked_request(pk, *related):
@@ -144,6 +158,10 @@ def _reconcile_spool(actor, locked, grams, reason):
 
 
 def accept(print_request, actor, *, price=0, estimated_filament_grams=None):
+    if _kernel_enabled(print_request):
+        from apps.machines import service_workflow
+        return service_workflow.accept(_kernel_request(print_request), actor,
+                                       estimated_minutes=None, payment_amount=price)
     return _transition(
         print_request,
         actor,
@@ -154,12 +172,23 @@ def accept(print_request, actor, *, price=0, estimated_filament_grams=None):
     )
 
 def reject(print_request, actor, reason):
+    if _kernel_enabled(print_request):
+        from apps.machines import service_workflow
+        return service_workflow.reject(_kernel_request(print_request), actor, reason=reason)
     return _transition(print_request, actor, PrintRequest.Status.REJECTED, "rejected", reason=reason)
 
 def start(
     print_request, actor, *, printer_id=None, filament_spool_id=None,
     estimated_minutes=None, estimated_filament_grams=None,
 ):
+    if _kernel_enabled(print_request):
+        from apps.machines import service_workflow
+        from apps.machines.models import Machine, MachineConsumablePool
+        machine = Machine.objects.get(legacy_print_printer_id=printer_id)
+        pool = MachineConsumablePool.objects.get(legacy_filament_spool_id=filament_spool_id)
+        return service_workflow.start(_kernel_request(print_request), actor, machine_id=machine.pk,
+                                      consumable_pool_id=pool.pk, estimated_minutes=estimated_minutes,
+                                      planned_grams=estimated_filament_grams)
     return _transition(
         print_request,
         actor,
@@ -172,6 +201,11 @@ def start(
     )
 
 def complete(print_request, actor, *, actual_filament_grams=None):
+    if _kernel_enabled(print_request):
+        from apps.machines import service_workflow
+        target = _kernel_request(print_request)
+        return service_workflow.complete(target, actor, actual_minutes=target.estimated_minutes,
+                                         consumptions=[], actual_grams=actual_filament_grams)
     if actual_filament_grams is not None:
         actual_filament_grams = coerce_filament_grams(actual_filament_grams)
     return _transition(
@@ -183,6 +217,11 @@ def complete(print_request, actor, *, actual_filament_grams=None):
     )
 
 def fail(print_request, actor, reason, percent_complete=0):
+    if _kernel_enabled(print_request):
+        from apps.machines import service_workflow
+        target = _kernel_request(print_request)
+        return service_workflow.fail(target, actor, reason=reason, percent_complete=percent_complete,
+                                     actual_minutes=target.estimated_minutes, consumptions=[])
     result = _transition(
         print_request, actor, PrintRequest.Status.FAILED, "failed",
         reason=reason, percent_complete=percent_complete,
@@ -200,6 +239,9 @@ def fail(print_request, actor, reason, percent_complete=0):
     return result
 
 def mark_collected(print_request, actor):
+    if _kernel_enabled(print_request):
+        from apps.machines import service_workflow
+        return service_workflow.collect(_kernel_request(print_request), actor)
     with transaction.atomic():
         locked = _locked_request(print_request.pk, "bucket__makerspace")
         if PrintRequest.Status.COLLECTED not in _ALLOWED.get(locked.status, set()):
@@ -231,6 +273,9 @@ def mark_collected(print_request, actor):
 
 
 def reprint(failed_request, actor):
+    if _kernel_enabled(failed_request):
+        from apps.machines import service_workflow
+        return service_workflow.create_reprint(_kernel_request(failed_request), actor)
     with transaction.atomic():
         locked = _locked_request(failed_request.pk, "bucket__makerspace")
         if locked.status != PrintRequest.Status.FAILED:

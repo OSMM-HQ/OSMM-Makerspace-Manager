@@ -31,6 +31,7 @@ class ServiceQueue(models.Model):
     allocation_policy = models.CharField(
         max_length=24, choices=AllocationPolicy.choices, default=AllocationPolicy.STAFF_SELECT
     )
+    legacy_print_bucket_id = models.PositiveIntegerField(null=True, blank=True, unique=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -134,6 +135,7 @@ class MachineServiceRequest(ScopedPiiModelMixin, models.Model):
     contact_email = models.TextField(blank=True)
     contact_phone = models.TextField(blank=True)
     public_token = models.UUIDField(default=uuid.uuid4, editable=False, unique=True, db_index=True)
+    legacy_print_request_id = models.PositiveIntegerField(null=True, blank=True, unique=True, editable=False)
     title = models.CharField(max_length=200)
     description = models.TextField(blank=True)
     source_link = models.URLField(blank=True)
@@ -245,6 +247,7 @@ class ServiceRequestFile(models.Model):
     file_policy_version = models.PositiveSmallIntegerField(default=1)
     created_at = models.DateTimeField(auto_now_add=True)
     attached_at = models.DateTimeField(null=True, blank=True)
+    legacy_print_request_file_id = models.PositiveIntegerField(null=True, blank=True, unique=True, editable=False)
 
     class Meta:
         ordering = ["created_at"]
@@ -285,6 +288,7 @@ class MachineConsumablePool(models.Model):
     low_threshold_grams = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     is_active = models.BooleanField(default=True)
     opened_at = models.DateTimeField(null=True, blank=True)
+    legacy_filament_spool_id = models.PositiveIntegerField(null=True, blank=True, unique=True, editable=False)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -333,6 +337,7 @@ class MachineConsumableAdjustment(models.Model):
     reason = models.TextField(blank=True)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
     created_at = models.DateTimeField(auto_now_add=True)
+    legacy_filament_adjustment_id = models.PositiveIntegerField(null=True, blank=True, unique=True, editable=False)
 
     objects = MachineConsumableAdjustmentQuerySet.as_manager()
 

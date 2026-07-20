@@ -32,6 +32,11 @@ class PrintBucket(models.Model):
     def __str__(self):
         return f"{self.makerspace}: {self.name}"
 
+    def save(self, *args, **kwargs):
+        from apps.printing.legacy_guard import assert_legacy_write_allowed
+        assert_legacy_write_allowed(self.makerspace_id)
+        return super().save(*args, **kwargs)
+
 
 class PrintPrinter(models.Model):
     class Status(models.TextChoices):
@@ -65,6 +70,11 @@ class PrintPrinter(models.Model):
 
     def __str__(self):
         return f"{self.makerspace}: {self.name}"
+
+    def save(self, *args, **kwargs):
+        from apps.printing.legacy_guard import assert_legacy_write_allowed
+        assert_legacy_write_allowed(self.makerspace_id)
+        return super().save(*args, **kwargs)
 
 
 class FilamentSpool(models.Model):
@@ -101,6 +111,11 @@ class FilamentSpool(models.Model):
     def __str__(self):
         color = f" {self.color}" if self.color else ""
         return f"{self.material}{color} ({self.remaining_weight_grams}g left)"
+
+    def save(self, *args, **kwargs):
+        from apps.printing.legacy_guard import assert_legacy_write_allowed
+        assert_legacy_write_allowed(self.makerspace_id)
+        return super().save(*args, **kwargs)
 
 
 class FilamentAdjustment(models.Model):
@@ -156,6 +171,8 @@ class FilamentAdjustment(models.Model):
     def save(self, *args, **kwargs):
         if self.pk is not None:
             raise RuntimeError("FilamentAdjustment rows are append-only.")
+        from apps.printing.legacy_guard import assert_legacy_write_allowed
+        assert_legacy_write_allowed(self.makerspace_id)
         return super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
@@ -222,6 +239,11 @@ class ManualPrintLog(ScopedPiiModelMixin, models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.grams_used}g)"
+
+    def save(self, *args, **kwargs):
+        from apps.printing.legacy_guard import assert_legacy_write_allowed
+        assert_legacy_write_allowed(self.makerspace_id)
+        return super().save(*args, **kwargs)
 
 
 class PrintRequest(ScopedPiiModelMixin, models.Model):
@@ -407,6 +429,12 @@ class PrintRequest(ScopedPiiModelMixin, models.Model):
     def __str__(self):
         return f"{self.title} ({self.status})"
 
+    def save(self, *args, **kwargs):
+        from apps.printing.legacy_guard import assert_legacy_write_allowed
+        makerspace_id = self.bucket.makerspace_id if self.bucket_id else None
+        assert_legacy_write_allowed(makerspace_id)
+        return super().save(*args, **kwargs)
+
 
 class PrintRequestFile(models.Model):
     class Kind(models.TextChoices):
@@ -445,4 +473,9 @@ class PrintRequestFile(models.Model):
 
     def __str__(self):
         return f"{self.kind}:{self.object_key}"
+
+    def save(self, *args, **kwargs):
+        from apps.printing.legacy_guard import assert_legacy_write_allowed
+        assert_legacy_write_allowed(self.makerspace_id)
+        return super().save(*args, **kwargs)
 

@@ -19,6 +19,7 @@ from apps.printing.storage import (
     print_object_size,
     validate_print_model_object,
 )
+from apps.machines.printing_cutover import kernel_is_authoritative
 
 
 def _resolve_public_bucket(makerspace, bucket_id):
@@ -52,6 +53,25 @@ def _resolve_public_bucket(makerspace, bucket_id):
 
 
 def submit_public_print_request(makerspace, data, member):
+    if kernel_is_authoritative(makerspace):
+        # Compatibility URL, kernel write.  The legacy bucket is resolved by its
+        # provenance key and is never created or updated after B4.
+        from apps.machines.models import ServiceQueue
+        from apps.machines.service_workflow import submit
+        legacy_bucket = _resolve_public_bucket(makerspace, data.get("bucket_id"))
+        queue = ServiceQueue.objects.filter(legacy_print_bucket_id=legacy_bucket.pk, makerspace=makerspace).first()
+        if queue is None:
+            raise ValidationError({"bucket_id": "This printing queue has not been reconciled."})
+        spool = FilamentSpool.objects.filter(pk=data.get("filament_spool_id"), makerspace=makerspace).first() if data.get("filament_spool_id") else None
+        payload = {
+            "requested_material": data.get("material") or getattr(spool, "material", ""),
+            "requested_color": data.get("color") or getattr(spool, "color", ""),
+            "quantity": data.get("quantity", 1), "project_brief": data.get("project_brief", ""),
+            **({"requested_consumable_pool": spool.id} if spool else {}),
+        }
+        return submit(queue, member, requester_name=(member.display_name or ""), contact_email=(member.email or ""),
+                      contact_phone=(member.phone or ""), title=data["title"], description=data.get("description", ""),
+                      source_link=data.get("source_link", ""), actor=member, member=member, capability_payload=payload)
     with transaction.atomic():
         bucket = _resolve_public_bucket(makerspace, data.get("bucket_id"))
         spool = None
