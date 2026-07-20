@@ -14,7 +14,7 @@ from apps.machines.public_printer_service_serializers import PublicPrinterPoolSe
 from apps.makerspaces.lookup import get_public_makerspace
 from apps.makerspaces.platform import module_enabled
 from apps.presence.guard import require_active_member_presence
-from apps.printing.permissions import IsActiveRequester
+from apps.machines.permissions import IsActiveRequester
 
 
 def _require_printer_module(makerspace):

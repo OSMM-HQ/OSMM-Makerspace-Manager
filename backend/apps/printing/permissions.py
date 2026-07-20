@@ -2,6 +2,7 @@ from rest_framework.permissions import BasePermission
 
 from apps.accounts import rbac
 from apps.accounts.models import User
+from apps.machines.permissions import IsActiveRequester, active_authenticated as _active_authenticated
 from apps.makerspaces.origin_scope import (
     object_in_staff_origin_scope,
     staff_origin_scope_allows,
@@ -16,7 +17,7 @@ def _active_authenticated(user):
     )
 
 
-class IsActiveRequester(BasePermission):
+class LegacyIsActiveRequester(BasePermission):
     def has_permission(self, request, view):
         return _active_authenticated(getattr(request, "user", None))
 

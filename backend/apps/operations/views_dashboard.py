@@ -20,7 +20,6 @@ from apps.inventory.models import InventoryProduct
 from apps.makerspaces.models import Makerspace
 from apps.makerspaces.platform import module_enabled
 from apps.operations.models import StocktakeSession
-from apps.printing.models import PrintRequest
 from apps.warranty.models import Warranty
 
 
@@ -124,24 +123,19 @@ def build_dashboard(makerspace):
     except Exception:
         pass
     try:
-        counts["pending_prints"] = PrintRequest.objects.filter(
-            bucket__makerspace_id=makerspace.id,
-            status=PrintRequest.Status.PENDING,
-        ).count()
-    except Exception:
-        pass
-    try:
-        counts["active_prints"] = PrintRequest.objects.filter(
-            bucket__makerspace_id=makerspace.id,
-            status=PrintRequest.Status.PRINTING,
-        ).count()
-    except Exception:
-        pass
-    try:
-        counts["prints_awaiting_collection"] = PrintRequest.objects.filter(
-            bucket__makerspace_id=makerspace.id,
-            status=PrintRequest.Status.COMPLETED,
-        ).count()
+        from apps.machines.printing_cutover import kernel_is_authoritative
+        if kernel_is_authoritative(makerspace):
+            from apps.machines.models import MachineServiceRequest
+            prints = MachineServiceRequest.objects.filter(makerspace=makerspace, queue__machine_type__slug="3d_printer")
+            counts["pending_prints"] = prints.filter(status=MachineServiceRequest.Status.PENDING).count()
+            counts["active_prints"] = prints.filter(status=MachineServiceRequest.Status.IN_PROGRESS).count()
+            counts["prints_awaiting_collection"] = prints.filter(status=MachineServiceRequest.Status.COMPLETED).count()
+        else:
+            from apps.printing.models import PrintRequest
+            prints = PrintRequest.objects.filter(bucket__makerspace_id=makerspace.id)
+            counts["pending_prints"] = prints.filter(status=PrintRequest.Status.PENDING).count()
+            counts["active_prints"] = prints.filter(status=PrintRequest.Status.PRINTING).count()
+            counts["prints_awaiting_collection"] = prints.filter(status=PrintRequest.Status.COMPLETED).count()
     except Exception:
         pass
     try:

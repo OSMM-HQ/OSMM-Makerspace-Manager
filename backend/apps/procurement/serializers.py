@@ -3,6 +3,10 @@ from rest_framework import serializers
 from apps.procurement.models import ToBuyItem, ToBuyReceipt
 
 
+class ErrorSerializer(serializers.Serializer):
+    detail = serializers.CharField(required=False)
+
+
 class ToBuyReceiptSerializer(serializers.ModelSerializer):
     uploaded_by_username = serializers.CharField(
         source="uploaded_by.username",

@@ -8,7 +8,6 @@ from apps.admin_api.views_inventory import _assert_box_in_makerspace, _assert_ca
 from apps.audit import services as audit
 from apps.inventory import availability
 from apps.inventory.models import InventoryProduct
-from apps.printing.serializers import FilamentSpoolSerializer, PrintPrinterSerializer
 from apps.procurement.models import ToBuyItem
 
 
@@ -96,31 +95,28 @@ def move_to_printing(actor, item, *, target, data):
     with transaction.atomic():
         locked = ToBuyItem.objects.select_for_update().select_related("makerspace").get(pk=item.pk)
         _assert_move_allowed(locked, ToBuyItem.Kind.PRINTING)
-
-        payload = {**data, "makerspace": locked.makerspace_id}
-        if target == PrintingTarget.SPOOL:
-            serializer = FilamentSpoolSerializer(data=payload)
-            result_field = "resulting_spool"
-        elif target == PrintingTarget.PRINTER:
-            serializer = PrintPrinterSerializer(data=payload)
-            result_field = "resulting_printer"
+        from apps.machines.printing_cutover import kernel_is_authoritative
+        if kernel_is_authoritative(locked.makerspace):
+            from apps.machines.procurement import move_received_printing
+            result = move_received_printing(locked.makerspace, actor, target=target, data=data)
+            update_fields = ["moved_to_inventory_at", "updated_at"]
         else:
-            raise ValidationError({"target": "Use spool or printer."})
-
-        serializer.is_valid(raise_exception=True)
-        result = serializer.save()
+            from apps.printing.serializers import FilamentSpoolSerializer, PrintPrinterSerializer
+            payload = {**data, "makerspace": locked.makerspace_id}
+            if target == PrintingTarget.SPOOL:
+                serializer, result_field = FilamentSpoolSerializer(data=payload), "resulting_spool"
+            elif target == PrintingTarget.PRINTER:
+                serializer, result_field = PrintPrinterSerializer(data=payload), "resulting_printer"
+            else:
+                raise ValidationError({"target": "Use spool or printer."})
+            serializer.is_valid(raise_exception=True)
+            result = serializer.save()
+            setattr(locked, result_field, result)
+            update_fields = ["moved_to_inventory_at", result_field, "updated_at"]
         locked.moved_to_inventory_at = timezone.now()
-        setattr(locked, result_field, result)
-        locked.save(update_fields=["moved_to_inventory_at", result_field, "updated_at"])
-        audit.record(
-            actor,
-            "procurement.moved_to_printing",
-            makerspace=locked.makerspace,
-            target=locked,
-            meta={"item_id": locked.id, "target": target, "result_id": result.id},
-        )
+        locked.save(update_fields=update_fields)
+        audit.record(actor, "procurement.moved_to_printing", makerspace=locked.makerspace, target=locked, meta={"item_id": locked.id, "target": target, "result_id": result.id, "kernel": kernel_is_authoritative(locked.makerspace)})
         return result
-
 
 def _assert_move_allowed(item, expected_kind):
     if item.kind != expected_kind:

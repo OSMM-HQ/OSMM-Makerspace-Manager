@@ -7,6 +7,7 @@ from django.db import transaction
 from rest_framework.exceptions import NotFound, ValidationError
 
 from apps.machines.models import MachineConsumablePool, MachineServiceRequest, ServiceQueue, ServiceRequestFile
+from apps.machines.print_uploads import validate_print_upload
 from apps.machines.printing_cutover import kernel_is_authoritative
 from apps.machines.printer_capabilities import PRINTER_SLUG
 from apps.machines.service_queue_position import queue_counts_for
@@ -66,7 +67,6 @@ def resolve_queue(makerspace, queue_id, *, compatibility=False):
 def stage_upload(makerspace, data, actor, *, compatibility=False, legacy_presigner=None):
     queue = resolve_queue(makerspace, data.get("queue_id"), compatibility=compatibility)
     if kernel_is_authoritative(makerspace):
-        from apps.printing.storage import validate_print_upload
         try:
             content_type = validate_print_upload(data["kind"], data["filename"], data.get("content_type", ""))
         except ValueError as exc:

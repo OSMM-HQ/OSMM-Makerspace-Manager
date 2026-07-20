@@ -9,19 +9,6 @@ from apps.inventory.public_stats_hardware import (
 )
 from apps.makerspaces.platform import module_enabled
 from apps.machines.public_stats import build_public_machine_stats
-from apps.printing.models import ManualPrintLog, PrintRequest
-from apps.printing.reports import STATUS_KEYS
-from apps.printing.reports_filament import (
-    estimated_filament_by_period,
-    filament_by_brand,
-    total_spool_grams_used,
-)
-from apps.printing.reports_printer_activity import (
-    attach_printer_image_urls,
-    printer_hours,
-    printer_outcomes,
-)
-from apps.printing.models import FilamentSpool
 
 
 PRINT_STATUS_KEYS = (
@@ -33,10 +20,7 @@ PRINT_STATUS_KEYS = (
     "failed",
     "rejected",
 )
-COMPLETED_PRINT_STATUSES = (
-    PrintRequest.Status.COMPLETED,
-    PrintRequest.Status.COLLECTED,
-)
+COMPLETED_PRINT_STATUSES = ("completed", "collected")
 
 
 def build_public_stats(makerspace) -> dict:
@@ -51,6 +35,10 @@ def build_public_stats(makerspace) -> dict:
 def _printing_stats(makerspace):
     if not module_enabled(makerspace, "printing"):
         return None
+    from apps.machines.printing_cutover import kernel_is_authoritative
+    if kernel_is_authoritative(makerspace):
+        from apps.machines.public_printer_stats import build_public_printer_stats
+        return build_public_printer_stats(makerspace)
     report = build_printing_report(makerspace.id)
     stats = _project_printing(report)
     stats["hours_this_month"] = _printing_hours_this_month(makerspace.id)
@@ -58,6 +46,10 @@ def _printing_stats(makerspace):
 
 
 def build_printing_report(makerspace_id):
+    from apps.printing.models import FilamentSpool, ManualPrintLog, PrintRequest
+    from apps.printing.reports import STATUS_KEYS
+    from apps.printing.reports_filament import estimated_filament_by_period, filament_by_brand, total_spool_grams_used
+    from apps.printing.reports_printer_activity import attach_printer_image_urls, printer_hours, printer_outcomes
     requests = PrintRequest.objects.filter(bucket__makerspace_id=makerspace_id)
     spools = FilamentSpool.objects.filter(makerspace_id=makerspace_id)
     manual_logs = ManualPrintLog.objects.filter(makerspace_id=makerspace_id)
@@ -155,6 +147,7 @@ def _public_printer_row(row):
 
 
 def _printing_hours_this_month(makerspace_id):
+    from apps.printing.models import ManualPrintLog, PrintRequest
     start, end = _current_month_window()
     request_minutes = sum(
         request.run_estimated_minutes or request.estimated_minutes or 0
@@ -203,5 +196,3 @@ def _current_month_window():
 
 def _float(value):
     return round(float(value or 0), 2)
-
-

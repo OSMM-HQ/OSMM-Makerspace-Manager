@@ -35,6 +35,11 @@ tracked in the assistant's memory, not here.
   `codex exec review --uncommitted` (no `--sandbox`, no custom prompt; findings at the literal tail).
   If Codex dies with Windows `-1073741502` / "host exited during handshake", it's desktop-heap
   exhaustion — kill **only** codex PIDs (never `node.exe` = harness/MCP); a reboot clears it.
+  **Never `git add`/stage before a Codex workspace-write run** — a non-empty staged index makes
+  Codex's `apply_patch` silently fail with a misleading "workspace/tests/ is read-only" or
+  "staged index is read-only" error (no files written). Keep the index clean during
+  implementation; only `git add` right before the Stage-4 `codex review` (so it sees new
+  untracked files), then `git reset` before the next Codex build.
 - **Test harness.** Local `osmm-db` (:5433), `osmm-redis`, `osmm-minio` (:9100) must be running. Run
   tests with `DATABASE_URL="postgres://makerspace:makerspace@localhost:5433/makerspace_manager"` (or
   the worktree's dedicated DB). **Never run two `pytest` procs against one DB** (TRUNCATE-FK teardown

@@ -79,6 +79,9 @@ def _apply(pool, actor, *, kind, delta, service_request=None, usage_entry=None, 
     _audit(actor, f"machine_consumable_pool.{kind}", pool, target=row, pool_id=pool.pk,
            adjustment_id=row.pk, quantity_delta=str(delta), remaining_grams=str(after),
            request_id=getattr(service_request, "pk", None), usage_entry_id=getattr(usage_entry, "pk", None))
+    if delta < 0:
+        from apps.machines.low_stock import maybe_flag_low_stock
+        maybe_flag_low_stock(actor, pool)
     return row
 
 
