@@ -1,4 +1,4 @@
-from decimal import Decimal
+﻿from decimal import Decimal
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -11,7 +11,6 @@ from apps.audit.models import AuditLog
 from apps.makerspaces import lifecycle
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 from apps.operations.models import StockTransfer
-from apps.printing.models import FilamentSpool, PrintPrinter
 
 pytestmark = pytest.mark.django_db
 
@@ -118,18 +117,6 @@ def test_superadmin_can_delete_archived_makerspace_from_django_admin(monkeypatch
         actor=superadmin,
         action="admin.delete_regression",
         makerspace=makerspace,
-    )
-    printer = PrintPrinter.objects.create(
-        makerspace=makerspace,
-        name="Admin Delete Printer",
-    )
-    FilamentSpool.objects.create(
-        makerspace=makerspace,
-        printer=printer,
-        material="PLA",
-        color="black",
-        initial_weight_grams=Decimal("1000.00"),
-        remaining_weight_grams=Decimal("900.00"),
     )
     archived = lifecycle.archive(makerspace, superadmin)
     monkeypatch.setattr(lifecycle, "_delete_storage_keys", lambda keys: None)

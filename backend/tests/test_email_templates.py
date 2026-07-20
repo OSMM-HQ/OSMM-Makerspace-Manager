@@ -1,12 +1,11 @@
-import pytest
+﻿import pytest
 from django.contrib.auth import get_user_model
 
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
-from apps.integrations.email_templates import hardware_context, printing_context, render
+from apps.integrations.email_templates import hardware_context, render
 from apps.integrations.models import EmailTemplate
 from apps.inventory.models import InventoryProduct
 from apps.makerspaces.models import Makerspace
-from apps.printing.models import PrintBucket, PrintRequest
 
 pytestmark = pytest.mark.django_db
 
@@ -53,19 +52,6 @@ def make_hardware_request(makerspace, requester=None):
         issued_quantity=1,
     )
     return request
-
-
-def make_print_request(makerspace, requester=None, **kwargs):
-    requester = requester or make_user(f"{makerspace.slug}-print-requester")
-    bucket = PrintBucket.objects.create(makerspace=makerspace, name="General")
-    defaults = {
-        "bucket": bucket,
-        "requester": requester,
-        "title": "Replacement bracket",
-        "quantity": 1,
-    }
-    defaults.update(kwargs)
-    return PrintRequest.objects.create(**defaults)
 
 
 def test_render_uses_active_db_row_and_default_when_missing():
@@ -157,27 +143,6 @@ def test_sanitized_context_blocks_secret_and_relation_access():
     assert rendered["text_body"] == "secret= relation="
     assert "super-secret" not in rendered["text_body"]
     assert hardware_request.requester.email not in rendered["text_body"]
-
-
-def test_printing_staff_default_uses_requester_account_email_when_contact_blank():
-    makerspace = make_space("printing-staff-email")
-    requester = make_user("print-account", email="account@example.com")
-    print_request = make_print_request(
-        makerspace,
-        requester=requester,
-        requester_name="",
-        contact_email="",
-    )
-
-    rendered = render(
-        makerspace,
-        "printing",
-        "staff",
-        "submitted",
-        printing_context(print_request, "", ""),
-    )
-
-    assert "Email: account@example.com" in rendered["text_body"]
 
 
 def test_hardware_staff_render_includes_staff_summary():

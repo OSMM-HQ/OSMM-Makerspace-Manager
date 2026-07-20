@@ -1,4 +1,4 @@
-from io import StringIO
+﻿from io import StringIO
 
 import pytest
 from django.contrib import admin as djadmin
@@ -18,7 +18,6 @@ from apps.machines.models import Machine, MachineType
 from apps.makerspaces import limits
 from apps.makerspaces.admin_subdomains import SubdomainRequestAdmin
 from apps.makerspaces.models import Makerspace, MakerspaceMembership, SubdomainRequest
-from apps.printing.models import PrintBucket, PrintPrinter, PrintRequest
 from tests.return_helpers import authenticated_client, make_member, make_space, make_user
 
 pytestmark = pytest.mark.django_db
@@ -40,7 +39,7 @@ def _active_count(makerspace, case):
         ).count()
     if case == "api_clients":
         return ApiClient.objects.filter(makerspace=makerspace, is_active=True).count()
-    return PrintRequest.objects.filter(bucket__makerspace=makerspace).count()
+    raise AssertionError(f"Unsupported quota case: {case}")
 
 
 def _attempt_second_row(case, mode):

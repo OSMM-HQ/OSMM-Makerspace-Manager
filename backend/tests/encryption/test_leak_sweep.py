@@ -1,7 +1,6 @@
-"""Raw-column regression sweep for every scoped PII registry entry."""
+﻿"""Raw-column regression sweep for every scoped PII registry entry."""
 
 from datetime import timedelta
-from decimal import Decimal
 from uuid import uuid4
 
 import pytest
@@ -26,7 +25,6 @@ from apps.machines.models import (
     MachineUsageEntry,
     ServiceBucket,
 )
-from apps.printing.models import ManualPrintLog, PrintBucket, PrintRequest
 from tests.encryption.conftest import enabled_encryption
 
 pytestmark = pytest.mark.django_db
@@ -37,7 +35,6 @@ def _objects():
     space = Makerspace.objects.create(name="Sweep", slug=f"sweep-{stamp}")
     user = get_user_model().objects.create_user(username=f"sweep-{stamp}")
     now = timezone.now()
-    bucket = PrintBucket.objects.create(makerspace=space, name="Sweep bucket")
     event = Event.objects.create(makerspace=space, title="Sweep event", starts_at=now, ends_at=now + timedelta(hours=1))
     bookable = BookableSpace.objects.create(makerspace=space, name="Sweep bench")
     machine_type = MachineType.objects.create(makerspace=space, slug=f"sweep-{stamp}", name="Sweep machine")
@@ -45,8 +42,6 @@ def _objects():
     service_bucket = ServiceBucket.objects.create(machine=machine, name="Sweep service")
     return {
         "hardware_requests.HardwareRequest": HardwareRequest.objects.create(makerspace=space, requester=user, requester_username=user.username),
-        "printing.PrintRequest": PrintRequest.objects.create(bucket=bucket, requester=user, title="Sweep", quantity=1),
-        "printing.ManualPrintLog": ManualPrintLog.objects.create(makerspace=space, title="Sweep", grams_used=Decimal("1"), logged_by=user),
         "events.EventRegistration": EventRegistration.objects.create(event=event, name="Base", email=f"base-{stamp}@example.test", phone="1"),
         "bookings.Booking": Booking.objects.create(space=bookable, name="Base", email=f"booking-{stamp}@example.test", phone="1", starts_at=now + timedelta(days=1), ends_at=now + timedelta(days=1, hours=1)),
         "machines.MachineServiceRequest": MachineServiceRequest.objects.create(bucket=service_bucket, requester=user, title="Sweep service"),

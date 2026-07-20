@@ -1,4 +1,4 @@
-from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
+﻿from django.contrib.admin.helpers import ACTION_CHECKBOX_NAME
 from django.contrib.messages import get_messages
 from django.test import Client, override_settings
 from django.urls import reverse
@@ -10,7 +10,6 @@ from apps.boxes.models import QrCode
 from apps.integrations.models import EmailLog
 from apps.inventory.models import InventoryAsset, TrackingMode
 from apps.makerspaces.models import MakerspaceMembership
-from apps.printing.models import PrintRequest
 from tests.return_helpers import make_member, make_product, make_space, make_user
 
 pytestmark = pytest.mark.django_db

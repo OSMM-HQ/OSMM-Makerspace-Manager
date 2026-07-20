@@ -1,4 +1,4 @@
-from datetime import timedelta
+﻿from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -16,7 +16,6 @@ from apps.audit.models import AuditLog
 from apps.inventory.models import InventoryAsset
 from apps.machines.models import Machine, MachineOperator, MachineType
 from apps.makerspaces.models import MakerspaceMembership
-from apps.printing.models import FilamentSpool, ManualPrintLog, PrintBucket, PrintPrinter
 from apps.warranty.models import Warranty, WarrantyDocument
 from apps.warranty.status import warranty_status
 from tests.return_helpers import authenticated_client, make_member, make_product, make_space, make_user
@@ -543,53 +542,6 @@ def test_warranty_model_constraints_enforce_exactly_one_of_asset_or_machine_host
         Warranty.objects.create(makerspace=makerspace)
     with pytest.raises(IntegrityError), transaction.atomic():
         Warranty.objects.create(makerspace=makerspace, asset=asset, machine=machine)
-
-@pytest.mark.django_db(transaction=True)
-def test_warranty_0001_rows_migrate_forward_through_machine_host():
-    makerspace = make_space("warranty-migration")
-    asset = make_asset(makerspace)
-    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Historical printer")
-    executor = MigrationExecutor(connection)
-    from_target = [("warranty", "0001_initial")]
-    to_target = [("warranty", "0002_machine_host")]
-
-    try:
-        executor.migrate(from_target)
-        old_apps = executor.loader.project_state(from_target).apps
-        OldWarranty = old_apps.get_model("warranty", "Warranty")
-        asset_row = OldWarranty.objects.create(
-            makerspace_id=makerspace.id,
-            asset_id=asset.id,
-            vendor_name="MIGRATION_ASSET_VENDOR",
-        )
-        printer_row = OldWarranty.objects.create(
-            makerspace_id=makerspace.id,
-            printer_id=printer.id,
-            vendor_name="MIGRATION_PRINTER_VENDOR",
-        )
-
-        executor = MigrationExecutor(connection)
-        executor.migrate(to_target)
-        new_apps = executor.loader.project_state(to_target).apps
-        NewWarranty = new_apps.get_model("warranty", "Warranty")
-        migrated = {
-            row.id: row
-            for row in NewWarranty.objects.filter(
-                id__in=(asset_row.id, printer_row.id)
-            )
-        }
-
-        assert migrated[asset_row.id].asset_id == asset.id
-        assert migrated[asset_row.id].printer_id is None
-        assert migrated[asset_row.id].machine_id is None
-        assert migrated[asset_row.id].vendor_name == "MIGRATION_ASSET_VENDOR"
-        assert migrated[printer_row.id].printer_id == printer.id
-        assert migrated[printer_row.id].asset_id is None
-        assert migrated[printer_row.id].machine_id is None
-        assert migrated[printer_row.id].vendor_name == "MIGRATION_PRINTER_VENDOR"
-    finally:
-        MigrationExecutor(connection).migrate(to_target)
-
 
 def test_warranty_data_does_not_leak_to_public_payloads():
     makerspace = make_space("warranty-public-leak")

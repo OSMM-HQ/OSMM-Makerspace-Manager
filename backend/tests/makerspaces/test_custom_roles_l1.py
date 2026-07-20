@@ -62,6 +62,7 @@ def test_seed_and_backfill_migration_round_trip():
     schema_target = [("makerspaces", "0038_makerspace_roles")]
     target = [("makerspaces", "0039_seed_and_backfill_roles")]
     executor = MigrationExecutor(connection)
+    makerspace_id = None
 
     try:
         executor.migrate(from_target)
@@ -71,6 +72,7 @@ def test_seed_and_backfill_migration_round_trip():
         makerspace = OldMakerspace.objects.create(
             name="Migrated roles", slug="migrated-roles"
         )
+        makerspace_id = makerspace.id
         memberships = {}
         for index, legacy_role in enumerate(HISTORICAL_ROLE_VALUES):
             user = make_user(f"migration-role-{index}")
@@ -118,6 +120,21 @@ def test_seed_and_backfill_migration_round_trip():
         # that depend on makerspaces/0039 (e.g. encryption/0001), and migrating only
         # makerspaces forward would leave those dropped tables missing for every
         # later test in the process.
+        #
+        # Remove this historical fixture first: printing/0022 is fail-closed and
+        # correctly rejects any unflipped makerspace while retiring its legacy
+        # tables. Raw SQL avoids loading current related models whose tables are
+        # intentionally absent at `schema_target`.
+        if makerspace_id is not None:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    "DELETE FROM makerspaces_makerspacemembership WHERE makerspace_id = %s",
+                    [makerspace_id],
+                )
+                cursor.execute(
+                    "DELETE FROM makerspaces_makerspace WHERE id = %s",
+                    [makerspace_id],
+                )
         restore = MigrationExecutor(connection)
         restore.migrate(restore.loader.graph.leaf_nodes())
 

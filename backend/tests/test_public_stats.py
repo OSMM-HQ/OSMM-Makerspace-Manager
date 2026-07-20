@@ -1,4 +1,4 @@
-from datetime import timedelta
+﻿from datetime import timedelta
 from decimal import Decimal
 import json
 import re
@@ -18,13 +18,6 @@ from apps.inventory.public_stats import build_public_stats
 from apps.inventory.public_stats_hardware import public_display_name
 from apps.inventory.views_public_stats import PublicMakerspaceStatsView
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
-from apps.printing.models import (
-    FilamentSpool,
-    ManualPrintLog,
-    PrintBucket,
-    PrintPrinter,
-    PrintRequest,
-)
 
 
 pytestmark = pytest.mark.django_db
@@ -619,18 +612,6 @@ def test_public_stats_response_has_no_leaky_values_or_forbidden_keys():
         display_name="leaky@example.com",
         requester=unsafe_user,
     )
-    bucket = PrintBucket.objects.create(makerspace=makerspace, name="PLA")
-    printer = PrintPrinter.objects.create(makerspace=makerspace, name="MK4")
-    PrintRequest.objects.create(
-        bucket=bucket,
-        requester=unsafe_user,
-        title="Private print",
-        status=PrintRequest.Status.COMPLETED,
-        printer=printer,
-        estimated_minutes=30,
-        estimated_filament_grams=Decimal("12.50"),
-        completed_at=timezone.now(),
-    )
 
     response = client.get(public_stats_url(makerspace))
 
@@ -650,9 +631,6 @@ def test_public_stats_seeded_sentinels_never_appear_in_response_body():
         "SENTINELSERIAL",
         "SENTINELBOX",
         "SENTINELQR",
-        "SENTINELPRINTERNOTE",
-        "SENTINELSPOOLLOT",
-        "SENTINELMANUALNOTE",
     ]
     box = Box.objects.create(
         makerspace=makerspace,
@@ -693,48 +671,6 @@ def test_public_stats_seeded_sentinels_never_appear_in_response_body():
         "SENTINELEMAIL@x.com",
         display_name="SENTINELPHONE5551234",
         requester=requester,
-    )
-    bucket = PrintBucket.objects.create(makerspace=makerspace, name="Safe Bucket")
-    printer = PrintPrinter.objects.create(
-        makerspace=makerspace,
-        name="Safe Printer",
-        notes="SENTINELPRINTERNOTE",
-    )
-    spool = FilamentSpool.objects.create(
-        makerspace=makerspace,
-        printer=printer,
-        material="PLA",
-        brand="Safe Brand",
-        lot_code="SENTINELSPOOLLOT",
-        initial_weight_grams=Decimal("1000.00"),
-        remaining_weight_grams=Decimal("900.00"),
-    )
-    PrintRequest.objects.create(
-        bucket=bucket,
-        requester=requester,
-        title="Safe Print",
-        status=PrintRequest.Status.COMPLETED,
-        printer=printer,
-        filament_spool=spool,
-        estimated_minutes=60,
-        estimated_filament_grams=Decimal("25.00"),
-        filament_grams_used=Decimal("25.00"),
-        price=Decimal("12.34"),
-        payment_status=PrintRequest.PaymentStatus.PAID,
-        paid_at=timezone.now(),
-        completed_at=timezone.now(),
-        contact_email="SENTINELEMAIL@x.com",
-        contact_phone="SENTINELPHONE5551234",
-    )
-    ManualPrintLog.objects.create(
-        makerspace=makerspace,
-        printer=printer,
-        filament_spool=spool,
-        grams_used=Decimal("10.00"),
-        duration_minutes=15,
-        title="Safe Manual Log",
-        note="SENTINELMANUALNOTE",
-        logged_by=requester,
     )
 
     response = client.get(public_stats_url(makerspace))

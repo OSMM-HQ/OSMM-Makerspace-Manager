@@ -1,4 +1,4 @@
-"""Fenced, authenticated rollback from scoped envelopes to legacy plaintext."""
+﻿"""Fenced, authenticated rollback from scoped envelopes to legacy plaintext."""
 
 from uuid import UUID
 
@@ -20,8 +20,6 @@ from apps.encryption.write_fence import fence_operation
 
 _FILTERS = {
     "hardware_requests.HardwareRequest": "makerspace_id",
-    "printing.PrintRequest": "bucket__makerspace_id",
-    "printing.ManualPrintLog": "makerspace_id",
     "events.EventRegistration": "event__makerspace_id",
     "bookings.Booking": "space__makerspace_id",
     "machines.MachineServiceRequest": "makerspace_id",

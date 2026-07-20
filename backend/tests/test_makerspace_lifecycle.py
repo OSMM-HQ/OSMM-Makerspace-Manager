@@ -1,4 +1,4 @@
-from decimal import Decimal
+﻿from decimal import Decimal
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -36,14 +36,6 @@ from apps.operations.models import (
     StocktakeSession,
     StockTransfer,
     StockTransferLine,
-)
-from apps.printing.models import (
-    FilamentSpool,
-    ManualPrintLog,
-    PrintBucket,
-    PrintPrinter,
-    PrintRequest,
-    PrintRequestFile,
 )
 
 pytestmark = pytest.mark.django_db
@@ -257,48 +249,6 @@ def populate_full_purge_graph(makerspace, survivor, actor):
         qr_ids=[qr.id],
     )
 
-    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Lifecycle Printer")
-    spool = FilamentSpool.objects.create(
-        makerspace=makerspace,
-        printer=printer,
-        material="PLA",
-        color="black",
-        initial_weight_grams=Decimal("1000.00"),
-        remaining_weight_grams=Decimal("900.00"),
-    )
-    bucket = PrintBucket.objects.create(makerspace=makerspace, name="Lifecycle Bucket")
-    print_request = PrintRequest.objects.create(
-        bucket=bucket,
-        requester=requester,
-        title="Lifecycle Print",
-        quantity=1,
-        status=PrintRequest.Status.COMPLETED,
-        printer=printer,
-        filament_spool=spool,
-        estimated_minutes=45,
-        estimated_filament_grams=Decimal("25.00"),
-        filament_grams_used=Decimal("25.00"),
-        completed_at=timezone.now(),
-        contact_email="print@example.com",
-    )
-    PrintRequestFile.objects.create(
-        print_request=print_request,
-        makerspace=makerspace,
-        kind=PrintRequestFile.Kind.STL,
-        object_key=f"printing/{makerspace.id}/model.stl",
-        content_type="model/stl",
-        original_filename="model.stl",
-        owner_checkin_user_id="print-owner",
-        attached_at=timezone.now(),
-    )
-    ManualPrintLog.objects.create(
-        makerspace=makerspace,
-        printer=printer,
-        filament_spool=spool,
-        grams_used=Decimal("12.50"),
-        title="Walk-up print",
-        logged_by=actor,
-    )
 
     stocktake = StocktakeSession.objects.create(
         makerspace=makerspace,
@@ -499,12 +449,6 @@ def assert_purged_makerspace_graph(space_id):
     assert RequesterAccountability.objects.filter(makerspace_id=space_id).count() == 0
     assert EvidencePhoto.objects.filter(makerspace_id=space_id).count() == 0
     assert PublicToolLoan.objects.filter(makerspace_id=space_id).count() == 0
-    assert PrintBucket.objects.filter(makerspace_id=space_id).count() == 0
-    assert PrintRequest.objects.filter(bucket__makerspace_id=space_id).count() == 0
-    assert PrintRequestFile.objects.filter(makerspace_id=space_id).count() == 0
-    assert PrintPrinter.objects.filter(makerspace_id=space_id).count() == 0
-    assert FilamentSpool.objects.filter(makerspace_id=space_id).count() == 0
-    assert ManualPrintLog.objects.filter(makerspace_id=space_id).count() == 0
     assert StocktakeSession.objects.filter(makerspace_id=space_id).count() == 0
     assert StocktakeLine.objects.filter(stocktake__makerspace_id=space_id).count() == 0
     assert InventoryAdjustment.objects.filter(makerspace_id=space_id).count() == 0

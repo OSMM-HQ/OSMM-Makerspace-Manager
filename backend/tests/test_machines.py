@@ -1,4 +1,4 @@
-from concurrent.futures import ThreadPoolExecutor
+﻿from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from threading import Barrier
 from types import SimpleNamespace
@@ -26,7 +26,6 @@ from apps.machines.models import (
 from apps.makerspaces import lifecycle as makerspace_lifecycle
 from apps.makerspaces.models import MakerspaceMembership
 from apps.operations.models import InventoryAdjustment
-from apps.printing.models import PrintPrinter
 from apps.warranty.models import Warranty
 from tests.return_helpers import authenticated_client, make_member, make_space, make_user
 

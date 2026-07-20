@@ -1,4 +1,4 @@
-"""Encrypt fixed scoped PII and synchronize H3 search artifacts atomically."""
+﻿"""Encrypt fixed scoped PII and synchronize H3 search artifacts atomically."""
 
 from django.apps import apps
 from django.conf import settings
@@ -11,8 +11,6 @@ from apps.encryption.registry import ALL_FIELDS, BY_MODEL, makerspace_id_for
 
 FILTERS = {
     "hardware_requests.HardwareRequest": {"makerspace_id": None},
-    "printing.PrintRequest": {"bucket__makerspace_id": None},
-    "printing.ManualPrintLog": {"makerspace_id": None},
     "events.EventRegistration": {"event__makerspace_id": None},
     "bookings.Booking": {"space__makerspace_id": None},
     "machines.MachineServiceRequest": {"makerspace_id": None},

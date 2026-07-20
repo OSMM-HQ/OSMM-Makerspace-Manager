@@ -1,48 +1,38 @@
-import pytest
-from django.core.management import call_command
-from django.core.management.base import CommandError
-from django.utils import timezone
+﻿import pytest
+from django.db import connection
+from django.db.migrations.recorder import MigrationRecorder
 
-from apps.machines.models import PrintingCutoverState
-from apps.printing.models import PrintBucket
-from tests.return_helpers import make_space
+import apps.printing.models as printing_models
 
 
 pytestmark = pytest.mark.django_db
 
 
-def test_retirement_guard_is_ready_when_every_candidate_is_flipped():
-    makerspace = make_space("printing-retirement-ready")
-    makerspace.enabled_modules = ["printing", "machine_service"]
-    makerspace.save(update_fields=["enabled_modules"])
-    PrintingCutoverState.objects.create(
-        makerspace=makerspace, kernel_authoritative_at=timezone.now(),
-    )
+LEGACY_MODEL_NAMES = (
+    "PrintBucket",
+    "PrintPrinter",
+    "FilamentSpool",
+    "FilamentAdjustment",
+    "ManualPrintLog",
+    "PrintRequest",
+    "PrintRequestFile",
+)
+LEGACY_TABLES = {
+    "printing_printbucket",
+    "printing_printprinter",
+    "printing_filamentspool",
+    "printing_filamentadjustment",
+    "printing_manualprintlog",
+    "printing_printrequest",
+    "printing_printrequestfile",
+}
 
-    call_command("verify_printing_retirement_ready")
+
+def test_printing_models_module_exposes_no_legacy_models():
+    assert all(not hasattr(printing_models, name) for name in LEGACY_MODEL_NAMES)
 
 
-def test_retirement_guard_reports_unflipped_tenant_with_legacy_data():
-    makerspace = make_space("printing-retirement-unflipped")
-    PrintBucket.objects.create(makerspace=makerspace, name="Retained legacy queue")
-
-    with pytest.raises(CommandError, match="printing-retirement-unflipped"):
-        call_command("verify_printing_retirement_ready")
-
-
-def test_no_runtime_module_imports_legacy_printing_package():
-    from pathlib import Path
-
-    apps_root = Path(__file__).resolve().parents[1] / "apps"
-    allowed_legacy_imports = {"makerspaces/lifecycle.py"}
-    offenders = []
-    for path in apps_root.rglob("*.py"):
-        relative = path.relative_to(apps_root)
-        if relative.parts[0] == "printing" or "migrations" in relative.parts:
-            continue
-        if (
-            "apps.printing" in path.read_text(encoding="utf-8")
-            and relative.as_posix() not in allowed_legacy_imports
-        ):
-            offenders.append(str(relative))
-    assert offenders == []
+def test_tombstone_migration_applied_to_fresh_test_database():
+    applied = MigrationRecorder(connection).applied_migrations()
+    assert ("printing", "0022_retire_legacy_models") in applied
+    assert LEGACY_TABLES.isdisjoint(connection.introspection.table_names())

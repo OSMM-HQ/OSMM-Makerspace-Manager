@@ -1,4 +1,4 @@
-from datetime import timedelta
+﻿from datetime import timedelta
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -543,15 +543,6 @@ SPECTACULAR_SETTINGS = {
     ),
     "VERSION": "0.1.0",
     "ENUM_NAME_OVERRIDES": {
-        "PrintRequestStatusEnum": [
-            ("pending", "Pending"),
-            ("accepted", "Accepted"),
-            ("printing", "Printing"),
-            ("completed", "Completed"),
-            ("collected", "Collected"),
-            ("rejected", "Rejected"),
-            ("failed", "Failed"),
-        ],
         "QrPrintBatchStatusEnum": [
             ("draft", "Draft"),
             ("printed", "Printed"),
@@ -595,4 +586,3 @@ SPECTACULAR_SETTINGS = {
         {"name": "Notifications", "description": "Persistent staff inbox notifications."},
     ],
 }
-
