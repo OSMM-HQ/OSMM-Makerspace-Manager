@@ -1,4 +1,4 @@
-"""Flip-aware public printer-service contract shared by canonical and legacy URLs."""
+"""Kernel-only public printer-service contract."""
 
 from decimal import Decimal
 import json
@@ -8,7 +8,7 @@ from rest_framework.exceptions import NotFound, ValidationError
 
 from apps.machines.models import MachineConsumablePool, MachineServiceRequest, ServiceQueue, ServiceRequestFile
 from apps.machines.print_uploads import validate_print_upload
-from apps.machines.printing_cutover import kernel_is_authoritative
+
 from apps.machines.printer_capabilities import PRINTER_SLUG
 from apps.machines.service_queue_position import queue_counts_for
 from apps.machines.service_storage import create_staged_queue_file, finalize_file
@@ -21,41 +21,22 @@ def _kernel_queues(makerspace):
 
 
 def public_queues(makerspace):
-    if kernel_is_authoritative(makerspace):
-        return _kernel_queues(makerspace).order_by("name", "id")
-    from apps.printing.models import PrintBucket
-    return PrintBucket.objects.filter(makerspace=makerspace, is_active=True).order_by("name", "id")
+    return _kernel_queues(makerspace).order_by("name", "id")
 
 
 def public_pools(makerspace):
-    if kernel_is_authoritative(makerspace):
-        return MachineConsumablePool.objects.filter(makerspace=makerspace, is_active=True).order_by("material", "color", "id")
-    from apps.printing.models import FilamentSpool
-    return FilamentSpool.objects.filter(makerspace=makerspace, is_active=True).order_by("material", "color", "id")
+    return MachineConsumablePool.objects.filter(
+        makerspace=makerspace, is_active=True,
+    ).order_by("material", "color", "id")
 
 
 def resolve_queue(makerspace, queue_id, *, compatibility=False):
     """Resolve an active public queue; canonical requests never create a queue."""
-    if kernel_is_authoritative(makerspace):
-        rows = _kernel_queues(makerspace)
-        if compatibility:
-            rows = rows.filter(legacy_print_bucket_id__isnull=False)
-            row = rows.filter(legacy_print_bucket_id=queue_id).first() if queue_id is not None else rows.filter(name="Public Requests").first()
-        elif queue_id is not None:
-            row = rows.filter(pk=queue_id).first()
-        else:
-            choices = list(rows[:2])
-            row = choices[0] if len(choices) == 1 else None
-        if row is None:
-            raise ValidationError({"queue_id": "Select an active public printer queue."})
-        return row
-    from apps.printing.models import PrintBucket
-    rows = PrintBucket.objects.filter(makerspace=makerspace, is_active=True)
-    if queue_id is not None:
+    rows = _kernel_queues(makerspace)
+    if compatibility:
+        row = rows.filter(legacy_print_bucket_id=queue_id).first() if queue_id is not None else rows.filter(name="Public Requests").first()
+    elif queue_id is not None:
         row = rows.filter(pk=queue_id).first()
-    elif compatibility:
-        from apps.printing.public_workflow import _resolve_public_bucket
-        return _resolve_public_bucket(makerspace, None)
     else:
         choices = list(rows[:2])
         row = choices[0] if len(choices) == 1 else None
@@ -66,22 +47,15 @@ def resolve_queue(makerspace, queue_id, *, compatibility=False):
 
 def stage_upload(makerspace, data, actor, *, compatibility=False, legacy_presigner=None):
     queue = resolve_queue(makerspace, data.get("queue_id"), compatibility=compatibility)
-    if kernel_is_authoritative(makerspace):
-        try:
-            content_type = validate_print_upload(data["kind"], data["filename"], data.get("content_type", ""))
-        except ValueError as exc:
-            raise ValidationError({"file": str(exc)}) from exc
-        upload, presigned = create_staged_queue_file(queue, actor=actor, filename=data["filename"], content_type=content_type, kind="model" if data["kind"] == "stl" else "screenshot")
-        return {"file_id": upload.id, "upload": presigned}
-    from apps.printing.models import PrintRequestFile
-    from apps.printing.storage import presigned_print_upload, print_object_key, validate_print_upload
     try:
         content_type = validate_print_upload(data["kind"], data["filename"], data.get("content_type", ""))
     except ValueError as exc:
         raise ValidationError({"file": str(exc)}) from exc
-    upload = PrintRequestFile.objects.create(makerspace=makerspace, kind=data["kind"], object_key=print_object_key(makerspace.id, data["kind"]), content_type=content_type, original_filename=data["filename"], owner=actor)
-    return {"file_id": upload.id, "upload": (legacy_presigner or presigned_print_upload)(upload.object_key, content_type)}
-
+    upload, presigned = create_staged_queue_file(
+        queue, actor=actor, filename=data["filename"], content_type=content_type,
+        kind="model" if data["kind"] == "stl" else "screenshot",
+    )
+    return {"file_id": upload.id, "upload": presigned}
 
 def _settings(value):
     if value in (None, ""):
@@ -121,12 +95,8 @@ def _kernel_payload(queue, data):
 
 
 def submit_request(makerspace, data, actor, *, compatibility=False):
-    """One flip-aware write path.  Print quota is deliberately charged exactly once."""
+    """Submit a kernel request and charge print quota exactly once."""
     queue = resolve_queue(makerspace, data.get("queue_id"), compatibility=compatibility)
-    if not kernel_is_authoritative(makerspace):
-        from apps.printing.public_workflow import submit_public_print_request
-        legacy = dict(data, bucket_id=queue.pk, filament_spool_id=data.get("consumable_pool_id"))
-        return submit_public_print_request(makerspace, legacy, actor)
     with transaction.atomic():
         limits.check_quota(makerspace, "print", adding=1)
         row = submit(queue, actor, member=actor, actor=actor, requester_name=actor.display_name or "", contact_email=actor.email or "", contact_phone=actor.phone or "", title=data["title"], description=data.get("description", ""), source_link=data.get("source_link", ""), capability_payload=_kernel_payload(queue, data))
@@ -150,13 +120,11 @@ class _StatusProjection:
 
 
 def public_status(public_token):
-    """Return a printer-only projection or 404; token lookups intentionally leak no PII."""
-    kernel = MachineServiceRequest.objects.select_related("makerspace").filter(public_token=public_token, makerspace__archived_at__isnull=True, queue__machine_type__slug=PRINTER_SLUG).first()
-    if kernel is not None and kernel_is_authoritative(kernel.makerspace):
-        return _StatusProjection(kernel), queue_counts_for([kernel])
-    from apps.printing.models import PrintRequest
-    legacy = PrintRequest.objects.select_related("bucket__makerspace").filter(public_token=public_token, bucket__makerspace__archived_at__isnull=True).first()
-    if legacy is None:
+    """Return a PII-free printer-status projection or 404."""
+    kernel = MachineServiceRequest.objects.select_related("makerspace").filter(
+        public_token=public_token, makerspace__archived_at__isnull=True,
+        queue__machine_type__slug=PRINTER_SLUG,
+    ).first()
+    if kernel is None:
         raise NotFound()
-    from apps.printing.queue_position import queue_counts_for as legacy_counts
-    return legacy, legacy_counts(legacy.bucket.makerspace, [legacy])
+    return _StatusProjection(kernel), queue_counts_for([kernel])

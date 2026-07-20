@@ -14,8 +14,6 @@ from apps.hardware_requests.models import HardwareRequest
 from apps.integrations.staff_notifications import staff_emails_for_stream
 from apps.makerspaces.models import MakerspaceMembership
 from apps.presence import services as presence
-from apps.printing import workflow as print_workflow
-from apps.printing.models import FilamentSpool, PrintPrinter, PrintRequest
 from tests.return_helpers import (
     authenticated_client as hardware_authenticated_client,
     make_issued_request,
@@ -31,15 +29,6 @@ from tests.test_issue import (
     make_box,
     make_issue_evidence,
 )
-from tests.test_printing import (
-    action_url as print_action_url,
-    authenticated_client as print_authenticated_client,
-    make_bucket,
-    make_print_manager,
-    make_request as make_print_request,
-    request_list_url as print_request_list_url,
-)
-
 pytestmark = pytest.mark.django_db
 
 
@@ -464,181 +453,6 @@ def test_notify_return_due_false_when_nobody_reachable():
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-def test_public_print_submit_emails_printing_staff_once(
-    django_capture_on_commit_callbacks,
-):
-    reset_outbox()
-    makerspace = make_space("staff-print-public-submit")
-    bucket = make_bucket(makerspace)
-    staff = make_print_manager("staff-print-public-submit-manager", makerspace)
-    staff.email = "print-public-submit-staff@example.com"
-    staff.save(update_fields=["email"])
-    requester = make_present_member(
-        "staff-print-public-submit-requester",
-        makerspace,
-        email="print-public-requester@example.com",
-    )
-
-    with django_capture_on_commit_callbacks(execute=True):
-        response = print_authenticated_client(requester).post(
-            public_print_submit_url(makerspace),
-            {
-                "requester_name": "Print Requester",
-                "bucket_id": bucket.id,
-                "title": "Public bracket",
-                "contact_email": "print-public-requester@example.com",
-                "contact_phone": "+15550101010",
-            },
-            format="json",
-        )
-
-    assert response.status_code == 201
-    assert_address_sent("print-public-requester@example.com")
-    assert_address_count(staff.email, 1)
-
-
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-def test_authenticated_print_submit_emails_printing_staff_once(
-    django_capture_on_commit_callbacks,
-):
-    reset_outbox()
-    makerspace = make_space("staff-print-auth-submit")
-    bucket = make_bucket(makerspace)
-    requester = make_user(
-        "staff-print-auth-requester",
-        access_status=User.AccessStatus.ACTIVE,
-    )
-    staff = make_print_manager("staff-print-auth-submit-manager", makerspace)
-    staff.email = "print-auth-submit-staff@example.com"
-    staff.save(update_fields=["email"])
-
-    with django_capture_on_commit_callbacks(execute=True):
-        response = print_authenticated_client(requester).post(
-            print_request_list_url(),
-            {
-                "bucket": bucket.id,
-                "title": "Authenticated bracket",
-                "quantity": 1,
-            },
-            format="json",
-        )
-
-    assert response.status_code == 201
-    assert_address_count(staff.email, 1)
-
-
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-@pytest.mark.parametrize(
-    ("event", "initial_status", "call"),
-    [
-        (
-            "accepted",
-            PrintRequest.Status.PENDING,
-            lambda req, actor: print_workflow.accept(req, actor),
-        ),
-        (
-            "started",
-            PrintRequest.Status.ACCEPTED,
-            lambda req, actor: print_workflow.start(req, actor),
-        ),
-        (
-            "completed",
-            PrintRequest.Status.PRINTING,
-            lambda req, actor: print_workflow.complete(req, actor),
-        ),
-        (
-            "rejected",
-            PrintRequest.Status.PENDING,
-            lambda req, actor: print_workflow.reject(req, actor, "Too fragile."),
-        ),
-        (
-            "failed",
-            PrintRequest.Status.PRINTING,
-            lambda req, actor: print_workflow.fail(req, actor, "Nozzle jammed."),
-        ),
-        (
-            "collected",
-            PrintRequest.Status.COMPLETED,
-            lambda req, actor: print_workflow.mark_collected(req, actor),
-        ),
-    ],
-)
-def test_printing_transition_events_email_printing_staff_once(
-    event,
-    initial_status,
-    call,
-    django_capture_on_commit_callbacks,
-):
-    reset_outbox()
-    makerspace = make_space(f"staff-print-{event}")
-    bucket = make_bucket(makerspace)
-    requester = make_user(
-        f"staff-print-{event}-requester",
-        access_status=User.AccessStatus.ACTIVE,
-        email=f"staff-print-{event}-requester@example.com",
-    )
-    staff = make_print_manager(f"staff-print-{event}-manager", makerspace)
-    staff.email = f"staff-print-{event}-staff@example.com"
-    staff.save(update_fields=["email"])
-    print_request = make_print_request(
-        bucket,
-        requester,
-        title=f"{event} bracket",
-        status=initial_status,
-    )
-    if event == "started":
-        printer = PrintPrinter.objects.create(makerspace=makerspace, name="Prusa MK4")
-        spool = FilamentSpool.objects.create(
-            makerspace=makerspace,
-            printer=printer,
-            material="PLA",
-            initial_weight_grams=1000,
-            remaining_weight_grams=900,
-        )
-        call = lambda req, actor: print_workflow.start(
-            req,
-            actor,
-            printer_id=printer.id,
-            filament_spool_id=spool.id,
-            estimated_minutes=90,
-            estimated_filament_grams="120.00",
-        )
-
-    with django_capture_on_commit_callbacks(execute=True):
-        call(print_request, staff)
-
-    assert_address_count(staff.email, 1)
-    assert any(event in message.subject for message in mail.outbox if staff.email in message.to)
-
-
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-def test_printing_reprint_emits_staff_reprinted_email(
-    django_capture_on_commit_callbacks,
-):
-    reset_outbox()
-    makerspace = make_space("staff-print-reprint")
-    bucket = make_bucket(makerspace)
-    requester = make_user("staff-print-reprint-requester", access_status=User.AccessStatus.ACTIVE)
-    staff = make_print_manager("staff-print-reprint-manager", makerspace)
-    staff.email = "staff-print-reprint-staff@example.com"
-    staff.save(update_fields=["email"])
-    failed = make_print_request(
-        bucket,
-        requester,
-        title="Failed bracket",
-        status=PrintRequest.Status.FAILED,
-    )
-
-    with django_capture_on_commit_callbacks(execute=True):
-        clone = print_workflow.reprint(failed, staff)
-
-    assert clone.status == PrintRequest.Status.ACCEPTED
-    assert_address_count(staff.email, 1)
-    assert "reprint request" in mail.outbox[0].subject
-    assert "reprinted" in mail.outbox[0].body
-
-
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 def test_hardware_staff_send_failure_does_not_block_transition_or_requester_email(
     monkeypatch,
     django_capture_on_commit_callbacks,
@@ -680,43 +494,6 @@ def test_hardware_staff_send_failure_does_not_block_transition_or_requester_emai
     hardware_request.refresh_from_db()
     assert hardware_request.status == HardwareRequest.Status.ACCEPTED
     assert recipient_addresses() == ["hardware-fail-safe-requester@example.com"]
-
-
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-def test_printing_staff_resolver_failure_does_not_block_transition_or_requester_email(
-    monkeypatch,
-    django_capture_on_commit_callbacks,
-):
-    reset_outbox()
-    makerspace = make_space("staff-print-fail-safe")
-    bucket = make_bucket(makerspace)
-    requester = make_user(
-        "staff-print-fail-safe-requester",
-        access_status=User.AccessStatus.ACTIVE,
-        email="print-fail-safe-requester@example.com",
-    )
-    manager = make_print_manager("staff-print-fail-safe-manager", makerspace)
-    print_request = make_print_request(bucket, requester)
-
-    from apps.integrations.dispatch import dispatch_email as real_dispatch_email
-
-    def fail_staff_send(**kwargs):
-        if kwargs["audience"] == "staff":
-            raise RuntimeError("staff dispatch failed")
-        return real_dispatch_email(**kwargs)
-
-    monkeypatch.setattr("apps.integrations.notify.dispatch_email", fail_staff_send)
-
-    with django_capture_on_commit_callbacks(execute=True):
-        response = print_authenticated_client(manager).post(
-            print_action_url(print_request, "accept"),
-            format="json",
-        )
-
-    assert response.status_code == 200
-    print_request.refresh_from_db()
-    assert print_request.status == PrintRequest.Status.ACCEPTED
-    assert recipient_addresses() == ["print-fail-safe-requester@example.com"]
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")

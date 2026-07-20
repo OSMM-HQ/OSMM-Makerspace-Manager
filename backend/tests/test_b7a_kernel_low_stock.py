@@ -6,10 +6,9 @@ import pytest
 
 from apps.audit.models import AuditLog
 from apps.machines.models import MachineConsumablePool
-from apps.machines.printing_cutover import flip_authority
 from apps.machines.service_consumable_pools import correct_pool, create_pool
 from apps.procurement.models import ToBuyItem
-from tests.test_printing import make_space, make_user
+from tests.return_helpers import make_space, make_user
 
 
 pytestmark = pytest.mark.django_db
@@ -17,7 +16,6 @@ pytestmark = pytest.mark.django_db
 
 def test_kernel_low_stock_creates_one_open_item_and_ignores_disabled_thresholds():
     makerspace = make_space("b7a-low-stock")
-    flip_authority(makerspace)
     actor = make_user("b7a-low-stock-actor")
     pool = create_pool(
         makerspace, actor, material="PLA", color="Blue", initial_grams="100", low_threshold_grams="50",
@@ -39,7 +37,6 @@ def test_kernel_low_stock_creates_one_open_item_and_ignores_disabled_thresholds(
     for threshold in (None, Decimal("0.00"), Decimal("-1.00")):
         token = str(threshold).replace("-", "minus")
         disabled_space = make_space(f"b7a-low-stock-off-{token}")
-        flip_authority(disabled_space)
         disabled_actor = make_user(f"b7a-low-stock-off-{token}-actor")
         if threshold is not None and threshold < 0:
             disabled_pool = MachineConsumablePool.objects.create(
@@ -61,7 +58,6 @@ def test_kernel_low_stock_flags_each_pool_with_its_own_provenance():
     # two distinct low pools of the same material/color each get their own restock item,
     # while repeated debits of the SAME pool do not create a second item for it.
     makerspace = make_space("b7a-low-stock-same-name")
-    flip_authority(makerspace)
     actor = make_user("b7a-low-stock-same-name-actor")
     first_pool = create_pool(
         makerspace, actor, material="PLA", color="Blue", initial_grams="100", low_threshold_grams="50",

@@ -1,4 +1,4 @@
-﻿"""B7a kernel 3D-printer lifecycle email coverage."""
+"""B7a kernel 3D-printer lifecycle email coverage."""
 
 import pytest
 from django.test import override_settings
@@ -6,10 +6,9 @@ from django.test import override_settings
 from apps.integrations.email_templates_registry_defaults import PRINTING_REQUESTER_SUBJECTS
 from apps.integrations.models import EmailLog, EmailNotificationMute
 from apps.machines.models import Machine, MachineServiceRequest, MachineType, ServiceQueue
-from apps.machines.printing_cutover import flip_authority
 from apps.machines.service_printing_emails import notify_printer_service_status
 from apps.makerspaces.models import MakerspaceMembership
-from tests.test_printing import make_space, make_user
+from tests.return_helpers import make_space, make_user
 
 
 pytestmark = pytest.mark.django_db
@@ -17,7 +16,6 @@ pytestmark = pytest.mark.django_db
 
 def _printer_request(slug):
     makerspace = make_space(slug)
-    flip_authority(makerspace)
     requester = make_user(f"{slug}-requester")
     requester.email = f"{slug}-requester@example.test"
     requester.save(update_fields=["email"])

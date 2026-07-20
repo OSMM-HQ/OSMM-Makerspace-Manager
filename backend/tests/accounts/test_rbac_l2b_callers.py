@@ -123,7 +123,7 @@ def test_printing_recipients_follow_actions_but_mute_display_roles():
         print_manager,
         makerspace,
         MakerspaceMembership.Role.PRINT_MANAGER,
-        seeded_role(makerspace, MakerspaceMembership.Role.PRINT_MANAGER),
+        custom_role(makerspace, "legacy-print-manager", {rbac.Action.MANAGE_PRINTING}),
     )
     inventory_manager = make_user("l2b-printing-inventory-manager")
     membership(

@@ -12,8 +12,6 @@ from apps.encryption.registry import BY_MODEL
 
 FILTERS = {
     "hardware_requests.HardwareRequest": "makerspace_id",
-    "printing.PrintRequest": "bucket__makerspace_id",
-    "printing.ManualPrintLog": "makerspace_id",
     "events.EventRegistration": "event__makerspace_id",
     "machines.MachineServiceRequest": "makerspace_id",
     "machines.MachineUsageEntry": "machine__makerspace_id",

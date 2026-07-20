@@ -7,7 +7,7 @@ from apps.makerspaces.models import MakerspaceMembership
 from apps.operations.models import InventoryAdjustment
 from apps.machines.models import Machine, MachineConsumablePool
 from apps.procurement.models import ToBuyItem
-from tests.test_printing import authenticated_client, make_member, make_print_manager, make_space, make_user
+from tests.return_helpers import authenticated_client, make_member, make_print_manager, make_space, make_user
 
 pytestmark = pytest.mark.django_db
 

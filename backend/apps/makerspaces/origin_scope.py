@@ -158,8 +158,6 @@ def _model_for_path(model_path):
         from apps.operations import models
     elif app_label == "hardware_requests":
         from apps.hardware_requests import models
-    elif app_label == "printing":
-        from apps.printing import models
     elif app_label == "procurement":
         from apps.procurement import models
     elif app_label == "warranty":
@@ -186,16 +184,6 @@ _REQUEST_ACTIONS = {
     "request-return",
     "guest-admin-request-return",
     "request-timeline",
-}
-_PRINT_ACTIONS = {
-    "managed-request-detail",
-    "managed-request-accept",
-    "managed-request-reject",
-    "managed-request-start",
-    "managed-request-complete",
-    "managed-request-collect",
-    "managed-request-fail",
-    "managed-request-reprint",
 }
 _MACHINE_SERVICE_ACTIONS = {
     "admin-machine-service-request-detail",
@@ -283,10 +271,7 @@ _MODEL_LOOKUPS = {
     "makerspace-verify-domain": ("makerspaces.Makerspace", "id"),
     "admin-inventory-detail": ("inventory.InventoryProduct", "makerspace_id"),
     "admin-inventory-image": ("inventory.InventoryProduct", "makerspace_id"),
-    "admin-printer-image": ("printing.PrintPrinter", "makerspace_id"),
     "admin-inventory-asset-detail": ("inventory.InventoryAsset", "makerspace_id"),
-    "admin-asset-warranty": ("inventory.InventoryAsset", "makerspace_id"),
-    "admin-printer-warranty": ("printing.PrintPrinter", "makerspace_id"),
     "admin-machine-warranty": ("machines.Machine", "makerspace_id"),
     "admin-warranty-document-presign": ("warranty.Warranty", "makerspace_id"),
     "admin-warranty-documents": ("warranty.Warranty", "makerspace_id"),
@@ -317,10 +302,6 @@ _MODEL_LOOKUPS = {
     "qr-print-batch-download": ("operations.QrPrintBatch", "makerspace_id"),
     "direct-loan-return": ("hardware_requests.PublicToolLoan", "makerspace_id"),
     "problem-report-triage": ("hardware_requests.PublicProblemReport", "makerspace_id"),
-    "managed-printer-detail": ("printing.PrintPrinter", "makerspace_id"),
-    "managed-spool-detail": ("printing.FilamentSpool", "makerspace_id"),
-    "managed-spool-adjustment": ("printing.FilamentSpool", "makerspace_id"),
-    "managed-file-url": ("printing.PrintRequestFile", "makerspace_id"),
     "to-buy-detail": ("procurement.ToBuyItem", "makerspace_id"),
     "to-buy-move-to-inventory": ("procurement.ToBuyItem", "makerspace_id"),
     "to-buy-move-to-printing": ("procurement.ToBuyItem", "makerspace_id"),
@@ -348,7 +329,6 @@ _MODEL_LOOKUPS = {
     "admin-machine-service-file-url": ("machines.ServiceRequestFile", "makerspace_id"),
     "admin-machine-service-file-detail": ("machines.ServiceRequestFile", "makerspace_id"),
     **{name: ("hardware_requests.HardwareRequest", "makerspace_id") for name in _REQUEST_ACTIONS},
-    **{name: ("printing.PrintRequest", "makerspace_id") for name in _PRINT_ACTIONS},
     **{name: ("machines.MachineServiceRequest", "makerspace_id") for name in _MACHINE_SERVICE_ACTIONS},
 }
 

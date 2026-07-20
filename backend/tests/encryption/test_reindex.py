@@ -14,6 +14,13 @@ from tests.encryption.conftest import enabled_encryption
 pytestmark = pytest.mark.django_db
 
 
+def test_reindex_does_not_offer_retired_legacy_printing_models():
+    from apps.encryption.management.commands.reindex_scoped_pii import FILTERS
+
+    assert "printing.PrintRequest" not in FILTERS
+    assert "printing.ManualPrintLog" not in FILTERS
+
+
 def _request(space, user, **overrides):
     data = dict(
         makerspace=space, requester=user, requester_username=user.username,

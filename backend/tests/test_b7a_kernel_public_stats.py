@@ -1,4 +1,4 @@
-﻿"""B7a public printer metrics read only the authoritative machine kernel."""
+"""B7a public printer metrics read only the authoritative machine kernel."""
 
 import json
 from decimal import Decimal
@@ -11,8 +11,7 @@ from apps.machines.models import (
     Machine, MachineConsumableAdjustment, MachineConsumablePool, MachineServiceRequest,
     MachineType, MachineUsageEntry, ServiceQueue,
 )
-from apps.machines.printing_cutover import flip_authority
-from tests.test_printing import make_space, make_user
+from tests.return_helpers import make_space, make_user
 
 
 pytestmark = pytest.mark.django_db
@@ -29,7 +28,6 @@ def _request(*, makerspace, queue, requester, status, title, machine=None, pool=
 
 def test_flipped_public_printer_stats_project_kernel_metrics_without_pii():
     makerspace = make_space("b7a-public-stats")
-    flip_authority(makerspace)
     requester = make_user("b7a-public-stats-requester")
     printer_type = MachineType.objects.get(makerspace__isnull=True, slug="3d_printer")
     printer = Machine.objects.create(

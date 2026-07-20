@@ -593,7 +593,7 @@ def test_warranty_0001_rows_migrate_forward_through_machine_host():
 
 def test_warranty_data_does_not_leak_to_public_payloads():
     makerspace = make_space("warranty-public-leak")
-    enable_modules(makerspace, "public_inventory", "printing")
+    enable_modules(makerspace, "public_inventory", "machine_service")
     makerspace.public_stats_enabled = True
     makerspace.save(update_fields=["public_stats_enabled"])
     product = make_product(makerspace, name="Public Laser")
@@ -604,7 +604,6 @@ def test_warranty_data_does_not_leak_to_public_payloads():
         serial_number="LEAK-SN-1",
     )
     printer = make_printer(makerspace, name="Stats Printer", model="Visible Model")
-    legacy_printer = PrintPrinter.objects.create(makerspace=makerspace, name="Stats Legacy Printer", model="Visible Model")
     asset_warranty = attach_asset_warranty(
         asset,
         purchased_on=timezone.datetime(2026, 1, 2).date(),
@@ -646,23 +645,6 @@ def test_warranty_data_does_not_leak_to_public_payloads():
         content_type="application/pdf",
         size_bytes=123,
     )
-    bucket = PrintBucket.objects.create(makerspace=makerspace, name="Public Requests")
-    FilamentSpool.objects.create(
-        makerspace=makerspace,
-        printer=legacy_printer,
-        material="PLA",
-        color="black",
-        initial_weight_grams=1000,
-        remaining_weight_grams=900,
-    )
-    ManualPrintLog.objects.create(
-        makerspace=makerspace,
-        printer=legacy_printer,
-        grams_used=10,
-        duration_minutes=60,
-        title="Public stats print",
-        logged_by=make_user("warranty-public-log-user"),
-    )
 
     client = APIClient()
     responses = [
@@ -670,11 +652,8 @@ def test_warranty_data_does_not_leak_to_public_payloads():
         client.get(reverse("public-inventory-detail", kwargs={"makerspace_slug": makerspace.slug, "pk": product.id})),
         client.get(f"/api/v1/bootstrap?slug={makerspace.slug}"),
         client.get(reverse("public-makerspace-stats", kwargs={"makerspace_slug": makerspace.slug})),
-        client.get(reverse("printing:public-buckets", kwargs={"makerspace_slug": makerspace.slug})),
-        client.get(reverse("printing:public-spools", kwargs={"makerspace_slug": makerspace.slug})),
     ]
 
-    assert bucket.id
     for response in responses:
         assert response.status_code == 200
         assert_no_public_warranty_leak(

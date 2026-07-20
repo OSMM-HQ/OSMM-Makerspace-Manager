@@ -7,11 +7,10 @@ from apps.accounts.models import User
 from apps.hardware_requests.models import HardwareRequest, PublicProblemReport, PublicToolLoan
 from apps.integrations.models import EmailLog
 from apps.makerspaces.models import MakerspaceMembership
-from apps.machines.models import Machine, MachineType
+from apps.machines.models import Machine, MachineServiceRequest, MachineType, ServiceQueue
 from apps.maintenance.models import MaintenanceSchedule
 from apps.operations import views_dashboard
 from apps.operations.models import StocktakeSession
-from apps.printing.models import PrintBucket, PrintRequest
 from tests.return_helpers import authenticated_client, make_member, make_product, make_space, make_user
 
 pytestmark = pytest.mark.django_db
@@ -134,26 +133,25 @@ def test_dashboard_counts_are_tenant_scoped_and_count_only_categories():
         subject="Failed",
         status=EmailLog.Status.FAILED,
     )
-    bucket = PrintBucket.objects.create(makerspace=makerspace, name="General")
-    PrintRequest.objects.create(
-        bucket=bucket,
-        requester=requester,
-        title="Queued print",
-        status=PrintRequest.Status.PENDING,
+    printer_type = MachineType.objects.get(makerspace__isnull=True, slug="3d_printer")
+    queue = ServiceQueue.objects.create(
+        makerspace=makerspace,
+        machine_type=printer_type,
+        name="General print queue",
     )
-    PrintRequest.objects.create(
-        bucket=bucket,
-        requester=requester,
-        title="Running print",
-        status=PrintRequest.Status.PRINTING,
-    )
-    PrintRequest.objects.create(
-        bucket=bucket,
-        requester=requester,
-        title="Finished print",
-        status=PrintRequest.Status.COMPLETED,
-    )
-
+    for status, title in (
+        (MachineServiceRequest.Status.PENDING, "Queued print"),
+        (MachineServiceRequest.Status.IN_PROGRESS, "Running print"),
+        (MachineServiceRequest.Status.COMPLETED, "Finished print"),
+    ):
+        MachineServiceRequest.objects.create(
+            makerspace=makerspace,
+            queue=queue,
+            requester=requester,
+            requester_name=requester.username,
+            title=title,
+            status=status,
+        )
     HardwareRequest.objects.create(
         makerspace=other,
         requester=other_requester,

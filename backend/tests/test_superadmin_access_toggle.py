@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 import pytest
 from django.urls import reverse
 from django.utils import timezone
@@ -7,7 +5,6 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.audit import services as audit
 from apps.makerspaces.models import MakerspaceMembership
-from apps.printing.models import FilamentSpool, PrintBucket, PrintPrinter, PrintRequest
 from tests.return_helpers import (
     authenticated_client,
     make_issued_request,
@@ -30,32 +27,6 @@ def make_superadmin(username):
 
 def makerspace_detail_url(makerspace):
     return reverse("admin-makerspace", kwargs={"pk": makerspace.id})
-
-
-def make_completed_print(makerspace, requester, title):
-    bucket = PrintBucket.objects.create(makerspace=makerspace, name=f"{title} bucket")
-    printer = PrintPrinter.objects.create(makerspace=makerspace, name=f"{title} printer")
-    spool = FilamentSpool.objects.create(
-        makerspace=makerspace,
-        printer=printer,
-        material="PLA",
-        color="black",
-        initial_weight_grams=Decimal("1000.00"),
-        remaining_weight_grams=Decimal("900.00"),
-    )
-    return PrintRequest.objects.create(
-        bucket=bucket,
-        requester=requester,
-        title=title,
-        quantity=1,
-        status=PrintRequest.Status.COMPLETED,
-        printer=printer,
-        filament_spool=spool,
-        estimated_minutes=60,
-        estimated_filament_grams=Decimal("50.00"),
-        filament_grams_used=Decimal("50.00"),
-        completed_at=timezone.now(),
-    )
 
 
 def test_superadmin_cannot_re_enable_but_makerspace_admin_can():
@@ -115,13 +86,10 @@ def test_superadmin_aggregates_hide_disabled_space():
     visible_product = make_product(visible_space, name="Visible Scope")
     make_issued_request(hidden_space, hidden_actor, [(hidden_product, 1)])
     make_issued_request(visible_space, visible_actor, [(visible_product, 1)])
-    make_completed_print(hidden_space, hidden_actor, "Hidden print")
-    make_completed_print(visible_space, visible_actor, "Visible print")
 
     client = authenticated_client(superadmin)
     summary = client.get(reverse("analytics-aggregate", kwargs={"report_key": "summary"}))
     ledger = client.get(reverse("ledger-aggregate"))
-    printing = client.get("/api/v1/printing/admin/printing/reports")
 
     assert summary.status_code == 200
     assert summary.data["products"] == 1
@@ -130,15 +98,6 @@ def test_superadmin_aggregates_hide_disabled_space():
     assert ledger.status_code == 200
     assert ledger.data["count"] == 1
     assert {row["makerspace_id"] for row in ledger.data["results"]} == {visible_space.id}
-    assert printing.status_code == 200
-    assert printing.data["totals"]["total_requests"] == 1
-    assert {row["makerspace_id"] for row in printing.data["printer_hours"]} == {
-        visible_space.id
-    }
-    assert hidden_space.id not in {
-        row["makerspace_id"] for row in printing.data["top_requesters"]
-    }
-
 
 def test_superadmin_cannot_reach_disabled_space_per_makerspace_reports():
     hidden_space = make_space("access-hidden-direct")

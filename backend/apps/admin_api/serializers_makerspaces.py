@@ -235,6 +235,17 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(exc.messages) from exc
 
     def validate(self, attrs):
+        enabled_modules = set(
+            attrs.get(
+                "enabled_modules",
+                self.instance.enabled_modules if self.instance is not None else [],
+            )
+            or []
+        )
+        if "printing" in enabled_modules and "machine_service" not in enabled_modules:
+            raise serializers.ValidationError(
+                {"enabled_modules": "Printing requires machine service to be enabled."}
+            )
         if "resource_limit_overrides" in attrs:
             actor = self.context["request"].user
             is_superadmin = actor.is_superuser or actor.role == User.Role.SUPERADMIN

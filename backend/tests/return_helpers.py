@@ -40,6 +40,15 @@ def make_member(
     return user
 
 
+def make_print_manager(username, makerspace):
+    return make_member(
+        username,
+        makerspace,
+        membership_role=MakerspaceMembership.Role.MACHINE_MANAGER,
+        role=User.Role.REQUESTER,
+    )
+
+
 def make_product(makerspace, name="Oscilloscope", **overrides):
     defaults = {
         "makerspace": makerspace,

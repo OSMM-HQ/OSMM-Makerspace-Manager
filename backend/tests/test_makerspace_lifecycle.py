@@ -695,8 +695,8 @@ def test_archived_makerspace_is_excluded_from_api_scopes(monkeypatch, settings):
         "lifecycle-scope-visible",
         public_inventory_enabled=True,
     )
-    archived_space.enabled_modules = ["public_inventory", "request_workflow", "printing", "reports"]
-    visible_space.enabled_modules = ["public_inventory", "request_workflow", "printing", "reports"]
+    archived_space.enabled_modules = ["public_inventory", "request_workflow", "reports"]
+    visible_space.enabled_modules = ["public_inventory", "request_workflow", "reports"]
     archived_space.save(update_fields=["enabled_modules"])
     visible_space.save(update_fields=["enabled_modules"])
 
@@ -745,44 +745,12 @@ def test_archived_makerspace_is_excluded_from_api_scopes(monkeypatch, settings):
         issued_quantity=1,
     )
 
-    archived_bucket = PrintBucket.objects.create(makerspace=archived_space, name="Archived Bucket")
-    visible_bucket = PrintBucket.objects.create(makerspace=visible_space, name="Visible Bucket")
-    archived_printer = PrintPrinter.objects.create(makerspace=archived_space, name="Archived Printer")
-    visible_printer = PrintPrinter.objects.create(makerspace=visible_space, name="Visible Printer")
-    archived_print = PrintRequest.objects.create(
-        bucket=archived_bucket,
-        requester=archived_requester,
-        title="Archived Print",
-        status=PrintRequest.Status.COMPLETED,
-        printer=archived_printer,
-        estimated_minutes=60,
-        completed_at=timezone.now(),
-        contact_email="archived-print@example.com",
-    )
-    visible_print = PrintRequest.objects.create(
-        bucket=visible_bucket,
-        requester=visible_requester,
-        title="Visible Print",
-        status=PrintRequest.Status.COMPLETED,
-        printer=visible_printer,
-        estimated_minutes=60,
-        completed_at=timezone.now(),
-        contact_email="visible-print@example.com",
-    )
     AuditLog.objects.create(actor=actor, action="archived.scope", makerspace=archived_space)
     AuditLog.objects.create(actor=actor, action="visible.scope", makerspace=visible_space)
 
     archived = archive_space(archived_space, actor)
     client = authenticated_client(actor)
     public_client = APIClient()
-
-    managed = client.get(
-        reverse("printing:managed-request-list"),
-        {"makerspace": archived.id},
-    )
-    assert managed.status_code in (200, 403)
-    if managed.status_code == 200:
-        assert result_ids(managed) == set()
 
     ledger = client.get(reverse("ledger-aggregate"))
     assert ledger.status_code == 200
@@ -793,13 +761,6 @@ def test_archived_makerspace_is_excluded_from_api_scopes(monkeypatch, settings):
     assert summary.data["products"] == 1
     assert summary.data["active_loans"] == 1
     assert summary.data["issued_quantity"] == 1
-
-    printing_report = client.get(reverse("printing:admin-report"))
-    assert printing_report.status_code == 200
-    assert printing_report.data["totals"]["total_requests"] == 1
-    assert {row["makerspace_id"] for row in printing_report.data["printer_hours"]} == {
-        visible_space.id
-    }
 
     audit_logs = client.get(
         f"{reverse('admin-audit-logs')}?makerspace={archived.id}"
@@ -828,30 +789,12 @@ def test_archived_makerspace_is_excluded_from_api_scopes(monkeypatch, settings):
     )
     assert request_status.status_code == 404
 
-    print_status = public_client.get(
-        reverse(
-            "printing:public-request-status",
-            kwargs={"public_token": archived_print.public_token},
-        )
-    )
-    assert print_status.status_code == 404
-
-    visible_print_status = public_client.get(
-        reverse(
-            "printing:public-request-status",
-            kwargs={"public_token": visible_print.public_token},
-        )
-    )
-    assert visible_print_status.status_code == 200
-
-
-def test_archived_makerspace_rejects_staff_create_and_authenticated_printing(settings):
+def test_archived_makerspace_rejects_staff_creation(settings):
     settings.API_CLIENT_AUTH_REQUIRED = False
     actor = make_superadmin("lifecycle-archived-writes-super")
     space = make_space("lifecycle-archived-writes")
-    space.enabled_modules = ["staff_admin", "printing"]
+    space.enabled_modules = ["staff_admin"]
     space.save(update_fields=["enabled_modules"])
-    bucket = PrintBucket.objects.create(makerspace=space, name="Bucket")
 
     archived = archive_space(space, actor)
     client = authenticated_client(actor)
@@ -867,19 +810,3 @@ def test_archived_makerspace_rejects_staff_create_and_authenticated_printing(set
         format="json",
     )
     assert create_resp.status_code == 400
-
-    requester = make_user("lifecycle-archived-requester-2")
-    requester_client = authenticated_client(requester)
-
-    # Authenticated requester can no longer list buckets for an archived space...
-    buckets = requester_client.get(reverse("printing:bucket-list"), {"makerspace": archived.id})
-    assert buckets.status_code == 200
-    assert buckets.data == []
-
-    # ...nor create a print request against its bucket.
-    create_print = requester_client.post(
-        reverse("printing:request-list"),
-        {"bucket": bucket.id, "title": "x", "quantity": 1},
-        format="json",
-    )
-    assert create_print.status_code == 400

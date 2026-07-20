@@ -10,10 +10,9 @@ from apps.accounts.models import User
 from apps.bookings.models import BookableSpace, Booking
 from apps.events.models import Event, EventRegistration
 from apps.hardware_requests.models import HardwareRequest, PublicToolLoan
-from apps.machines.models import Machine, MachineServiceRequest, MachineType, ServiceBucket
+from apps.machines.models import Machine, MachineServiceRequest, MachineType, ServiceBucket, ServiceQueue
 from apps.makerspaces.models import Makerspace, MakerspaceMembership, MakerspaceRole
 from apps.presence import services as presence_services
-from apps.printing.models import PrintBucket, PrintRequest
 
 
 pytestmark = pytest.mark.django_db
@@ -58,9 +57,10 @@ def test_activity_is_member_owned_and_has_safe_projections_without_presence():
     user, other = member(space, "activity-owner"), member(space, "activity-other")
     make_loan(space, user)
     make_loan(space, other, "Other loan")
-    bucket = PrintBucket.objects.create(makerspace=space, name="Public")
-    PrintRequest.objects.create(bucket=bucket, requester=user, title="Own print")
-    PrintRequest.objects.create(bucket=bucket, requester=other, title="Other print", contact_email=user.email)
+    printer_type = MachineType.objects.get(makerspace__isnull=True, slug="3d_printer")
+    print_queue = ServiceQueue.objects.create(makerspace=space, machine_type=printer_type, name="Public")
+    MachineServiceRequest.objects.create(makerspace=space, queue=print_queue, requester=user, member=user, title="Own print")
+    MachineServiceRequest.objects.create(makerspace=space, queue=print_queue, requester=other, member=other, title="Other print", contact_email=user.email)
     bookable = BookableSpace.objects.create(makerspace=space, name="Bench")
     Booking.objects.create(
         space=bookable, member=user, name=user.display_name, email=user.email, phone=user.phone,
@@ -94,7 +94,7 @@ def test_activity_is_member_owned_and_has_safe_projections_without_presence():
     assert [item["space_name"] for item in response.data["bookings"]["upcoming"]] == ["Bench"]
     assert [item["event_title"] for item in response.data["event_registrations"]] == ["Workshop"]
     assert response.data["event_registrations"][0]["waitlist_position"] == 1
-    assert [item["title"] for item in response.data["machine_service_requests"]] == ["Own service"]
+    assert {item["title"] for item in response.data["machine_service_requests"]} == {"Own service", "Own print"}
     assert response.data["machine_service_requests"][0]["queue_position"] == 1
     assert response.data["currently_checked_in"] is True
     assert response.data["accountability"] == {
@@ -130,11 +130,14 @@ def test_disabled_capabilities_are_omitted():
 def test_activity_query_count_does_not_grow_with_member_rows():
     space = Makerspace.objects.create(name="Query", slug="query")
     user = member(space, "query-member")
-    bucket = PrintBucket.objects.create(makerspace=space, name="Queue")
-    for number in range(12):
-        PrintRequest.objects.create(bucket=bucket, requester=user, title=f"Print {number}")
+    printer_type = MachineType.objects.get(makerspace__isnull=True, slug="3d_printer")
+    queue = ServiceQueue.objects.create(makerspace=space, machine_type=printer_type, name="Queue")
+    MachineServiceRequest.objects.create(makerspace=space, queue=queue, requester=user, member=user, title="Print 0")
     api = client(user)
-    with CaptureQueriesContext(connection) as queries:
-        response = api.get(activity_url(space))
-    assert response.status_code == 200
-    assert len(queries) <= 12
+    with CaptureQueriesContext(connection) as baseline:
+        assert api.get(activity_url(space)).status_code == 200
+    for number in range(1, 12):
+        MachineServiceRequest.objects.create(makerspace=space, queue=queue, requester=user, member=user, title=f"Print {number}")
+    with CaptureQueriesContext(connection) as expanded:
+        assert api.get(activity_url(space)).status_code == 200
+    assert len(expanded) <= len(baseline) + 2

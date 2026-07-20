@@ -18,9 +18,9 @@ from apps.machines.permissions import IsActiveRequester
 
 
 def _require_printer_module(makerspace):
-    if not (module_enabled(makerspace, "printing") or module_enabled(makerspace, "machine_service")):
+    if not module_enabled(makerspace, "machine_service"):
         from rest_framework.exceptions import ValidationError
-        raise ValidationError({"module": "printing is disabled for this makerspace."})
+        raise ValidationError({"module": "machine service is disabled for this makerspace."})
 
 
 class PublicPrinterQueuesView(APIView):

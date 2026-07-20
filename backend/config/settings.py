@@ -362,7 +362,7 @@ HMAC_SECRET = env("HMAC_SECRET", default="")
 HMAC_MAX_CLOCK_SKEW_SECONDS = env.int("HMAC_MAX_CLOCK_SKEW_SECONDS", default=300)
 HMAC_PROTECTED_PATH_PREFIXES = env.list(
     "HMAC_PROTECTED_PATH_PREFIXES",
-    default=["/api/public/", "/api/v1/public/", "/api/v1/printing/public/"],
+    default=["/api/public/", "/api/v1/public/"],
 )
 # Fernet key for encrypting ApiClient secrets at rest. Generate with:
 #   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"

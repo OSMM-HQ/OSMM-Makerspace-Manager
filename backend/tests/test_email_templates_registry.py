@@ -1,4 +1,3 @@
-from types import SimpleNamespace
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -17,7 +16,6 @@ from apps.integrations.email_templates_registry import (
 )
 from apps.integrations.models import EmailTemplate
 from apps.makerspaces.models import Makerspace
-from apps.printing.emails import _staff_print_body
 
 
 def test_registry_declares_all_send_path_keys():
@@ -49,33 +47,6 @@ def test_registry_spot_checks_current_default_shapes():
 
     assert printing_html.startswith('{% extends "email/base.html" %}')
     assert "{{ staff_summary }}" in hardware_staff_text
-
-
-def test_printing_staff_default_text_matches_current_body_helper():
-    requester = SimpleNamespace(username="alex", email="alex.account@example.com")
-    print_request = SimpleNamespace(
-        pk=73,
-        id=73,
-        status="accepted",
-        title="Replacement gear",
-        requester_name="Alex Maker",
-        requester=requester,
-        contact_email="alex@example.com",
-        contact_phone="+15550101010",
-        material="PLA",
-        color="Black",
-        quantity=2,
-        reason="Prototype needs a tighter tolerance",
-        reprint_of_id=64,
-    )
-
-    for event in PRINTING_STAFF_KEYS:
-        entry = get_entry("printing", "staff", event)
-        context = Context({"print_request": print_request}, autoescape=True)
-        assert Template(entry.default_text).render(context) == _staff_print_body(
-            event,
-            print_request,
-        )
 
 
 def test_validator_rejects_unknown_registry_key():

@@ -116,17 +116,6 @@ UNFOLD = {
                 ],
             },
             {
-                "title": _("3D printing"),
-                "separator": True,
-                "items": [
-                    _item("Print buckets", "folder", "admin:printing_printbucket_changelist"),
-                    _item("Print requests", "deployed_code", "admin:printing_printrequest_changelist"),
-                    _item("Printers", "precision_manufacturing", "admin:printing_printprinter_changelist"),
-                    _item("Filament spools", "fiber_smart_record", "admin:printing_filamentspool_changelist"),
-                    _item("Manual print logs", "receipt_long", "admin:printing_manualprintlog_changelist"),
-                ],
-            },
-            {
                 "title": _("Accounts & access"),
                 "separator": True,
                 "items": [

@@ -14,10 +14,7 @@ from apps.integrations.models import (
     NotificationDeliveryStatus,
 )
 from apps.integrations.notify import EmailDelivery, LifecyclePayload, NotificationResult
-from apps.printing import emails as printing_emails
-from apps.printing import workflow as printing_workflow
 from tests.return_helpers import make_product, make_space
-from tests.test_printing import make_bucket, make_request, make_user
 
 pytestmark = pytest.mark.django_db
 
@@ -215,37 +212,3 @@ def test_hardware_submitted_adapter_calls_one_fanout_with_original_buttons(monke
     }
 
 
-def test_printing_adapter_preserves_requester_and_staff_event_sets(monkeypatch):
-    space = make_space("fanout-print-adapter")
-    print_request = make_request(
-        make_bucket(space),
-        make_user("fanout-print-requester"),
-    )
-    payloads = {}
-    monkeypatch.setattr(
-        printing_emails,
-        "staff_emails_for_feature",
-        lambda *args, **kwargs: ["staff@example.com"],
-    )
-
-    def capture(makerspace, **kwargs):
-        payloads[kwargs["event"]] = kwargs["build"]()
-        return NotificationResult(False, {}, {})
-
-    monkeypatch.setattr(printing_emails, "notify_lifecycle", capture)
-    for event in (
-        "submitted", "accepted", "started", "rejected", "completed", "failed",
-        "collected", "reprinted",
-    ):
-        printing_emails.notify_print_status(print_request, event)
-    for event in printing_emails.REQUESTER_EVENTS:
-        assert [email.audience for email in payloads[event].emails] == [
-            "requester", "staff",
-        ]
-    for event in {"failed", "collected", "reprinted"}:
-        assert [email.audience for email in payloads[event].emails] == ["staff"]
-
-    fanout = Mock()
-    monkeypatch.setattr(printing_workflow, "notify_print_status", fanout)
-    printing_workflow.accept(print_request, actor=None)
-    fanout.assert_called_once()

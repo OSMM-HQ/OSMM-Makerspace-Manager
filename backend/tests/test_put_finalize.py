@@ -2,13 +2,11 @@ import pytest
 
 from apps.evidence import storage as evidence_storage
 from apps.inventory import public_image_storage
-from apps.printing import storage as printing_storage
 
 @pytest.mark.parametrize(
     ("module", "finalize_name", "size_name"),
     [
         (evidence_storage, "finalize_upload", "object_size"),
-        (printing_storage, "print_finalize_upload", "print_object_size"),
     ],
 )
 def test_put_finalize_promotes_valid_staging_upload(
@@ -40,7 +38,6 @@ def test_put_finalize_promotes_valid_staging_upload(
     ("module", "finalize_name", "size_name"),
     [
         (evidence_storage, "finalize_upload", "object_size"),
-        (printing_storage, "print_finalize_upload", "print_object_size"),
     ],
 )
 def test_put_finalize_rejects_and_deletes_final_when_staging_raced_oversized(
@@ -73,7 +70,6 @@ def test_put_finalize_rejects_and_deletes_final_when_staging_raced_oversized(
     ("module", "finalize_name", "size_name"),
     [
         (evidence_storage, "finalize_upload", "object_size"),
-        (printing_storage, "print_finalize_upload", "print_object_size"),
     ],
 )
 def test_put_finalize_is_write_once_when_final_exists(
@@ -100,7 +96,6 @@ def test_put_finalize_is_write_once_when_final_exists(
     ("module", "finalize_name", "size_name"),
     [
         (evidence_storage, "finalize_upload", "object_size"),
-        (printing_storage, "print_finalize_upload", "print_object_size"),
     ],
 )
 def test_put_finalize_returns_oversized_staging_size_without_promoting(
@@ -125,7 +120,6 @@ def test_put_finalize_returns_oversized_staging_size_without_promoting(
     ("module", "finalize_name", "size_name"),
     [
         (evidence_storage, "finalize_upload", "object_size"),
-        (printing_storage, "print_finalize_upload", "print_object_size"),
     ],
 )
 def test_put_finalize_returns_none_for_missing_upload(
@@ -150,7 +144,6 @@ def test_put_finalize_returns_none_for_missing_upload(
     ("module", "finalize_name", "size_name"),
     [
         (evidence_storage, "finalize_upload", "object_size"),
-        (printing_storage, "print_finalize_upload", "print_object_size"),
     ],
 )
 def test_non_put_finalize_reads_final_object_only(

@@ -1094,27 +1094,6 @@ def test_admin_cannot_manage_other_makerspace_api_clients():
     assert ApiClient.objects.count() == 0
 
 
-def test_admin_can_assign_print_manager_in_own_makerspace():
-    makerspace = make_space("assign-print-manager")
-    admin = make_member("assign-print-admin", makerspace)
-
-    response = authenticated_client(admin).post(
-        "/api/v1/admin/users/print-managers",
-        {
-            "username": "new-print-manager",
-            "email": "new-print-manager@example.com",
-            "makerspace_id": makerspace.id,
-            "role": "print_manager",
-        },
-        format="json",
-    )
-
-    assert response.status_code == 201
-    membership = response.data
-    assert membership["makerspace_id"] == makerspace.id
-    assert membership["role"] == "print_manager"
-
-
 def test_superadmin_can_create_and_list_inventory_manager():
     makerspace = make_space("inventory-manager-superadmin")
     superadmin = make_user(

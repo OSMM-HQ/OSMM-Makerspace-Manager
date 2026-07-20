@@ -135,7 +135,6 @@ from apps.admin_api.views_member_capabilities import (
     AdminMembershipVerifyView,
 )
 from apps.admin_api.views_roles import CapabilityCatalogView, RoleDetailView, RoleListCreateView
-from apps.printing.views_printer_image import PrinterImageView
 from apps.presence.views import PresenceRosterView
 
 urlpatterns = [
@@ -580,11 +579,6 @@ urlpatterns = [
         "inventory/<int:pk>/image",
         views.InventoryProductImageView.as_view(),
         name="admin-inventory-image",
-    ),
-    path(
-        "printing/printers/<int:pk>/image",
-        PrinterImageView.as_view(),
-        name="admin-printer-image",
     ),
     path(
         "warranty/<int:pk>/documents/presign",

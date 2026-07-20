@@ -179,57 +179,29 @@ def finalize_error_message(result):
 
 
 def public_image_key_in_use(
-    makerspace_id,
-    object_key,
-    *,
-    product_id=None,
-    machine_id=None,
-    printer_id=None,
-    makerspace_field="",
+    makerspace_id, object_key, *, product_id=None, machine_id=None, makerspace_field="",
 ):
     from django.db.models import Q
-
     from apps.inventory.models import InventoryProduct
     from apps.machines.models import Machine
     from apps.makerspaces.models import Makerspace
-    from apps.printing.models import PrintPrinter
 
-    products = InventoryProduct.objects.filter(
-        makerspace_id=makerspace_id,
-        image_key=object_key,
-    )
+    products = InventoryProduct.objects.filter(makerspace_id=makerspace_id, image_key=object_key)
     if product_id is not None:
         products = products.exclude(pk=product_id)
     if products.exists():
         return True
-
-    machines = Machine.objects.filter(
-        makerspace_id=makerspace_id,
-        image_key=object_key,
-    )
+    machines = Machine.objects.filter(makerspace_id=makerspace_id, image_key=object_key)
     if machine_id is not None:
         machines = machines.exclude(pk=machine_id)
     if machines.exists():
         return True
-
-    printers = PrintPrinter.objects.filter(
-        makerspace_id=makerspace_id,
-        image_key=object_key,
-    )
-    if printer_id is not None:
-        printers = printers.exclude(pk=printer_id)
-    if printers.exists():
-        return True
-
     makerspace_query = Makerspace.objects.filter(pk=makerspace_id)
     if makerspace_field == "logo_key":
         return makerspace_query.filter(cover_image_key=object_key).exists()
     if makerspace_field == "cover_image_key":
         return makerspace_query.filter(logo_key=object_key).exists()
-    return makerspace_query.filter(
-        Q(logo_key=object_key) | Q(cover_image_key=object_key)
-    ).exists()
-
+    return makerspace_query.filter(Q(logo_key=object_key) | Q(cover_image_key=object_key)).exists()
 
 def presigned_upload(object_key, content_type):
     try:

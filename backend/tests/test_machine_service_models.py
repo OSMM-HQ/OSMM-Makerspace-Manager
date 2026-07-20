@@ -1,6 +1,7 @@
 from importlib import import_module
 
 import pytest
+from django.core.exceptions import ValidationError
 from django.apps import apps
 from django.db import IntegrityError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
@@ -178,6 +179,22 @@ def test_module_migration_default_workflow_and_valid_disable():
         partial=True,
     )
     assert serializer.is_valid(), serializer.errors
+
+
+def test_printing_module_requires_machine_service():
+    makerspace = make_space("printing-requires-machine-service")
+    makerspace.enabled_modules = ["printing"]
+
+    with pytest.raises(ValidationError, match="Printing requires machine service"):
+        makerspace.full_clean()
+
+    serializer = MakerspaceSerializer(
+        makerspace,
+        data={"enabled_modules": ["printing"]},
+        partial=True,
+    )
+    assert not serializer.is_valid()
+    assert "enabled_modules" in serializer.errors
 
 
 @override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")

@@ -211,7 +211,7 @@ class Makerspace(models.Model):
         on_delete=models.SET_NULL,
         related_name="created_makerspaces",
     )
-    # Soft-delete state. archived_at IS NOT NULL ⇒ archived (single source of truth; no
+    # Soft-delete state. archived_at IS NOT NULL â‡’ archived (single source of truth; no
     # separate boolean). An archived makerspace is operationally unreachable for everyone
     # (excluded centrally in rbac + public surfaces) but stays visible to the superadmin in
     # the Django /control/ admin so it can be permanently purged.
@@ -247,22 +247,6 @@ class Makerspace(models.Model):
         return self.name
 
     def save(self, *args, **kwargs):
-        # A flipped printing tenant writes its request workflow through the
-        # machine-service kernel.  Allowing this supporting module to be
-        # disabled would strand every print request while the legacy tables are
-        # deliberately read-only.
-        update_fields = kwargs.get("update_fields")
-        if (
-            self.pk
-            and (update_fields is None or "enabled_modules" in update_fields)
-            and "machine_service" not in set(self.enabled_modules or [])
-        ):
-            from apps.machines.printing_cutover import kernel_is_authoritative
-
-            if kernel_is_authoritative(self):
-                raise ValidationError(
-                    {"enabled_modules": "Machine service cannot be disabled after the printing-kernel cutover."}
-                )
         self.public_code = (self.public_code or "").upper()
         self.frontend_domain = normalize_frontend_domain(self.frontend_domain)
         super().save(*args, **kwargs)
@@ -270,6 +254,11 @@ class Makerspace(models.Model):
     def clean(self):
         if self.presence_preset_minutes:
             validate_presence_presets(self.presence_preset_minutes)
+        enabled_modules = set(self.enabled_modules or [])
+        if "printing" in enabled_modules and "machine_service" not in enabled_modules:
+            raise ValidationError(
+                {"enabled_modules": "Printing requires machine service to be enabled."}
+            )
         if self.hidden_from_central_directory and not self.frontend_domain:
             raise ValidationError(
                 {

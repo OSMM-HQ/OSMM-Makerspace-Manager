@@ -12,7 +12,6 @@ from apps.inventory.models import InventoryAsset, TrackingMode
 from apps.makerspaces.models import MakerspaceMembership
 from apps.printing.models import PrintRequest
 from tests.return_helpers import make_member, make_product, make_space, make_user
-from tests.test_printing import make_bucket, make_request
 
 pytestmark = pytest.mark.django_db
 
@@ -35,56 +34,11 @@ def post_action(client, url, action, obj, **extra):
     return client.post(url, data, follow=True)
 
 
-def print_request(status, slug):
-    space = make_space(slug)
-    bucket = make_bucket(space)
-    requester = make_user(f"{slug}-requester", access_status=User.AccessStatus.ACTIVE)
-    return make_request(bucket, requester, status=status)
-
-
 def make_qr(product, actor):
     return QrCode.objects.create(
         makerspace=product.makerspace, target_type=QrCode.TargetType.PRODUCT,
         target_id=product.id, created_by=actor,
     )
-
-
-def test_print_collect_and_reprint_actions_route_through_workflow():
-    superadmin = make_superadmin("admin-parity-print-super")
-    client = admin_client(superadmin)
-    url = reverse("admin:printing_printrequest_changelist")
-    completed = print_request(PrintRequest.Status.COMPLETED, "admin-parity-collect")
-    failed = print_request(PrintRequest.Status.FAILED, "admin-parity-reprint")
-
-    collect_response = post_action(client, url, "collect_selected", completed)
-    reprint_response = post_action(client, url, "reprint_selected", failed)
-
-    assert collect_response.status_code == 200
-    assert reprint_response.status_code == 200
-    completed.refresh_from_db()
-    assert completed.status == PrintRequest.Status.COLLECTED
-    assert completed.collected_by == superadmin
-    clone = PrintRequest.objects.get(reprint_of=failed)
-    assert clone.status == PrintRequest.Status.ACCEPTED
-    assert AuditLog.objects.filter(action="print.collected", target_id=str(completed.id)).exists()
-    assert AuditLog.objects.filter(action="print.reprinted", target_id=str(clone.id)).exists()
-
-
-def test_print_collect_and_reprint_skip_ineligible_statuses():
-    client = admin_client(make_superadmin("admin-parity-print-skip-super"))
-    url = reverse("admin:printing_printrequest_changelist")
-    pending = print_request(PrintRequest.Status.PENDING, "admin-parity-collect-skip")
-    completed = print_request(PrintRequest.Status.COMPLETED, "admin-parity-reprint-skip")
-
-    post_action(client, url, "collect_selected", pending)
-    post_action(client, url, "reprint_selected", completed)
-
-    pending.refresh_from_db()
-    completed.refresh_from_db()
-    assert pending.status == PrintRequest.Status.PENDING
-    assert completed.status == PrintRequest.Status.COMPLETED
-    assert not AuditLog.objects.filter(action__in=["print.collected", "print.reprinted"]).exists()
-    assert PrintRequest.objects.filter(reprint_of__isnull=False).count() == 0
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")

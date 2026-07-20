@@ -40,10 +40,10 @@ def make_request(space, requester):
     )
 
 
-def test_registry_is_the_fixed_25_source_plus_4_secondary_allowlist():
-    assert len(SOURCE_FIELDS) == 25
+def test_registry_matches_the_post_b7c_source_and_secondary_allowlists():
+    assert len(SOURCE_FIELDS) == 18
     assert len(SECONDARY_FIELDS) == 4
-    assert len(ALL_FIELDS) == 29
+    assert len(ALL_FIELDS) == 22
     assert {item.model_label for item in SECONDARY_FIELDS} == {"integrations.EmailLog"}
 
 

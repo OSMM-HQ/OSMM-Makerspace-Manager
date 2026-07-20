@@ -102,7 +102,7 @@ def test_model_rollback_verification_ignores_other_mapped_model_indexes():
         )
         PiiBlindIndex.objects.create(
             makerspace=space,
-            model_label="printing.PrintRequest",
+            model_label="machines.MachineServiceRequest",
             object_id=1,
             field_name="requester_name",
             search_generation=SearchKeyGeneration.objects.get(status="active"),

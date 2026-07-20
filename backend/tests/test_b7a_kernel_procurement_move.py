@@ -6,10 +6,9 @@ import pytest
 from rest_framework.exceptions import ValidationError
 
 from apps.machines.models import Machine, MachineConsumablePool
-from apps.printing.models import FilamentSpool, PrintPrinter
 from apps.procurement.models import ToBuyItem
 from apps.procurement.services import move_to_printing
-from tests.test_printing import make_space, make_user
+from tests.return_helpers import make_space, make_user
 
 
 pytestmark = pytest.mark.django_db
@@ -38,8 +37,6 @@ def test_procurement_move_always_uses_kernel_and_records_kernel_destinations():
     assert (printer.machine_type.slug, printer.type_payload) == ("3d_printer", {"model": "MK4"})
     assert isinstance(pool, MachineConsumablePool)
     assert (pool.machine, pool.initial_grams, pool.remaining_grams) == (printer, Decimal("1000.00"), Decimal("900.00"))
-    assert not PrintPrinter.objects.filter(makerspace=makerspace).exists()
-    assert not FilamentSpool.objects.filter(makerspace=makerspace).exists()
 
     printer_item = ToBuyItem.objects.get(name="Printer")
     pool_item = ToBuyItem.objects.get(name="PLA spool")

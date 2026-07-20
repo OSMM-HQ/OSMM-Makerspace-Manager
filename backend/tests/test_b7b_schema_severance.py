@@ -8,7 +8,7 @@ from apps.machines.models import Machine, MachineType
 from apps.makerspaces.models import Makerspace
 from apps.warranty.models import Warranty
 from tests.return_helpers import make_product
-from tests.test_printing import make_space
+from tests.return_helpers import make_space
 
 
 pytestmark = pytest.mark.django_db

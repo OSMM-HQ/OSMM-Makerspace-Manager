@@ -26,7 +26,6 @@ from apps.hardware_requests.models import HardwareRequest
 from apps.integrations.models import EmailLog
 from apps.makerspaces.models import Makerspace
 from apps.machines.models import Machine, MachineServiceRequest, MachineType, ServiceBucket
-from apps.printing.models import ManualPrintLog, PrintBucket, PrintRequest
 
 
 pytestmark = pytest.mark.django_db
@@ -36,7 +35,6 @@ def _rows():
     space = Makerspace.objects.create(name="Fence Space", slug=f"fence-{uuid.uuid4().hex[:12]}")
     user = get_user_model().objects.create_user(username=f"fence-{uuid.uuid4().hex[:10]}")
     now = timezone.now()
-    bucket = PrintBucket.objects.create(makerspace=space, name="Fence bucket")
     event = Event.objects.create(
         makerspace=space, title="Fence event", starts_at=now, ends_at=now + timedelta(hours=2)
     )
@@ -48,10 +46,6 @@ def _rows():
         HardwareRequest.objects.create(
             makerspace=space, requester=user, requester_username=user.username,
             requester_name="Fence requester", requester_contact_email="fence@example.test",
-        ),
-        PrintRequest.objects.create(bucket=bucket, requester=user, title="Fence print", quantity=1),
-        ManualPrintLog.objects.create(
-            makerspace=space, title="Fence log", grams_used=Decimal("1.00"), logged_by=user
         ),
         EventRegistration.objects.create(event=event, name="Fence attendee", email="event@example.test", phone="1"),
         Booking.objects.create(
@@ -204,10 +198,10 @@ def test_mapped_service_paths_fail_with_the_typed_503_exception(monkeypatch):
     from apps.machines import service_workflow
 
     space, actor, rows = _rows()
-    event = rows[3].event
+    event = rows[1].event
     event.status = Event.Status.PUBLISHED
     event.save(update_fields=["status"])
-    bookable = rows[4].space
+    bookable = rows[2].space
     operation_id = close_makerspace(space.id, "decrypt_rollback", actor.id)
     with pytest.raises(PiiWriteFenced):
         register(event, name="Another", email="another@example.test", phone="1")
@@ -223,11 +217,11 @@ def test_mapped_service_paths_fail_with_the_typed_503_exception(monkeypatch):
         )
     with pytest.raises(PiiWriteFenced):
         service_workflow.submit(
-            rows[5].bucket.machine, actor, requester_name="Another",
+            rows[3].bucket.machine, actor, requester_name="Another",
             contact_email="another@example.test", contact_phone="1", title="Fence",
         )
     with pytest.raises(PiiWriteFenced):
-        service_workflow.accept(rows[5], actor)
+        service_workflow.accept(rows[3], actor)
     with pytest.raises(PiiWriteFenced):
         dispatch_email(
             makerspace=space, to_email="another@example.test", subject="Fence", text_body="body"

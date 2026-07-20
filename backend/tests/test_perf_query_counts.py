@@ -1,4 +1,3 @@
-from decimal import Decimal
 
 import pytest
 from django.db import connection
@@ -8,12 +7,11 @@ from apps.accounts.models import User
 from apps.boxes.models import Box, QrCode
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem, PublicToolLoan
 from apps.inventory.models import InventoryProduct
-from apps.printing.models import FilamentSpool, PrintPrinter, PrintRequest
 from tests.return_helpers import authenticated_client
 from tests.test_admin_direct_loans import make_admin as make_direct_admin
 from tests.test_admin_direct_loans import make_product as make_direct_product
 from tests.test_admin_direct_loans import make_space as make_direct_space
-from tests.test_printing import make_bucket, make_print_manager, make_space, make_user
+from tests.return_helpers import authenticated_client, make_user
 
 pytestmark = pytest.mark.django_db
 
@@ -30,46 +28,6 @@ def _capture_query_count(func):
         response = func()
     assert response.status_code == 200
     return len(captured)
-
-
-def _printer_with_queue(makerspace, bucket, requester, index):
-    printer = PrintPrinter.objects.create(makerspace=makerspace, name=f"Printer {index}")
-    spool = FilamentSpool.objects.create(
-        makerspace=makerspace,
-        printer=printer,
-        material="PLA",
-        color=f"Color {index}",
-        initial_weight_grams=Decimal("1000.00"),
-        remaining_weight_grams=Decimal("900.00"),
-    )
-    PrintRequest.objects.create(
-        bucket=bucket,
-        requester=requester,
-        title=f"Queued {index}",
-        status=PrintRequest.Status.ACCEPTED,
-        printer=printer,
-        filament_spool=spool,
-        estimated_minutes=30,
-        estimated_filament_grams=Decimal("25.00"),
-    )
-    return printer
-
-
-def test_managed_printer_list_query_count_does_not_grow_per_printer(
-    django_assert_num_queries,
-):
-    makerspace = make_space("perf-printers")
-    bucket = make_bucket(makerspace)
-    requester = make_user("perf-printer-requester", access_status=User.AccessStatus.ACTIVE)
-    manager = make_print_manager("perf-printer-manager", makerspace)
-    client = authenticated_client(manager)
-    url = f"/api/v1/printing/manage/printers/?makerspace={makerspace.id}"
-
-    _printer_with_queue(makerspace, bucket, requester, 1)
-    one_count = _capture_query_count(lambda: client.get(url))
-
-    _printer_with_queue(makerspace, bucket, requester, 2)
-    _count_queries(django_assert_num_queries, one_count, lambda: client.get(url))
 
 
 def _box_with_active_qr(makerspace, label, actor):

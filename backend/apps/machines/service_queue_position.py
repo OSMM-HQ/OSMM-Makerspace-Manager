@@ -1,7 +1,8 @@
 """Canonical member-safe ranks for the machine-service waiting queue."""
 
-from django.db.models import Case, Count, IntegerField, OuterRef, Q, Subquery, Value, When
-from django.db.models.functions import Coalesce
+from collections import defaultdict
+
+from django.db.models import Case, Q, Value, When
 
 from apps.machines.models import MachineServiceRequest
 
@@ -18,33 +19,67 @@ def queue_positions_for(requests) -> dict[int, int]:
     if not targets:
         return {}
     positions = {}
-    for bucket_id, queue_id in {(row.bucket_id, row.queue_id) for row in targets}:
-        scope = {"bucket_id": bucket_id} if bucket_id else {"queue_id": queue_id}
-        ranked = MachineServiceRequest.objects.filter(**scope, status__in=WAITING_STATUSES).order_by(
-            Case(When(status=MachineServiceRequest.Status.ACCEPTED, then=Value(0)), default=Value(1)),
-            "created_at", "id",
-        )
+    for key in _scope_keys(targets):
+        ranked = _waiting_for_scope(key)
         positions.update({row.pk: index for index, row in enumerate(ranked, 1)})
     return {row.pk: positions[row.pk] for row in targets}
 
 
 def queue_counts_for(requests) -> dict[int, dict]:
-    """Return member-safe waiting counts using the legacy print queue contract."""
+    """Return queue counts with a bounded query count for a list of requests."""
     targets = [row for row in requests if row.status in WAITING_STATUSES]
+    if not targets:
+        return {}
+    ranked_by_scope = _waiting_rows(_scope_keys(targets))
     counts = {}
     for row in targets:
-        scope = {"bucket_id": row.bucket_id} if row.bucket_id else {"queue_id": row.queue_id}
-        waiting = MachineServiceRequest.objects.filter(**scope, status__in=WAITING_STATUSES)
-        earlier = Q(created_at__lt=row.created_at) | Q(created_at=row.created_at, id__lt=row.id)
-        if row.status == MachineServiceRequest.Status.ACCEPTED:
-            approved_ahead = waiting.filter(status=MachineServiceRequest.Status.ACCEPTED).filter(earlier).count()
-            awaiting_review_ahead = 0
-        else:
-            approved_ahead = waiting.filter(status=MachineServiceRequest.Status.ACCEPTED).count()
-            awaiting_review_ahead = waiting.filter(status=MachineServiceRequest.Status.PENDING).filter(earlier).count()
+        ranked = ranked_by_scope[_scope_key(row)]
+        accepted = 0
+        pending = 0
+        for candidate in ranked:
+            if candidate.pk == row.pk:
+                break
+            if candidate.status == MachineServiceRequest.Status.ACCEPTED:
+                accepted += 1
+            else:
+                pending += 1
         counts[row.pk] = {
-            "position": approved_ahead + awaiting_review_ahead + 1,
-            "approved_ahead": approved_ahead,
-            "awaiting_review_ahead": awaiting_review_ahead,
+            "position": accepted + pending + 1,
+            "approved_ahead": accepted,
+            "awaiting_review_ahead": pending if row.status == MachineServiceRequest.Status.PENDING else 0,
         }
     return counts
+
+
+def _scope_key(row):
+    return ("bucket", row.bucket_id) if row.bucket_id else ("queue", row.queue_id)
+
+
+def _scope_keys(rows):
+    return {_scope_key(row) for row in rows}
+
+
+def _waiting_for_scope(key):
+    field, value = key
+    return list(MachineServiceRequest.objects.filter(
+        **{f"{field}_id": value}, status__in=WAITING_STATUSES,
+    ).order_by(_priority(), "created_at", "id"))
+
+
+def _waiting_rows(keys):
+    queue_ids = [value for field, value in keys if field == "queue"]
+    bucket_ids = [value for field, value in keys if field == "bucket"]
+    rows = MachineServiceRequest.objects.filter(status__in=WAITING_STATUSES).filter(
+        Q(queue_id__in=queue_ids) | Q(bucket_id__in=bucket_ids),
+    ).order_by(_priority(), "created_at", "id")
+    grouped = defaultdict(list)
+    for row in rows:
+        grouped[_scope_key(row)].append(row)
+    return grouped
+
+
+def _priority():
+    return Case(
+        When(status=MachineServiceRequest.Status.ACCEPTED, then=Value(0)),
+        default=Value(1),
+    )

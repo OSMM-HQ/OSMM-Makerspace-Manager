@@ -11,8 +11,6 @@ from apps.accounts import rbac
 from apps.accounts.models import User
 from apps.integrations.models import EmailNotificationMute
 from apps.makerspaces.models import MakerspaceMembership, MakerspaceRole
-from apps.printing.models import PrintPrinter
-from apps.printing.permissions import CanManagePrinting
 from tests.return_helpers import authenticated_client, make_member, make_space, make_user
 
 
@@ -45,9 +43,6 @@ def test_machine_manager_implies_printing_for_actions_scopes_and_permission():
     }
     assert rbac.makerspaces_for_action(actor, rbac.Action.MANAGE_PRINTING) == {makerspace.id}
 
-    request = Request(APIRequestFactory().get("/printing", {"makerspace": makerspace.id}))
-    request.user = actor
-    assert CanManagePrinting().has_permission(request, SimpleNamespace(action="list", kwargs={}))
 
 
 def test_hidden_superadmin_membership_uses_machine_implied_printing_scope():
@@ -133,22 +128,3 @@ def test_unassigned_legacy_print_manager_still_resolves_and_mutes_are_retargeted
     assert mute.target == "machine_manager"
 
 
-def test_machine_manager_reaches_printing_procurement_notifications_dashboard_and_warranty():
-    makerspace = make_space("b5-printing-surfaces")
-    makerspace.enabled_modules = [*makerspace.enabled_modules, "notifications"]
-    makerspace.save(update_fields=["enabled_modules"])
-    actor = make_member(
-        "b5-printing-surfaces-user", makerspace,
-        membership_role=MakerspaceMembership.Role.MACHINE_MANAGER, role=User.Role.REQUESTER,
-    )
-    printer = PrintPrinter.objects.create(makerspace=makerspace, name="B5 printer")
-    client = authenticated_client(actor)
-
-    responses = [
-        client.get(f"/api/v1/printing/manage/printers/?makerspace={makerspace.id}"),
-        client.get(f"/api/v1/procurement/makerspace/{makerspace.id}/to-buy"),
-        client.get(f"/api/v1/notifications/makerspace/{makerspace.id}"),
-        client.get(f"/api/v1/admin/makerspace/{makerspace.id}/dashboard"),
-        client.get(f"/api/v1/admin/printing/printers/{printer.id}/warranty"),
-    ]
-    assert [response.status_code for response in responses] == [200, 200, 200, 200, 200]

@@ -6,8 +6,8 @@ from django.utils import timezone
 from apps.accounts.models import User
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
 from apps.inventory.models import InventoryProduct
-from apps.printing.models import PrintBucket, PrintRequest
-from apps.printing.queue_position import queue_counts_for
+from apps.machines.models import MachineServiceRequest, MachineType, ServiceQueue
+from apps.machines.service_queue_position import queue_counts_for
 from apps.procurement.models import ToBuyItem
 from tests.return_helpers import authenticated_client, make_member, make_product, make_space, make_user
 
@@ -68,27 +68,25 @@ def test_procurement_list_limit_bounds_raw_list_without_limiting_export():
 
 def test_queue_position_uses_same_rank_rules_for_target_requests():
     space = make_space("phase8-queue")
-    bucket = PrintBucket.objects.create(makerspace=space, name="PLA")
-    requester = make_user("phase8-print-user", access_status=User.AccessStatus.ACTIVE)
-    first = _print_request(bucket, requester, "First", PrintRequest.Status.ACCEPTED, minutes_ago=5)
-    pending = _print_request(bucket, requester, "Pending", PrintRequest.Status.PENDING, minutes_ago=4)
-    second = _print_request(bucket, requester, "Second", PrintRequest.Status.ACCEPTED, minutes_ago=3)
-    printing = _print_request(bucket, requester, "Printing", PrintRequest.Status.PRINTING, minutes_ago=2)
-
-    counts = queue_counts_for(space, [second, pending, printing])
-
+    printer_type = MachineType.objects.get(makerspace__isnull=True, slug="3d_printer")
+    queue = ServiceQueue.objects.create(makerspace=space, machine_type=printer_type, name="Print queue")
+    requester = make_user("phase8-print-user")
+    first = _service_request(queue, requester, "First", MachineServiceRequest.Status.ACCEPTED, minutes_ago=5)
+    pending = _service_request(queue, requester, "Pending", MachineServiceRequest.Status.PENDING, minutes_ago=4)
+    second = _service_request(queue, requester, "Second", MachineServiceRequest.Status.ACCEPTED, minutes_ago=3)
+    printing = _service_request(queue, requester, "Printing", MachineServiceRequest.Status.IN_PROGRESS, minutes_ago=2)
+    counts = queue_counts_for([second, pending, printing])
     assert counts[second.id] == {"position": 2, "approved_ahead": 1, "awaiting_review_ahead": 0}
     assert counts[pending.id] == {"position": 3, "approved_ahead": 2, "awaiting_review_ahead": 0}
     assert printing.id not in counts
     assert first.id not in counts
 
-
 def test_phase8_indexes_are_declared_on_hot_models():
     procurement_indexes = {index.name for index in ToBuyItem._meta.indexes}
-    print_indexes = {index.name for index in PrintRequest._meta.indexes}
+    service_indexes = {index.name for index in MachineServiceRequest._meta.indexes}
 
     assert "proc_tobuy_scope_created_idx" in procurement_indexes
-    assert "printreq_contact_email_l_idx" in print_indexes
+    assert "servicereq_queue_status_idx" in service_indexes
 
 
 def _issued_request(space, product, username):
@@ -111,13 +109,8 @@ def _issued_request(space, product, username):
     return request
 
 
-def _print_request(bucket, requester, title, status, *, minutes_ago):
-    request = PrintRequest.objects.create(
-        bucket=bucket,
-        requester=requester,
-        title=title,
-        status=status,
-    )
+def _service_request(queue, requester, title, status, *, minutes_ago):
+    request = MachineServiceRequest.objects.create(makerspace=queue.makerspace, queue=queue, requester=requester, title=title, status=status)
     request.created_at = timezone.now() - timedelta(minutes=minutes_ago)
     request.save(update_fields=["created_at"])
     return request

@@ -71,11 +71,6 @@ def test_core_models_are_registered_in_django_admin():
         StocktakeSession,
         InventoryAdjustment,
         QrPrintBatch,
-        PrintBucket,
-        PrintRequest,
-        PrintPrinter,
-        FilamentSpool,
-        ManualPrintLog,
         ApiClient,
         ApiKeyRequest,
         AuditLog,
@@ -85,6 +80,16 @@ def test_core_models_are_registered_in_django_admin():
     }
 
     assert registered_models <= set(admin.site._registry)
+
+
+def test_retired_printing_models_are_not_registered_in_django_admin():
+    assert not {
+        PrintBucket,
+        PrintRequest,
+        PrintPrinter,
+        FilamentSpool,
+        ManualPrintLog,
+    } & set(admin.site._registry)
 
 
 def test_immutable_admins_are_read_only():

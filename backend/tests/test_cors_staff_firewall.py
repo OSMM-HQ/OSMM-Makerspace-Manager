@@ -17,8 +17,6 @@ STAFF_PATHS = [
     "/api/v1/auth/me",
     "/api/v1/admin/x",
     "/api/v1/guest-admin/x",
-    "/api/v1/printing/manage/x",
-    "/api/v1/printing/admin/x",
     "/api/v1/procurement/x",
     "/api/v1/integrations/telegram/test-alert",
 ]

@@ -23,11 +23,20 @@ def make_makerspace(slug, **kwargs):
 
 
 def seeded_role(makerspace, legacy_role):
-    return MakerspaceRole.objects.get(
+    role = MakerspaceRole.objects.filter(
         makerspace=makerspace,
         legacy_role=legacy_role,
+    ).first()
+    if role is not None:
+        return role
+    # print_manager remains a display-only compatibility value, but B7c no
+    # longer seeds a default role for it.  Give fallback tests equivalent
+    # assigned authority without reinstating the retired default.
+    return custom_role(
+        makerspace,
+        f"legacy-{legacy_role}",
+        list(rbac._MEMBERSHIP_ROLE_ACTIONS[legacy_role]),
     )
-
 
 def custom_role(makerspace, slug, actions):
     return MakerspaceRole.objects.create(
@@ -51,7 +60,7 @@ def test_action_registries_contain_the_frozen_action_vocabulary():
     )
 
 
-def test_assigned_default_roles_match_the_frozen_legacy_matrix():
+def test_assigned_roles_match_the_frozen_legacy_matrix():
     makerspace = make_makerspace("dual-read-assigned")
     memberships = {}
     for index, legacy_role in enumerate(rbac._MEMBERSHIP_ROLE_ACTIONS):
@@ -64,7 +73,7 @@ def test_assigned_default_roles_match_the_frozen_legacy_matrix():
         memberships[legacy_role] = membership
 
     for legacy_role, membership in memberships.items():
-        expected = set(rbac._MEMBERSHIP_ROLE_ACTIONS[legacy_role])
+        expected = rbac.expand_implied_actions(set(rbac._MEMBERSHIP_ROLE_ACTIONS[legacy_role]))
         assert rbac.actions_for_membership(membership) == expected
         for action in rbac.ALL_ACTIONS:
             assert rbac.can(membership.user, action, makerspace.id) == (action in expected)
@@ -84,7 +93,7 @@ def test_null_assigned_role_falls_back_to_the_frozen_legacy_matrix():
         memberships[legacy_role] = MakerspaceMembership.objects.get(pk=membership.pk)
 
     for legacy_role, membership in memberships.items():
-        expected = set(rbac._MEMBERSHIP_ROLE_ACTIONS[legacy_role])
+        expected = rbac.expand_implied_actions(set(rbac._MEMBERSHIP_ROLE_ACTIONS[legacy_role]))
         assert rbac.actions_for_membership(membership) == expected
         for action in rbac.ALL_ACTIONS:
             assert rbac.can(membership.user, action, makerspace.id) == (action in expected)

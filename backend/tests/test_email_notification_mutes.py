@@ -20,9 +20,7 @@ from apps.integrations.notification_rules import (
 from apps.integrations.staff_notifications import staff_emails_for_stream
 from apps.hardware_requests import notifications as hardware_notifications
 from apps.makerspaces.models import MakerspaceMembership
-from apps.printing.emails import send_print_email
 from tests.test_issue import make_accepted_request, make_product, make_space
-from tests.test_printing import make_bucket, make_request as make_print_request, make_user
 from tests.test_staff_notifications import make_staff_user
 
 pytestmark = pytest.mark.django_db
@@ -248,21 +246,6 @@ def test_hardware_requester_mute_skips_email_log_and_unmuted_send_logs_email(
     assert log.event == "request_accepted"
     assert log.audience == "requester"
     assert log.status == EmailLog.Status.SENT
-
-
-def test_printing_requester_mute_skips_email_log():
-    makerspace = make_space("mute-print-requester")
-    bucket = make_bucket(makerspace)
-    requester = make_user(
-        "mute-print-requester-user",
-        access_status="active",
-    )
-    print_request = make_print_request(bucket, requester)
-    create_mute(makerspace, target="requester", stream="printing", event="accepted", audience="requester")
-
-    send_print_email("accepted", print_request)
-
-    assert EmailLog.objects.count() == 0
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
