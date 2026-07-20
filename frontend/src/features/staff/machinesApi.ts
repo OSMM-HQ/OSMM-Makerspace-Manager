@@ -29,7 +29,6 @@ export type Machine = {
   warranty_status: MachineWarrantyStatus;
   is_public: boolean;
   is_active: boolean;
-  linked_print_printer: number | null;
   type_payload?: { model?: string };
   usage_hours: string;
   can_operate: boolean;

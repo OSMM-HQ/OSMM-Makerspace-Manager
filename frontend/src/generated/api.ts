@@ -18,7 +18,6 @@ export const openApiTags = [
   "Admin maintenance",
   "Admin makerspaces",
   "Admin memberships",
-  "Admin printing",
   "Admin requests",
   "Admin roles",
   "Admin users",
@@ -41,15 +40,12 @@ export const openApiTags = [
   "Notifications",
   "Platform",
   "Presence",
-  "Printing",
-  "Printing reports",
   "Procurement",
   "Public bookings",
   "Public events",
   "Public inventory",
   "Public machine service",
   "Public machines",
-  "Public printing",
   "Public requests",
   "Public roadmap",
   "QR assets",
@@ -239,8 +235,6 @@ export const openApiPaths = [
   "/api/v1/admin/memberships/{id}/unverify",
   "/api/v1/admin/memberships/{id}/verify",
   "/api/v1/admin/platform/email-settings",
-  "/api/v1/admin/printing/printers/{id}/image",
-  "/api/v1/admin/printing/printers/{id}/warranty",
   "/api/v1/admin/products/{id}/assets/generate",
   "/api/v1/admin/qr-print-batches/{id}",
   "/api/v1/admin/qr-print-batches/{id}/download",
@@ -319,33 +313,6 @@ export const openApiPaths = [
   "/api/v1/notifications/makerspace/{makerspace_id}/read-all",
   "/api/v1/notifications/makerspace/{makerspace_id}/unread-count",
   "/api/v1/notifications/makerspace/{makerspace_id}/{id}/read",
-  "/api/v1/printing/admin/makerspace/{makerspace_id}/printing/reports",
-  "/api/v1/printing/admin/printing/reports",
-  "/api/v1/printing/buckets/",
-  "/api/v1/printing/manage/files/{id}/url",
-  "/api/v1/printing/manage/manual-logs/",
-  "/api/v1/printing/manage/printed/",
-  "/api/v1/printing/manage/printers/",
-  "/api/v1/printing/manage/printers/{id}/",
-  "/api/v1/printing/manage/requests/",
-  "/api/v1/printing/manage/requests/{id}/",
-  "/api/v1/printing/manage/requests/{id}/accept",
-  "/api/v1/printing/manage/requests/{id}/collect",
-  "/api/v1/printing/manage/requests/{id}/complete",
-  "/api/v1/printing/manage/requests/{id}/fail",
-  "/api/v1/printing/manage/requests/{id}/reject",
-  "/api/v1/printing/manage/requests/{id}/reprint",
-  "/api/v1/printing/manage/requests/{id}/start",
-  "/api/v1/printing/manage/spools/",
-  "/api/v1/printing/manage/spools/{id}/",
-  "/api/v1/printing/manage/spools/{id}/adjustments",
-  "/api/v1/printing/public/requests/{public_token}/status",
-  "/api/v1/printing/public/{makerspace_slug}/buckets",
-  "/api/v1/printing/public/{makerspace_slug}/requests",
-  "/api/v1/printing/public/{makerspace_slug}/spools",
-  "/api/v1/printing/public/{makerspace_slug}/uploads",
-  "/api/v1/printing/requests/",
-  "/api/v1/printing/requests/{id}/",
   "/api/v1/procurement/makerspace/{makerspace_id}/to-buy",
   "/api/v1/procurement/makerspace/{makerspace_id}/to-buy/export",
   "/api/v1/procurement/to-buy/receipts/{id}",
@@ -853,10 +820,6 @@ export type ClaimableInvitation = {
 
 export type ClientTypeEnum = "browser" | "server";
 
-export type CompletePrint = {
-  "actual_filament_grams"?: string | null;
-};
-
 export type ConditionEnum = "available" | "damaged" | "lost" | "unknown";
 
 export type ConsumableCandidate = {
@@ -1121,7 +1084,7 @@ export type EmailVerificationConfirm = {
 export type EndReasonEnum = "superseded" | "membership_revoked" | "user_ended";
 
 export type Error = {
-  "detail": string;
+  "detail"?: string;
 };
 
 export type EventAdmin = {
@@ -1270,74 +1233,7 @@ export type FabLabHealthRow = {
   "maintenance_overdue_schedules": number | null;
 };
 
-export type FailPrint = {
-  "reason": string;
-  "percent_complete": number;
-};
-
 export type FeatureEnum = "hardware_requests" | "printing" | "events" | "bookings" | "maintenance" | "members";
-
-export type FilamentAdjustment = {
-  "id": number;
-  "filament_spool": number;
-  "makerspace": number;
-  "kind": FilamentAdjustmentKindEnum;
-  "grams": string;
-  "print_request": number | null;
-  "manual_log": number | null;
-  "reason": string;
-  "created_by": number | null;
-  "created_at": string;
-};
-
-export type FilamentAdjustmentKindEnum = "reserve" | "reconcile" | "manual" | "correction" | "retire";
-
-export type FilamentAdjustmentRequest = {
-  "kind": FilamentAdjustmentRequestKindEnum;
-  "grams": string;
-  "reason": string;
-};
-
-export type FilamentAdjustmentRequestKindEnum = "correction" | "retire";
-
-export type FilamentAdjustmentResponse = {
-  "spool": FilamentSpool;
-  "adjustment": FilamentAdjustment;
-};
-
-export type FilamentSpool = {
-  "id": number;
-  "makerspace": number;
-  "printer"?: number | null;
-  "printer_name": string;
-  "material": string;
-  "color"?: string;
-  "brand"?: string;
-  "lot_code"?: string;
-  "initial_weight_grams": string;
-  "remaining_weight_grams": string;
-  "ledger_adjustment_count": number;
-  "ledger_balance_grams": string;
-  "ledger_used_grams": string;
-  "ledger_remaining_weight_grams": string;
-  "is_active"?: boolean;
-  "opened_at"?: string | null;
-  "created_at": string;
-  "updated_at": string;
-};
-
-export type FilamentSpoolSummary = {
-  "id": number;
-  "printer": number;
-  "material": string;
-  "color": string;
-  "brand": string;
-  "lot_code": string;
-  "initial_weight_grams": string;
-  "remaining_weight_grams": string;
-  "is_active": boolean;
-  "opened_at": string | null;
-};
 
 export type ForgotPasswordRequest = {
   "email": string;
@@ -1572,8 +1468,6 @@ export type KeyD07Enum = "hardware_requests" | "printing" | "events" | "bookings
 
 export type Kind3bfEnum = "dev_room" | "bench" | "meeting" | "other";
 
-export type Kind7bbEnum = "stl" | "screenshot";
-
 export type LedgerResponse = {
   "count": number;
   "next"?: string | null;
@@ -1682,7 +1576,6 @@ export type Machine = {
   "warranty_status": string;
   "is_public": boolean;
   "is_active": boolean;
-  "linked_print_printer": number | null;
   "usage_hours": string;
   "can_operate": string;
   "can_edit": string;
@@ -2065,83 +1958,6 @@ export type Makerspace = {
   "created_at": string;
   "updated_at": string;
 };
-
-export type ManagedPrintRequest = {
-  "id": number;
-  "bucket": PrintBucket;
-  "makerspace": number;
-  "requester": number;
-  "requester_email": string;
-  "requester_username": string;
-  "requester_name": string;
-  "title": string;
-  "description": string;
-  "material": string;
-  "color": string;
-  "quantity": number;
-  "source_link": string;
-  "model_file": string;
-  "preferred_settings": string;
-  "estimate_screenshot": string;
-  "preview_screenshot": string;
-  "project_brief": string;
-  "contact_email": string;
-  "contact_phone": string;
-  "files": Array<PrintRequestFileSummary>;
-  "status": PrintRequestStatusEnum;
-  "reason": string;
-  "handled_by": number;
-  "printer": PrintPrinter;
-  "filament_spool": FilamentSpoolSummary;
-  "requested_filament_spool": FilamentSpoolSummary;
-  "estimated_minutes": number;
-  "estimated_filament_grams": string;
-  "filament_grams_used": string;
-  "filament_grams_reserved": string;
-  "run_printer_name": string;
-  "run_printer_model": string;
-  "run_spool_label": string;
-  "run_spool_material": string;
-  "run_spool_color": string;
-  "run_estimated_minutes": number | null;
-  "run_planned_filament_grams": string | null;
-  "reprint_of": number;
-  "created_at": string;
-  "accepted_at": string | null;
-  "started_at": string | null;
-  "completed_at": string | null;
-  "updated_at": string;
-  "requester_display": string;
-  "price": string;
-  "payment_status": PaymentStatusEnum;
-  "paid_at": string | null;
-  "accepted_by": PrintRequestActor | null;
-  "collected_at": string | null;
-  "collected_by": number;
-};
-
-export type ManualPrintLog = {
-  "id": number;
-  "makerspace_id": number;
-  "printer_id": number | null;
-  "filament_spool_id": number | null;
-  "grams_used": string;
-  "duration_minutes"?: number;
-  "outcome"?: ManualPrintLogOutcomeEnum;
-  "percent_complete"?: number;
-  "reason"?: string;
-  "title": string;
-  "requester_name"?: string;
-  "contact_email"?: string;
-  "contact_phone"?: string;
-  "note"?: string;
-  "created_at": string;
-  "printer_name": string | null;
-  "spool_label": string | null;
-  "logged_by_username": string | null;
-};
-
-export type ManualPrintLogOutcomeEnum = "success" | "failed";
 
 export type Measurement883Enum = "count" | "grams";
 
@@ -2565,13 +2381,6 @@ export type PaginatedEmailLogList = {
   "results": Array<EmailLog>;
 };
 
-export type PaginatedFilamentSpoolList = {
-  "count": number;
-  "next"?: string | null;
-  "previous"?: string | null;
-  "results": Array<FilamentSpool>;
-};
-
 export type PaginatedInventoryAssetAdminList = {
   "count": number;
   "next"?: string | null;
@@ -2586,20 +2395,6 @@ export type PaginatedInventoryProductAdminList = {
   "results": Array<InventoryProductAdmin>;
 };
 
-export type PaginatedManagedPrintRequestList = {
-  "count": number;
-  "next"?: string | null;
-  "previous"?: string | null;
-  "results": Array<ManagedPrintRequest>;
-};
-
-export type PaginatedManualPrintLogList = {
-  "count": number;
-  "next"?: string | null;
-  "previous"?: string | null;
-  "results": Array<ManualPrintLog>;
-};
-
 export type PaginatedMembershipRequestList = {
   "count": number;
   "next"?: string | null;
@@ -2612,20 +2407,6 @@ export type PaginatedNotificationList = {
   "next"?: string | null;
   "previous"?: string | null;
   "results": Array<Notification>;
-};
-
-export type PaginatedPrintPrinterList = {
-  "count": number;
-  "next"?: string | null;
-  "previous"?: string | null;
-  "results": Array<PrintPrinter>;
-};
-
-export type PaginatedPrintRequestList = {
-  "count": number;
-  "next"?: string | null;
-  "previous"?: string | null;
-  "results": Array<PrintRequest>;
 };
 
 export type PaginatedPublicMachineList = {
@@ -2794,27 +2575,6 @@ export type PatchedEventWrite = {
   "is_public"?: boolean;
 };
 
-export type PatchedFilamentSpool = {
-  "id"?: number;
-  "makerspace"?: number;
-  "printer"?: number | null;
-  "printer_name"?: string;
-  "material"?: string;
-  "color"?: string;
-  "brand"?: string;
-  "lot_code"?: string;
-  "initial_weight_grams"?: string;
-  "remaining_weight_grams"?: string;
-  "ledger_adjustment_count"?: number;
-  "ledger_balance_grams"?: string;
-  "ledger_used_grams"?: string;
-  "ledger_remaining_weight_grams"?: string;
-  "is_active"?: boolean;
-  "opened_at"?: string | null;
-  "created_at"?: string;
-  "updated_at"?: string;
-};
-
 export type PatchedInventoryAssetAdminUpdate = {
   "asset_tag"?: string;
   "serial_number"?: string;
@@ -2866,7 +2626,6 @@ export type PatchedMachine = {
   "warranty_status"?: string;
   "is_public"?: boolean;
   "is_active"?: boolean;
-  "linked_print_printer"?: number | null;
   "usage_hours"?: string;
   "can_operate"?: string;
   "can_edit"?: string;
@@ -2984,28 +2743,6 @@ export type PatchedPlatformEmailSettings = {
   "updated_at"?: string;
 };
 
-export type PatchedPrintPrinter = {
-  "id"?: number;
-  "makerspace"?: number;
-  "name"?: string;
-  "model"?: string;
-  "status"?: PrintPrinterStatusEnum;
-  "notes"?: string;
-  "image_url"?: string | null;
-  "is_active"?: boolean;
-  "active_spool"?: {
-  [key: string]: unknown;
-} | null;
-  "current_request"?: {
-  [key: string]: unknown;
-} | null;
-  "is_free"?: boolean;
-  "pending_estimated_minutes"?: number;
-  "estimated_spool_remaining_after_queue_grams"?: string | null;
-  "created_at"?: string;
-  "updated_at"?: string;
-};
-
 export type PatchedReturnPolicy = {
   "id"?: number;
   "default_loan_days"?: number;
@@ -3037,17 +2774,15 @@ export type PatchedToBuyItem = {
   "received_at"?: string | null;
   "moved_to_inventory_at"?: string | null;
   "resulting_product"?: number | null;
-  "resulting_spool"?: number | null;
-  "resulting_printer"?: number | null;
-  "source_spool"?: number | null;
+  "resulting_pool"?: number | null;
+  "resulting_machine"?: number | null;
+  "source_pool"?: number | null;
   "receipts"?: Array<ToBuyReceipt>;
   "created_by"?: number | null;
   "created_by_username"?: string;
   "created_at"?: string;
   "updated_at"?: string;
 };
-
-export type PaymentStatusEnum = "none" | "pending" | "paid";
 
 export type PlatformEmailSettings = {
   "id": number;
@@ -3086,21 +2821,6 @@ export type PresenceStart = {
   "duration_minutes": number;
 };
 
-export type PrintAccept = {
-  "price"?: string;
-  "estimated_filament_grams"?: string | null;
-};
-
-export type PrintBucket = {
-  "id": number;
-  "makerspace": number;
-  "name": string;
-  "description": string;
-  "is_active": boolean;
-  "created_at": string;
-  "updated_at": string;
-};
-
 export type PrinterPool = {
   "id": number;
   "machine_id": number | null;
@@ -3130,239 +2850,6 @@ export type PrinterPoolCreate = {
   "lot_code"?: string;
   "initial_grams": string;
   "low_threshold_grams"?: string | null;
-};
-
-export type PrintFileUrlResponse = {
-  "url": string;
-};
-
-export type PrintingReport = {
-  "totals": PrintingReportTotals;
-  "printer_hours": Array<PrintingReportPrinterHours>;
-  "printer_outcomes": Array<PrintingReportPrinterOutcome>;
-  "filament_used": Array<PrintingReportFilamentUsed>;
-  "filament_by_brand": Array<PrintingReportBrand>;
-  "top_requesters": Array<PrintingReportTopRequester>;
-  "total_grams_used": number;
-  "payments": PrintingReportPayments;
-  "filament_estimated_by_period": PrintingReportPeriods;
-};
-
-export type PrintingReportBrand = {
-  "brand": string;
-  "grams_used": number;
-  "spools": number;
-};
-
-export type PrintingReportFilamentUsed = {
-  "spool_id": number;
-  "material": string;
-  "color": string;
-  "grams_used": number;
-  "remaining_grams": number;
-  "makerspace_id"?: number;
-};
-
-export type PrintingReportPayments = {
-  "paid_amount": string;
-  "paid_count": number;
-  "outstanding_amount": string;
-  "outstanding_count": number;
-};
-
-export type PrintingReportPeriod = {
-  "period": string;
-  "grams": number;
-};
-
-export type PrintingReportPeriods = {
-  "by_month": Array<PrintingReportPeriod>;
-  "by_day": Array<PrintingReportPeriod>;
-  "by_hour": Array<PrintingReportPeriod>;
-};
-
-export type PrintingReportPrinterHours = {
-  "printer_id": number;
-  "printer_name": string;
-  "printer_model"?: string;
-  "image_url"?: string | null;
-  "completed_requests": number;
-  "hours": number;
-  "makerspace_id"?: number;
-};
-
-export type PrintingReportPrinterOutcome = {
-  "printer_id": number;
-  "printer_name": string;
-  "printer_model"?: string;
-  "image_url"?: string | null;
-  "completed": number;
-  "failed": number;
-  "grams_used": number;
-  "manual_logs": number;
-  "makerspace_id"?: number;
-};
-
-export type PrintingReportTopRequester = {
-  "requester_id": number;
-  "requester": string;
-  "grams": number;
-  "requests": number;
-  "items": number;
-  "makerspace_id"?: number;
-};
-
-export type PrintingReportTotals = {
-  "total_requests": number;
-  "completed": number;
-  "collected": number;
-  "failed": number;
-  "rejected": number;
-  "pending": number;
-  "printing": number;
-  "accepted": number;
-};
-
-export type PrintPresignRequest = {
-  "bucket_id"?: number | null;
-  "kind": Kind7bbEnum;
-  "filename": string;
-  "content_type"?: string;
-};
-
-export type PrintPresignResponse = {
-  "file_id": number;
-  "upload": {
-  [key: string]: unknown;
-};
-};
-
-export type PrintPrinter = {
-  "id": number;
-  "makerspace": number;
-  "name": string;
-  "model"?: string;
-  "status"?: PrintPrinterStatusEnum;
-  "notes"?: string;
-  "image_url": string | null;
-  "is_active"?: boolean;
-  "active_spool": {
-  [key: string]: unknown;
-} | null;
-  "current_request": {
-  [key: string]: unknown;
-} | null;
-  "is_free": boolean;
-  "pending_estimated_minutes": number;
-  "estimated_spool_remaining_after_queue_grams": string | null;
-  "created_at": string;
-  "updated_at": string;
-};
-
-export type PrintPrinterStatusEnum = "active" | "maintenance" | "offline";
-
-export type PrintRequest = {
-  "id": number;
-  "bucket": PrintBucket;
-  "makerspace": number;
-  "requester": number;
-  "requester_email": string;
-  "requester_username": string;
-  "requester_name": string;
-  "title": string;
-  "description": string;
-  "material": string;
-  "color": string;
-  "quantity": number;
-  "source_link": string;
-  "model_file": string;
-  "preferred_settings": string;
-  "estimate_screenshot": string;
-  "preview_screenshot": string;
-  "project_brief": string;
-  "contact_email": string;
-  "contact_phone": string;
-  "files": Array<PrintRequestFileSummary>;
-  "status": PrintRequestStatusEnum;
-  "reason": string;
-  "handled_by": number;
-  "printer": PrintPrinter;
-  "filament_spool": FilamentSpoolSummary;
-  "requested_filament_spool": FilamentSpoolSummary;
-  "estimated_minutes": number;
-  "estimated_filament_grams": string;
-  "filament_grams_used": string;
-  "filament_grams_reserved": string;
-  "run_printer_name": string;
-  "run_printer_model": string;
-  "run_spool_label": string;
-  "run_spool_material": string;
-  "run_spool_color": string;
-  "run_estimated_minutes": number | null;
-  "run_planned_filament_grams": string | null;
-  "reprint_of": number;
-  "created_at": string;
-  "accepted_at": string | null;
-  "started_at": string | null;
-  "completed_at": string | null;
-  "updated_at": string;
-};
-
-export type PrintRequestActor = {
-  "username": string;
-  "role": string;
-};
-
-export type PrintRequestCreate = {
-  "bucket": number;
-  "title": string;
-  "description"?: string;
-  "material"?: string;
-  "color"?: string;
-  "quantity"?: number;
-  "source_link"?: string;
-  "model_file"?: string;
-  "preferred_settings"?: string;
-  "estimate_screenshot"?: string;
-  "preview_screenshot"?: string;
-};
-
-export type PrintRequestFileSummary = {
-  "id": number;
-  "original_filename": string;
-  "kind": string;
-  "content_type": string;
-  "size_bytes": number;
-};
-
-export type PrintRequestStatusEnum = "pending" | "accepted" | "printing" | "completed" | "collected" | "rejected" | "failed";
-
-export type PrintRequestSubmit = {
-  "website"?: string;
-  "bucket_id"?: number | null;
-  "title": string;
-  "description"?: string;
-  "project_brief"?: string;
-  "preferred_settings"?: string;
-  "material"?: string;
-  "color"?: string;
-  "filament_spool_id"?: number | null;
-  "estimated_filament_grams"?: string | null;
-  "quantity"?: number;
-  "source_link"?: string;
-  "file_ids"?: Array<number>;
-};
-
-export type PrintRequestSubmitResponse = {
-  "public_token": string;
-  "status": string;
-};
-
-export type PrintStart = {
-  "printer_id": number;
-  "filament_spool_id": number;
-  "estimated_minutes": number;
-  "estimated_filament_grams": string;
 };
 
 export type ProblemReportTriage = {
@@ -3472,12 +2959,6 @@ export type PublicEventRegistrationResponseStatusEnum = "registered" | "waitlist
 
 export type PublicEventStatusEnum = "published";
 
-export type PublicFilamentSpool = {
-  "id": number;
-  "material": string;
-  "color": string;
-};
-
 export type PublicImageAttachRequest = {
   "object_key": string;
 };
@@ -3536,12 +3017,6 @@ export type PublicMakerspace = {
   "cover_image_url": string | null;
 };
 
-export type PublicPrintBucket = {
-  "id": number;
-  "name": string;
-  "description": string;
-};
-
 export type PublicPrinterPool = {
   "id": number;
   "material": string;
@@ -3590,24 +3065,12 @@ export type PublicPrinterSubmitResponse = {
 
 export type PublicPrinterUpload = {
   "queue_id"?: number | null;
-  "kind": Kind7bbEnum;
+  "kind": PublicPrinterUploadKindEnum;
   "filename": string;
   "content_type"?: string;
 };
 
-export type PublicPrintStatus = {
-  "public_token": string;
-  "status": string;
-  "title": string;
-  "created_at": string;
-  "accepted_at": string | null;
-  "started_at": string | null;
-  "completed_at": string | null;
-  "estimated_minutes": number;
-  "queue_position": number | null;
-  "queue_approved_ahead": number | null;
-  "queue_awaiting_review_ahead": number | null;
-};
+export type PublicPrinterUploadKindEnum = "stl" | "screenshot";
 
 export type PublicPrintStatusLookupPolicyEnum = "token_only" | "email_unverified";
 
@@ -3955,10 +3418,6 @@ export type ReferralOutcome = {
 
 export type RefreshResponse = {
   "access": string;
-};
-
-export type RejectFail = {
-  "reason": string;
 };
 
 export type RejectRequest = {
@@ -4455,9 +3914,9 @@ export type ToBuyItem = {
   "received_at": string | null;
   "moved_to_inventory_at": string | null;
   "resulting_product": number | null;
-  "resulting_spool": number | null;
-  "resulting_printer": number | null;
-  "source_spool": number | null;
+  "resulting_pool": number | null;
+  "resulting_machine": number | null;
+  "source_pool": number | null;
   "receipts": Array<ToBuyReceipt>;
   "created_by": number | null;
   "created_by_username": string;
@@ -4576,9 +4035,6 @@ export type Warranty = {
   "asset_id": number | null;
   "asset_tag": string | null;
   "serial_number": string | null;
-  "printer_id": number | null;
-  "printer_name": string | null;
-  "printer_model": string | null;
   "machine_id": number | null;
   "machine_name": string | null;
   "purchased_on": string | null;
