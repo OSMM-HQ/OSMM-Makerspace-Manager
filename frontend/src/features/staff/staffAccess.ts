@@ -55,7 +55,7 @@ export function getStaffAccess(actions: readonly string[], isSuperadmin: boolean
   const has = (action: string) => isSuperadmin || actions.includes(action);
   const canEditInventory = has("edit_inventory");
   const canViewInventory = has("view_inventory");
-  const canSeePrinting = has("manage_printing");
+  const canSeePrinting = has("manage_printing") || has("manage_machines");
   const canManageMachines = has("manage_machines");
   const canManageEvents = has("manage_events");
   const canManageBookings = has("manage_bookings");
@@ -64,9 +64,9 @@ export function getStaffAccess(actions: readonly string[], isSuperadmin: boolean
   const canManageMakerspace = has("manage_makerspace");
   const canIssueDirectLoan = has("issue_direct_loan");
   const canSeeHardware = isSuperadmin || ["accept_request", "reject_request", "assign_box", "issue_request", "issue_direct_loan", "return_request"].some((action) => actions.includes(action));
-  const canUseToBuy = has("edit_inventory") || has("manage_printing") || has("manage_makerspace");
+  const canUseToBuy = has("edit_inventory") || has("manage_printing") || has("manage_machines") || has("manage_makerspace");
   const canChooseToBuyKind = has("manage_makerspace");
-  const canSeeDashboard = has("view_inventory") || has("manage_printing") || has("manage_makerspace");
+  const canSeeDashboard = has("view_inventory") || has("manage_printing") || has("manage_machines") || has("manage_makerspace");
   const HANDOUT = ["view_inventory", "assign_box", "issue_request", "issue_direct_loan", "return_request", "upload_evidence"];
   const HANDOUT_MUTATIONS = ["assign_box", "issue_request", "issue_direct_loan", "return_request", "upload_evidence"];
   const handoutOnly = !isSuperadmin && actions.length > 0 && actions.every((action) => HANDOUT.includes(action)) && actions.some((action) => HANDOUT_MUTATIONS.includes(action));

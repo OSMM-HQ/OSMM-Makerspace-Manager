@@ -28,7 +28,7 @@ EVENT_CATALOG = {
 TARGETS = {
     MakerspaceMembership.Role.SPACE_MANAGER.value: "staff",
     MakerspaceMembership.Role.INVENTORY_MANAGER.value: "staff",
-    MakerspaceMembership.Role.PRINT_MANAGER.value: "staff",
+    MakerspaceMembership.Role.MACHINE_MANAGER.value: "staff",
     "requester": "requester",
 }
 
@@ -39,7 +39,7 @@ _STREAM_ROLES = {
     ),
     "printing": (
         MakerspaceMembership.Role.SPACE_MANAGER.value,
-        MakerspaceMembership.Role.PRINT_MANAGER.value,
+        MakerspaceMembership.Role.MACHINE_MANAGER.value,
     ),
 }
 

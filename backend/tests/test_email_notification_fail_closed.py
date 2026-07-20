@@ -46,7 +46,7 @@ def test_muted_targets_lookup_fails_closed_for_mutable_targets(monkeypatch):
     assert muted_targets(makerspace, "printing", "accepted") == {
         "requester",
         Role.SPACE_MANAGER.value,
-        Role.PRINT_MANAGER.value,
+        Role.MACHINE_MANAGER.value,
     }
 
 

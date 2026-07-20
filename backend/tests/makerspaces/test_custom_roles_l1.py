@@ -10,6 +10,7 @@ from apps.makerspaces.models import Makerspace, MakerspaceMembership, Makerspace
 
 
 LEGACY_ROLE_VALUES = [definition[0] for definition in roles.DEFAULT_ROLE_DEFINITIONS]
+HISTORICAL_ROLE_VALUES = [*LEGACY_ROLE_VALUES, MakerspaceMembership.Role.PRINT_MANAGER]
 
 
 def make_user(username):
@@ -51,7 +52,7 @@ def test_ensure_default_roles_is_idempotent():
     roles.ensure_default_roles(makerspace)
     roles.ensure_default_roles(makerspace)
 
-    assert MakerspaceRole.objects.filter(makerspace=makerspace).count() == 6
+    assert MakerspaceRole.objects.filter(makerspace=makerspace).count() == 5
     assert_default_roles(makerspace)
 
 
@@ -71,7 +72,7 @@ def test_seed_and_backfill_migration_round_trip():
             name="Migrated roles", slug="migrated-roles"
         )
         memberships = {}
-        for index, legacy_role in enumerate(LEGACY_ROLE_VALUES):
+        for index, legacy_role in enumerate(HISTORICAL_ROLE_VALUES):
             user = make_user(f"migration-role-{index}")
             membership = OldMembership.objects.create(
                 makerspace_id=makerspace.id,
@@ -89,7 +90,8 @@ def test_seed_and_backfill_migration_round_trip():
             role.legacy_role: role
             for role in NewMakerspaceRole.objects.filter(makerspace_id=makerspace.id)
         }
-        assert set(seeded) == set(LEGACY_ROLE_VALUES)
+        assert set(seeded) == set(HISTORICAL_ROLE_VALUES)
+        assert seeded[MakerspaceMembership.Role.PRINT_MANAGER].granted_actions == ["manage_printing"]
         for legacy_role, name, granted_actions in roles.DEFAULT_ROLE_DEFINITIONS:
             role = seeded[legacy_role]
             assert role.name == name
@@ -130,8 +132,8 @@ def test_seeded_defaults_match_frozen_rbac_mapping():
         for role in MakerspaceRole.objects.filter(makerspace=makerspace)
     }
 
-    assert set(seeded) == set(rbac._MEMBERSHIP_ROLE_ACTIONS) | {None}
-    for legacy_role, actions in rbac._MEMBERSHIP_ROLE_ACTIONS.items():
+    assert set(seeded) == set(LEGACY_ROLE_VALUES) | {None}
+    for legacy_role, _name, actions in roles.DEFAULT_ROLE_DEFINITIONS:
         assert seeded[legacy_role] == sorted(actions)
     assert seeded[None] == []
 

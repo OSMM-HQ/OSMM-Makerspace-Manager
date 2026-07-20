@@ -64,7 +64,7 @@ def test_generic_create_syncs_custom_and_default_roles():
         rbac.Action.VIEW_INVENTORY
     }
 
-    default = seeded(makerspace, MakerspaceMembership.Role.PRINT_MANAGER)
+    default = seeded(makerspace, MakerspaceMembership.Role.MACHINE_MANAGER)
     default_created = api.post(
         membership_url(makerspace),
         {"username": "l3b-default", "role_id": default.id},
@@ -73,7 +73,7 @@ def test_generic_create_syncs_custom_and_default_roles():
     assert default_created.status_code == 201
     default_membership = MakerspaceMembership.objects.get(pk=default_created.data["id"])
     assert default_membership.assigned_role == default
-    assert default_membership.role == MakerspaceMembership.Role.PRINT_MANAGER
+    assert default_membership.role == MakerspaceMembership.Role.MACHINE_MANAGER
 
 
 def test_membership_scope_ordering_and_assignment_audit():
@@ -183,7 +183,7 @@ def test_dynamic_assignment_and_revoke_authority():
         format="json",
     ).status_code == 403
     assert manager_api.patch(
-        assign_url(makerspace, protected), {"role_id": seeded(makerspace, MakerspaceMembership.Role.PRINT_MANAGER).id},
+        assign_url(makerspace, protected), {"role_id": seeded(makerspace, MakerspaceMembership.Role.MACHINE_MANAGER).id},
         format="json",
     ).status_code == 403
     assert manager_api.delete(
@@ -197,8 +197,8 @@ def test_dynamic_assignment_and_revoke_authority():
     delegated = MakerspaceMembership.objects.create(
         user=make_user("l3b-delegated", access_status=User.AccessStatus.ACTIVE),
         makerspace=makerspace,
-        role=MakerspaceMembership.Role.PRINT_MANAGER,
-        assigned_role=seeded(makerspace, MakerspaceMembership.Role.PRINT_MANAGER),
+        role=MakerspaceMembership.Role.MACHINE_MANAGER,
+        assigned_role=seeded(makerspace, MakerspaceMembership.Role.MACHINE_MANAGER),
     )
     assert manager_api.delete(
         reverse("admin-membership-revoke", kwargs={"pk": delegated.id})
@@ -242,7 +242,7 @@ def test_legacy_create_writes_default_assignment_and_quota_rolls_back(monkeypatc
     monkeypatch.setattr(limits, "is_self_host", lambda: False)
     rejected = api.post(
         membership_url(capped),
-        {"username": "l3b-no-orphan", "role_id": seeded(capped, MakerspaceMembership.Role.PRINT_MANAGER).id},
+        {"username": "l3b-no-orphan", "role_id": seeded(capped, MakerspaceMembership.Role.MACHINE_MANAGER).id},
         format="json",
     )
     assert rejected.status_code == 400

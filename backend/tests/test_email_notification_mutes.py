@@ -147,7 +147,7 @@ def test_muted_targets_returns_valid_muted_targets_across_mutable_audiences():
     )
     create_mute(
         makerspace,
-        target=Role.PRINT_MANAGER.value,
+        target=Role.MACHINE_MANAGER.value,
         stream="printing",
         event="accepted",
         audience="staff",
@@ -163,14 +163,14 @@ def test_muted_targets_returns_valid_muted_targets_across_mutable_audiences():
     assert muted_targets(makerspace, "printing", "accepted") == {
         "requester",
         Role.SPACE_MANAGER.value,
-        Role.PRINT_MANAGER.value,
+        Role.MACHINE_MANAGER.value,
     }
     assert muted_targets(makerspace, "hardware", "return_reminder") == set()
 
 
 def test_valid_targets_for_stream_lists_requester_and_stream_roles():
     assert valid_targets_for_stream("hardware") == ("requester", Role.SPACE_MANAGER.value, Role.INVENTORY_MANAGER.value)
-    assert valid_targets_for_stream("printing") == ("requester", Role.SPACE_MANAGER.value, Role.PRINT_MANAGER.value)
+    assert valid_targets_for_stream("printing") == ("requester", Role.SPACE_MANAGER.value, Role.MACHINE_MANAGER.value)
     assert valid_targets_for_stream("unknown") == ()
 
 
@@ -210,10 +210,10 @@ def test_staff_role_mute_excludes_printing_role_only_when_event_is_supplied():
     print_manager = make_staff_user(
         "mute-print-manager",
         makerspace,
-        Role.PRINT_MANAGER,
+        Role.MACHINE_MANAGER,
         email="print-manager@example.com",
     )
-    create_mute(makerspace, target=Role.PRINT_MANAGER.value, stream="printing", event="started", audience="staff")
+    create_mute(makerspace, target=Role.MACHINE_MANAGER.value, stream="printing", event="started", audience="staff")
 
     assert staff_emails_for_stream(makerspace, "printing", event="started") == [
         space_manager.email

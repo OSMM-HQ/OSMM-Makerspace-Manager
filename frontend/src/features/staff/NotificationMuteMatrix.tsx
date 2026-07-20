@@ -226,7 +226,7 @@ function targetLabel(target: string) {
       requester: "Requesters",
       space_manager: "Space managers",
       inventory_manager: "Inventory managers",
-      print_manager: "Print managers",
+      machine_manager: "Machine managers",
     }[target] ?? humanize(target)
   );
 }

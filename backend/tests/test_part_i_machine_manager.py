@@ -23,7 +23,7 @@ def _membership(user, makerspace):
     return MakerspaceMembership.objects.get(user=user, makerspace=makerspace)
 
 
-def test_machine_manager_role_grants_only_manage_machines():
+def test_machine_manager_role_implies_manage_printing():
     makerspace = make_space("mm-rbac")
     machine_manager = make_member(
         "mm-rbac-user",
@@ -33,11 +33,15 @@ def test_machine_manager_role_grants_only_manage_machines():
     )
 
     assert rbac.can(machine_manager, rbac.Action.MANAGE_MACHINES, makerspace.id)
-    # Every other privileged action must be denied — the role is exactly {MANAGE_MACHINES}.
+    assert rbac.can(machine_manager, rbac.Action.MANAGE_PRINTING, makerspace.id)
+    assert rbac.effective_actions(machine_manager, makerspace.id) == {
+        rbac.Action.MANAGE_MACHINES,
+        rbac.Action.MANAGE_PRINTING,
+    }
+    # Other privileged actions remain denied.
     for action in (
         rbac.Action.MANAGE_MAKERSPACE,
         rbac.Action.EDIT_INVENTORY,
-        rbac.Action.MANAGE_PRINTING,
         rbac.Action.MANAGE_EVENTS,
         rbac.Action.ISSUE_REQUEST,
         rbac.Action.MANAGE_STAFF,

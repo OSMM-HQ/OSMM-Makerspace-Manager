@@ -8,7 +8,6 @@ import { createRole, updateRole, type Capability, type StaffRole } from "./roles
 const presets: { label: string; actions: string[] }[] = [
   { label: "Space Manager", actions: ["view_inventory", "edit_inventory", "manage_qr", "accept_request", "reject_request", "assign_box", "issue_request", "issue_direct_loan", "return_request", "upload_evidence", "manage_printing", "manage_machines", "view_audit", "manage_events", "manage_bookings", "manage_makerspace"] },
   { label: "Inventory Manager", actions: ["view_inventory", "edit_inventory", "manage_qr", "accept_request", "reject_request", "assign_box", "issue_request", "issue_direct_loan", "return_request", "upload_evidence", "view_audit"] },
-  { label: "Print Manager", actions: ["manage_printing"] },
   { label: "Machine Manager", actions: ["manage_machines"] },
   { label: "Guest Admin", actions: ["view_inventory", "assign_box", "issue_request", "issue_direct_loan", "return_request", "upload_evidence"] },
 ];
