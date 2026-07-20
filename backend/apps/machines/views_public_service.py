@@ -72,6 +72,7 @@ class PublicMachineServiceSubmitView(APIView):
             title=data["title"],
             description=data.get("description", ""),
             source_link=data.get("source_link", ""),
+            capability_payload=data.get("capability_payload"),
         )
         return Response(
             PublicMachineServiceSubmitResponseSerializer(service_request).data,

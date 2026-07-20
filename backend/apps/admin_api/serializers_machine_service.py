@@ -73,6 +73,7 @@ class MachineServiceSubmitSerializer(serializers.Serializer):
     requester_name = serializers.CharField(required=False, allow_blank=True)
     contact_email = serializers.EmailField(required=False, allow_blank=True)
     contact_phone = serializers.CharField(required=False, allow_blank=True, max_length=32)
+    capability_payload = serializers.JSONField(required=False)
 
 
 class ServiceAcceptSerializer(serializers.Serializer):

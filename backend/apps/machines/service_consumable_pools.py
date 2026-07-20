@@ -3,6 +3,7 @@
 from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
+from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.exceptions import ValidationError
 
 from apps.audit import services as audit
@@ -13,6 +14,7 @@ from apps.machines.models import (
     MachineServiceRequest,
     MachineUsageEntry,
 )
+from apps.machines.printer_capabilities import is_printer_type, validate_pool
 
 
 def _grams(value, field):
@@ -27,6 +29,13 @@ def _grams(value, field):
 
 def _audit(actor, action, pool, *, target=None, **meta):
     audit.record(actor, action, makerspace=pool.makerspace, target=target or pool, meta=meta)
+
+
+def _validate_pool(machine, pool, payload=None):
+    try:
+        validate_pool(machine, pool, payload)
+    except DjangoValidationError as exc:
+        raise ValidationError(exc.message_dict if hasattr(exc, "message_dict") else exc.messages) from exc
 
 
 @transaction.atomic
@@ -44,6 +53,8 @@ def create_pool(makerspace, actor, *, material, initial_grams, machine=None, col
         brand=str(brand).strip(), lot_code=str(lot_code).strip(), initial_grams=initial,
         remaining_grams=initial, low_threshold_grams=threshold, created_by=actor,
     )
+    if machine is not None:
+        _validate_pool(machine, pool)
     _audit(actor, "machine_consumable_pool.created", pool, pool_id=pool.pk, initial_grams=str(initial))
     return pool
 
@@ -82,6 +93,7 @@ def reserve_for_request(service_request, actor, *, pool, planned_grams, machine)
         raise ValidationError({"consumable_pool": "Consumable pool is retired."})
     if locked.makerspace_id != request.makerspace_id or (locked.machine_id and locked.machine_id != machine.pk):
         raise ValidationError({"consumable_pool": "Consumable pool is incompatible with this machine service request."})
+    _validate_pool(machine, locked, request.capability_payload if is_printer_type(machine.machine_type) else None)
     if request.reserved_grams:
         raise ValidationError({"planned_grams": "Consumable grams are already reserved."})
     _apply(locked, actor, kind=MachineConsumableAdjustment.Kind.RESERVE, delta=-planned, service_request=request)
@@ -164,6 +176,7 @@ def log_typed_manual_usage(machine, actor, *, duration_minutes, outcome, percent
         pool = _locked_pool(pool)
         if pool.makerspace_id != machine.makerspace_id or (pool.machine_id and pool.machine_id != machine.pk):
             raise ValidationError({"consumable_pool": "Consumable pool is incompatible with this machine."})
+        _validate_pool(machine, pool)
     if service_request is not None:
         service_request = MachineServiceRequest.objects.select_for_update().get(pk=service_request.pk)
         if service_request.makerspace_id != machine.makerspace_id:

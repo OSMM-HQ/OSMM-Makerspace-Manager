@@ -7,6 +7,7 @@ class PublicMachineServiceSubmitSerializer(serializers.Serializer):
     title = serializers.CharField(max_length=200, trim_whitespace=True)
     description = serializers.CharField(required=False, allow_blank=True)
     source_link = serializers.URLField(required=False, allow_blank=True, max_length=200)
+    capability_payload = serializers.JSONField(required=False)
 
 
 class PublicMachineServiceSubmitResponseSerializer(serializers.Serializer):

@@ -5,7 +5,8 @@ from decimal import Decimal, ROUND_HALF_UP
 from django.db.models import Count, DecimalField, ExpressionWrapper, F, FloatField, IntegerField, OuterRef, Q, Subquery, Sum, Value
 from django.db.models.functions import Coalesce
 
-from apps.machines.models import Machine, MachineServiceRequest, ServiceRequestConsumption
+from apps.machines.models import Machine, MachineServiceRequest, MachineUsageEntry, ServiceRequestConsumption
+from apps.machines.printer_capabilities import PRINTER_SLUG
 from apps.operations.report_registry import ReportResult
 from apps.operations.report_scope import scoped_ids
 
@@ -36,6 +37,57 @@ def build_machine_service_report(makerspace_id, *, limit=None, date_range=None):
         records = records[:limit]
     fields = (("makerspace_id",) if aggregate else ()) + FIELDS
     return ReportResult(fields, records)
+
+
+def build_printer_service_report(makerspace_id, *, limit=None, date_range=None):
+    """Type-pack projection for printer hours, filament and payment snapshots.
+
+    It is intentionally a report-registry builder seam, not a printer endpoint:
+    the generic service report remains unchanged for non-printer machines.
+    """
+    ids = scoped_ids(makerspace_id, "machine_service")
+    aggregate = makerspace_id is None
+    terminal = Q(status__in=COMPLETED) | Q(status=MachineServiceRequest.Status.FAILED)
+    requests = MachineServiceRequest.objects.filter(
+        makerspace_id__in=ids, assigned_machine__machine_type__slug=PRINTER_SLUG,
+    ).filter(terminal).order_by()
+    if date_range:
+        requests = requests.filter(_date_filter("completed_at", date_range) | _date_filter("failed_at", date_range))
+    values = ["assigned_machine_id", "assigned_machine__name", "run_machine_model"]
+    if aggregate:
+        values.insert(0, "makerspace_id")
+    rows = requests.values(*values).annotate(
+        completed_minutes=Coalesce(Sum("actual_minutes", filter=Q(status__in=COMPLETED)), Value(0)),
+        failed_minutes=Coalesce(Sum(ExpressionWrapper(F("actual_minutes") * F("fail_percent_complete") / Value(100.0), output_field=FloatField()), filter=Q(status=MachineServiceRequest.Status.FAILED)), Value(0.0)),
+        grams=Coalesce(Sum("actual_consumed_grams"), Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2))),
+        payment_due=Coalesce(Sum("payment_amount", filter=Q(payment_status="pending")), Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2))),
+        payment_paid=Coalesce(Sum("payment_amount", filter=Q(payment_status="paid")), Value(Decimal("0.00"), output_field=DecimalField(max_digits=12, decimal_places=2))),
+    )
+    manual = MachineUsageEntry.objects.filter(machine__makerspace_id__in=ids, machine__machine_type__slug=PRINTER_SLUG, source=MachineUsageEntry.Source.TYPED_MANUAL).order_by()
+    if date_range:
+        manual = manual.filter(_date_filter("created_at", date_range))
+    manual_values = ["machine_id"] + (["machine__makerspace_id"] if aggregate else [])
+    manual_hours = {
+        ((item["machine__makerspace_id"], item["machine_id"]) if aggregate else item["machine_id"]): item["hours"]
+        for item in manual.values(*manual_values).annotate(hours=Coalesce(Sum("hours"), Value(Decimal("0.00"), output_field=DecimalField(max_digits=10, decimal_places=2))))
+    }
+    records = []
+    for row in rows:
+        key = (row["makerspace_id"], row["assigned_machine_id"]) if aggregate else row["assigned_machine_id"]
+        record = {
+            "machine_id": row["assigned_machine_id"], "machine_name": row["assigned_machine__name"], "model": row["run_machine_model"],
+            "completed_hours": _hours(row["completed_minutes"]), "failed_partial_hours": _hours(row["failed_minutes"]),
+            "manual_hours": float(manual_hours.get(key, Decimal("0"))), "consumed_grams": _amount(row["grams"]),
+            "payment_due": _amount(row["payment_due"]), "payment_paid": _amount(row["payment_paid"]),
+        }
+        if aggregate:
+            record["makerspace_id"] = row["makerspace_id"]
+        records.append(record)
+    records.sort(key=lambda row: ((row.get("makerspace_id"),) if aggregate else ()) + (row["machine_name"], row["machine_id"]))
+    if limit is not None:
+        records = records[:limit]
+    fields = ("makerspace_id",) if aggregate else ()
+    return ReportResult(fields + ("machine_id", "machine_name", "model", "completed_hours", "failed_partial_hours", "manual_hours", "consumed_grams", "payment_due", "payment_paid"), records)
 
 
 def report_sections(result):

@@ -11,8 +11,11 @@ from apps.machines.models import (
     MachineOperator,
     MachineType,
     MachineUsageEntry,
+    MachineConsumablePool,
+    MachineConsumableAdjustment,
     MachineServiceRequest,
     ServiceBucket,
+    ServiceQueue,
     ServiceRequestConsumption,
     ServiceRequestFile,
 )
@@ -152,6 +155,27 @@ class ServiceBucketAdmin(_ReadOnlyMachineChildAdmin):
     list_display = ("id", "machine", "name", "is_active", "created_at")
     list_filter = ("is_active", "machine")
     search_fields = ("machine__name", "name")
+
+
+@admin.register(ServiceQueue)
+class ServiceQueueAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = ("id", "name", "makerspace", "machine_type", "is_active", "allocation_policy")
+    list_filter = ("is_active", "allocation_policy", "machine_type")
+    search_fields = ("name", "makerspace__name")
+
+
+@admin.register(MachineConsumablePool)
+class MachineConsumablePoolAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = ("id", "label", "makerspace", "machine", "remaining_grams", "is_active")
+    list_filter = ("is_active", "material")
+    search_fields = ("material", "color", "brand", "machine__name")
+
+
+@admin.register(MachineConsumableAdjustment)
+class MachineConsumableAdjustmentAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = ("id", "consumable_pool", "kind", "quantity_delta", "service_request", "created_at")
+    list_filter = ("kind",)
+    search_fields = ("consumable_pool__material", "service_request__title")
 
 
 @admin.register(MachineServiceRequest)

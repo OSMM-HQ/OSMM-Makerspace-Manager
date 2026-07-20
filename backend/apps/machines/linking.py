@@ -29,6 +29,7 @@ def link_printer(printer):
                 "makerspace_id": printer.makerspace_id,
                 "machine_type": machine_type,
                 "name": getattr(printer, "name", None) or f"Printer {printer.pk}",
+                "type_payload": {"model": getattr(printer, "model", "") or "Legacy printer"},
                 "status": _status_for(printer),
                 "is_active": True,
             },

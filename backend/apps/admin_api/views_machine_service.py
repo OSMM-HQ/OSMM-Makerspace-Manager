@@ -130,6 +130,7 @@ class MachineServiceRequestListCreateView(APIView):
             contact_phone=data.get("contact_phone") or requester.phone,
             title=data["title"], description=data.get("description", ""),
             source_link=data.get("source_link", ""),
+            capability_payload=data.get("capability_payload"),
         )
         return _response(row, status.HTTP_201_CREATED)
 

@@ -13,6 +13,7 @@ from apps.machines.models import (
     MachineType,
     MachineUsageEntry,
 )
+from apps.machines.printer_capabilities import validate_machine_payload
 from apps.warranty.models import Warranty
 from apps.warranty.status import STATUS_UNKNOWN, warranty_status
 
@@ -27,9 +28,10 @@ class MachineTypeSerializer(serializers.ModelSerializer):
             'icon',
             'is_builtin',
             'managing_action',
+            'capability_config',
             'makerspace',
         ]
-        read_only_fields = ['managing_action', 'makerspace']
+        read_only_fields = ['managing_action', 'makerspace', 'capability_config']
 
 
 class MachineTypeCreateSerializer(serializers.ModelSerializer):
@@ -165,6 +167,7 @@ class MachineSerializer(serializers.ModelSerializer):
             'status',
             'firmware_version',
             'camera_feed_url',
+            'type_payload',
             'image_url',
             'warranty_status',
             'is_public',
@@ -194,6 +197,23 @@ class MachineSerializer(serializers.ModelSerializer):
         if hasattr(obj, 'usage_total'):
             return obj.usage_total
         return services.machine_usage_total(obj)
+
+    def validate(self, attrs):
+        # The type cannot change after creation, so an update must be validated
+        # against the persisted type rather than a discarded request value.
+        machine_type = self.instance.machine_type if self.instance is not None else attrs.get("machine_type")
+        supplied = "type_payload" in self.initial_data
+        if self.instance is None and not supplied:
+            # Preserve the existing machine-create API while giving a newly
+            # created printer an explicit, honest model placeholder.
+            type_payload = {"model": "Unspecified"}
+            attrs["type_payload"] = type_payload
+        else:
+            type_payload = attrs.get("type_payload", getattr(self.instance, "type_payload", {}))
+        if self.instance is not None and not supplied and not type_payload:
+            return attrs
+        validate_machine_payload(machine_type, type_payload)
+        return attrs
 
     def get_image_url(self, obj) -> str | None:
         return public_image_storage.public_url(obj.image_key) or None

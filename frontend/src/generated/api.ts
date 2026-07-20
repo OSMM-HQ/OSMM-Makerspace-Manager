@@ -1665,6 +1665,7 @@ export type Machine = {
   "status": MachineStatusEnum;
   "firmware_version"?: string;
   "camera_feed_url"?: string;
+  "type_payload"?: unknown;
   "image_url": string | null;
   "warranty_status": string;
   "is_public": boolean;
@@ -1823,6 +1824,7 @@ export type MachineServiceSubmit = {
   "requester_name"?: string;
   "contact_email"?: string;
   "contact_phone"?: string;
+  "capability_payload"?: unknown;
 };
 
 export type MachineStatusEnum = "idle" | "running" | "reserved" | "maintenance" | "offline";
@@ -1834,6 +1836,7 @@ export type MachineType = {
   "icon"?: string;
   "is_builtin"?: boolean;
   "managing_action": string;
+  "capability_config": unknown;
   "makerspace": number | null;
 };
 
@@ -2836,6 +2839,7 @@ export type PatchedMachine = {
   "status"?: MachineStatusEnum;
   "firmware_version"?: string;
   "camera_feed_url"?: string;
+  "type_payload"?: unknown;
   "image_url"?: string | null;
   "warranty_status"?: string;
   "is_public"?: boolean;
@@ -3457,6 +3461,7 @@ export type PublicMachineServiceSubmit = {
   "title": string;
   "description"?: string;
   "source_link"?: string;
+  "capability_payload"?: unknown;
 };
 
 export type PublicMachineServiceSubmitResponse = {

@@ -11,6 +11,7 @@ from apps.machines.models import Machine, MachineServiceRequest, ServiceBucket, 
 from apps.machines.service_consumption import debit_consumptions
 from apps.machines.service_emails import notify_service_status
 from apps.machines.service_errors import ServiceConsumptionInvalid, ServiceInvalidTransition, ServiceMachineUnavailable
+from apps.machines.printer_capabilities import is_printer_type, validate_service_payload
 
 
 _ALLOWED = {
@@ -123,6 +124,7 @@ def start(service_request, actor, *, machine_id=None, estimated_minutes=None, co
                 raise ServiceMachineUnavailable("Service queue capacity has been reached.")
         if estimated_minutes is not None:
             locked.estimated_minutes = _minutes(estimated_minutes, "estimated_minutes")
+        _require_printer_start_inputs(locked, machine, consumable_pool_id, planned_grams)
         if consumable_pool_id is not None or planned_grams is not None:
             if consumable_pool_id is None or planned_grams is None:
                 raise ServiceConsumptionInvalid("A consumable pool and planned grams must be supplied together.")
@@ -132,7 +134,7 @@ def start(service_request, actor, *, machine_id=None, estimated_minutes=None, co
             locked.refresh_from_db()
         locked.assigned_machine, locked.status, locked.handled_by, locked.started_at = machine, MachineServiceRequest.Status.IN_PROGRESS, actor, timezone.now()
         locked.run_machine_name = machine.name
-        locked.run_machine_model = str((machine.machine_type.capability_config or {}).get("model", ""))
+        locked.run_machine_model = str((machine.type_payload or {}).get("model", ""))
         locked.run_estimated_minutes = locked.estimated_minutes
         locked.run_planned_grams = locked.planned_grams
         if locked.run_consumable_pool_id:
@@ -160,6 +162,7 @@ def complete(service_request, actor, *, actual_minutes, consumptions, actual_gra
             from apps.machines.service_consumable_pools import reconcile_request
             reconcile_request(locked, actor, actual_grams=locked.planned_grams if actual_grams is None else actual_grams)
             locked.refresh_from_db()
+            locked.actual_minutes = _minutes(actual_minutes, "actual_minutes")
         locked.status, locked.handled_by, locked.completed_at = MachineServiceRequest.Status.COMPLETED, actor, timezone.now()
         locked.save(update_fields=["status", "handled_by", "actual_minutes", "completed_at", "updated_at"])
         _release_queue_machine(locked)
@@ -184,6 +187,10 @@ def fail(service_request, actor, *, reason, percent_complete, actual_minutes, co
             expected = locked.planned_grams * locked.fail_percent_complete / 100
             reconcile_request(locked, actor, actual_grams=expected if actual_grams is None else actual_grams, reason=locked.reason)
             locked.refresh_from_db()
+            locked.actual_minutes = _minutes(actual_minutes, "actual_minutes")
+            locked.fail_percent_complete = _percent(percent_complete)
+            locked.reason = str(reason).strip()
+            locked.failed_at = timezone.now()
         locked.status, locked.handled_by = MachineServiceRequest.Status.FAILED, actor
         locked.save(update_fields=["status", "handled_by", "actual_minutes", "fail_percent_complete", "reason", "failed_at", "updated_at"])
         _release_queue_machine(locked)
@@ -325,18 +332,20 @@ def _decimal(value, field):
 
 
 def _validate_capability_payload(machine_type, payload):
-    if not isinstance(payload, dict):
-        raise ServiceConsumptionInvalid("capability_payload must be an object.")
-    config = machine_type.capability_config or {}
-    if config.get("service_payload_schema") != "printer-v1":
-        if payload:
-            raise ServiceConsumptionInvalid("This machine type does not accept a capability payload.")
+    try:
+        validate_service_payload(machine_type, payload)
+    except ValidationError as exc:
+        raise ServiceConsumptionInvalid(exc.message_dict if hasattr(exc, "message_dict") else exc.messages[0]) from exc
+
+
+def _require_printer_start_inputs(service_request, machine, consumable_pool_id, planned_grams):
+    """A printer run must snapshot a real plan and compatible material at start."""
+    if not is_printer_type(machine.machine_type):
         return
-    allowed = {"requested_material", "requested_color", "quantity", "preferred_settings", "estimated_grams", "project_brief", "requested_consumable_pool"}
-    if set(payload) - allowed:
-        raise ServiceConsumptionInvalid("capability_payload contains unsupported printer fields.")
-    if "quantity" in payload and (isinstance(payload["quantity"], bool) or not isinstance(payload["quantity"], int) or payload["quantity"] <= 0):
-        raise ServiceConsumptionInvalid("Printer quantity must be a positive whole number.")
+    if service_request.estimated_minutes <= 0:
+        raise ServiceConsumptionInvalid("Printer service requires positive estimated_minutes before starting.")
+    if consumable_pool_id is None or planned_grams is None:
+        raise ServiceConsumptionInvalid("Printer service requires a consumable pool and planned grams before starting.")
 
 
 def _audit_transition(actor, service_request, event, extra=None):

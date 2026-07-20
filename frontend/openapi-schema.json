@@ -317,6 +317,7 @@
                                 "maintenance-activity",
                                 "member-activity",
                                 "most-lent",
+                                "printer-service",
                                 "qr-scans",
                                 "recently-added",
                                 "returns",
@@ -10928,6 +10929,7 @@
                                 "maintenance-activity",
                                 "member-activity",
                                 "most-lent",
+                                "printer-service",
                                 "qr-scans",
                                 "recently-added",
                                 "returns",
@@ -15555,6 +15557,7 @@
                                 "maintenance-activity",
                                 "member-activity",
                                 "most-lent",
+                                "printer-service",
                                 "qr-scans",
                                 "recently-added",
                                 "returns",
@@ -30612,6 +30615,7 @@
                         "format": "uri",
                         "maxLength": 200
                     },
+                    "type_payload": {},
                     "image_url": {
                         "type": "string",
                         "nullable": true,
@@ -31359,7 +31363,8 @@
                     "contact_phone": {
                         "type": "string",
                         "maxLength": 32
-                    }
+                    },
+                    "capability_payload": {}
                 },
                 "required": [
                     "machine_id",
@@ -31405,6 +31410,9 @@
                         "type": "string",
                         "readOnly": true
                     },
+                    "capability_config": {
+                        "readOnly": true
+                    },
                     "makerspace": {
                         "type": "integer",
                         "readOnly": true,
@@ -31412,6 +31420,7 @@
                     }
                 },
                 "required": [
+                    "capability_config",
                     "id",
                     "makerspace",
                     "managing_action",
@@ -35522,6 +35531,7 @@
                         "format": "uri",
                         "maxLength": 200
                     },
+                    "type_payload": {},
                     "image_url": {
                         "type": "string",
                         "nullable": true,
@@ -37940,7 +37950,8 @@
                         "type": "string",
                         "format": "uri",
                         "maxLength": 200
-                    }
+                    },
+                    "capability_payload": {}
                 },
                 "required": [
                     "machine_id",

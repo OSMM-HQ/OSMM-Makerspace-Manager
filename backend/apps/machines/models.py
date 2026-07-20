@@ -5,6 +5,7 @@ from apps.machines.service_file_policies import (
     default_service_file_policy,
     validate_service_file_policy,
 )
+from apps.machines.printer_capabilities import validate_machine_payload, validate_printer_config
 
 # Service-request models are kept separate so the long-lived machine catalog stays
 # compact; importing here preserves the app's established public model surface.
@@ -67,6 +68,10 @@ class MachineType(models.Model):
     def __str__(self):
         return self.name
 
+    def clean(self):
+        super().clean()
+        validate_printer_config(self, self.capability_config)
+
 
 class Machine(models.Model):
     class Status(models.TextChoices):
@@ -101,6 +106,9 @@ class Machine(models.Model):
         default=default_service_file_policy,
         validators=[validate_service_file_policy],
     )
+    # Per-machine details interpreted only by the validated type pack.  Printer
+    # model identity belongs here, not in the shared firmware field.
+    type_payload = models.JSONField(default=dict, blank=True)
     # Set only by the linking service; read-only over REST/admin.
     linked_print_printer = models.OneToOneField(
         "printing.PrintPrinter",
@@ -124,6 +132,10 @@ class Machine(models.Model):
 
     def __str__(self):
         return self.name
+
+    def clean(self):
+        super().clean()
+        validate_machine_payload(self.machine_type, self.type_payload)
 
 
 class MachineOperator(models.Model):
