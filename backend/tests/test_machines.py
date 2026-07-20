@@ -922,37 +922,12 @@ def test_machine_error_logs_create_list_and_validate_severity():
     assert response_rows(listed)[0]["message"] == "Emergency stop triggered"
     assert invalid.status_code == 400
 
-def test_print_printer_auto_links_machine_and_retirement_keeps_printer(
-    django_capture_on_commit_callbacks,
-):
-    makerspace = enable_machines(make_space("machines-printer-link"))
-    print_manager = make_member(
-        "machines-printer-link-manager",
-        makerspace,
-        membership_role=MakerspaceMembership.Role.PRINT_MANAGER,
-    )
-
-    with django_capture_on_commit_callbacks(execute=True):
-        printer = PrintPrinter.objects.create(
-            makerspace=makerspace,
-            name="Linked Printer",
-            model="Ender 3",
-        )
-
-    machine = Machine.objects.get(linked_print_printer=printer)
-    assert machine.machine_type == global_machine_type()
-    assert machine.makerspace == makerspace
-    assert access.can_see_machines(print_manager, makerspace.id) is True
-
-    retired = authenticated_client(print_manager).post(
-        reverse("admin-machine-retire", kwargs={"pk": machine.id}),
-        {},
-        format="json",
-    )
-
-    assert retired.status_code == 200
-    assert PrintPrinter.objects.filter(pk=printer.pk).exists()
-
+def test_machine_has_no_legacy_printer_bridge():
+    assert not hasattr(Machine, "linked_print_printer")
+    with pytest.raises(ModuleNotFoundError):
+        __import__("apps.machines.signals")
+    with pytest.raises(ModuleNotFoundError):
+        __import__("apps.machines.linking")
 
 def test_machines_module_gate_returns_400_when_disabled():
     makerspace = enable_machines(make_space("machines-module-gate"))

@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.db import transaction
 
 from apps.audit import services as audit
+from apps.machines.models import MachineConsumablePool
 from apps.printing.models import FilamentSpool
 from apps.procurement.models import ToBuyItem
 
@@ -42,19 +43,29 @@ def maybe_flag_low_stock(actor, spool):
             remaining = locked_spool.remaining_weight_grams
             if remaining > threshold:
                 return None
-            if ToBuyItem.objects.filter(
-                source_spool=locked_spool,
+            source_pool = MachineConsumablePool.objects.filter(
+                legacy_filament_spool_id=locked_spool.pk,
+                makerspace=locked_spool.makerspace,
+            ).first()
+            name = f"Filament restock: {locked_spool.material} {locked_spool.color}".strip()
+            open_items = ToBuyItem.objects.filter(
+                makerspace=locked_spool.makerspace,
                 kind=ToBuyItem.Kind.PRINTING,
                 status__in=OPEN_STATUSES,
-            ).exists():
+            )
+            if source_pool:
+                open_items = open_items.filter(source_pool=source_pool)
+            else:
+                open_items = open_items.filter(name=name)
+            if open_items.exists():
                 return None
             created_by = actor if getattr(actor, "is_authenticated", False) else None
             item = ToBuyItem.objects.create(
                 makerspace=locked_spool.makerspace,
                 kind=ToBuyItem.Kind.PRINTING,
-                name=f"Filament restock: {locked_spool.material} {locked_spool.color}".strip(),
+                name=name,
                 quantity=1,
-                source_spool=locked_spool,
+                source_pool=source_pool,
                 created_by=created_by,
                 status=ToBuyItem.Status.REQUESTED,
             )

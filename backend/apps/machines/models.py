@@ -112,16 +112,7 @@ class Machine(models.Model):
     # Per-machine details interpreted only by the validated type pack.  Printer
     # model identity belongs here, not in the shared firmware field.
     type_payload = models.JSONField(default=dict, blank=True)
-    # Set only by the linking service; read-only over REST/admin.
-    linked_print_printer = models.OneToOneField(
-        "printing.PrintPrinter",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="machine",
-    )
-    # B4 provenance.  The bridge remains authoritative only until the printing
-    # cutover has reconciled this immutable source identity.
+    # B4 provenance for the legacy printing row imported into this machine.
     legacy_print_printer_id = models.PositiveIntegerField(
         null=True, blank=True, unique=True, editable=False
     )

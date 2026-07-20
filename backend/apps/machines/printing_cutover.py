@@ -63,17 +63,12 @@ def _printer(legacy, printer_type):
     machine = Machine.objects.filter(legacy_print_printer_id=legacy.pk).first()
     if machine:
         return machine
-    machine = Machine.objects.filter(linked_print_printer_id=legacy.pk).first()
-    if machine and (machine.makerspace_id != legacy.makerspace_id or machine.machine_type_id != printer_type.id):
-        _repair(legacy.makerspace, "invalid_source", "printing.PrintPrinter", legacy.pk, reason="linked machine does not match makerspace/type")
-        raise CutoverMismatch("Printer bridge mismatch")
-    if machine is None:
-        status = {"maintenance": Machine.Status.MAINTENANCE, "offline": Machine.Status.OFFLINE}.get(legacy.status, Machine.Status.IDLE)
-        machine = Machine.objects.create(
-            makerspace=legacy.makerspace, machine_type=printer_type, name=legacy.name,
-            notes=legacy.notes, image_key=legacy.image_key, is_active=legacy.is_active,
-            status=status, type_payload={"model": legacy.model or "Legacy printer"},
-        )
+    status = {"maintenance": Machine.Status.MAINTENANCE, "offline": Machine.Status.OFFLINE}.get(legacy.status, Machine.Status.IDLE)
+    machine = Machine.objects.create(
+        makerspace=legacy.makerspace, machine_type=printer_type, name=legacy.name,
+        notes=legacy.notes, image_key=legacy.image_key, is_active=legacy.is_active,
+        status=status, type_payload={"model": legacy.model or "Legacy printer"},
+    )
     machine.legacy_print_printer_id = legacy.pk
     machine.save(update_fields=["legacy_print_printer_id"])
     _timestamp(Machine, machine.pk, legacy.created_at, legacy.updated_at)
@@ -174,15 +169,8 @@ def backfill(makerspace, *, actor=None):
         raise
 
 def _backfill_warranties(makerspace, machines):
-    from apps.warranty.models import Warranty
-    for warranty in Warranty.objects.filter(makerspace=makerspace, printer__isnull=False):
-        machine = machines.get(warranty.printer_id)
-        if machine is None:
-            _repair(makerspace, "warranty", "warranty.Warranty", warranty.pk, printer_id=warranty.printer_id)
-            raise CutoverMismatch("Warranty printer has no kernel machine")
-        # One SQL update changes both XOR hosts together; no transient invalid
-        # warranty row is exposed and the legacy host remains untouched.
-        Warranty.objects.filter(pk=warranty.pk).update(printer=None, machine=machine)
+    """Warranties are machine-hosted before B7b removes the printer FK."""
+    return None
 
 
 def _backfill_reprints(makerspace, requests):

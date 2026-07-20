@@ -7,6 +7,7 @@ from apps.audit.models import AuditLog
 from apps.printing import services_manual_logs
 from apps.printing.models import FilamentSpool, PrintPrinter
 from apps.printing.spool_reservations import reserve_filament
+from apps.machines.models import MachineConsumablePool
 from apps.procurement.models import ToBuyItem
 from tests.test_printing import (
     make_bucket,
@@ -19,7 +20,7 @@ from tests.test_printing import (
 pytestmark = pytest.mark.django_db
 
 
-def _setup(slug, *, threshold="0.00", remaining="1000.00"):
+def _setup(slug, *, threshold="0.00", remaining="1000.00", mapped_pool=True):
     makerspace = make_space(slug)
     makerspace.filament_low_stock_threshold_grams = Decimal(threshold)
     makerspace.save(update_fields=["filament_low_stock_threshold_grams"])
@@ -36,6 +37,16 @@ def _setup(slug, *, threshold="0.00", remaining="1000.00"):
         initial_weight_grams=Decimal("1000.00"),
         remaining_weight_grams=Decimal(remaining),
     )
+    if mapped_pool:
+        MachineConsumablePool.objects.create(
+            makerspace=makerspace,
+            material="PLA",
+            color="black",
+            brand="Generic",
+            initial_grams=Decimal("1000.00"),
+            remaining_grams=Decimal(remaining),
+            legacy_filament_spool_id=spool.id,
+        )
     return makerspace, bucket, requester, manager, printer, spool
 
 
@@ -49,7 +60,8 @@ def _reserve(bucket, requester, manager, spool, grams):
 
 
 def _low_stock_items(spool):
-    return ToBuyItem.objects.filter(source_spool=spool).order_by("id")
+    pool = MachineConsumablePool.objects.get(legacy_filament_spool_id=spool.id)
+    return ToBuyItem.objects.filter(source_pool=pool).order_by("id")
 
 
 def test_threshold_zero_leaves_low_stock_automation_off():
@@ -77,7 +89,7 @@ def test_drop_to_threshold_creates_one_printing_to_buy_item_for_spool():
     assert item.makerspace == makerspace
     assert item.kind == ToBuyItem.Kind.PRINTING
     assert item.status == ToBuyItem.Status.REQUESTED
-    assert item.source_spool == spool
+    assert item.source_pool.legacy_filament_spool_id == spool.id
     assert item.created_by == manager
     assert item.name == "Filament restock: PLA black"
     audit = AuditLog.objects.get(action="procurement.low_stock_flagged")
@@ -98,6 +110,28 @@ def test_second_deduction_while_item_open_does_not_duplicate():
     _reserve(bucket, requester, manager, spool, "25.00")
 
     assert _low_stock_items(spool).count() == 1
+
+
+def test_unmapped_legacy_spool_deduplicates_open_item_by_name():
+    makerspace, bucket, requester, manager, _, spool = _setup(
+        "low-stock-legacy-dedupe",
+        threshold="200.00",
+        mapped_pool=False,
+    )
+
+    _reserve(bucket, requester, manager, spool, "850.00")
+    _reserve(bucket, requester, manager, spool, "25.00")
+
+    assert ToBuyItem.objects.filter(
+        makerspace=makerspace,
+        kind=ToBuyItem.Kind.PRINTING,
+        name="Filament restock: PLA black",
+        status__in=(
+            ToBuyItem.Status.REQUESTED,
+            ToBuyItem.Status.APPROVED,
+            ToBuyItem.Status.ORDERED,
+        ),
+    ).count() == 1
 
 
 @pytest.mark.parametrize("closed_status", [ToBuyItem.Status.RECEIVED, ToBuyItem.Status.CANCELLED])
@@ -158,4 +192,4 @@ def test_auto_item_uses_spool_tenant_even_with_actor_from_other_space():
     item = ToBuyItem.objects.get()
     assert item.makerspace == makerspace
     assert item.kind == ToBuyItem.Kind.PRINTING
-    assert item.source_spool == spool
+    assert item.source_pool.legacy_filament_spool_id == spool.id

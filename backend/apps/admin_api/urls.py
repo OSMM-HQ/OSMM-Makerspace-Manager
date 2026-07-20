@@ -112,7 +112,6 @@ from apps.admin_api.views_warranty import (
     AssetWarrantyView,
     MachineWarrantyView,
     MakerspaceWarrantyReportView,
-    PrinterWarrantyView,
 )
 from apps.admin_api.views_warranty_documents import (
     WarrantyDocumentCreateView,
@@ -586,11 +585,6 @@ urlpatterns = [
         "printing/printers/<int:pk>/image",
         PrinterImageView.as_view(),
         name="admin-printer-image",
-    ),
-    path(
-        "printing/printers/<int:pk>/warranty",
-        PrinterWarrantyView.as_view(),
-        name="admin-printer-warranty",
     ),
     path(
         "warranty/<int:pk>/documents/presign",

@@ -23,7 +23,6 @@ from apps.makerspaces.models import Makerspace
 from apps.makerspaces.platform import module_enabled
 from apps.machines import access as machine_access
 from apps.machines.models import Machine
-from apps.printing.models import PrintPrinter
 from apps.warranty.models import Warranty
 from apps.warranty.status import (
     STATUS_ACTIVE,
@@ -80,9 +79,8 @@ class MakerspaceWarrantyReportView(APIView):
         today = timezone.localdate()
 
         asset_qs = _asset_hosts(request.user, makerspace, today, filters)
-        printer_qs = _printer_hosts(request.user, makerspace, today, filters)
         machine_qs = _machine_hosts(request.user, makerspace, today, filters)
-        host_querysets = (asset_qs, printer_qs, machine_qs)
+        host_querysets = (asset_qs, machine_qs)
         host_counts = tuple(qs.count() for qs in host_querysets)
         total_count = sum(host_counts)
 
@@ -119,21 +117,6 @@ def _asset_hosts(user, makerspace, today, filters):
     qs = _apply_host_filters(qs, today, filters)
     return qs.order_by(Lower("asset_tag"), "asset_tag", "id")
 
-
-def _printer_hosts(user, makerspace, today, filters):
-    makerspace_id = makerspace.id
-    if not (
-        rbac.can(user, rbac.Action.MANAGE_PRINTING, makerspace_id)
-        and module_enabled(makerspace, "printing")
-    ):
-        return PrintPrinter.objects.none()
-    qs = rbac.scope_by_action(
-        user,
-        rbac.Action.MANAGE_PRINTING,
-        PrintPrinter.objects.select_related("warranty"),
-    ).filter(makerspace_id=makerspace_id)
-    qs = _apply_host_filters(qs, today, filters)
-    return qs.order_by(Lower("name"), "name", Lower("model"), "model", "id")
 
 
 def _machine_hosts(user, makerspace, today, filters):
@@ -200,7 +183,7 @@ def _page_link(request, page_number, enabled):
 def _page_rows(host_querysets, host_counts, offset, page_size, today):
     rows = []
     remaining = page_size
-    row_builders = (_asset_row, _printer_row, _machine_row)
+    row_builders = (_asset_row, _machine_row)
     for queryset, count, row_builder in zip(
         host_querysets, host_counts, row_builders, strict=True
     ):
@@ -227,15 +210,6 @@ def _asset_row(asset, today):
         "serial_number": asset.serial_number or None,
     }
 
-
-def _printer_row(printer, today):
-    label = f"{printer.name} ({printer.model})" if printer.model else printer.name
-    return _base_row(_host_warranty(printer), printer.document_count, today) | {
-        "host_kind": "printer",
-        "host_id": printer.id,
-        "host_label": label,
-        "serial_number": None,
-    }
 
 
 def _machine_row(machine, today):

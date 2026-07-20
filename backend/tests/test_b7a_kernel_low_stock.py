@@ -55,7 +55,11 @@ def test_kernel_low_stock_creates_one_open_item_and_ignores_disabled_thresholds(
         assert not AuditLog.objects.filter(makerspace=disabled_space, action="procurement.low_stock_flagged").exists()
 
 
-def test_kernel_low_stock_deduplicates_two_pools_with_the_same_material_and_color():
+def test_kernel_low_stock_flags_each_pool_with_its_own_provenance():
+    # B7b keys the "at most one open restock item" contract per source pool (via the
+    # source_pool FK), mirroring the legacy per-spool behavior with proper provenance:
+    # two distinct low pools of the same material/color each get their own restock item,
+    # while repeated debits of the SAME pool do not create a second item for it.
     makerspace = make_space("b7a-low-stock-same-name")
     flip_authority(makerspace)
     actor = make_user("b7a-low-stock-same-name-actor")
@@ -68,9 +72,11 @@ def test_kernel_low_stock_deduplicates_two_pools_with_the_same_material_and_colo
 
     correct_pool(first_pool, actor, quantity_delta="-50", reason="Calibration usage")
     correct_pool(second_pool, actor, quantity_delta="-50", reason="Calibration usage")
+    correct_pool(first_pool, actor, quantity_delta="-1", reason="More usage")  # no second item for first_pool
 
     items = ToBuyItem.objects.filter(
         makerspace=makerspace, kind=ToBuyItem.Kind.PRINTING, name="Filament restock: PLA Blue",
         status__in=(ToBuyItem.Status.REQUESTED, ToBuyItem.Status.APPROVED, ToBuyItem.Status.ORDERED),
     )
-    assert items.count() == 1
+    assert items.count() == 2
+    assert set(items.values_list("source_pool_id", flat=True)) == {first_pool.id, second_pool.id}

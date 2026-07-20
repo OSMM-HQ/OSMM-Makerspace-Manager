@@ -47,13 +47,12 @@ class MachineAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     )
     list_filter = ('status', 'is_public', 'is_active', 'makerspace', 'machine_type')
     search_fields = ("name", "location", "makerspace__name")
-    raw_id_fields = ("makerspace", "machine_type", "linked_print_printer", "created_by")
+    raw_id_fields = ("makerspace", "machine_type", "created_by")
     # status/is_active/link are service-owned — never raw-edited in the admin.
     readonly_fields = (
         "status",
         'is_public',
         "is_active",
-        "linked_print_printer",
         "image_key",
         "created_by",
         "created_at",
