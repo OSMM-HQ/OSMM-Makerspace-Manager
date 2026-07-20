@@ -30,6 +30,7 @@ export type Machine = {
   is_public: boolean;
   is_active: boolean;
   linked_print_printer: number | null;
+  type_payload?: { model?: string };
   usage_hours: string;
   can_operate: boolean;
   can_edit: boolean;
@@ -127,8 +128,9 @@ export type MachinePayload = {
   firmware_version: string;
   camera_feed_url: string;
   machine_type_id: number;
+  type_payload?: { model?: string };
 };
-export type MachinePatch = Partial<MachinePayload>;
+export type MachinePatch = Partial<MachinePayload> & { status?: MachineStatus };
 
 export function getMachines(makerspaceId: number) {
   return staffRequest<MachineListResponse<Machine>>(`/admin/makerspace/${makerspaceId}/machines`);

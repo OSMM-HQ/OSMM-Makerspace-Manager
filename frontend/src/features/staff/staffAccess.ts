@@ -1,5 +1,5 @@
 const ALL_TABS = [
-  "dashboard", "notifications", "requests", "direct", "inventory", "needsfix", "categories", "printing", "machines", "events", "bookings", "members", "tobuy", "transfers",
+  "dashboard", "notifications", "requests", "direct", "inventory", "needsfix", "categories", "machines", "events", "bookings", "members", "tobuy", "transfers",
   "stocktake", "containers", "ledger", "reports", "accountability", "warranty", "bulk", "qr", "scanner", "api", "settings", "emailtemplates", "users", "platform", "audit",
   "email-logs",
 ] as const;
@@ -21,7 +21,6 @@ export const TAB_LABELS: Record<string, string> = {
   bulk: "Bulk import",
   qr: "QR Tools",
   scanner: "Scanner",
-  printing: "3D Printing",
   machines: "Machines",
   events: "Events",
   bookings: "Bookings",
@@ -42,7 +41,6 @@ export const TAB_LABELS: Record<string, string> = {
 export const TAB_GROUPS: { label: string; tabs: string[] }[] = [
   { label: "Operate", tabs: ["dashboard", "notifications", "requests", "direct", "ledger", "transfers", "stocktake", "tobuy"] },
   { label: "Inventory", tabs: ["inventory", "categories", "needsfix", "containers", "bulk", "qr", "scanner"] },
-  { label: "3D Printing", tabs: ["printing"] },
   { label: "Machines", tabs: ["machines"] },
   { label: "Events", tabs: ["events"] },
   { label: "Bookings", tabs: ["bookings"] },
@@ -96,8 +94,7 @@ export function getStaffAccess(actions: readonly string[], isSuperadmin: boolean
     if (tabName === "emailtemplates") return canEditInventory || canSeePrinting;
     if (tabName === "email-logs") return canManageMakerspace;
     if (tabName === "platform") return isSuperadmin && !singleTenantLocked;
-    if (tabName === "printing") return canSeePrinting;
-    if (tabName === "machines") return enabledModules.includes("machines") && (canManageMachines || canSeePrinting);
+    if (tabName === "machines") return enabledModules.includes("machines") && canManageMachines;
     if (tabName === "events") return enabledModules.includes("events") && canManageEvents;
     if (tabName === "bookings") return enabledModules.includes("bookings") && canManageBookings;
     if (tabName === "members") return canManageMakerspace;

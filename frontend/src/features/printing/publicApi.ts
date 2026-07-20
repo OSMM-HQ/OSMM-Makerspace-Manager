@@ -1,123 +1,42 @@
+import type { PublicPrinterPool, PublicPrinterQueue, PublicPrinterStatus, PublicPrinterSubmit, PublicPrinterUpload } from "../../generated/api";
 import { publicV1Request, tenantPublicRequest } from "../../lib/api";
 
-export type PrintBucket = {
-  id: number;
-  name: string;
-  description: string;
-};
+export type PrintQueue = PublicPrinterQueue;
+export type PublicFilamentPool = PublicPrinterPool;
+export type PrintStatus = PublicPrinterStatus;
+export type PrintUploadBody = PublicPrinterUpload;
+export type PrintUpload = { url: string; fields: Record<string, string>; method?: string; headers?: Record<string, string> };
+export type PrintRequestPayload = PublicPrinterSubmit;
 
-export type PublicFilamentSpool = {
-  id: number;
-  material: string;
-  color: string;
-};
-
-export type PrintStatus = {
-  public_token: string;
-  status: string;
-  title: string;
-  created_at: string;
-  accepted_at: string | null;
-  started_at: string | null;
-  completed_at: string | null;
-  estimated_minutes: number;
-  queue_position: number | null;
-  queue_approved_ahead: number | null;
-  queue_awaiting_review_ahead: number | null;
-};
-
-export type PrintUploadBody = {
-  kind: "stl" | "screenshot";
-  filename: string;
-  content_type: string;
-};
-
-export type PrintUpload = {
-  url: string;
-  fields: Record<string, string>;
-  method?: string;
-  headers?: Record<string, string>;
-};
-
-export type PrintRequestPayload = {
-  website?: string;
-  bucket_id?: number;
-  title: string;
-  description?: string;
-  project_brief?: string;
-  preferred_settings?: string;
-  material?: string;
-  color?: string;
-  filament_spool_id?: number | null;
-  estimated_filament_grams?: number | null;
-  quantity: number;
-  source_link?: string;
-  file_ids: number[];
-};
-
-export function fetchPrintBuckets(slug: string) {
-  return tenantPublicRequest<PrintBucket[]>(
-    slug,
-    `/printing/public/${slug}/buckets`,
-  );
+export function fetchPrintQueues(slug: string) {
+  return tenantPublicRequest<PrintQueue[]>(slug, `/public/${slug}/machine-service/3d-printer/queues`);
 }
 
-export function fetchPublicSpools(slug: string) {
-  return tenantPublicRequest<PublicFilamentSpool[]>(
-    slug,
-    `/printing/public/${slug}/spools`,
-  );
+export function fetchPublicConsumablePools(slug: string) {
+  return tenantPublicRequest<PublicFilamentPool[]>(slug, `/public/${slug}/machine-service/3d-printer/consumable-pools`);
 }
 
 export function presignPrintUpload(slug: string, body: PrintUploadBody) {
-  return tenantPublicRequest<{ file_id: number; upload: PrintUpload }>(
-    slug,
-    `/printing/public/${slug}/uploads`,
-    { method: "POST", body: JSON.stringify(body) },
-  );
+  return tenantPublicRequest<{ file_id: number; upload: PrintUpload }>(slug, `/public/${slug}/machine-service/3d-printer/uploads`, { method: "POST", body: JSON.stringify(body) });
 }
 
 export async function uploadToStorage(upload: PrintUpload, file: File) {
   if (upload.method === "PUT") {
-    const res = await fetch(upload.url, {
-      method: "PUT",
-      body: file,
-      headers: upload.headers,
-    });
+    const res = await fetch(upload.url, { method: "PUT", body: file, headers: upload.headers });
     if (!res.ok) throw new Error(`Upload failed (${res.status})`);
     return;
   }
-
   const formData = new FormData();
-  for (const [key, value] of Object.entries(upload.fields)) {
-    formData.append(key, value);
-  }
+  for (const [key, value] of Object.entries(upload.fields)) formData.append(key, value);
   formData.append("file", file);
-
   const res = await fetch(upload.url, { method: "POST", body: formData });
-  if (!res.ok) {
-    throw new Error(`Upload failed (${res.status})`);
-  }
+  if (!res.ok) throw new Error(`Upload failed (${res.status})`);
 }
 
 export function submitPrintRequest(slug: string, payload: PrintRequestPayload) {
-  return tenantPublicRequest<{ public_token: string; status: string }>(
-    slug,
-    `/printing/public/${slug}/requests`,
-    { method: "POST", body: JSON.stringify(payload) },
-  );
+  return tenantPublicRequest<{ public_token: string; status: string }>(slug, `/public/${slug}/machine-service/3d-printer/requests`, { method: "POST", body: JSON.stringify(payload) });
 }
 
 export function fetchPrintStatus(publicToken: string) {
-  return publicV1Request<PrintStatus>(
-    `/printing/public/requests/${publicToken}/status`,
-  );
-}
-
-export function fetchPrintStatusByEmail(slug: string, email: string) {
-  return tenantPublicRequest<{ results: PrintStatus[] }>(
-    slug,
-    `/printing/public/${slug}/status-by-email`,
-    { method: "POST", body: JSON.stringify({ email }) },
-  );
+  return publicV1Request<PrintStatus>(`/public/machine-service/3d-printer/requests/${publicToken}/status`);
 }

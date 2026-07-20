@@ -62,7 +62,7 @@ type WarrantyPresignResponse = {
 
 export function warrantyHostPath(hostKind: WarrantyHostKind, hostId: number) {
   if (hostKind === "asset") return `/admin/assets/${hostId}/warranty`;
-  if (hostKind === "printer") return `/admin/printing/printers/${hostId}/warranty`;
+  if (hostKind === "printer") return `/admin/machines/${hostId}/warranty`;
   return `/admin/machines/${hostId}/warranty`;
 }
 

@@ -13,8 +13,8 @@ const TAB_MODULES: Record<string, string[]> = {
   bulk: ["bulk_import"],
   qr: ["qr_management"],
   scanner: ["scanner"],
-  reports: ["reports", "printing"],
-  warranty: ["staff_admin", "printing"],
+  reports: ["reports"],
+  warranty: ["staff_admin"],
 };
 
 const TAB_PATHS: Record<string, string> = {
@@ -108,6 +108,7 @@ export function tabToPath(tab: string) {
 }
 
 function pathToTab(path: string | null) {
+  if (path === "printing") return "machines";
   if (!path) {
     return "";
   }

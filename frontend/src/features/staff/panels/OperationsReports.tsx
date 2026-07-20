@@ -7,7 +7,6 @@ import { OperationsReportsFablab } from "./OperationsReportsFablab";
 import { OperationsReportsHardware } from "./OperationsReportsHardware";
 import { OperationsReportsMachineService } from "./OperationsReportsMachineService";
 import { OperationsReportsMembers } from "./OperationsReportsMembers";
-import { PrintingReportSection } from "./OperationsReportsPrinting";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
 
 type Summary = {
@@ -94,7 +93,6 @@ export function OperationsReports({
   isSuperadmin,
   printingOnly = false,
   canViewAudit,
-  canSeePrinting,
   canManageMachines,
 }: {
   makerspace: Makerspace;
@@ -102,7 +100,6 @@ export function OperationsReports({
   isSuperadmin: boolean;
   printingOnly?: boolean;
   canViewAudit: boolean;
-  canSeePrinting: boolean;
   canManageMachines: boolean;
 }) {
   const [allMakerspaces, setAllMakerspaces] = useState(false);
@@ -296,12 +293,6 @@ export function OperationsReports({
       {!printingOnly ? <OperationsReportsFablab makerspace={makerspace} aggregate={aggregate} canViewAudit={canViewAudit} startDate={startDate} endDate={endDate} makerspaceName={makerspaceName} /> : null}
 
       <OperationsReportsMachineService makerspace={makerspace} aggregate={aggregate} canManageMachines={canManageMachines} startDate={startDate} endDate={endDate} makerspaceName={makerspaceName} />
-
-      {canSeePrinting ? (
-        <PrintingReportSection makerspace={makerspace} aggregate={aggregate} makerspaceName={makerspaceName} startDate={startDate} endDate={endDate} />
-      ) : null}
     </div>
   );
 }
-
-

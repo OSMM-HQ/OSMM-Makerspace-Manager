@@ -9,7 +9,6 @@ const NotificationInbox = lazy(() => import("./panels/NotificationInbox").then((
 const DirectLoans = lazy(() => import("./DirectLoans").then((m) => ({ default: m.DirectLoans })));
 const Inventory = lazy(() => import("./panels/Inventory").then((m) => ({ default: m.Inventory })));
 const Ledger = lazy(() => import("./panels/Ledger").then((m) => ({ default: m.Ledger })));
-const PrintingPanel = lazy(() => import("./panels/PrintingPanel").then((m) => ({ default: m.PrintingPanel })));
 const MachinesPanel = lazy(() => import("./panels/MachinesPanel").then((m) => ({ default: m.MachinesPanel })));
 const EventsPanel = lazy(() => import("./EventsPanel").then((m) => ({ default: m.EventsPanel })));
 const BookingsPanel = lazy(() => import("./BookingsPanel").then((m) => ({ default: m.BookingsPanel })));
@@ -96,7 +95,6 @@ export function StaffTabContent({
           makerspace={activeMakerspace}
           guestOnly={guestOnly}
           canSeeHardware={canSeeHardware}
-          canSeePrinting={canSeePrinting}
           canViewAudit={canViewAudit}
         />
       ) : null}
@@ -109,9 +107,7 @@ export function StaffTabContent({
         />
       ) : null}
       {activeTab === "needsfix" && canEditInventory ? <NeedsFixShelf key={makerspaceKey} makerspace={activeMakerspace} /> : null}
-      {activeTab === "categories" && canEditInventory ? <Categories key={makerspaceKey} makerspace={activeMakerspace} /> : null}
-      {activeTab === "printing" ? <PrintingPanel key={makerspaceKey} makerspace={activeMakerspace} /> : null}
-      {activeTab === "machines" ? (
+      {activeTab === "categories" && canEditInventory ? <Categories key={makerspaceKey} makerspace={activeMakerspace} /> : null}      {activeTab === "machines" ? (
         <MachinesPanel
           key={makerspaceKey}
           makerspaceId={activeMakerspace.id}
@@ -152,7 +148,6 @@ export function StaffTabContent({
           key={makerspaceKey}
           makerspace={activeMakerspace}
           canEditInventory={canEditInventory}
-          canSeePrinting={canSeePrinting}
         />
       ) : null}
       {activeTab === "accountability" && canViewAudit ? (
@@ -166,7 +161,6 @@ export function StaffTabContent({
           isSuperadmin={isSuperadmin}
           printingOnly={printingOnly}
           canViewAudit={canViewAudit}
-          canSeePrinting={canSeePrinting}
           canManageMachines={canManageMachines}
         />
       ) : null}
@@ -210,8 +204,3 @@ export function StaffTabContent({
     </Suspense>
   );
 }
-
-
-
-
-

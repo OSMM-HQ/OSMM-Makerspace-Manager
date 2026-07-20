@@ -3,13 +3,13 @@ import type { UseQueryResult } from "@tanstack/react-query";
 
 import { Card } from "../../components/ui/Card";
 import { FilePicker, TextArea, TextInput } from "./PublicPrintRequestParts";
-import type { PublicFilamentSpool } from "./publicApi";
+import type { PublicFilamentPool } from "./publicApi";
 
 export type FormState = {
   title: string;
   projectBrief: string;
   preferredSettings: string;
-  filamentSpoolId: string;
+  consumablePoolId: string;
   estimatedFilamentGrams: string;
   material: string;
   color: string;
@@ -21,7 +21,7 @@ export const initialForm: FormState = {
   title: "",
   projectBrief: "",
   preferredSettings: "",
-  filamentSpoolId: "",
+  consumablePoolId: "",
   estimatedFilamentGrams: "",
   material: "",
   color: "",
@@ -36,15 +36,15 @@ export function optional(value: string) {
 
 // Group active spools by material so same-material filaments are listed together and
 // distinguished by color (the public /spools endpoint already orders by material,color).
-export function groupSpoolsByMaterial(
-  spools: PublicFilamentSpool[],
-): [string, PublicFilamentSpool[]][] {
-  const groups = new Map<string, PublicFilamentSpool[]>();
-  for (const spool of spools) {
-    const key = spool.material || "Other";
+export function groupPoolsByMaterial(
+  pools: PublicFilamentPool[],
+): [string, PublicFilamentPool[]][] {
+  const groups = new Map<string, PublicFilamentPool[]>();
+  for (const pool of pools) {
+    const key = pool.material || "Other";
     const bucket = groups.get(key);
-    if (bucket) bucket.push(spool);
-    else groups.set(key, [spool]);
+    if (bucket) bucket.push(pool);
+    else groups.set(key, [pool]);
   }
   return [...groups.entries()];
 }
@@ -52,7 +52,7 @@ export function groupSpoolsByMaterial(
 type PrintDetailsFormProps = {
   form: FormState;
   updateField: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
-  spoolsQuery: UseQueryResult<PublicFilamentSpool[], Error>;
+  poolsQuery: UseQueryResult<PublicFilamentPool[], Error>;
   modelFiles: File[];
   setModelFiles: Dispatch<SetStateAction<File[]>>;
   screenshotFiles: File[];
@@ -68,7 +68,7 @@ type PrintDetailsFormProps = {
 export function PrintDetailsForm({
   form,
   updateField,
-  spoolsQuery,
+  poolsQuery,
   modelFiles,
   setModelFiles,
   screenshotFiles,
@@ -120,28 +120,28 @@ export function PrintDetailsForm({
               </span>
               <select
                 className="desk-input w-full"
-                value={form.filamentSpoolId}
+                value={form.consumablePoolId}
                 onChange={(event) =>
-                  updateField("filamentSpoolId", event.target.value)
+                  updateField("consumablePoolId", event.target.value)
                 }
               >
                 <option value="">No preference</option>
-                {groupSpoolsByMaterial(spoolsQuery.data ?? []).map(([material, spools]) => (
+                {groupPoolsByMaterial(poolsQuery.data ?? []).map(([material, pools]) => (
                   <optgroup key={material} label={material}>
-                    {spools.map((spool) => (
-                      <option key={spool.id} value={spool.id}>
-                        {spool.color || "Default color"}
+                    {pools.map((pool) => (
+                      <option key={pool.id} value={pool.id}>
+                        {pool.color || "Default color"}
                       </option>
                     ))}
                   </optgroup>
                 ))}
               </select>
-              {spoolsQuery.isLoading ? (
+              {poolsQuery.isLoading ? (
                 <p className="mt-1 text-xs text-muted">Loading filament...</p>
               ) : null}
-              {spoolsQuery.isError ? (
+              {poolsQuery.isError ? (
                 <p className="mt-1 text-xs text-danger">
-                  {spoolsQuery.error.message}
+                  {poolsQuery.error.message}
                 </p>
               ) : null}
             </label>

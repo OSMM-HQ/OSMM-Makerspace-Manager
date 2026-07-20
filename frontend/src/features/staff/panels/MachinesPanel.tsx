@@ -7,6 +7,7 @@ import { collectionResults, createMachine, getMachines, getMachineTypes, machine
 import { MachineDrawer } from "./machine/MachineDrawer";
 import { MachineTypesPanel } from "./MachineTypesPanel";
 import { Panel } from "./shared";
+import { PrinterServiceConsole } from "./machine/PrinterServiceConsole";
 
 type StatusFilter = "all" | MachineStatus;
 
@@ -113,6 +114,7 @@ export function MachinesPanel({ makerspaceId, canManage, maintenanceEnabled }: {
           ))}
         </div>
       ) : null}
+      <PrinterServiceConsole makerspaceId={makerspaceId} canManage={canManage} />
       {selectedId !== null ? (
         <MachineDrawer key={selectedId} machineId={selectedId} makerspaceId={makerspaceId}
           canManageMachines={canManage}
