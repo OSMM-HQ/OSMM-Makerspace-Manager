@@ -12,14 +12,15 @@ from apps.accounts import rbac
 from apps.accounts.models import User
 from apps.admin_api.permissions import IsActiveStaff
 from apps.hardware_requests.exceptions import ErrorSerializer
-from apps.machines.service_reports import build_machine_service_report, report_sections
-from apps.machines.service_reports_serializers import MachineServiceReportSerializer
+from apps.machines.service_reports import build_machine_service_report, build_printer_service_report, report_sections
+from apps.machines.service_reports_serializers import MachineServiceReportSerializer, PrinterServiceReportSerializer
 from apps.makerspaces.guards import require_module
 
 
 DATE_RANGE_PARAMETERS = [
     OpenApiParameter("start", OpenApiTypes.DATE, OpenApiParameter.QUERY),
     OpenApiParameter("end", OpenApiTypes.DATE, OpenApiParameter.QUERY),
+    OpenApiParameter("machine_type", str, OpenApiParameter.QUERY),
 ]
 ERROR_RESPONSES = {
     400: OpenApiResponse(ErrorSerializer, description="Invalid request."),
@@ -39,6 +40,9 @@ class MakerspaceMachineServiceReportView(APIView):
         if not rbac.can(request.user, rbac.Action.MANAGE_MACHINES, makerspace_id):
             raise PermissionDenied()
         require_module(makerspace_id, "machine_service")
+        if request.query_params.get("machine_type") == "3d_printer":
+            result = build_printer_service_report(makerspace_id, date_range=_date_range(request))
+            return Response(PrinterServiceReportSerializer({"printer_metrics": result.records}).data)
         return Response(MachineServiceReportSerializer(report_sections(build_machine_service_report(makerspace_id, date_range=_date_range(request)))).data)
 
 
@@ -49,6 +53,9 @@ class SuperadminMachineServiceReportView(APIView):
     def get(self, request, *args, **kwargs):
         if not _is_superadmin(request.user):
             raise PermissionDenied()
+        if request.query_params.get("machine_type") == "3d_printer":
+            result = build_printer_service_report(None, date_range=_date_range(request))
+            return Response(PrinterServiceReportSerializer({"printer_metrics": result.records}).data)
         return Response(MachineServiceReportSerializer(report_sections(build_machine_service_report(None, date_range=_date_range(request)))).data)
 
 

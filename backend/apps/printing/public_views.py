@@ -1,65 +1,29 @@
+"""Legacy public printing URLs delegated to the generic printer-service contract."""
+
 import uuid
 from types import SimpleNamespace
 
 from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework import generics, status
+from rest_framework import status
 from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.apiclients.throttling import ClientTierRateThrottle
+from apps.machines.models import MachineServiceRequest
+from apps.machines.public_printer_service import public_pools, public_queues, public_status, stage_upload, submit_request
 from apps.makerspaces.lookup import get_public_makerspace
 from apps.makerspaces.platform import module_enabled
 from apps.presence.guard import require_active_member_presence
-from apps.printing import public_workflow
-from apps.printing.models import FilamentSpool, PrintBucket, PrintRequest, PrintRequestFile
 from apps.printing.permissions import IsActiveRequester
 from apps.printing.public_serializers import (
-    PrintPresignRequestSerializer,
-    PrintPresignResponseSerializer,
-    PrintRequestSubmitResponseSerializer,
-    PrintRequestSubmitSerializer,
-    PublicFilamentSpoolSerializer,
-    PublicPrintBucketSerializer,
-    PublicPrintStatusSerializer,
+    PrintPresignRequestSerializer, PrintPresignResponseSerializer,
+    PrintRequestSubmitResponseSerializer, PrintRequestSubmitSerializer,
+    PublicFilamentSpoolSerializer, PublicPrintBucketSerializer, PublicPrintStatusSerializer,
 )
-from apps.printing.queue_position import queue_counts_for
 from apps.printing.serializers import ErrorSerializer
-from apps.printing.storage import (
-    presigned_print_upload,
-    print_object_key,
-    validate_print_upload,
-)
-from apps.machines.printing_cutover import kernel_is_authoritative
-
-
-class _KernelPublicPrintStatus:
-    """Public, legacy-shaped status projection for an authoritative kernel row."""
-
-    def __init__(self, service_request):
-        self.id = service_request.pk
-        self.public_token = service_request.public_token
-        self.status = "printing" if service_request.status == "in_progress" else service_request.status
-        self.title = service_request.title
-        self.created_at = service_request.created_at
-        self.accepted_at = service_request.accepted_at
-        self.started_at = service_request.started_at
-        self.completed_at = service_request.completed_at
-        self.estimated_minutes = service_request.estimated_minutes
-
-
-def _require_module(makerspace):
-    if not module_enabled(makerspace, "printing"):
-        raise ValidationError({"module": "printing is disabled for this makerspace."})
-
-
-def _honeypot_filled(payload):
-    try:
-        value = payload.get("website", "")
-    except AttributeError:
-        return False
-    return bool(str(value).strip())
+from apps.printing.storage import presigned_print_upload
 
 
 PUBLIC_PRINT_ERROR_RESPONSES = {
@@ -72,6 +36,27 @@ PUBLIC_PRINT_ERROR_RESPONSES = {
 }
 
 
+def _require_module(makerspace):
+    if not module_enabled(makerspace, "printing"):
+        raise ValidationError({"module": "printing is disabled for this makerspace."})
+
+
+def _honeypot_filled(payload):
+    try:
+        return bool(str(payload.get("website", "")).strip())
+    except AttributeError:
+        return False
+
+
+def _canonical(data):
+    """Translate retained bucket/spool names at the compatibility boundary."""
+    return {
+        **data,
+        "queue_id": data.get("bucket_id"),
+        "consumable_pool_id": data.get("filament_spool_id"),
+    }
+
+
 class PublicPrintBucketsView(APIView):
     permission_classes = [AllowAny]
     throttle_classes = [ClientTierRateThrottle]
@@ -81,8 +66,7 @@ class PublicPrintBucketsView(APIView):
     def get(self, request, makerspace_slug):
         makerspace = get_public_makerspace(makerspace_slug)
         _require_module(makerspace)
-        buckets = PrintBucket.objects.filter(makerspace=makerspace, is_active=True).order_by("name")
-        return Response(PublicPrintBucketSerializer(buckets, many=True).data)
+        return Response(PublicPrintBucketSerializer(public_queues(makerspace), many=True).data)
 
 
 class PublicPrintSpoolsView(APIView):
@@ -94,8 +78,7 @@ class PublicPrintSpoolsView(APIView):
     def get(self, request, makerspace_slug):
         makerspace = get_public_makerspace(makerspace_slug)
         _require_module(makerspace)
-        spools = FilamentSpool.objects.filter(makerspace=makerspace, is_active=True).order_by("material", "color")
-        return Response(PublicFilamentSpoolSerializer(spools, many=True).data)
+        return Response(PublicFilamentSpoolSerializer(public_pools(makerspace), many=True).data)
 
 
 class PrintUploadPresignView(APIView):
@@ -110,32 +93,7 @@ class PrintUploadPresignView(APIView):
         require_active_member_presence(request.user, makerspace)
         serializer = PrintPresignRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-        try:
-            content_type = validate_print_upload(data["kind"], data["filename"], data.get("content_type", ""))
-        except ValueError as exc:
-            raise ValidationError({"file": str(exc)}) from exc
-        if kernel_is_authoritative(makerspace):
-            from apps.machines.service_storage import create_staged_queue_file
-
-            queue = public_workflow.resolve_kernel_public_queue(
-                makerspace, data.get("bucket_id"),
-            )
-            upload_file, upload = create_staged_queue_file(
-                queue, actor=request.user, filename=data["filename"],
-                content_type=content_type,
-                kind="model" if data["kind"] == "stl" else "screenshot",
-            )
-            return Response(
-                {"file_id": upload_file.id, "upload": upload},
-                status=status.HTTP_201_CREATED,
-            )
-        object_key = print_object_key(makerspace.id, data["kind"])
-        upload_file = PrintRequestFile.objects.create(
-            makerspace=makerspace, kind=data["kind"], object_key=object_key,
-            content_type=content_type, original_filename=data["filename"], owner=request.user,
-        )
-        return Response({"file_id": upload_file.id, "upload": presigned_print_upload(object_key, content_type)}, status=status.HTTP_201_CREATED)
+        return Response(stage_upload(makerspace, _canonical(serializer.validated_data), request.user, compatibility=True, legacy_presigner=presigned_print_upload), status=status.HTTP_201_CREATED)
 
 
 class PrintRequestSubmitView(APIView):
@@ -148,47 +106,22 @@ class PrintRequestSubmitView(APIView):
         makerspace = get_public_makerspace(makerspace_slug)
         _require_module(makerspace)
         if _honeypot_filled(request.data):
-            decoy = SimpleNamespace(public_token=uuid.uuid4(), status=PrintRequest.Status.PENDING)
+            decoy = SimpleNamespace(public_token=uuid.uuid4(), status=MachineServiceRequest.Status.PENDING)
             return Response(PrintRequestSubmitResponseSerializer(decoy).data, status=status.HTTP_201_CREATED)
         require_active_member_presence(request.user, makerspace)
         serializer = PrintRequestSubmitSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        print_request = public_workflow.submit_public_print_request(makerspace, serializer.validated_data, request.user)
-        return Response(PrintRequestSubmitResponseSerializer(print_request).data, status=status.HTTP_201_CREATED)
+        row = submit_request(makerspace, _canonical(serializer.validated_data), request.user, compatibility=True)
+        return Response(PrintRequestSubmitResponseSerializer(row).data, status=status.HTTP_201_CREATED)
 
 
-class PublicPrintStatusView(generics.RetrieveAPIView):
+class PublicPrintStatusView(APIView):
     permission_classes = [AllowAny]
+    authentication_classes = []
     throttle_classes = [ClientTierRateThrottle]
     throttle_scope = "request_status"
-    serializer_class = PublicPrintStatusSerializer
-    lookup_field = "public_token"
-    queryset = PrintRequest.objects.filter(bucket__makerspace__archived_at__isnull=True).select_related("bucket__makerspace")
 
     @extend_schema(tags=["Public printing"], auth=[], responses={200: PublicPrintStatusSerializer, **PUBLIC_PRINT_ERROR_RESPONSES})
-    def get(self, request, *args, **kwargs):
-        public_token = kwargs[self.lookup_field]
-        from apps.machines.models import MachineServiceRequest
-
-        # A token is bearer-like on this AllowAny route.  Limit the kernel
-        # projection to the reconciled printer queues that this compatibility
-        # endpoint owns; other machine-service requests must remain private to
-        # their own public surfaces.
-        kernel = MachineServiceRequest.objects.select_related("makerspace").filter(
-            public_token=public_token, makerspace__archived_at__isnull=True,
-            queue__legacy_print_bucket_id__isnull=False,
-            queue__machine_type__slug="3d_printer",
-        ).first()
-        if kernel is not None and kernel_is_authoritative(kernel.makerspace):
-            from apps.machines.service_queue_position import (
-                queue_counts_for as kernel_queue_counts_for,
-            )
-
-            obj = _KernelPublicPrintStatus(kernel)
-            queue_counts = kernel_queue_counts_for([kernel])
-            return Response(PublicPrintStatusSerializer(
-                obj, context={"request": request, "queue_counts": queue_counts},
-            ).data)
-        obj = self.get_object()
-        serializer = PublicPrintStatusSerializer(obj, context={"request": request, "queue_counts": queue_counts_for(obj.bucket.makerspace, [obj])})
-        return Response(serializer.data)
+    def get(self, request, public_token):
+        row, counts = public_status(public_token)
+        return Response(PublicPrintStatusSerializer(row, context={"queue_counts": counts}).data)

@@ -108,6 +108,8 @@ export const openApiPaths = [
   "/api/v1/admin/ledger",
   "/api/v1/admin/ledger/export",
   "/api/v1/admin/machine-service-report",
+  "/api/v1/admin/machine-service/consumable-pools/{id}",
+  "/api/v1/admin/machine-service/consumable-pools/{id}/adjustments",
   "/api/v1/admin/machine-service/files/{id}",
   "/api/v1/admin/machine-service/files/{id}/url",
   "/api/v1/admin/machine-service/requests/{id}",
@@ -118,6 +120,7 @@ export const openApiPaths = [
   "/api/v1/admin/machine-service/requests/{id}/files/finalize",
   "/api/v1/admin/machine-service/requests/{id}/files/presign",
   "/api/v1/admin/machine-service/requests/{id}/reject",
+  "/api/v1/admin/machine-service/requests/{id}/reprint",
   "/api/v1/admin/machine-service/requests/{id}/start",
   "/api/v1/admin/machines/documents/{id}",
   "/api/v1/admin/machines/documents/{id}/url",
@@ -212,7 +215,9 @@ export const openApiPaths = [
   "/api/v1/admin/makerspaces",
   "/api/v1/admin/makerspaces/{id}",
   "/api/v1/admin/makerspaces/{makerspace_id}/events/",
+  "/api/v1/admin/makerspaces/{makerspace_id}/machine-service/consumable-pools",
   "/api/v1/admin/makerspaces/{makerspace_id}/machine-service/requests",
+  "/api/v1/admin/makerspaces/{makerspace_id}/machine-service/typed-manual-usage",
   "/api/v1/admin/makerspaces/{makerspace_id}/machines/{machine_id}/maintenance/logs/",
   "/api/v1/admin/makerspaces/{makerspace_id}/machines/{machine_id}/maintenance/schedules/",
   "/api/v1/admin/makerspaces/{makerspace_id}/memberships",
@@ -350,6 +355,7 @@ export const openApiPaths = [
   "/api/v1/procurement/to-buy/{id}/move-to-printing",
   "/api/v1/procurement/to-buy/{id}/receipts",
   "/api/v1/procurement/to-buy/{id}/receipts/presign",
+  "/api/v1/public/machine-service/3d-printer/requests/{public_token}/status",
   "/api/v1/public/makerspaces/",
   "/api/v1/public/requests/{public_token}/status",
   "/api/v1/public/roadmap",
@@ -359,6 +365,10 @@ export const openApiPaths = [
   "/api/v1/public/{makerspace_slug}/inventory/categories/",
   "/api/v1/public/{makerspace_slug}/inventory/{id}/",
   "/api/v1/public/{makerspace_slug}/machine-service-requests",
+  "/api/v1/public/{makerspace_slug}/machine-service/3d-printer/consumable-pools",
+  "/api/v1/public/{makerspace_slug}/machine-service/3d-printer/queues",
+  "/api/v1/public/{makerspace_slug}/machine-service/3d-printer/requests",
+  "/api/v1/public/{makerspace_slug}/machine-service/3d-printer/uploads",
   "/api/v1/public/{makerspace_slug}/machines",
   "/api/v1/public/{makerspace_slug}/membership-requests",
   "/api/v1/public/{makerspace_slug}/presence-sessions",
@@ -1562,6 +1572,8 @@ export type KeyD07Enum = "hardware_requests" | "printing" | "events" | "bookings
 
 export type Kind3bfEnum = "dev_room" | "bench" | "meeting" | "other";
 
+export type Kind7bbEnum = "stl" | "screenshot";
+
 export type LedgerResponse = {
   "count": number;
   "next"?: string | null;
@@ -1777,6 +1789,8 @@ export type MachineServiceReport = {
 export type MachineServiceRequest = {
   "id": number;
   "bucket_id": number;
+  "queue_id": number;
+  "machine_type": string;
   "machine": ServiceMachine;
   "assigned_machine": ServiceMachine;
   "requester": ServiceRequester;
@@ -1798,6 +1812,13 @@ export type MachineServiceRequest = {
   "collected_at": string | null;
   "created_at": string;
   "updated_at": string;
+  "capability_payload": unknown;
+  "planned_grams": string;
+  "reserved_grams": string;
+  "actual_consumed_grams": string;
+  "payment_amount": string | null;
+  "payment_status": string;
+  "run_machine_model": string;
   "files": Array<ServiceFile>;
   "consumptions": Array<ServiceConsumption>;
 };
@@ -2178,6 +2199,7 @@ export type MemberLoanActivity = {
 };
 
 export type MemberMachineServiceActivity = {
+  "machine_type"?: string;
   "title": string;
   "status": string;
   "created_at": string;
@@ -3079,6 +3101,37 @@ export type PrintBucket = {
   "updated_at": string;
 };
 
+export type PrinterPool = {
+  "id": number;
+  "machine_id": number | null;
+  "material": string;
+  "color"?: string;
+  "brand"?: string;
+  "lot_code"?: string;
+  "initial_grams": string;
+  "remaining_grams": string;
+  "low_threshold_grams"?: string | null;
+  "is_active": boolean;
+  "opened_at"?: string | null;
+  "created_at": string;
+  "updated_at": string;
+};
+
+export type PrinterPoolCorrection = {
+  "quantity_delta": string;
+  "reason": string;
+};
+
+export type PrinterPoolCreate = {
+  "machine_id"?: number | null;
+  "material": string;
+  "color"?: string;
+  "brand"?: string;
+  "lot_code"?: string;
+  "initial_grams": string;
+  "low_threshold_grams"?: string | null;
+};
+
 export type PrintFileUrlResponse = {
   "url": string;
 };
@@ -3172,12 +3225,10 @@ export type PrintingReportTotals = {
 
 export type PrintPresignRequest = {
   "bucket_id"?: number | null;
-  "kind": PrintPresignRequestKindEnum;
+  "kind": Kind7bbEnum;
   "filename": string;
   "content_type"?: string;
 };
-
-export type PrintPresignRequestKindEnum = "stl" | "screenshot";
 
 export type PrintPresignResponse = {
   "file_id": number;
@@ -3489,6 +3540,59 @@ export type PublicPrintBucket = {
   "id": number;
   "name": string;
   "description": string;
+};
+
+export type PublicPrinterPool = {
+  "id": number;
+  "material": string;
+  "color": string;
+};
+
+export type PublicPrinterQueue = {
+  "id": number;
+  "name": string;
+  "description": string;
+};
+
+export type PublicPrinterStatus = {
+  "public_token": string;
+  "status": string;
+  "title": string;
+  "created_at": string;
+  "accepted_at": string | null;
+  "started_at": string | null;
+  "completed_at": string | null;
+  "estimated_minutes": number;
+  "queue_position": number | null;
+  "queue_approved_ahead": number | null;
+  "queue_awaiting_review_ahead": number | null;
+};
+
+export type PublicPrinterSubmit = {
+  "website"?: string;
+  "queue_id"?: number | null;
+  "title": string;
+  "project_brief"?: string;
+  "preferred_settings"?: unknown | null;
+  "material"?: string;
+  "color"?: string;
+  "consumable_pool_id"?: number | null;
+  "estimated_filament_grams"?: string | null;
+  "quantity"?: number;
+  "source_link"?: string;
+  "file_ids"?: Array<number>;
+};
+
+export type PublicPrinterSubmitResponse = {
+  "public_token": string;
+  "status": string;
+};
+
+export type PublicPrinterUpload = {
+  "queue_id"?: number | null;
+  "kind": Kind7bbEnum;
+  "filename": string;
+  "content_type"?: string;
 };
 
 export type PublicPrintStatus = {
@@ -3991,12 +4095,15 @@ export type RoleId = {
 
 export type ServiceAccept = {
   "estimated_minutes"?: number;
+  "planned_grams"?: string;
+  "payment_amount"?: string;
   "note"?: string;
 };
 
 export type ServiceComplete = {
   "actual_minutes": number;
-  "consumptions": Array<ServiceConsumptionInput>;
+  "actual_grams"?: string;
+  "consumptions"?: Array<ServiceConsumptionInput>;
 };
 
 export type ServiceConsumption = {
@@ -4017,7 +4124,8 @@ export type ServiceConsumptionInput = {
 
 export type ServiceFail = {
   "actual_minutes": number;
-  "consumptions": Array<ServiceConsumptionInput>;
+  "actual_grams"?: string;
+  "consumptions"?: Array<ServiceConsumptionInput>;
   "reason": string;
   "percent_complete": number;
 };
@@ -4401,6 +4509,35 @@ export type TopBorrowersReportRow = {
 };
 
 export type TrackingModeB86Enum = "quantity" | "individual";
+
+export type TypedManualUsage = {
+  "machine_id": number;
+  "consumable_pool_id"?: number | null;
+  "service_request_id"?: number | null;
+  "duration_minutes": number;
+  "outcome": TypedManualUsageOutcomeEnum;
+  "percent_complete"?: number;
+  "reason"?: string;
+  "grams"?: string;
+  "note"?: string;
+};
+
+export type TypedManualUsageOutcomeEnum = "success" | "failed";
+
+export type TypedManualUsageResponse = {
+  "id": number;
+  "machine_id": number;
+  "consumable_pool_id": number | null;
+  "service_request_id": number | null;
+  "duration_minutes": number;
+  "outcome": string;
+  "percent_complete": number;
+  "reason": string;
+  "consumed_grams": string;
+  "hours": string;
+  "note": string;
+  "created_at": string;
+};
 
 export type TypeEnum = "box" | "asset" | "product";
 

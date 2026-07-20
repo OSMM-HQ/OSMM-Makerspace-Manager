@@ -37,6 +37,7 @@ class MemberEventRegistrationActivitySerializer(serializers.Serializer):
 
 
 class MemberMachineServiceActivitySerializer(serializers.Serializer):
+    machine_type = serializers.CharField(required=False)
     title = serializers.CharField()
     status = serializers.CharField()
     created_at = serializers.DateTimeField()

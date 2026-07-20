@@ -7,7 +7,6 @@ from apps.hardware_requests.self_checkout_models import PublicToolLoan
 from apps.makerspaces.models import MakerspaceMembership, MakerspaceWaiver
 from apps.makerspaces.platform import module_enabled
 from apps.presence.models import PresenceSession
-from apps.printing.member_activity import member_print_activity
 
 
 RECENT_LIMIT = 20
@@ -20,7 +19,7 @@ def active_membership(user, makerspace_id):
         and user.access_status == User.AccessStatus.ACTIVE
     ):
         return None
-    return MakerspaceMembership.objects.select_related("makerspace", "accepted_waiver").filter(
+    return MakerspaceMembership.objects.select_related("makerspace", "makerspace__printing_cutover_state", "accepted_waiver").filter(
         makerspace_id=makerspace_id, user=user, status="active",
         makerspace__archived_at__isnull=True,
     ).first()
@@ -38,8 +37,8 @@ def member_activity(membership):
         ).exists(),
         "accountability": _accountability(membership),
     }
-    if module_enabled(makerspace, "printing"):
-        payload["print_requests"] = member_print_activity(makerspace, member, limit=ACTIVITY_LIMIT)
+    if module_enabled(makerspace, "printing") or module_enabled(makerspace, "machine_service"):
+        payload["print_requests"] = _printer_requests(makerspace, member)
     if module_enabled(makerspace, "bookings"):
         payload["bookings"] = _bookings(makerspace.id, member, now)
     if module_enabled(makerspace, "events"):
@@ -106,16 +105,37 @@ def _machine_service_requests(makerspace_id, member):
 
     rows = MachineServiceRequest.objects.filter(
         makerspace_id=makerspace_id, member=member,
-    ).only("title", "status", "created_at").order_by("-created_at", "-id")[:ACTIVITY_LIMIT]
+    ).select_related("queue__machine_type").only("title", "status", "created_at", "queue", "queue__machine_type__slug").order_by("-created_at", "-id")[:ACTIVITY_LIMIT]
     rows = list(rows)
     positions = queue_positions_for(rows)
-    return [{
-        "title": row.title,
-        "status": row.status,
-        "created_at": row.created_at,
-        "queue_position": positions.get(row.pk),
-    } for row in rows]
+    result = []
+    for row in rows:
+        item = {"title": row.title, "status": row.status, "created_at": row.created_at, "queue_position": positions.get(row.pk)}
+        if row.queue_id and row.queue.machine_type.slug == "3d_printer":
+            item["machine_type"] = "3d_printer"
+        result.append(item)
+    return result
 
+
+
+def _printer_requests(makerspace, member):
+    """Printer rows project the kernel after B4; legacy is a read-only adapter."""
+    state = getattr(makerspace, "printing_cutover_state", None)
+
+    if state and state.kernel_authoritative:
+        from apps.machines.models import MachineServiceRequest
+        from apps.machines.public_printer_service_serializers import PublicPrinterStatusSerializer
+        from apps.machines.service_queue_position import queue_counts_for
+        rows = list(MachineServiceRequest.objects.filter(
+            makerspace=makerspace, member=member, queue__machine_type__slug="3d_printer",
+        ).select_related("queue__machine_type").order_by("-created_at", "-id")[:ACTIVITY_LIMIT])
+        return PublicPrinterStatusSerializer(rows, many=True, context={"queue_counts": queue_counts_for(rows)}).data
+
+    from apps.printing.models import PrintRequest
+    from apps.printing.public_serializers import PublicPrintStatusSerializer
+    from apps.printing.queue_position import queue_counts_for as legacy_counts
+    legacy = list(PrintRequest.objects.filter(requester=member, bucket__makerspace=makerspace).select_related("bucket__makerspace").order_by("-created_at", "-id")[:ACTIVITY_LIMIT])
+    return PublicPrintStatusSerializer(legacy, many=True, context={"queue_counts": legacy_counts(makerspace, legacy)}).data
 
 def _presence(makerspace_id, member, now):
     rows = PresenceSession.objects.filter(

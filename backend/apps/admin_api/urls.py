@@ -68,7 +68,14 @@ from apps.admin_api.views_machine_service import (
     MachineServiceRejectView,
     MachineServiceRequestDetailView,
     MachineServiceRequestListCreateView,
+    MachineServiceReprintView,
     MachineServiceStartView,
+)
+from apps.admin_api.views_machine_service_printer import (
+    MachineServicePrinterPoolAdjustmentView,
+    MachineServicePrinterPoolDetailView,
+    MachineServicePrinterPoolListCreateView,
+    MachineServiceTypedManualUsageView,
 )
 from apps.admin_api.views_machine_service_files import (
     MachineServiceFileDeleteView,
@@ -190,6 +197,31 @@ urlpatterns = [
         "machine-service/requests/<int:pk>/collect",
         MachineServiceCollectView.as_view(),
         name="admin-machine-service-request-collect",
+    ),
+    path(
+        "machine-service/requests/<int:pk>/reprint",
+        MachineServiceReprintView.as_view(),
+        name="admin-machine-service-request-reprint",
+    ),
+    path(
+        "makerspaces/<int:makerspace_id>/machine-service/consumable-pools",
+        MachineServicePrinterPoolListCreateView.as_view(),
+        name="admin-machine-service-printer-pools",
+    ),
+    path(
+        "machine-service/consumable-pools/<int:pk>",
+        MachineServicePrinterPoolDetailView.as_view(),
+        name="admin-machine-service-printer-pool-detail",
+    ),
+    path(
+        "machine-service/consumable-pools/<int:pk>/adjustments",
+        MachineServicePrinterPoolAdjustmentView.as_view(),
+        name="admin-machine-service-printer-pool-adjustments",
+    ),
+    path(
+        "makerspaces/<int:makerspace_id>/machine-service/typed-manual-usage",
+        MachineServiceTypedManualUsageView.as_view(),
+        name="admin-machine-service-printer-typed-manual-usage",
     ),
     path(
         "machine-service/requests/<int:pk>/files/presign",

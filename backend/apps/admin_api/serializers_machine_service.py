@@ -48,18 +48,27 @@ class MachineServiceRequestSerializer(serializers.ModelSerializer):
     assigned_machine = ServiceMachineSerializer(read_only=True)
     requester = ServiceRequesterSerializer(read_only=True)
     bucket_id = serializers.IntegerField(read_only=True)
+    queue_id = serializers.IntegerField(read_only=True)
+    machine_type = serializers.CharField(source="queue.machine_type.slug", read_only=True, default="")
+    capability_payload = serializers.JSONField(read_only=True)
+    planned_grams = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    reserved_grams = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    actual_consumed_grams = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
+    payment_amount = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True, allow_null=True)
+    payment_status = serializers.CharField(read_only=True)
+    run_machine_model = serializers.CharField(read_only=True)
     files = ServiceFileSerializer(many=True, read_only=True)
     consumptions = ServiceConsumptionSerializer(many=True, read_only=True)
 
     class Meta:
         model = MachineServiceRequest
         fields = (
-            "id", "bucket_id", "machine", "assigned_machine", "requester",
+            "id", "bucket_id", "queue_id", "machine_type", "machine", "assigned_machine", "requester",
             "requester_name", "contact_email", "contact_phone", "title",
             "description", "source_link", "status", "reason", "estimated_minutes",
             "actual_minutes", "fail_percent_complete", "accepted_at", "started_at",
             "completed_at", "failed_at", "collected_at", "created_at", "updated_at",
-            "files", "consumptions",
+            "capability_payload", "planned_grams", "reserved_grams", "actual_consumed_grams", "payment_amount", "payment_status", "run_machine_model", "files", "consumptions",
         )
         read_only_fields = fields
 
@@ -78,6 +87,8 @@ class MachineServiceSubmitSerializer(serializers.Serializer):
 
 class ServiceAcceptSerializer(serializers.Serializer):
     estimated_minutes = serializers.IntegerField(required=False, min_value=0)
+    planned_grams = serializers.DecimalField(required=False, max_digits=12, decimal_places=2, min_value=Decimal("0"))
+    payment_amount = serializers.DecimalField(required=False, max_digits=12, decimal_places=2, min_value=Decimal("0"))
     note = serializers.CharField(required=False, allow_blank=True)
 
 
@@ -103,7 +114,8 @@ class ServiceConsumptionInputSerializer(serializers.Serializer):
 
 class ServiceCompleteSerializer(serializers.Serializer):
     actual_minutes = serializers.IntegerField(min_value=0)
-    consumptions = ServiceConsumptionInputSerializer(many=True)
+    actual_grams = serializers.DecimalField(required=False, max_digits=12, decimal_places=2, min_value=Decimal("0"))
+    consumptions = ServiceConsumptionInputSerializer(many=True, required=False, default=list)
 
 
 class ServiceFailSerializer(ServiceCompleteSerializer):

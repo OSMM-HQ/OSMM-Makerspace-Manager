@@ -3000,6 +3000,13 @@
                     },
                     {
                         "in": "query",
+                        "name": "machine_type",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
                         "name": "start",
                         "schema": {
                             "type": "string",
@@ -3044,6 +3051,96 @@
                     },
                     "404": {
                         "description": "Not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machine-service/consumable-pools/{id}": {
+            "get": {
+                "operationId": "api_v1_admin_machine_service_consumable_pools_retrieve",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PrinterPool"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machine-service/consumable-pools/{id}/adjustments": {
+            "post": {
+                "operationId": "api_v1_admin_machine_service_consumable_pools_adjustments_create",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PrinterPoolCorrection"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PrinterPoolCorrection"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PrinterPoolCorrection"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PrinterPool"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -3774,6 +3871,71 @@
                     },
                     "required": true
                 },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineServiceRequest"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid service request input."
+                    },
+                    "401": {
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "description": "Machine management permission required."
+                    },
+                    "404": {
+                        "description": "Service request was not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Service workflow conflict."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machine-service/requests/{id}/reprint": {
+            "post": {
+                "operationId": "api_v1_admin_machine_service_requests_reprint_create",
+                "summary": "Create a printer reprint",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
                 "security": [
                     {
                         "jwtAuth": []
@@ -9830,6 +9992,13 @@
                         }
                     },
                     {
+                        "in": "query",
+                        "name": "machine_type",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
                         "in": "path",
                         "name": "makerspace_id",
                         "schema": {
@@ -11903,6 +12072,97 @@
                 }
             }
         },
+        "/api/v1/admin/makerspaces/{makerspace_id}/machine-service/consumable-pools": {
+            "get": {
+                "operationId": "api_v1_admin_makerspaces_machine_service_consumable_pools_list",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PrinterPool"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_admin_makerspaces_machine_service_consumable_pools_create",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PrinterPoolCreate"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PrinterPoolCreate"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PrinterPoolCreate"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PrinterPool"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspaces/{makerspace_id}/machine-service/requests": {
             "get": {
                 "operationId": "api_v1_admin_makerspaces_machine_service_requests_list",
@@ -11923,12 +12183,26 @@
                         }
                     },
                     {
+                        "in": "query",
+                        "name": "machine_type",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
                         "in": "path",
                         "name": "makerspace_id",
                         "schema": {
                             "type": "integer"
                         },
                         "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "queue",
+                        "schema": {
+                            "type": "integer"
+                        }
                     },
                     {
                         "in": "query",
@@ -12071,6 +12345,97 @@
                             }
                         },
                         "description": "Service workflow conflict."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspaces/{makerspace_id}/machine-service/typed-manual-usage": {
+            "get": {
+                "operationId": "api_v1_admin_makerspaces_machine_service_typed_manual_usage_list",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/TypedManualUsageResponse"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_admin_makerspaces_machine_service_typed_manual_usage_create",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machine service"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TypedManualUsage"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TypedManualUsage"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/TypedManualUsage"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/TypedManualUsageResponse"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -23954,6 +24319,182 @@
                 }
             }
         },
+        "/api/v1/public/{makerspace_slug}/machine-service/3d-printer/consumable-pools": {
+            "get": {
+                "operationId": "api_v1_public_machine_service_3d_printer_consumable_pools_list",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Public machine service"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PublicPrinterPool"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/public/{makerspace_slug}/machine-service/3d-printer/queues": {
+            "get": {
+                "operationId": "api_v1_public_machine_service_3d_printer_queues_list",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Public machine service"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PublicPrinterQueue"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/public/{makerspace_slug}/machine-service/3d-printer/requests": {
+            "post": {
+                "operationId": "api_v1_public_machine_service_3d_printer_requests_create",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Public machine service"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicPrinterSubmit"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicPrinterSubmit"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicPrinterSubmit"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PublicPrinterSubmitResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/public/{makerspace_slug}/machine-service/3d-printer/uploads": {
+            "post": {
+                "operationId": "api_v1_public_machine_service_3d_printer_uploads_create",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_slug",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Public machine service"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicPrinterUpload"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicPrinterUpload"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PublicPrinterUpload"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PublicPrinterSubmitResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/public/{makerspace_slug}/machines": {
             "get": {
                 "operationId": "api_v1_public_machines_list",
@@ -25239,6 +25780,37 @@
                             }
                         },
                         "description": "Service unavailable."
+                    }
+                }
+            }
+        },
+        "/api/v1/public/machine-service/3d-printer/requests/{public_token}/status": {
+            "get": {
+                "operationId": "api_v1_public_machine_service_3d_printer_requests_status_retrieve",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "public_token",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Public machine service"
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PublicPrinterStatus"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -30220,6 +30792,14 @@
                 "type": "string",
                 "description": "* `dev_room` - Development room\n* `bench` - Bench\n* `meeting` - Meeting room\n* `other` - Other"
             },
+            "Kind7bbEnum": {
+                "enum": [
+                    "stl",
+                    "screenshot"
+                ],
+                "type": "string",
+                "description": "* `stl` - stl\n* `screenshot` - screenshot"
+            },
             "LedgerResponse": {
                 "type": "object",
                 "properties": {
@@ -31127,6 +31707,15 @@
                         "type": "integer",
                         "readOnly": true
                     },
+                    "queue_id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "machine_type": {
+                        "type": "string",
+                        "readOnly": true,
+                        "default": ""
+                    },
                     "machine": {
                         "allOf": [
                             {
@@ -31240,6 +31829,42 @@
                         "format": "date-time",
                         "readOnly": true
                     },
+                    "capability_payload": {
+                        "readOnly": true
+                    },
+                    "planned_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "reserved_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "actual_consumed_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "payment_amount": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "payment_status": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "run_machine_model": {
+                        "type": "string",
+                        "readOnly": true
+                    },
                     "files": {
                         "type": "array",
                         "items": {
@@ -31257,9 +31882,11 @@
                 },
                 "required": [
                     "accepted_at",
+                    "actual_consumed_grams",
                     "actual_minutes",
                     "assigned_machine",
                     "bucket_id",
+                    "capability_payload",
                     "collected_at",
                     "completed_at",
                     "consumptions",
@@ -31273,9 +31900,16 @@
                     "files",
                     "id",
                     "machine",
+                    "machine_type",
+                    "payment_amount",
+                    "payment_status",
+                    "planned_grams",
+                    "queue_id",
                     "reason",
                     "requester",
                     "requester_name",
+                    "reserved_grams",
+                    "run_machine_model",
                     "source_link",
                     "started_at",
                     "status",
@@ -32899,6 +33533,9 @@
             "MemberMachineServiceActivity": {
                 "type": "object",
                 "properties": {
+                    "machine_type": {
+                        "type": "string"
+                    },
                     "title": {
                         "type": "string"
                     },
@@ -36421,7 +37058,7 @@
                         "nullable": true
                     },
                     "kind": {
-                        "$ref": "#/components/schemas/PrintPresignRequestKindEnum"
+                        "$ref": "#/components/schemas/Kind7bbEnum"
                     },
                     "filename": {
                         "type": "string",
@@ -36436,14 +37073,6 @@
                     "filename",
                     "kind"
                 ]
-            },
-            "PrintPresignRequestKindEnum": {
-                "enum": [
-                    "stl",
-                    "screenshot"
-                ],
-                "type": "string",
-                "description": "* `stl` - stl\n* `screenshot` - screenshot"
             },
             "PrintPresignResponse": {
                 "type": "object",
@@ -37039,6 +37668,140 @@
                     "estimated_minutes",
                     "filament_spool_id",
                     "printer_id"
+                ]
+            },
+            "PrinterPool": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "machine_id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "material": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "color": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "brand": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "lot_code": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "initial_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "remaining_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "low_threshold_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "nullable": true
+                    },
+                    "is_active": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "opened_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "id",
+                    "initial_grams",
+                    "is_active",
+                    "machine_id",
+                    "material",
+                    "remaining_grams",
+                    "updated_at"
+                ]
+            },
+            "PrinterPoolCorrection": {
+                "type": "object",
+                "properties": {
+                    "quantity_delta": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "reason": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "quantity_delta",
+                    "reason"
+                ]
+            },
+            "PrinterPoolCreate": {
+                "type": "object",
+                "properties": {
+                    "machine_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "nullable": true
+                    },
+                    "material": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "color": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "brand": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "lot_code": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "initial_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "low_threshold_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "initial_grams",
+                    "material"
                 ]
             },
             "PrintingReport": {
@@ -38136,6 +38899,209 @@
                 ],
                 "type": "string",
                 "description": "* `token_only` - Token only\n* `email_unverified` - Email unverified"
+            },
+            "PublicPrinterPool": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "material": {
+                        "type": "string"
+                    },
+                    "color": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "color",
+                    "id",
+                    "material"
+                ]
+            },
+            "PublicPrinterQueue": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "name": {
+                        "type": "string"
+                    },
+                    "description": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "description",
+                    "id",
+                    "name"
+                ]
+            },
+            "PublicPrinterStatus": {
+                "type": "object",
+                "description": "The token endpoint's complete field allowlist.  Do not add contact fields.",
+                "properties": {
+                    "public_token": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "title": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "accepted_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "started_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "completed_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    },
+                    "estimated_minutes": {
+                        "type": "integer"
+                    },
+                    "queue_position": {
+                        "type": "integer",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "queue_approved_ahead": {
+                        "type": "integer",
+                        "nullable": true,
+                        "readOnly": true
+                    },
+                    "queue_awaiting_review_ahead": {
+                        "type": "integer",
+                        "nullable": true,
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "accepted_at",
+                    "completed_at",
+                    "created_at",
+                    "estimated_minutes",
+                    "public_token",
+                    "queue_approved_ahead",
+                    "queue_awaiting_review_ahead",
+                    "queue_position",
+                    "started_at",
+                    "status",
+                    "title"
+                ]
+            },
+            "PublicPrinterSubmit": {
+                "type": "object",
+                "properties": {
+                    "website": {
+                        "type": "string"
+                    },
+                    "queue_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "title": {
+                        "type": "string",
+                        "maxLength": 200
+                    },
+                    "project_brief": {
+                        "type": "string"
+                    },
+                    "preferred_settings": {
+                        "nullable": true
+                    },
+                    "material": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "color": {
+                        "type": "string",
+                        "maxLength": 100
+                    },
+                    "consumable_pool_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "estimated_filament_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,6}(?:\\.\\d{0,2})?$",
+                        "nullable": true
+                    },
+                    "quantity": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "default": 1
+                    },
+                    "source_link": {
+                        "type": "string",
+                        "format": "uri",
+                        "maxLength": 200
+                    },
+                    "file_ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    }
+                },
+                "required": [
+                    "title"
+                ]
+            },
+            "PublicPrinterSubmitResponse": {
+                "type": "object",
+                "properties": {
+                    "public_token": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "status": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "public_token",
+                    "status"
+                ]
+            },
+            "PublicPrinterUpload": {
+                "type": "object",
+                "properties": {
+                    "queue_id": {
+                        "type": "integer",
+                        "nullable": true
+                    },
+                    "kind": {
+                        "$ref": "#/components/schemas/Kind7bbEnum"
+                    },
+                    "filename": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "content_type": {
+                        "type": "string",
+                        "maxLength": 128
+                    }
+                },
+                "required": [
+                    "filename",
+                    "kind"
+                ]
             },
             "PublicProduct": {
                 "type": "object",
@@ -40013,6 +40979,16 @@
                         "type": "integer",
                         "minimum": 0
                     },
+                    "planned_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "payment_amount": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
                     "note": {
                         "type": "string"
                     }
@@ -40025,6 +41001,11 @@
                         "type": "integer",
                         "minimum": 0
                     },
+                    "actual_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
                     "consumptions": {
                         "type": "array",
                         "items": {
@@ -40033,8 +41014,7 @@
                     }
                 },
                 "required": [
-                    "actual_minutes",
-                    "consumptions"
+                    "actual_minutes"
                 ]
             },
             "ServiceConsumption": {
@@ -40113,6 +41093,11 @@
                         "type": "integer",
                         "minimum": 0
                     },
+                    "actual_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
                     "consumptions": {
                         "type": "array",
                         "items": {
@@ -40130,7 +41115,6 @@
                 },
                 "required": [
                     "actual_minutes",
-                    "consumptions",
                     "percent_complete",
                     "reason"
                 ]
@@ -41524,6 +42508,138 @@
                 ],
                 "type": "string",
                 "description": "* `box` - box\n* `asset` - asset\n* `product` - product"
+            },
+            "TypedManualUsage": {
+                "type": "object",
+                "properties": {
+                    "machine_id": {
+                        "type": "integer",
+                        "minimum": 1
+                    },
+                    "consumable_pool_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "nullable": true
+                    },
+                    "service_request_id": {
+                        "type": "integer",
+                        "minimum": 1,
+                        "nullable": true
+                    },
+                    "duration_minutes": {
+                        "type": "integer",
+                        "minimum": 0
+                    },
+                    "outcome": {
+                        "$ref": "#/components/schemas/TypedManualUsageOutcomeEnum"
+                    },
+                    "percent_complete": {
+                        "type": "integer",
+                        "maximum": 100,
+                        "minimum": 0,
+                        "default": 100
+                    },
+                    "reason": {
+                        "type": "string"
+                    },
+                    "grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "default": "0.00"
+                    },
+                    "note": {
+                        "type": "string",
+                        "maxLength": 255
+                    }
+                },
+                "required": [
+                    "duration_minutes",
+                    "machine_id",
+                    "outcome"
+                ]
+            },
+            "TypedManualUsageOutcomeEnum": {
+                "enum": [
+                    "success",
+                    "failed"
+                ],
+                "type": "string",
+                "description": "* `success` - success\n* `failed` - failed"
+            },
+            "TypedManualUsageResponse": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "machine_id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "consumable_pool_id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "service_request_id": {
+                        "type": "integer",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "duration_minutes": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "outcome": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "percent_complete": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "reason": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "consumed_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "hours": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,8}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "note": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "consumable_pool_id",
+                    "consumed_grams",
+                    "created_at",
+                    "duration_minutes",
+                    "hours",
+                    "id",
+                    "machine_id",
+                    "note",
+                    "outcome",
+                    "percent_complete",
+                    "reason",
+                    "service_request_id"
+                ]
             },
             "User": {
                 "type": "object",

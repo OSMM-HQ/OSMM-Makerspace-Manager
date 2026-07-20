@@ -56,3 +56,18 @@ class MachineServiceReportSerializer(serializers.Serializer):
     machines = MachineServiceMachineSerializer(many=True)
     consumption = MachineServiceConsumptionSerializer(many=True)
     failure_summary = MachineServiceFailureSerializer(many=True)
+
+class PrinterServiceReportRowSerializer(_ScopedSerializer):
+    machine_id = serializers.IntegerField()
+    machine_name = serializers.CharField()
+    model = serializers.CharField(allow_blank=True)
+    completed_hours = serializers.FloatField()
+    failed_partial_hours = serializers.FloatField()
+    manual_hours = serializers.FloatField()
+    consumed_grams = serializers.DecimalField(max_digits=12, decimal_places=2)
+    payment_due = serializers.DecimalField(max_digits=12, decimal_places=2)
+    payment_paid = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+class PrinterServiceReportSerializer(serializers.Serializer):
+    printer_metrics = PrinterServiceReportRowSerializer(many=True)

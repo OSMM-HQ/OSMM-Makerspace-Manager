@@ -33,6 +33,8 @@ SERVICE_FILTERS = [
     OpenApiParameter("status", str, OpenApiParameter.QUERY),
     OpenApiParameter("machine", int, OpenApiParameter.QUERY),
     OpenApiParameter("bucket", int, OpenApiParameter.QUERY),
+    OpenApiParameter("queue", int, OpenApiParameter.QUERY),
+    OpenApiParameter("machine_type", str, OpenApiParameter.QUERY),
 ]
 
 
@@ -102,9 +104,11 @@ class MachineServiceRequestListCreateView(APIView):
         status_value = request.query_params.get("status")
         if status_value not in (None, ""):
             rows = rows.filter(status=status_value)
-        for name, field in (("machine", "bucket__machine_id"), ("bucket", "bucket_id")):
+        for name, field in (("machine", "bucket__machine_id"), ("bucket", "bucket_id"), ("queue", "queue_id")):
             if value := _query_int(request, name):
                 rows = rows.filter(**{field: value})
+        if machine_type := request.query_params.get("machine_type"):
+            rows = rows.filter(queue__machine_type__slug=machine_type)
         return Response(MachineServiceRequestSerializer(rows.order_by("-created_at"), many=True).data)
 
     @extend_schema(tags=["Admin machine service"], summary="Submit a machine service request for a member",
@@ -166,6 +170,8 @@ class _MachineServiceActionView(APIView):
             row = service_workflow.fail(row, request.user, **data)
         elif self.operation == "collect":
             row = service_workflow.collect(row, request.user)
+        elif self.operation == "reprint":
+            row = service_workflow.create_reprint(row, request.user)
         else:
             raise AssertionError("Unknown service action")
         return _response(row)
@@ -217,3 +223,11 @@ class MachineServiceCollectView(_MachineServiceActionView):
     @extend_schema(tags=["Admin machine service"], summary="Mark a machine service request collected",
                    request=EmptyServiceActionSerializer, responses={200: MachineServiceRequestSerializer, **SERVICE_ERRORS})
     def post(self, request, pk, *args, **kwargs): return super().post(request, pk, *args, **kwargs)
+
+
+class MachineServiceReprintView(_MachineServiceActionView):
+    operation = "reprint"
+
+    @extend_schema(tags=["Admin machine service"], summary="Create a printer reprint", request=EmptyServiceActionSerializer, responses={200: MachineServiceRequestSerializer, **SERVICE_ERRORS})
+    def post(self, request, pk, *args, **kwargs):
+        return super().post(request, pk, *args, **kwargs)
