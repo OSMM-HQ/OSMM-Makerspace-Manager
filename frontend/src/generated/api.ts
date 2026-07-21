@@ -1915,6 +1915,10 @@ export type Makerspace = {
   "slug": string;
   "location"?: string;
   "map_url"?: string;
+  "geofence_latitude"?: string | null;
+  "geofence_longitude"?: string | null;
+  "geofence_radius_m"?: number;
+  "geofence_enabled"?: boolean;
   "public_inventory_enabled"?: boolean;
   "public_stats_enabled"?: boolean;
   "public_print_status_lookup_policy"?: PublicPrintStatusLookupPolicyEnum;
@@ -2678,6 +2682,10 @@ export type PatchedMakerspace = {
   "slug"?: string;
   "location"?: string;
   "map_url"?: string;
+  "geofence_latitude"?: string | null;
+  "geofence_longitude"?: string | null;
+  "geofence_radius_m"?: number;
+  "geofence_enabled"?: boolean;
   "public_inventory_enabled"?: boolean;
   "public_stats_enabled"?: boolean;
   "public_print_status_lookup_policy"?: PublicPrintStatusLookupPolicyEnum;
@@ -2839,6 +2847,9 @@ export type PresenceSession = {
 
 export type PresenceStart = {
   "duration_minutes": number;
+  "latitude"?: number;
+  "longitude"?: number;
+  "accuracy"?: number;
 };
 
 export type PrinterPool = {
@@ -3905,6 +3916,7 @@ export type TenantBootstrapMakerspace = {
   "public_code": string;
   "location": string;
   "map_url": string;
+  "geofence_enabled"?: boolean;
   "logo_url": string | null;
   "cover_image_url": string | null;
   "public_stats_enabled": boolean;

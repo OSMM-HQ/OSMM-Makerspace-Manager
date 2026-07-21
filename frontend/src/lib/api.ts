@@ -23,6 +23,7 @@ export type TenantBootstrap = {
     map_url?: string;
     logo_url?: string | null;
     cover_image_url?: string | null;
+    geofence_enabled: boolean;
     public_stats_enabled?: boolean;
     membership_policy: "request" | "open" | "invite_only";
   };

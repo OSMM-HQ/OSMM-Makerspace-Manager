@@ -113,6 +113,7 @@ class MakerspaceDetailView(generics.RetrieveUpdateAPIView):
     def perform_update(self, serializer):
         was_enabled = serializer.instance.superadmin_access_enabled
         previous_features = list(serializer.instance.enabled_features)
+        previous_geofence = {"enabled": serializer.instance.geofence_enabled, "configured": serializer.instance.geofence_effective, "radius_m": serializer.instance.geofence_radius_m, "latitude": str(serializer.instance.geofence_latitude), "longitude": str(serializer.instance.geofence_longitude)}
         instance = serializer.save()
         audit.record(
             self.request.user,
@@ -138,6 +139,9 @@ class MakerspaceDetailView(generics.RetrieveUpdateAPIView):
             )
 
 
+        current_geofence = {"enabled": instance.geofence_enabled, "configured": instance.geofence_effective, "radius_m": instance.geofence_radius_m, "latitude": str(instance.geofence_latitude), "longitude": str(instance.geofence_longitude)}
+        if previous_geofence != current_geofence:
+            audit.record(self.request.user, "makerspace.geofence_updated", makerspace=instance, target=instance, meta=current_geofence)
 @extend_schema(tags=["Admin makerspaces"], summary="Retrieve or update return policy")
 class ReturnPolicyView(generics.RetrieveUpdateAPIView):
     serializer_class = ReturnPolicySerializer

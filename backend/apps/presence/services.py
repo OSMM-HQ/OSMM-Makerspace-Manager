@@ -6,6 +6,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.audit import services as audit
 from apps.makerspaces.models import MakerspaceMembership, presence_presets
+from apps.presence.geofence import evaluate_geofence, geofence_metadata
 from apps.presence.guard import MemberPresenceRequired
 from apps.presence.models import PresenceSession
 
@@ -19,9 +20,12 @@ def _active_sessions(user, makerspace, now):
     ).order_by("-started_at", "-id")
 
 
-def start_session(user, makerspace, duration_minutes):
+def start_session(user, makerspace, duration_minutes, *, latitude=None, longitude=None, accuracy=None):
     if duration_minutes not in presence_presets(makerspace):
         raise ValidationError({"duration_minutes": "Choose an allowed session length."})
+    # ADVISORY by design (owner decision): browser-supplied coordinates are spoofable, so the geofence
+    # is recorded for staff visibility but NEVER blocks a session. Do not convert this into a hard gate.
+    geofence_result = evaluate_geofence(makerspace, latitude=latitude, longitude=longitude, accuracy=accuracy)
     with transaction.atomic():
         membership = MakerspaceMembership.objects.select_for_update().filter(
             makerspace=makerspace, user=user, status="active"
@@ -47,7 +51,7 @@ def start_session(user, makerspace, duration_minutes):
             started_at=now,
             expires_at=requested_expiry,
         )
-        audit.record(user, "presence.started", makerspace=makerspace, target=session)
+        audit.record(user, "presence.started", makerspace=makerspace, target=session, meta=geofence_metadata(geofence_result))
         return session
 
 

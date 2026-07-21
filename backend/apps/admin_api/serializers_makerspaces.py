@@ -89,6 +89,10 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "slug",
             "location",
             "map_url",
+            "geofence_latitude",
+            "geofence_longitude",
+            "geofence_radius_m",
+            "geofence_enabled",
             "public_inventory_enabled",
             "public_stats_enabled",
             "public_print_status_lookup_policy",
@@ -246,6 +250,12 @@ class MakerspaceSerializer(serializers.ModelSerializer):
         return super().to_internal_value(data)
 
     def validate(self, attrs):
+        effective_geofence_enabled = attrs.get("geofence_enabled", self.instance.geofence_enabled if self.instance else False)
+        effective_latitude = attrs.get("geofence_latitude", self.instance.geofence_latitude if self.instance else None)
+        effective_longitude = attrs.get("geofence_longitude", self.instance.geofence_longitude if self.instance else None)
+        if effective_geofence_enabled and (effective_latitude is None or effective_longitude is None):
+            raise serializers.ValidationError({"geofence_enabled": "Set both latitude and longitude before enabling the geofence."})
+
         try:
             _, enabled_features = validate_capabilities(
                 attrs.get("enabled_modules", self.instance.enabled_modules if self.instance else []),

@@ -24,6 +24,7 @@ TenantBootstrapSerializer = inline_serializer(
                 "public_code": serializers.CharField(),
                 "location": serializers.CharField(allow_blank=True),
                 "map_url": serializers.URLField(allow_blank=True),
+                "geofence_enabled": serializers.BooleanField(required=False),
                 "logo_url": serializers.CharField(allow_blank=True, allow_null=True),
                 "cover_image_url": serializers.CharField(
                     allow_blank=True, allow_null=True
