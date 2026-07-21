@@ -2,6 +2,7 @@ from decimal import Decimal
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.db import InternalError, transaction
 
 from apps.machines.models import Machine, MachineServiceRequest, MachineType
 from apps.machines.service_workflow import accept, complete, start, submit
@@ -46,6 +47,19 @@ def test_terminal_payment_is_immutable_and_reconciliation_is_audited():
     assert waive(payment, actor).status == Payment.Status.PAID_OFFLINE
 
 
+def test_payment_delete_is_immutable_outside_purge():
+    space = make_space("c3-payment-delete")
+    actor = make_member("c3-payment-delete-user", space)
+    paid = payment_for(service_request(space, actor), actor)
+    pending = payment_for(service_request(space, actor), actor)
+    mark_offline(paid, actor)
+
+    for payment in (paid, pending):
+        with pytest.raises(InternalError):
+            with transaction.atomic():
+                Payment.objects.filter(pk=payment.pk).delete()
+
+
 def test_verified_webhook_is_idempotent_and_marks_matching_checkout_paid():
     space = make_space("c3-payment-webhook")
     space.enabled_features = ["payments.machines"]
@@ -57,6 +71,23 @@ def test_verified_webhook_is_idempotent_and_marks_matching_checkout_paid():
     event = {"id": "evt_c3", "type": "checkout.session.completed", "data": {"object": {"id": "cs_c3", "payment_status": "paid", "payment_intent": "pi_c3"}}}
     assert apply_webhook_event(space, event).status == Payment.Status.PAID_ONLINE
     assert apply_webhook_event(space, event) is None
+
+
+def test_async_checkout_webhook_settles_matching_pending_payment():
+    space = make_space("c3-payment-async-webhook")
+    actor = make_member("c3-payment-async-webhook-user", space)
+    payment = payment_for(service_request(space, actor), actor)
+    Payment.objects.filter(pk=payment.pk).update(stripe_checkout_session_id="cs_c3_async")
+    unpaid_completion = {"id": "evt_c3_unpaid", "type": "checkout.session.completed", "data": {"object": {"id": "cs_c3_async", "payment_status": "unpaid"}}}
+    async_success = {"id": "evt_c3_async", "type": "checkout.session.async_payment_succeeded", "data": {"object": {"id": "cs_c3_async", "payment_intent": "pi_c3_async"}}}
+
+    assert apply_webhook_event(space, unpaid_completion) is None
+    payment.refresh_from_db()
+    assert payment.status == Payment.Status.PENDING
+    assert apply_webhook_event(space, async_success).status == Payment.Status.PAID_ONLINE
+    assert apply_webhook_event(space, async_success) is None
+    payment.refresh_from_db()
+    assert payment.stripe_payment_intent_id == "pi_c3_async"
 
 
 def test_completion_creates_payment_and_checkout_failure_never_blocks(monkeypatch):

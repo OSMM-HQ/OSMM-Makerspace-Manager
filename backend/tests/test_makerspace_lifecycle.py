@@ -37,6 +37,7 @@ from apps.operations.models import (
     StockTransfer,
     StockTransferLine,
 )
+from apps.payments.models import Payment, ProcessedStripeEvent
 
 pytestmark = pytest.mark.django_db
 
@@ -359,6 +360,27 @@ def populate_full_purge_graph(makerspace, survivor, actor):
         target_id=str(makerspace.id),
         makerspace=makerspace,
     )
+    survivor_payment = Payment.objects.bulk_create([
+        Payment(
+            makerspace=makerspace,
+            subject_type=Payment.SubjectType.MACHINE_SERVICE_REQUEST,
+            subject_id=hardware_request.id,
+            member=requester,
+            amount="5.00",
+            currency="usd",
+            created_by=actor,
+        ),
+        Payment(
+            makerspace=survivor,
+            subject_type=Payment.SubjectType.MACHINE_SERVICE_REQUEST,
+            subject_id=survivor_product.id,
+            member=survivor_user,
+            amount="6.00",
+            currency="usd",
+            created_by=actor,
+        ),
+    ])[1]
+    ProcessedStripeEvent.objects.create(makerspace=makerspace, stripe_event_id="evt-lifecycle-purge")
 
     machine_type = MachineType.objects.create(
         makerspace=makerspace,
@@ -429,6 +451,7 @@ def populate_full_purge_graph(makerspace, survivor, actor):
         "machine_doc_key": machine_doc_key,
         "survivor_document": survivor_document,
         "survivor_key": survivor_key,
+        "survivor_payment": survivor_payment,
     }
 
 
@@ -465,6 +488,8 @@ def assert_purged_makerspace_graph(space_id):
     assert EmailTemplate.objects.filter(makerspace_id=space_id).count() == 0
     assert MakerspaceMembership.objects.filter(makerspace_id=space_id).count() == 0
     assert AuditLog.objects.filter(makerspace_id=space_id).count() == 0
+    assert Payment.objects.filter(makerspace_id=space_id).count() == 0
+    assert ProcessedStripeEvent.objects.filter(makerspace_id=space_id).count() == 0
     assert MaintenanceLog.objects.filter(machine__makerspace_id=space_id).count() == 0
     assert MaintenanceLogDocument.objects.filter(
         log__machine__makerspace_id=space_id
@@ -495,6 +520,7 @@ def test_comprehensive_purge_removes_entire_makerspace_graph_and_preserves_survi
     assert MaintenanceLogDocument.objects.filter(
         pk=refs["survivor_document"].pk
     ).exists()
+    assert Payment.objects.filter(pk=refs["survivor_payment"].pk).exists()
 
     survivor_adjustment = InventoryAdjustment.objects.get(pk=survivor_adjustment_id)
     assert survivor_adjustment.makerspace_id == survivor_id
@@ -531,6 +557,7 @@ def test_comprehensive_purge_under_managed_postgres(monkeypatch):
     assert MaintenanceLogDocument.objects.filter(
         pk=refs["survivor_document"].pk
     ).exists()
+    assert Payment.objects.filter(pk=refs["survivor_payment"].pk).exists()
 
     survivor_adjustment = InventoryAdjustment.objects.get(pk=survivor_adjustment_id)
     assert survivor_adjustment.makerspace_id == survivor_id

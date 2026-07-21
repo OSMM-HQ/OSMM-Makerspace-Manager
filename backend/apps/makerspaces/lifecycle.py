@@ -128,6 +128,7 @@ def _delete_object_graph(makerspace):
     from apps.operations.models import StocktakeSession, StockTransfer
     from apps.machines.models import Machine, MachineType
     from apps.machines.service_lifecycle import delete_for_makerspace
+    from apps.payments.models import Payment, ProcessedStripeEvent
 
     with connection.cursor() as cursor:
         # Suspend ALL triggers for THIS transaction only via the session-replication
@@ -191,6 +192,8 @@ def _delete_object_graph(makerspace):
         ApiKeyRequest.objects.filter(makerspace=makerspace).delete()
         MakerspaceMembership.objects.filter(makerspace=makerspace).delete()
         AuditLog.objects.filter(makerspace=makerspace).delete()
+        Payment.objects.filter(makerspace=makerspace).delete()
+        ProcessedStripeEvent.objects.filter(makerspace=makerspace).delete()
         # Encryption key rows carry a PROTECT FK + a no-delete ORM guard/trigger, so
         # raw-delete them inside this authorized purge context (session_replication_role
         # =replica self-host, or app.allow_immutable_delete GUC managed) before the

@@ -65,11 +65,11 @@ def apply_webhook_event(makerspace, event):
         return None
     event_type, data = _value(event, "type"), _value(event, "data") or {}
     obj = _value(data, "object") or {}
-    if event_type not in {"checkout.session.completed", "payment_intent.succeeded"}:
+    if event_type not in {"checkout.session.completed", "checkout.session.async_payment_succeeded", "payment_intent.succeeded"}:
         return None
     if event_type == "checkout.session.completed" and _value(obj, "payment_status") not in {"paid", None}:
         return None
-    session_id = _value(obj, "id") if event_type == "checkout.session.completed" else None
+    session_id = _value(obj, "id") if event_type in {"checkout.session.completed", "checkout.session.async_payment_succeeded"} else None
     intent_id = _value(obj, "payment_intent") or (_value(obj, "id") if event_type == "payment_intent.succeeded" else None)
     if not session_id and not intent_id:
         return None
