@@ -292,13 +292,15 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
       }
       return next;
     });
-  const activeActions = user.makerspaces.find((item) => item.id === selected)?.actions ?? [];
+  const activeMembership = user.makerspaces.find((item) => item.id === selected);
+  const activeActions = activeMembership?.actions ?? [];
   const makerspaceList = makerspaces.data ?? [];
 
   return (
     <StaffWorkspace
       activeMakerspace={activeMakerspace}
       actions={activeActions}
+      canConfigureMachineTypes={activeMembership?.can_configure_machine_types ?? isSuperadmin}
       collapsedGroups={collapsedGroups}
       guestOnly={guestOnly}
       isSuperadmin={isSuperadmin}

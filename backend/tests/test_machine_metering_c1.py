@@ -32,10 +32,10 @@ def test_pool_defaults_to_grams_and_retains_quantities_for_milliliters():
 
 
 def test_generic_type_config_validation_and_protected_printer_contract():
-    validate_type_config({"metering_unit": "minutes", "rate_per_unit": "0.5", "flat_fee": 2, "currency": "USD", "requires_booking": False})
+    validate_type_config({"metering_unit": "minutes", "requires_booking": False}, is_custom=True)
     for config in (
-        {"metering_unit": "flat"}, {"rate_per_unit": "-1"}, {"flat_fee": "-1"},
-        {"currency": "US"}, {"requires_booking": "false"},
+        {"metering_unit": "flat"}, {"rate_per_unit": "1"}, {"flat_fee": "1"},
+        {"currency": "USD"}, {"payment_enabled": True}, {"requires_booking": "false"},
     ):
         with pytest.raises(ValidationError):
             validate_type_config(config)
@@ -46,7 +46,7 @@ def test_generic_type_config_validation_and_protected_printer_contract():
 
 def test_non_grams_request_reserves_and_reconciles_in_its_metering_unit():
     space, actor, requester = make_space("meter-volume"), make_user("meter-volume-actor"), make_user("meter-volume-requester")
-    machine = _machine(space, {"metering_unit": MeteringUnit.VOLUME, "rate_per_unit": "1"})
+    machine = _machine(space, {"metering_unit": MeteringUnit.VOLUME})
     request = submit(machine, requester, actor=actor, requester_name="R", contact_email="r@test", contact_phone="1", title="Resin job")
     pool = create_pool(space, actor, material="Resin", initial_grams="100", machine=machine, unit="milliliters")
 

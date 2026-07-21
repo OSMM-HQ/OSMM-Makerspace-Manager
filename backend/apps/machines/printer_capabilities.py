@@ -12,8 +12,8 @@ PRINTER_CONFIG = {
     "machine_payload_schema": "printer-machine-v1",
     "accepted_materials": ["PLA", "PETG", "TPU"],
     "accepted_colours": ["Black", "Blue", "Green", "Red", "White", "Gray"],
+    "metering_unit": "weight",
     "pooled_service_queue": True,
-    "payment_enabled": True,
     "typed_consumable_pools": True,
     "service_file_policy": {"name": "printer", "version": 1},
     "printer_hours": True,
@@ -36,7 +36,7 @@ def validate_printer_config(machine_type, config):
     for key in ("schema", "service_payload_schema", "machine_payload_schema"):
         if config[key] != PRINTER_CONFIG[key]:
             raise ValidationError(f"The 3D-printer {key} is protected.")
-    for key in ("pooled_service_queue", "payment_enabled", "typed_consumable_pools", "printer_hours", "run_sheet_required"):
+    for key in ("pooled_service_queue", "typed_consumable_pools", "printer_hours", "run_sheet_required"):
         if config[key] is not True:
             raise ValidationError(f"The 3D-printer {key} capability is required.")
     if config["service_file_policy"] != PRINTER_CONFIG["service_file_policy"]:

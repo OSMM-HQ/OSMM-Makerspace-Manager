@@ -14,7 +14,7 @@ from apps.admin_api.serializers_machine_service_printer import (
     TypedManualUsageResponseSerializer, TypedManualUsageSerializer,
 )
 from apps.machines.models import Machine, MachineConsumablePool, MachineServiceRequest, MachineUsageEntry
-from apps.machines.printer_capabilities import PRINTER_SLUG, is_printer_type
+from apps.machines.printer_capabilities import PRINTER_SLUG
 from apps.machines.service_consumable_pools import correct_pool, create_pool, log_typed_manual_usage
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.models import Makerspace
@@ -31,8 +31,6 @@ def _space(actor, makerspace_id):
 def _pool(actor, pk):
     row = get_object_or_404(rbac.scope_by_action(actor, rbac.Action.MANAGE_MACHINES, MachineConsumablePool.objects.select_related("makerspace", "machine__machine_type"), field="makerspace_id"), pk=pk)
     require_module(row.makerspace, "machine_service")
-    if not is_printer_type(row.machine.machine_type) if row.machine_id else False:
-        raise PermissionDenied()
     return row
 
 
@@ -54,8 +52,6 @@ class MachineServicePrinterPoolListCreateView(APIView):
         machine = None
         if data.get("machine_id"):
             machine = get_object_or_404(Machine.objects.select_related("machine_type").filter(makerspace=space), pk=data["machine_id"])
-            if not is_printer_type(machine.machine_type):
-                raise PermissionDenied()
         row = create_pool(space, request.user, machine=machine, **{key: value for key, value in data.items() if key != "machine_id"})
         return Response(PrinterPoolSerializer(row).data, status=status.HTTP_201_CREATED)
 
@@ -86,7 +82,9 @@ class MachineServiceTypedManualUsageView(APIView):
     @extend_schema(tags=["Admin machine service"], responses={200: TypedManualUsageResponseSerializer(many=True)})
     def get(self, request, makerspace_id):
         space = _space(request.user, makerspace_id)
-        rows = MachineUsageEntry.objects.filter(machine__makerspace=space, machine__machine_type__slug=PRINTER_SLUG, source=MachineUsageEntry.Source.TYPED_MANUAL)
+        rows = MachineUsageEntry.objects.filter(machine__makerspace=space, source=MachineUsageEntry.Source.TYPED_MANUAL)
+        machine_type = request.query_params.get("machine_type", PRINTER_SLUG)
+        rows = rows.filter(machine__machine_type__slug=machine_type)
         return Response(TypedManualUsageResponseSerializer(rows, many=True).data)
 
     @extend_schema(tags=["Admin machine service"], request=TypedManualUsageSerializer, responses={201: TypedManualUsageResponseSerializer})
@@ -96,8 +94,6 @@ class MachineServiceTypedManualUsageView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
         machine = get_object_or_404(Machine.objects.select_related("machine_type").filter(makerspace=space), pk=data.pop("machine_id"))
-        if not is_printer_type(machine.machine_type):
-            raise PermissionDenied()
         pool_id, request_id = data.pop("consumable_pool_id", None), data.pop("service_request_id", None)
         pool = get_object_or_404(MachineConsumablePool.objects.filter(makerspace=space), pk=pool_id) if pool_id else None
         service_request = get_object_or_404(MachineServiceRequest.objects.filter(makerspace=space), pk=request_id) if request_id else None

@@ -559,13 +559,14 @@ def test_machine_types_custom_create_scope_permissions_and_global_uniqueness():
             "slug": "plasma_cutter",
             "name": "Plasma Cutter",
             "icon": "spark",
+            "capability_config": {"metering_unit": "minutes", "requires_booking": False},
             "managing_action": "manage_printing",
         },
         format="json",
     )
     denied = authenticated_client(operator).post(
         url,
-        {"slug": "kiln", "name": "Kiln"},
+        {"slug": "kiln", "name": "Kiln", "capability_config": {"metering_unit": "count", "requires_booking": False}},
         format="json",
     )
     listed = manager_client.get(url)
@@ -1126,7 +1127,7 @@ def test_duplicate_custom_type_slug_returns_400_not_500():
     manager = make_member("machines-dup-slug-mgr", makerspace)
     client = authenticated_client(manager)
     url = reverse("admin-machine-types", kwargs={"makerspace_id": makerspace.id})
-    payload = {"slug": "resin-tank", "name": "Resin Tank", "icon": ""}
+    payload = {"slug": "resin-tank", "name": "Resin Tank", "icon": "", "capability_config": {"metering_unit": "volume", "requires_booking": False}}
 
     assert client.post(url, payload, format="json").status_code == 201
     duplicate = client.post(url, payload, format="json")

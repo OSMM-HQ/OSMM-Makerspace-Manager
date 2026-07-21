@@ -264,6 +264,34 @@ def effective_actions(actor, makerspace_id) -> set:
     return actions_for_membership(_membership_for(actor, makerspace_id))
 
 
+def is_space_manager_identity(actor, makerspace_id) -> bool:
+    """Return whether actor has the space-manager identity in this makerspace.
+
+    This deliberately does not infer identity from actions: Machine Managers and
+    custom roles granted manage_machines cannot configure types or pricing.
+    """
+    if actor is None or not getattr(actor, "is_authenticated", False):
+        return False
+    if _id_in(makerspace_id, archived_makerspace_ids()):
+        return False
+    membership = _membership_for(actor, makerspace_id)
+    if actor.is_superuser or actor.role == User.Role.SUPERADMIN:
+        if _id_in(makerspace_id, superadmin_hidden_makerspace_ids()):
+            # In a hard-hidden makerspace a global superadmin is limited to their
+            # explicit membership's role, so only a space-manager membership grants
+            # the identity — an Inventory/Machine Manager membership does not.
+            return bool(membership and _membership_is_space_manager(membership))
+        return True
+    return bool(membership and _membership_is_space_manager(membership))
+
+
+def _membership_is_space_manager(membership) -> bool:
+    if membership.assigned_role_id is not None:
+        role = membership.assigned_role
+        return bool(role and role.makerspace_id == membership.makerspace_id and role.legacy_role == "space_manager")
+    return membership.role == MakerspaceMembership.Role.SPACE_MANAGER
+
+
 def is_handout_only(actor, makerspace_id) -> bool:
     """Whether the actor has a handover-only action bundle in one makerspace."""
     actions = effective_actions(actor, makerspace_id)

@@ -50,6 +50,7 @@ export function StaffTabContent({
   canManageQr,
   canManageMakerspace,
   canManageMachines,
+  canConfigureMachineTypes,
   canManageEvents,
   canManageBookings,
   canSeeHardware,
@@ -71,6 +72,7 @@ export function StaffTabContent({
   canManageQr: boolean;
   canManageMakerspace: boolean;
   canManageMachines: boolean;
+  canConfigureMachineTypes: boolean;
   canManageEvents: boolean;
   canManageBookings: boolean;
   canSeeHardware: boolean;
@@ -112,6 +114,7 @@ export function StaffTabContent({
           key={makerspaceKey}
           makerspaceId={activeMakerspace.id}
           canManage={canManageMachines}
+          canConfigureMachineTypes={canConfigureMachineTypes}
           maintenanceEnabled={activeMakerspace.enabled_modules?.includes("maintenance") ?? false}
         />
       ) : null}

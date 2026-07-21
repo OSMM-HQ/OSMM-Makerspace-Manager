@@ -56,6 +56,8 @@ export function PrinterServiceConsole({ makerspaceId, canManage }: Props) {
   const report = useStaffGet<MachineServiceReport>(["printer-service-report", makerspaceId], `/admin/makerspace/${makerspaceId}/machine-service-report?${printerFilter}`, canManage);
   const printerType = types.data && (Array.isArray(types.data) ? types.data : types.data.results).find((type) => type.slug === "3d_printer");
   const printers = useMemo(() => (machines.data?.results ?? []).filter((machine) => machine.machine_type.slug === "3d_printer"), [machines.data]);
+  const printerPools = useMemo(() => (pools.data ?? []).filter((pool) => (!pool.unit || pool.unit === "grams") && (!pool.machine_id || printers.some((printer) => printer.id === pool.machine_id))), [pools.data, printers]);
+  const printerUsage = useMemo(() => (manualUsage.data ?? []).filter((entry) => entry.metering_unit === "weight"), [manualUsage.data]);
 
   const invalidate = () => {
     void Promise.all([
@@ -96,31 +98,22 @@ export function PrinterServiceConsole({ makerspaceId, canManage }: Props) {
     },
     onSuccess: () => { setAction(null); setActionValues(blankActionValues); invalidate(); },
   });
-  const settlePayment = useMutation({
-    mutationFn: ({ paymentId, operation }: { paymentId: number; operation: "mark-offline" | "waive" }) =>
-      staffRequest(`/admin/machine-service/payments/${paymentId}/${operation}`, { method: "POST" }),
-    onSuccess: invalidate,
-  });
 
   if (!canManage) return null;
   return <div className="mt-6 grid gap-4">
     <Panel title="3D-printer queue">
-      <p className="mb-3 text-sm text-muted">Accept jobs, reserve filament, start work, reconcile actual grams, then complete, fail, collect, or reprint. Charges are calculated at completion.</p>
+      <p className="mb-3 text-sm text-muted">Accept jobs, reserve filament, start work, reconcile actual grams, then complete, fail, collect, or reprint.</p>
       <div className="grid gap-2">
         {requests.data?.map((request) => <article className="rounded-md border border-line bg-surface p-3" key={request.id}>
           <div className="flex flex-wrap items-center justify-between gap-2"><strong>{request.title}</strong><span>{request.status.replace("_", " ")}</span></div>
-          <p className="mt-1 text-xs text-muted">Planned {request.planned_grams}g · payment {request.payment ? `${request.payment.amount} ${request.payment.currency} · ${request.payment.status}` : "—"}</p>
+          <p className="mt-1 text-xs text-muted">Planned {request.planned_grams}g</p>
           <div className="mt-2 flex flex-wrap gap-2">
             <ServiceActions request={request} onAction={(name) => setAction({ id: request.id, name })} />
-            {request.payment?.status === "pending" ? <>
-              <button disabled={settlePayment.isPending} onClick={() => settlePayment.mutate({ paymentId: request.payment!.id, operation: "mark-offline" })}>{settlePayment.isPending ? "Settling…" : "Mark paid offline"}</button>
-              <button disabled={settlePayment.isPending} onClick={() => settlePayment.mutate({ paymentId: request.payment!.id, operation: "waive" })}>Waive payment</button>
-            </> : null}
           </div>
         </article>) ?? <p className="text-sm text-muted">Loading printer queue…</p>}
       </div>
-      {action ? <ActionForm action={action} values={actionValues} setValues={setActionValues} printers={printers} pools={pools.data ?? []} pending={runAction.isPending} onCancel={() => setAction(null)} onSubmit={() => runAction.mutate()} /> : null}
-      <ErrorBlock error={requests.error ?? runAction.error ?? settlePayment.error} />
+      {action ? <ActionForm action={action} values={actionValues} setValues={setActionValues} printers={printers} pools={printerPools} pending={runAction.isPending} onCancel={() => setAction(null)} onSubmit={() => runAction.mutate()} /> : null}
+      <ErrorBlock error={requests.error ?? runAction.error} />
     </Panel>
     <Panel title="Printers">
       <div className="grid gap-2 md:grid-cols-4"><input className="desk-input" placeholder="Printer name" value={machineName} onChange={(event) => setMachineName(event.target.value)} /><input className="desk-input" placeholder="Model" value={machineModel} onChange={(event) => setMachineModel(event.target.value)} /><input className="desk-input" type="file" accept="image/*" onChange={(event) => setMachineImage(event.target.files?.[0] ?? null)} /><button disabled={!machineName.trim() || createPrinter.isPending} onClick={() => createPrinter.mutate()}>Add printer</button></div>
@@ -129,12 +122,12 @@ export function PrinterServiceConsole({ makerspaceId, canManage }: Props) {
     </Panel>
     <Panel title="Filament pools">
       <div className="grid gap-2 md:grid-cols-5"><input className="desk-input" value={pool.material} placeholder="Material" onChange={(event) => setPool({ ...pool, material: event.target.value })} /><input className="desk-input" value={pool.color} placeholder="Colour" onChange={(event) => setPool({ ...pool, color: event.target.value })} /><input className="desk-input" value={pool.brand} placeholder="Brand" onChange={(event) => setPool({ ...pool, brand: event.target.value })} /><input className="desk-input" value={pool.initial_grams} type="number" placeholder="Initial grams" onChange={(event) => setPool({ ...pool, initial_grams: event.target.value })} /><button disabled={!pool.material.trim() || createPool.isPending} onClick={() => createPool.mutate()}>Add pool</button></div>
-      <div className="mt-3 grid gap-2">{pools.data?.map((item) => <div className="flex items-center justify-between rounded-md border border-line p-2" key={item.id}><span>{[item.brand, item.material, item.color].filter(Boolean).join(" ")} · {item.remaining_grams}g</span><button onClick={() => adjustPool.mutate({ id: item.id, quantity_delta: prompt("Adjustment in grams (+/-)") ?? "0" })}>Adjust</button></div>)}</div>
+      <div className="mt-3 grid gap-2">{printerPools.map((item) => <div className="flex items-center justify-between rounded-md border border-line p-2" key={item.id}><span>{[item.brand, item.material, item.color].filter(Boolean).join(" ")} · {item.remaining_grams}g</span><button onClick={() => adjustPool.mutate({ id: item.id, quantity_delta: prompt("Adjustment in grams (+/-)") ?? "0" })}>Adjust</button></div>)}</div>
       <ErrorBlock error={pools.error ?? createPool.error ?? adjustPool.error} />
     </Panel>
     <Panel title="Manual usage">
-      <div className="grid gap-2 md:grid-cols-4"><select className="desk-input" value={manual.machine_id} onChange={(event) => setManual({ ...manual, machine_id: event.target.value })}><option value="">Printer</option>{printers.map((machine) => <option value={machine.id} key={machine.id}>{machine.name}</option>)}</select><select className="desk-input" value={manual.consumable_pool_id} onChange={(event) => setManual({ ...manual, consumable_pool_id: event.target.value })}><option value="">No pool</option>{(pools.data ?? []).map((item) => <option value={item.id} key={item.id}>{item.material} {item.color}</option>)}</select><input className="desk-input" placeholder="Minutes" type="number" value={manual.duration_minutes} onChange={(event) => setManual({ ...manual, duration_minutes: event.target.value })} /><input className="desk-input" placeholder="Grams" type="number" value={manual.grams} onChange={(event) => setManual({ ...manual, grams: event.target.value })} /><select className="desk-input" value={manual.outcome} onChange={(event) => setManual({ ...manual, outcome: event.target.value })}><option value="success">Success</option><option value="failed">Failed</option></select>{manual.outcome === "failed" ? <><input className="desk-input" placeholder="Percent complete" type="number" value={manual.percent_complete} onChange={(event) => setManual({ ...manual, percent_complete: event.target.value })} /><input className="desk-input" placeholder="Failure reason" value={manual.reason} onChange={(event) => setManual({ ...manual, reason: event.target.value })} /></> : null}<input className="desk-input" placeholder="Note" value={manual.note} onChange={(event) => setManual({ ...manual, note: event.target.value })} /><button disabled={!manual.machine_id || !manual.duration_minutes || submitManual.isPending} onClick={() => submitManual.mutate()}>Log usage</button></div>
-      <div className="mt-3 grid gap-2">{manualUsage.data?.map((entry) => <p className="rounded-md border border-line p-2 text-sm" key={entry.id}>{entry.outcome} · {entry.consumed_grams}g · {entry.duration_minutes} min{entry.outcome === "failed" ? ` · ${entry.percent_complete}%` : ""}</p>)}</div>
+      <div className="grid gap-2 md:grid-cols-4"><select className="desk-input" value={manual.machine_id} onChange={(event) => setManual({ ...manual, machine_id: event.target.value })}><option value="">Printer</option>{printers.map((machine) => <option value={machine.id} key={machine.id}>{machine.name}</option>)}</select><select className="desk-input" value={manual.consumable_pool_id} onChange={(event) => setManual({ ...manual, consumable_pool_id: event.target.value })}><option value="">No pool</option>{printerPools.map((item) => <option value={item.id} key={item.id}>{item.material} {item.color}</option>)}</select><input className="desk-input" placeholder="Minutes" type="number" value={manual.duration_minutes} onChange={(event) => setManual({ ...manual, duration_minutes: event.target.value })} /><input className="desk-input" placeholder="Grams" type="number" value={manual.grams} onChange={(event) => setManual({ ...manual, grams: event.target.value })} /><select className="desk-input" value={manual.outcome} onChange={(event) => setManual({ ...manual, outcome: event.target.value })}><option value="success">Success</option><option value="failed">Failed</option></select>{manual.outcome === "failed" ? <><input className="desk-input" placeholder="Percent complete" type="number" value={manual.percent_complete} onChange={(event) => setManual({ ...manual, percent_complete: event.target.value })} /><input className="desk-input" placeholder="Failure reason" value={manual.reason} onChange={(event) => setManual({ ...manual, reason: event.target.value })} /></> : null}<input className="desk-input" placeholder="Note" value={manual.note} onChange={(event) => setManual({ ...manual, note: event.target.value })} /><button disabled={!manual.machine_id || !manual.duration_minutes || submitManual.isPending} onClick={() => submitManual.mutate()}>Log usage</button></div>
+      <div className="mt-3 grid gap-2">{printerUsage.map((entry) => <p className="rounded-md border border-line p-2 text-sm" key={entry.id}>{entry.outcome} · {entry.consumed_grams}g · {entry.duration_minutes} min{entry.outcome === "failed" ? ` · ${entry.percent_complete}%` : ""}</p>)}</div>
       <ErrorBlock error={manualUsage.error ?? submitManual.error} />
     </Panel>
     <Panel title="Printer reports">

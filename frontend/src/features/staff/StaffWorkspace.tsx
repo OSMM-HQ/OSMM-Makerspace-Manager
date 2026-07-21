@@ -17,6 +17,7 @@ import type { Makerspace } from "./panels/shared";
 export function StaffWorkspace({
   activeMakerspace,
   actions,
+  canConfigureMachineTypes,
   collapsedGroups,
   guestOnly,
   isSuperadmin,
@@ -32,6 +33,7 @@ export function StaffWorkspace({
 }: {
   activeMakerspace?: Makerspace;
   actions: readonly string[];
+  canConfigureMachineTypes: boolean;
   collapsedGroups: Set<string>;
   guestOnly: boolean;
   isSuperadmin: boolean;
@@ -144,6 +146,7 @@ export function StaffWorkspace({
               canManageEvents={canManageEvents}
               canManageBookings={canManageBookings}
               canManageMachines={canManageMachines}
+              canConfigureMachineTypes={canConfigureMachineTypes}
               canSeeHardware={canSeeHardware}
               canSeePrinting={canSeePrinting}
               canViewAudit={canViewAudit}

@@ -34,16 +34,33 @@ class MachineTypeSerializer(serializers.ModelSerializer):
         read_only_fields = ['managing_action', 'makerspace', 'capability_config']
 
 
-class MachineTypeCreateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = MachineType
-        fields = ['slug', 'name', 'icon']
+class _CustomMachineTypeConfigSerializer(serializers.ModelSerializer):
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        config = attrs.get("capability_config", getattr(self.instance, "capability_config", None))
+        if config is None:
+            raise serializers.ValidationError({"capability_config": "Custom machine types require structural configuration."})
+        return attrs
+
+    def validate_capability_config(self, value):
+        from apps.machines.metering import validate_type_config
+        try:
+            validate_type_config(value, is_custom=True)
+        except Exception as exc:
+            raise serializers.ValidationError(getattr(exc, "messages", [str(exc)])) from exc
+        return value
 
 
-class MachineTypeUpdateSerializer(serializers.ModelSerializer):
+class MachineTypeCreateSerializer(_CustomMachineTypeConfigSerializer):
     class Meta:
         model = MachineType
-        fields = ['name', 'icon']
+        fields = ['slug', 'name', 'icon', 'capability_config']
+
+
+class MachineTypeUpdateSerializer(_CustomMachineTypeConfigSerializer):
+    class Meta:
+        model = MachineType
+        fields = ['name', 'icon', 'capability_config']
 
     def validate_name(self, value):
         duplicate = (

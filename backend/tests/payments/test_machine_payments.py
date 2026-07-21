@@ -4,7 +4,7 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.db import InternalError, transaction
 
-from apps.machines.models import Machine, MachineServiceRequest, MachineType
+from apps.machines.models import Machine, MachineServiceRequest, MachineType, MakerspaceMachineTypePricing
 from apps.machines.service_workflow import accept, complete, start, submit
 from apps.payments.models import Payment
 from apps.payments.services import apply_webhook_event, mark_offline, waive
@@ -96,12 +96,17 @@ def test_completion_creates_payment_and_checkout_failure_never_blocks(monkeypatc
     space.save(update_fields=["enabled_features", "updated_at"])
     configured_settings(space)
     actor = make_member("c3-payment-complete-user", space)
-    row = service_request(space, actor, config={"rate_per_unit": "1.00", "flat_fee": "2.00", "currency": "USD"})
+    row = service_request(space, actor, config={"metering_unit": "minutes", "requires_booking": False})
+    MakerspaceMachineTypePricing.objects.create(
+        makerspace=space, machine_type=row.assigned_machine.machine_type,
+        rate_per_unit="1.00", flat_fee="2.00", payment_enabled=True,
+    )
     monkeypatch.setattr("apps.machines.service_payments.create_checkout", lambda payment: (_ for _ in ()).throw(RuntimeError("stripe unavailable")))
     accept(row, actor)
     start(row, actor, machine_id=row.assigned_machine_id)
     assert complete(row, actor, actual_minutes=1, consumptions=[]).status == MachineServiceRequest.Status.COMPLETED
-    assert Payment.objects.filter(subject_id=row.pk).count() == 1
+    payment = Payment.objects.get(subject_id=row.pk)
+    assert (payment.amount, payment.currency) == (Decimal("3.00"), "usd")
 
 
 def test_reconciliation_expires_an_open_checkout_session(monkeypatch):

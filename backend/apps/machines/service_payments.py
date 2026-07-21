@@ -4,27 +4,38 @@ from decimal import Decimal, InvalidOperation
 
 from django.db import transaction
 
+from apps.machines.models import MakerspaceMachineTypePricing
 from apps.payments.availability import online_payments_enabled
-from apps.payments.models import Payment
+from apps.payments.models import MakerspacePaymentSettings, Payment
 from apps.payments.services import create_checkout, create_payment
+
+
+def effective_quantity(service_request, machine_type):
+    config = machine_type.capability_config or {}
+    if config.get("metering_unit") == "minutes":
+        return _decimal(service_request.actual_minutes)
+    quantity = service_request.actual_consumed_quantity
+    if quantity is not None:
+        return _decimal(quantity)
+    return _decimal(service_request.actual_consumed_grams)
 
 
 def create_for_completed_request(service_request, actor):
     try:
         with transaction.atomic():
             machine_type = service_request.assigned_machine.machine_type
-            config = machine_type.capability_config or {}
             if not online_payments_enabled(service_request.makerspace, "machines"):
                 return None
-            if not {"rate_per_unit", "flat_fee", "currency"}.issubset(config):
+            pricing = MakerspaceMachineTypePricing.objects.filter(
+                makerspace=service_request.makerspace, machine_type=machine_type, payment_enabled=True
+            ).first()
+            if pricing is None:
                 return None
-            quantity = service_request.actual_consumed_quantity
-            if quantity is None:
-                quantity = service_request.actual_consumed_grams
-            amount = (_decimal(quantity) * _decimal(config["rate_per_unit"]) + _decimal(config["flat_fee"])).quantize(Decimal("0.01"))
+            amount = (pricing.rate_per_unit * effective_quantity(service_request, machine_type) + pricing.flat_fee).quantize(Decimal("0.01"))
             if amount <= 0:
                 return None
-            payment = create_payment(makerspace=service_request.makerspace, subject_type=Payment.SubjectType.MACHINE_SERVICE_REQUEST, subject_id=service_request.pk, member=service_request.member or service_request.requester, amount=amount, currency=config["currency"], created_by=actor)
+            currency = MakerspacePaymentSettings.for_makerspace(service_request.makerspace).default_currency
+            payment = create_payment(makerspace=service_request.makerspace, subject_type=Payment.SubjectType.MACHINE_SERVICE_REQUEST, subject_id=service_request.pk, member=service_request.member or service_request.requester, amount=amount, currency=currency, created_by=actor)
     except Exception:
         return None
     try:

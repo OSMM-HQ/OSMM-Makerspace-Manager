@@ -1,5 +1,6 @@
 """Staff queue endpoints for generic machine service requests."""
 
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
 from rest_framework import status
@@ -52,7 +53,7 @@ def _visible_makerspace(actor, makerspace_id):
 
 def _request_queryset(actor):
     queryset = MachineServiceRequest.objects.select_related(
-        "makerspace", "bucket__machine", "queue", "assigned_machine", "requester"
+        "makerspace", "bucket__machine__machine_type", "queue__machine_type", "assigned_machine__machine_type", "requester"
     ).prefetch_related("files", "consumptions")
     return rbac.scope_by_action(actor, rbac.Action.MANAGE_MACHINES, queryset,
                                 field="makerspace_id")
@@ -65,7 +66,7 @@ def _manageable_request(actor, pk):
         rbac.scope_by_makerspace(
             actor,
             MachineServiceRequest.objects.select_related(
-                "makerspace", "bucket__machine__makerspace", "queue", "assigned_machine", "requester"
+                "makerspace", "bucket__machine__makerspace", "bucket__machine__machine_type", "queue__machine_type", "assigned_machine__machine_type", "requester"
             ).prefetch_related("files", "consumptions"),
             makerspace_field="makerspace_id",
         ), pk=pk,
@@ -88,7 +89,7 @@ def _query_int(request, name):
 
 def _response(row, code=status.HTTP_200_OK):
     row = MachineServiceRequest.objects.select_related(
-        "makerspace", "bucket__machine", "queue", "assigned_machine", "requester"
+        "makerspace", "bucket__machine__machine_type", "queue__machine_type", "assigned_machine__machine_type", "requester"
     ).prefetch_related("files", "consumptions").get(pk=row.pk)
     return Response(MachineServiceRequestSerializer(row).data, status=code)
 
@@ -109,7 +110,7 @@ class MachineServiceRequestListCreateView(APIView):
             if value := _query_int(request, name):
                 rows = rows.filter(**{field: value})
         if machine_type := request.query_params.get("machine_type"):
-            rows = rows.filter(queue__machine_type__slug=machine_type)
+            rows = rows.filter(Q(queue__machine_type__slug=machine_type) | Q(bucket__machine__machine_type__slug=machine_type))
         rows = list(rows.order_by("-created_at"))
         payments = Payment.objects.filter(
             makerspace=makerspace,

@@ -126,7 +126,7 @@ def _delete_object_graph(makerspace):
     from apps.makerspaces.models import MakerspaceMembership
     from apps.operations.models import InventoryAdjustment, QrPrintBatch
     from apps.operations.models import StocktakeSession, StockTransfer
-    from apps.machines.models import Machine, MachineType
+    from apps.machines.models import Machine, MachineType, MakerspaceMachineTypePricing
     from apps.machines.service_lifecycle import delete_for_makerspace
     from apps.payments.models import Payment, ProcessedStripeEvent
 
@@ -180,6 +180,7 @@ def _delete_object_graph(makerspace):
         # MachineConsumable.product is PROTECT; and clear the makerspace-scoped custom
         # MachineType (PROTECT makerspace FK) before makerspace.delete().
         Machine.objects.filter(makerspace=makerspace).delete()
+        MakerspaceMachineTypePricing.objects.filter(makerspace=makerspace).delete()
         MachineType.objects.filter(makerspace=makerspace).delete()
 
         InventoryAsset.objects.filter(makerspace=makerspace).delete()

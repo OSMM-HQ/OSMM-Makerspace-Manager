@@ -116,7 +116,7 @@ def test_pool_reserve_reconcile_manual_correction_and_append_only_guards():
 
 def test_payment_hook_reprint_provenance_and_registry_seam():
     space = make_space("kernel-payment")
-    kind = MachineType.objects.create(makerspace=space, slug="kernel-payment-type", name="Paid", capability_config={"payment_enabled": True})
+    kind = MachineType.objects.create(makerspace=space, slug="kernel-payment-type", name="Paid", capability_config={"metering_unit": "minutes", "requires_booking": False})
     target = machine(space, suffix="payment", type_row=kind)
     actor = make_user("kernel-payment-actor")
     request = submit(target, make_user("kernel-payment-requester"), actor=actor, requester_name="R", contact_email="r@test", contact_phone="1", title="Paid job")

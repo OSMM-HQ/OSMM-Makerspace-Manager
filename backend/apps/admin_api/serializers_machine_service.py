@@ -52,8 +52,12 @@ class MachineServiceRequestSerializer(serializers.ModelSerializer):
     requester = ServiceRequesterSerializer(read_only=True)
     bucket_id = serializers.IntegerField(read_only=True)
     queue_id = serializers.IntegerField(read_only=True)
-    machine_type = serializers.CharField(source="queue.machine_type.slug", read_only=True, default="")
+    machine_type = serializers.SerializerMethodField()
     capability_payload = serializers.JSONField(read_only=True)
+    metering_unit = serializers.CharField(read_only=True, allow_null=True)
+    planned_quantity = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True, allow_null=True)
+    reserved_quantity = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True, allow_null=True)
+    actual_consumed_quantity = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True, allow_null=True)
     planned_grams = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     reserved_grams = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
     actual_consumed_grams = serializers.DecimalField(max_digits=12, decimal_places=2, read_only=True)
@@ -70,9 +74,15 @@ class MachineServiceRequestSerializer(serializers.ModelSerializer):
             "description", "source_link", "status", "reason", "estimated_minutes",
             "actual_minutes", "fail_percent_complete", "accepted_at", "started_at",
             "completed_at", "failed_at", "collected_at", "created_at", "updated_at",
-            "capability_payload", "planned_grams", "reserved_grams", "actual_consumed_grams", "payment", "run_machine_model", "files", "consumptions",
+            "capability_payload", "metering_unit", "planned_quantity", "reserved_quantity", "actual_consumed_quantity", "planned_grams", "reserved_grams", "actual_consumed_grams", "payment", "run_machine_model", "files", "consumptions",
         )
         read_only_fields = fields
+
+    def get_machine_type(self, obj) -> str:
+        if obj.queue_id:
+            return obj.queue.machine_type.slug
+        machine = obj.assigned_machine or (obj.bucket.machine if obj.bucket_id else None)
+        return machine.machine_type.slug if machine else ""
 
     @extend_schema_field(StaffPaymentSerializer(allow_null=True))
     def get_payment(self, obj):
@@ -117,9 +127,7 @@ class ServiceStartSerializer(serializers.Serializer):
     planned_grams = serializers.DecimalField(
         required=False, max_digits=12, decimal_places=2, min_value=Decimal("0.01")
     )
-    # NOTE: generic (non-gram) planned_quantity is intentionally NOT exposed here yet.
-    # The metering service layer + workflow accept it, but the staff surface to create
-    # non-gram pools ships in C.6 (custom machine-type configuration). See C.1 scope note.
+    planned_quantity = serializers.DecimalField(required=False, max_digits=12, decimal_places=2, min_value=Decimal("0.01"))
 
 
 class ServiceConsumptionInputSerializer(serializers.Serializer):
@@ -132,7 +140,7 @@ class ServiceConsumptionInputSerializer(serializers.Serializer):
 class ServiceCompleteSerializer(serializers.Serializer):
     actual_minutes = serializers.IntegerField(min_value=0)
     actual_grams = serializers.DecimalField(required=False, max_digits=12, decimal_places=2, min_value=Decimal("0"))
-    # actual_quantity (generic units) deferred to C.6 with the non-gram staff surface.
+    actual_quantity = serializers.DecimalField(required=False, max_digits=12, decimal_places=2, min_value=Decimal("0"))
     consumptions = ServiceConsumptionInputSerializer(many=True, required=False, default=list)
 
 

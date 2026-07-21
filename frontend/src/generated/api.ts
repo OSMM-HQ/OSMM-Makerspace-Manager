@@ -191,6 +191,8 @@ export const openApiPaths = [
   "/api/v1/admin/makerspace/{makerspace_id}/ledger/export",
   "/api/v1/admin/makerspace/{makerspace_id}/logo",
   "/api/v1/admin/makerspace/{makerspace_id}/machine-service-report",
+  "/api/v1/admin/makerspace/{makerspace_id}/machine-type-pricing",
+  "/api/v1/admin/makerspace/{makerspace_id}/machine-type-pricing/{machine_type_id}",
   "/api/v1/admin/makerspace/{makerspace_id}/machine-types",
   "/api/v1/admin/makerspace/{makerspace_id}/machine-types/{id}",
   "/api/v1/admin/makerspace/{makerspace_id}/machines",
@@ -1716,6 +1718,10 @@ export type MachineServiceRequest = {
   "created_at": string;
   "updated_at": string;
   "capability_payload": unknown;
+  "metering_unit": string | null;
+  "planned_quantity": string | null;
+  "reserved_quantity": string | null;
+  "actual_consumed_quantity": string | null;
   "planned_grams": string;
   "reserved_grams": string;
   "actual_consumed_grams": string;
@@ -1767,6 +1773,25 @@ export type MachineTypeCreate = {
   "slug": string;
   "name": string;
   "icon"?: string;
+  "capability_config"?: unknown;
+};
+
+export type MachineTypePricing = {
+  "machine_type_id": number;
+  "rate_per_unit": string;
+  "flat_fee": string;
+  "payment_enabled": boolean;
+};
+
+export type MachineTypePricingList = {
+  "currency": string;
+  "results": Array<MachineTypePricing>;
+};
+
+export type MachineTypePricingSet = {
+  "rate_per_unit": string;
+  "flat_fee": string;
+  "payment_enabled": boolean;
 };
 
 export type MachineUsageEntry = {
@@ -2667,6 +2692,7 @@ export type PatchedMachinePublicity = {
 export type PatchedMachineTypeUpdate = {
   "name"?: string;
   "icon"?: string;
+  "capability_config"?: unknown;
 };
 
 export type PatchedMaintenanceScheduleWrite = {
@@ -2859,6 +2885,7 @@ export type PrinterPool = {
   "color"?: string;
   "brand"?: string;
   "lot_code"?: string;
+  "unit"?: PrinterPoolUnitEnum;
   "initial_grams": string;
   "remaining_grams": string;
   "low_threshold_grams"?: string | null;
@@ -2879,9 +2906,15 @@ export type PrinterPoolCreate = {
   "color"?: string;
   "brand"?: string;
   "lot_code"?: string;
-  "initial_grams": string;
+  "unit"?: PrinterPoolCreateUnitEnum;
+  "quantity"?: string;
+  "initial_grams"?: string;
   "low_threshold_grams"?: string | null;
 };
+
+export type PrinterPoolCreateUnitEnum = "grams" | "milliliters" | "millimeters" | "count";
+
+export type PrinterPoolUnitEnum = "grams" | "milliliters" | "millimeters" | "count";
 
 export type ProblemReportTriage = {
   "outcome": ProblemReportTriageOutcomeEnum;
@@ -3592,6 +3625,7 @@ export type ServiceAccept = {
 export type ServiceComplete = {
   "actual_minutes": number;
   "actual_grams"?: string;
+  "actual_quantity"?: string;
   "consumptions"?: Array<ServiceConsumptionInput>;
 };
 
@@ -3614,6 +3648,7 @@ export type ServiceConsumptionInput = {
 export type ServiceFail = {
   "actual_minutes": number;
   "actual_grams"?: string;
+  "actual_quantity"?: string;
   "consumptions"?: Array<ServiceConsumptionInput>;
   "reason": string;
   "percent_complete": number;
@@ -3683,6 +3718,7 @@ export type ServiceStart = {
   "estimated_minutes"?: number;
   "consumable_pool_id"?: number;
   "planned_grams"?: string;
+  "planned_quantity"?: string;
 };
 
 export type SetStatus = {
@@ -4025,8 +4061,12 @@ export type TypedManualUsage = {
   "percent_complete"?: number;
   "reason"?: string;
   "grams"?: string;
+  "quantity"?: string;
+  "metering_unit"?: TypedManualUsageMeteringUnitEnum;
   "note"?: string;
 };
+
+export type TypedManualUsageMeteringUnitEnum = "minutes" | "weight" | "volume" | "length" | "count";
 
 export type TypedManualUsageOutcomeEnum = "success" | "failed";
 
@@ -4040,10 +4080,14 @@ export type TypedManualUsageResponse = {
   "percent_complete": number;
   "reason": string;
   "consumed_grams": string;
+  "metering_unit": TypedManualUsageResponseMeteringUnitEnum;
+  "consumed_quantity": string;
   "hours": string;
   "note": string;
   "created_at": string;
 };
+
+export type TypedManualUsageResponseMeteringUnitEnum = "minutes" | "weight" | "volume" | "length" | "count";
 
 export type TypeEnum = "box" | "asset" | "product";
 

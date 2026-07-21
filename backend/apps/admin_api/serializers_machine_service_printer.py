@@ -10,7 +10,7 @@ class PrinterPoolSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MachineConsumablePool
-        fields = ("id", "machine_id", "material", "color", "brand", "lot_code", "initial_grams", "remaining_grams", "low_threshold_grams", "is_active", "opened_at", "created_at", "updated_at")
+        fields = ("id", "machine_id", "material", "color", "brand", "lot_code", "unit", "initial_grams", "remaining_grams", "low_threshold_grams", "is_active", "opened_at", "created_at", "updated_at")
         read_only_fields = ("id", "remaining_grams", "is_active", "created_at", "updated_at")
 
 
@@ -20,8 +20,18 @@ class PrinterPoolCreateSerializer(serializers.Serializer):
     color = serializers.CharField(max_length=100, required=False, allow_blank=True)
     brand = serializers.CharField(max_length=100, required=False, allow_blank=True)
     lot_code = serializers.CharField(max_length=100, required=False, allow_blank=True)
-    initial_grams = serializers.DecimalField(max_digits=12, decimal_places=2, min_value=Decimal("0"))
+    unit = serializers.ChoiceField(choices=("grams", "milliliters", "millimeters", "count"), required=False, default="grams")
+    quantity = serializers.DecimalField(required=False, max_digits=12, decimal_places=2, min_value=Decimal("0"))
+    initial_grams = serializers.DecimalField(required=False, max_digits=12, decimal_places=2, min_value=Decimal("0"))
     low_threshold_grams = serializers.DecimalField(required=False, allow_null=True, max_digits=12, decimal_places=2, min_value=Decimal("0"))
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        if attrs.get("quantity") is None and attrs.get("initial_grams") is None:
+            raise serializers.ValidationError({"quantity": "quantity or initial_grams is required."})
+        if attrs.get("quantity") is not None and attrs.get("initial_grams") is not None:
+            raise serializers.ValidationError("Provide only quantity or initial_grams.")
+        return attrs
 
 
 class PrinterPoolCorrectionSerializer(serializers.Serializer):
@@ -38,6 +48,8 @@ class TypedManualUsageSerializer(serializers.Serializer):
     percent_complete = serializers.IntegerField(min_value=0, max_value=100, default=100)
     reason = serializers.CharField(required=False, allow_blank=True)
     grams = serializers.DecimalField(required=False, max_digits=12, decimal_places=2, min_value=Decimal("0"), default=Decimal("0"))
+    quantity = serializers.DecimalField(required=False, max_digits=12, decimal_places=2, min_value=Decimal("0"))
+    metering_unit = serializers.ChoiceField(choices=("minutes", "weight", "volume", "length", "count"), required=False)
     note = serializers.CharField(required=False, allow_blank=True, max_length=255)
 
 
@@ -48,5 +60,5 @@ class TypedManualUsageResponseSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = MachineUsageEntry
-        fields = ("id", "machine_id", "consumable_pool_id", "service_request_id", "duration_minutes", "outcome", "percent_complete", "reason", "consumed_grams", "hours", "note", "created_at")
+        fields = ("id", "machine_id", "consumable_pool_id", "service_request_id", "duration_minutes", "outcome", "percent_complete", "reason", "consumed_grams", "metering_unit", "consumed_quantity", "hours", "note", "created_at")
         read_only_fields = fields

@@ -10168,6 +10168,118 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/machine-type-pricing": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_machine_type_pricing_retrieve",
+                "summary": "List makerspace machine-type pricing",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineTypePricingList"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "description": "Space-manager identity required."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/machine-type-pricing/{machine_type_id}": {
+            "put": {
+                "operationId": "api_v1_admin_makerspace_machine_type_pricing_update",
+                "summary": "Set makerspace machine-type pricing",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "machine_type_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin machines"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MachineTypePricingSet"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MachineTypePricingSet"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/MachineTypePricingSet"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MachineTypePricing"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid price."
+                    },
+                    "403": {
+                        "description": "Space-manager identity required."
+                    },
+                    "404": {
+                        "description": "Machine type not found."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/machine-types": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_machine_types_list",
@@ -10267,7 +10379,7 @@
         "/api/v1/admin/makerspace/{makerspace_id}/machine-types/{id}": {
             "patch": {
                 "operationId": "api_v1_admin_makerspace_machine_types_partial_update",
-                "summary": "Rename a custom machine type",
+                "summary": "Update a custom machine type",
                 "parameters": [
                     {
                         "in": "path",
@@ -28833,8 +28945,7 @@
                     },
                     "machine_type": {
                         "type": "string",
-                        "readOnly": true,
-                        "default": ""
+                        "readOnly": true
                     },
                     "machine": {
                         "allOf": [
@@ -28952,6 +29063,32 @@
                     "capability_payload": {
                         "readOnly": true
                     },
+                    "metering_unit": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "planned_quantity": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "reserved_quantity": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "actual_consumed_quantity": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true,
+                        "nullable": true
+                    },
                     "planned_grams": {
                         "type": "string",
                         "format": "decimal",
@@ -29001,6 +29138,7 @@
                 "required": [
                     "accepted_at",
                     "actual_consumed_grams",
+                    "actual_consumed_quantity",
                     "actual_minutes",
                     "assigned_machine",
                     "bucket_id",
@@ -29019,13 +29157,16 @@
                     "id",
                     "machine",
                     "machine_type",
+                    "metering_unit",
                     "payment",
                     "planned_grams",
+                    "planned_quantity",
                     "queue_id",
                     "reason",
                     "requester",
                     "requester_name",
                     "reserved_grams",
+                    "reserved_quantity",
                     "run_machine_model",
                     "source_link",
                     "started_at",
@@ -29197,11 +29338,86 @@
                     "icon": {
                         "type": "string",
                         "maxLength": 50
-                    }
+                    },
+                    "capability_config": {}
                 },
                 "required": [
                     "name",
                     "slug"
+                ]
+            },
+            "MachineTypePricing": {
+                "type": "object",
+                "properties": {
+                    "machine_type_id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "rate_per_unit": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "flat_fee": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "payment_enabled": {
+                        "type": "boolean",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "flat_fee",
+                    "machine_type_id",
+                    "payment_enabled",
+                    "rate_per_unit"
+                ]
+            },
+            "MachineTypePricingList": {
+                "type": "object",
+                "properties": {
+                    "currency": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "results": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/MachineTypePricing"
+                        },
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "currency",
+                    "results"
+                ]
+            },
+            "MachineTypePricingSet": {
+                "type": "object",
+                "properties": {
+                    "rate_per_unit": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "flat_fee": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "payment_enabled": {
+                        "type": "boolean"
+                    }
+                },
+                "required": [
+                    "flat_fee",
+                    "payment_enabled",
+                    "rate_per_unit"
                 ]
             },
             "MachineUsageEntry": {
@@ -32751,7 +32967,8 @@
                     "icon": {
                         "type": "string",
                         "maxLength": 50
-                    }
+                    },
+                    "capability_config": {}
                 }
             },
             "PatchedMaintenanceScheduleWrite": {
@@ -33466,6 +33683,9 @@
                         "type": "string",
                         "maxLength": 100
                     },
+                    "unit": {
+                        "$ref": "#/components/schemas/PrinterPoolUnitEnum"
+                    },
                     "initial_grams": {
                         "type": "string",
                         "format": "decimal",
@@ -33555,6 +33775,19 @@
                         "type": "string",
                         "maxLength": 100
                     },
+                    "unit": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/PrinterPoolCreateUnitEnum"
+                            }
+                        ],
+                        "default": "grams"
+                    },
+                    "quantity": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
                     "initial_grams": {
                         "type": "string",
                         "format": "decimal",
@@ -33568,9 +33801,28 @@
                     }
                 },
                 "required": [
-                    "initial_grams",
                     "material"
                 ]
+            },
+            "PrinterPoolCreateUnitEnum": {
+                "enum": [
+                    "grams",
+                    "milliliters",
+                    "millimeters",
+                    "count"
+                ],
+                "type": "string",
+                "description": "* `grams` - grams\n* `milliliters` - milliliters\n* `millimeters` - millimeters\n* `count` - count"
+            },
+            "PrinterPoolUnitEnum": {
+                "enum": [
+                    "grams",
+                    "milliliters",
+                    "millimeters",
+                    "count"
+                ],
+                "type": "string",
+                "description": "* `grams` - Grams\n* `milliliters` - Milliliters\n* `millimeters` - Millimeters\n* `count` - Count"
             },
             "ProblemReportTriage": {
                 "type": "object",
@@ -36321,6 +36573,11 @@
                         "format": "decimal",
                         "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
                     },
+                    "actual_quantity": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
                     "consumptions": {
                         "type": "array",
                         "items": {
@@ -36409,6 +36666,11 @@
                         "minimum": 0
                     },
                     "actual_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "actual_quantity": {
                         "type": "string",
                         "format": "decimal",
                         "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
@@ -36640,6 +36902,11 @@
                         "minimum": 1
                     },
                     "planned_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "planned_quantity": {
                         "type": "string",
                         "format": "decimal",
                         "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
@@ -37938,6 +38205,14 @@
                         "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
                         "default": "0.00"
                     },
+                    "quantity": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "metering_unit": {
+                        "$ref": "#/components/schemas/TypedManualUsageMeteringUnitEnum"
+                    },
                     "note": {
                         "type": "string",
                         "maxLength": 255
@@ -37948,6 +38223,17 @@
                     "machine_id",
                     "outcome"
                 ]
+            },
+            "TypedManualUsageMeteringUnitEnum": {
+                "enum": [
+                    "minutes",
+                    "weight",
+                    "volume",
+                    "length",
+                    "count"
+                ],
+                "type": "string",
+                "description": "* `minutes` - minutes\n* `weight` - weight\n* `volume` - volume\n* `length` - length\n* `count` - count"
             },
             "TypedManualUsageOutcomeEnum": {
                 "enum": [
@@ -38000,6 +38286,20 @@
                         "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
                         "readOnly": true
                     },
+                    "metering_unit": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/TypedManualUsageResponseMeteringUnitEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "consumed_quantity": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
                     "hours": {
                         "type": "string",
                         "format": "decimal",
@@ -38019,17 +38319,30 @@
                 "required": [
                     "consumable_pool_id",
                     "consumed_grams",
+                    "consumed_quantity",
                     "created_at",
                     "duration_minutes",
                     "hours",
                     "id",
                     "machine_id",
+                    "metering_unit",
                     "note",
                     "outcome",
                     "percent_complete",
                     "reason",
                     "service_request_id"
                 ]
+            },
+            "TypedManualUsageResponseMeteringUnitEnum": {
+                "enum": [
+                    "minutes",
+                    "weight",
+                    "volume",
+                    "length",
+                    "count"
+                ],
+                "type": "string",
+                "description": "* `minutes` - Minutes\n* `weight` - Weight\n* `volume` - Volume\n* `length` - Length\n* `count` - Count"
             },
             "User": {
                 "type": "object",

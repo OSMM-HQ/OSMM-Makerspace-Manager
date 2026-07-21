@@ -75,7 +75,33 @@ class MachineType(models.Model):
     def clean(self):
         super().clean()
         validate_printer_config(self, self.capability_config)
-        validate_type_config(self.capability_config)
+        validate_type_config(self.capability_config, is_custom=self.makerspace_id is not None)
+
+
+class MakerspaceMachineTypePricing(models.Model):
+    """One makerspace-local pricing decision for a global or local machine type."""
+
+    makerspace = models.ForeignKey("makerspaces.Makerspace", on_delete=models.PROTECT, related_name="machine_type_pricing")
+    machine_type = models.ForeignKey("machines.MachineType", on_delete=models.PROTECT, related_name="makerspace_pricing")
+    rate_per_unit = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    flat_fee = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    payment_enabled = models.BooleanField(default=False)
+    created_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    updated_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["makerspace", "machine_type"], name="uniq_makerspace_machine_type_pricing"),
+            models.CheckConstraint(condition=Q(rate_per_unit__gte=0), name="machine_type_pricing_rate_nonnegative"),
+            models.CheckConstraint(condition=Q(flat_fee__gte=0), name="machine_type_pricing_flat_nonnegative"),
+        ]
+
+    def clean(self):
+        super().clean()
+        if self.machine_type_id and self.machine_type.makerspace_id not in (None, self.makerspace_id):
+            raise ValidationError("Machine type must be global or belong to this makerspace.")
 
 
 class Machine(models.Model):

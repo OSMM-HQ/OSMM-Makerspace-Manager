@@ -59,6 +59,7 @@ export type StaffAuthUser = {
     role_name: string;
     role_slug: string;
     actions: string[];
+    can_configure_machine_types: boolean;
     can_refer: boolean;
     can_verify: boolean;
     verified_at: string | null;

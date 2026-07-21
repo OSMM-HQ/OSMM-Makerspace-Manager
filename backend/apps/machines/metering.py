@@ -38,30 +38,19 @@ def metering_unit_for_pool(unit):
     return _METERING_UNITS.get(unit)
 
 
-def validate_type_config(config):
-    """Validate optional generic metering keys without constraining old type packs."""
+def validate_type_config(config, *, is_custom=False):
+    """Validate structural type config; pricing never belongs in this JSON."""
     if not isinstance(config, dict):
         raise ValidationError("Machine type capability_config must be an object.")
+    forbidden = {"rate_per_unit", "flat_fee", "currency", "payment_enabled", "payment_authorized", "authorization"}
+    present = forbidden & set(config)
+    if present:
+        raise ValidationError(f"capability_config cannot contain {sorted(present)[0]}.")
+    if is_custom:
+        missing = {"metering_unit", "requires_booking"} - set(config)
+        if missing:
+            raise ValidationError(f"Custom machine types require {sorted(missing)[0]}.")
     if "metering_unit" in config and config["metering_unit"] not in MeteringUnit.values:
         raise ValidationError("metering_unit must be a supported metering unit.")
-    for key in ("rate_per_unit", "flat_fee"):
-        if key in config:
-            _nonnegative_decimal(config[key], key)
-    if "currency" in config:
-        currency = config["currency"]
-        if not isinstance(currency, str) or len(currency) != 3 or not currency.isalpha() or currency != currency.upper():
-            raise ValidationError("currency must be a three-letter uppercase ISO code.")
     if "requires_booking" in config and type(config["requires_booking"]) is not bool:
         raise ValidationError("requires_booking must be true or false.")
-
-
-def _nonnegative_decimal(value, key):
-    if isinstance(value, bool):
-        raise ValidationError(f"{key} must be numeric.")
-    try:
-        parsed = Decimal(str(value))
-    except (InvalidOperation, TypeError, ValueError) as exc:
-        raise ValidationError(f"{key} must be numeric.") from exc
-    if not parsed.is_finite() or parsed < 0:
-        raise ValidationError(f"{key} must be non-negative.")
-    return parsed

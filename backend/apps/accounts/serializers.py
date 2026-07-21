@@ -61,6 +61,7 @@ def user_payload(user, request=None):
                     else m.role
                 ),
                 "actions": _membership_actions(m),
+                "can_configure_machine_types": rbac.is_space_manager_identity(user, m.makerspace_id),
                 "can_refer": m.can_refer,
                 "can_verify": m.can_verify,
                 "verified_at": m.verified_at,
