@@ -113,19 +113,24 @@ def bootstrap_payload(makerspace):
     } | {
         workflow for feature in features for workflow in FEATURE_WORKFLOWS.get(feature, [])
     })
+    makerspace_payload = {
+        "id": makerspace.id,
+        "name": makerspace.name,
+        "slug": makerspace.slug,
+        "public_code": makerspace.public_code,
+        "location": makerspace.location,
+        "map_url": makerspace.map_url,
+        "logo_url": logo_url,
+        "cover_image_url": cover_image_url,
+        "public_stats_enabled": makerspace.public_stats_enabled,
+        "membership_policy": makerspace.membership_policy,
+    }
+    # Advisory geofence: expose the flag ONLY when configured, so dormant/self-host bootstrap
+    # payloads stay byte-for-byte unchanged (self-host invariant).
+    if makerspace.geofence_effective:
+        makerspace_payload["geofence_enabled"] = True
     return {
-        "makerspace": {
-            "id": makerspace.id,
-            "name": makerspace.name,
-            "slug": makerspace.slug,
-            "public_code": makerspace.public_code,
-            "location": makerspace.location,
-            "map_url": makerspace.map_url,
-            "logo_url": logo_url,
-            "cover_image_url": cover_image_url,
-            "public_stats_enabled": makerspace.public_stats_enabled,
-            "membership_policy": makerspace.membership_policy,
-        },
+        "makerspace": makerspace_payload,
         "frontend": {
             "type": "makerspace",
             "hostname": makerspace.frontend_domain or "",

@@ -21,7 +21,7 @@ from apps.presence.serializers import (
 ERRORS = {
     400: OpenApiResponse(ErrorSerializer, description="Invalid input."),
     401: OpenApiResponse(description="Authentication required."),
-    403: OpenApiResponse(ErrorSerializer, description="Membership or staff permission required."),
+    403: OpenApiResponse(ErrorSerializer, description="Membership permission required."),
     404: OpenApiResponse(description="Makerspace not found."),
     429: OpenApiResponse(description="Rate limit exceeded."),
 }
@@ -35,7 +35,11 @@ class PresenceStartView(APIView):
         makerspace = get_public_makerspace(makerspace_slug)
         serializer = PresenceStartSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        session = services.start_session(request.user, makerspace, serializer.validated_data["duration_minutes"])
+        session = services.start_session(
+            request.user, makerspace, serializer.validated_data["duration_minutes"],
+            latitude=serializer.validated_data.get("latitude"), longitude=serializer.validated_data.get("longitude"),
+            accuracy=serializer.validated_data.get("accuracy"),
+        )
         return Response(PresenceSessionSerializer(session).data, status=201)
 
 

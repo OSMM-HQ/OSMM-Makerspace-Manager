@@ -6,6 +6,7 @@ import type { MembershipOutcome, MembershipPolicyEnum } from "../../generated/ap
 import { bootstrapTenant, fetchMe, refreshAccessToken, setAccessToken, StructuredApiError, staffRequest } from "../../lib/api";
 import { LoginPanel } from "../staff/LoginPanel";
 import { JoinMembershipCta } from "./JoinMembershipCta";
+import { presenceStartLocation } from "./geolocation";
 import { MemberActivityPanel, type MemberActivity } from "./MemberActivity";
 import { MemberReferrals, type ClaimableInvitation } from "./MemberReferrals";
 
@@ -45,7 +46,13 @@ export function MemberArea() {
   const refresh = () => client.invalidateQueries({ queryKey: ["member"] });
   const request = useMutation({ mutationFn: () => staffRequest<MembershipOutcome>(`/public/${resolvedSlug}/membership-requests`, { method: "POST", body: JSON.stringify({}) }), onSuccess: refresh });
   const accept = useMutation({ mutationFn: () => staffRequest(`/member/makerspaces/${makerspaceId}/waiver/accept`, { method: "POST" }), onSuccess: refresh });
-  const start = useMutation({ mutationFn: () => staffRequest(`/public/${resolvedSlug}/presence-sessions`, { method: "POST", body: JSON.stringify({ duration_minutes: 120 }) }), onSuccess: refresh });
+  const start = useMutation({ mutationFn: async () => {
+    const location = await presenceStartLocation(Boolean(bootstrap.data?.makerspace.geofence_enabled));
+    return staffRequest(`/public/${resolvedSlug}/presence-sessions`, {
+      method: "POST",
+      body: JSON.stringify({ duration_minutes: 120, ...(location ?? {}) }),
+    });
+  }, onSuccess: refresh });
   const end = useMutation({ mutationFn: () => staffRequest(`/public/${resolvedSlug}/presence-sessions/current/end`, { method: "POST" }), onSuccess: refresh });
   const refer = useMutation({ mutationFn: (inviteEmail: string) => staffRequest<ReferralOutcome>(`/member/makerspaces/${makerspaceId}/referrals`, { method: "POST", body: JSON.stringify({ invite_email: inviteEmail }) }), onSuccess: refresh });
   const claim = useMutation({ mutationFn: (id: number) => staffRequest<ClaimOutcome>(`/memberships/invitations/${id}/claim`, { method: "POST" }), onSuccess: refresh });
@@ -65,7 +72,7 @@ export function MemberArea() {
     {requested ? <section className="desk-panel p-5"><h2 className="font-semibold text-ink">Membership request sent</h2><p className="mt-1 text-sm text-muted">Staff will review your request.</p></section> : null}
     {membership ? <><section className="desk-panel p-5"><h2 className="font-semibold text-ink">Membership</h2><p className="mt-1 text-sm text-muted">{membership.makerspace.name} · {membership.membership_status} · {membership.role}</p></section>
       {waiver.data?.has_waiver ? <section className="desk-panel p-5"><h2 className="font-semibold text-ink">Current waiver ({waiver.data.version})</h2><p className="mt-3 whitespace-pre-wrap text-sm text-muted">{waiver.data.body}</p><button className="desk-button-primary mt-4" disabled={accept.isPending} onClick={() => accept.mutate()}>Accept waiver</button></section> : null}
-      <section className="desk-panel p-5"><h2 className="font-semibold text-ink">Presence</h2><p className="mt-1 text-sm text-muted">{presence.data?.active ? `Active until ${new Date(presence.data.session?.expires_at ?? "").toLocaleTimeString()}` : "No active session."}</p><button className="desk-button-primary mt-4" disabled={start.isPending || end.isPending} onClick={() => presence.data?.active ? end.mutate() : start.mutate()}>{presence.data?.active ? "End presence" : "Start 2-hour presence"}</button></section>
+      <section className="desk-panel p-5"><h2 className="font-semibold text-ink">Presence</h2><p className="mt-1 text-sm text-muted">{presence.data?.active ? `Active until ${new Date(presence.data.session?.expires_at ?? "").toLocaleTimeString()}` : "No active session."}</p><button className="desk-button-primary mt-4" disabled={start.isPending || end.isPending || (!presence.data?.active && !bootstrap.data)} onClick={() => presence.data?.active ? end.mutate() : start.mutate()}>{presence.data?.active ? "End presence" : "Start 2-hour presence"}</button></section>
       {activity.data ? <MemberActivityPanel activity={activity.data} /> : null}</> : null}
     {memberships.data && resolvedSlug && makerspaceId >= 0 ? <MemberReferrals
       canRefer={membership?.membership_status === "active" && membership.can_refer}

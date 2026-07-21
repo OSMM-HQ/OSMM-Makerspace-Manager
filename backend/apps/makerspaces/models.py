@@ -3,7 +3,7 @@ from urllib.parse import urlsplit
 from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 from django.db.models import Q
 from django.db.models.functions import Lower
@@ -127,6 +127,10 @@ class Makerspace(models.Model):
     )
     location = models.CharField(max_length=200, blank=True)
     map_url = models.URLField(blank=True, default="", validators=[validate_google_maps_url])
+    geofence_latitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, validators=[MinValueValidator(-90), MaxValueValidator(90)])
+    geofence_longitude = models.DecimalField(max_digits=9, decimal_places=6, null=True, blank=True, validators=[MinValueValidator(-180), MaxValueValidator(180)])
+    geofence_radius_m = models.PositiveIntegerField(default=25, validators=[MinValueValidator(1)])
+    geofence_enabled = models.BooleanField(default=False)
     public_inventory_enabled = models.BooleanField(default=True)
     public_stats_enabled = models.BooleanField(default=False)
     public_print_status_lookup_policy = models.CharField(
@@ -247,6 +251,10 @@ class Makerspace(models.Model):
     def __str__(self) -> str:
         return self.name
 
+    @property
+    def geofence_effective(self) -> bool:
+        return bool(self.geofence_enabled and self.geofence_latitude is not None and self.geofence_longitude is not None)
+
     def save(self, *args, **kwargs):
         self.public_code = (self.public_code or "").upper()
         self.frontend_domain = normalize_frontend_domain(self.frontend_domain)
@@ -266,6 +274,8 @@ class Makerspace(models.Model):
                     )
                 }
             )
+        if self.geofence_enabled and not self.geofence_effective:
+            raise ValidationError({"geofence_enabled": "Set both latitude and longitude before enabling the geofence."})
 
     def set_telegram_bot_token(self, raw):
         self.telegram_bot_token = encrypt_value(raw)

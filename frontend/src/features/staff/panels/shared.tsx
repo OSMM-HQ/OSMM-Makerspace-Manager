@@ -11,6 +11,10 @@ export type Makerspace = {
   public_code: string;
   slug: string;
   location?: string;
+  geofence_latitude?: string | number | null;
+  geofence_longitude?: string | number | null;
+  geofence_radius_m?: number;
+  geofence_enabled?: boolean;
   map_url?: string;
   telegram_group_chat_id: string;
   frontend_domain: string | null;

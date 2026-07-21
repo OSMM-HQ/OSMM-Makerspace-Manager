@@ -10744,7 +10744,7 @@
                                 }
                             }
                         },
-                        "description": "Membership or staff permission required."
+                        "description": "Membership permission required, or geofence rejected (missing coordinates, low accuracy, or out of range)."
                     },
                     "404": {
                         "description": "Makerspace not found."
@@ -21920,7 +21920,7 @@
                                 }
                             }
                         },
-                        "description": "Membership or staff permission required."
+                        "description": "Membership permission required, or geofence rejected (missing coordinates, low accuracy, or out of range)."
                     },
                     "404": {
                         "description": "Makerspace not found."
@@ -21984,7 +21984,7 @@
                                 }
                             }
                         },
-                        "description": "Membership or staff permission required."
+                        "description": "Membership permission required, or geofence rejected (missing coordinates, low accuracy, or out of range)."
                     },
                     "404": {
                         "description": "Makerspace not found."
@@ -22048,7 +22048,7 @@
                                 }
                             }
                         },
-                        "description": "Membership or staff permission required."
+                        "description": "Membership permission required, or geofence rejected (missing coordinates, low accuracy, or out of range)."
                     },
                     "404": {
                         "description": "Makerspace not found."
@@ -29547,6 +29547,26 @@
                         "format": "uri",
                         "maxLength": 200
                     },
+                    "geofence_latitude": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,6})?$",
+                        "nullable": true
+                    },
+                    "geofence_longitude": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,6})?$",
+                        "nullable": true
+                    },
+                    "geofence_radius_m": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 1
+                    },
+                    "geofence_enabled": {
+                        "type": "boolean"
+                    },
                     "public_inventory_enabled": {
                         "type": "boolean"
                     },
@@ -32511,6 +32531,26 @@
                         "format": "uri",
                         "maxLength": 200
                     },
+                    "geofence_latitude": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,6})?$",
+                        "nullable": true
+                    },
+                    "geofence_longitude": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,3}(?:\\.\\d{0,6})?$",
+                        "nullable": true
+                    },
+                    "geofence_radius_m": {
+                        "type": "integer",
+                        "maximum": 2147483647,
+                        "minimum": 1
+                    },
+                    "geofence_enabled": {
+                        "type": "boolean"
+                    },
                     "public_inventory_enabled": {
                         "type": "boolean"
                     },
@@ -33106,6 +33146,23 @@
                         "type": "integer",
                         "maximum": 480,
                         "minimum": 15
+                    },
+                    "latitude": {
+                        "type": "number",
+                        "format": "double",
+                        "maximum": 90,
+                        "minimum": -90
+                    },
+                    "longitude": {
+                        "type": "number",
+                        "format": "double",
+                        "maximum": 180,
+                        "minimum": -180
+                    },
+                    "accuracy": {
+                        "type": "number",
+                        "format": "double",
+                        "minimum": 0
                     }
                 },
                 "required": [
@@ -37101,6 +37158,9 @@
                         "type": "string",
                         "format": "uri"
                     },
+                    "geofence_enabled": {
+                        "type": "boolean"
+                    },
                     "logo_url": {
                         "type": "string",
                         "nullable": true
@@ -37118,6 +37178,7 @@
                 },
                 "required": [
                     "cover_image_url",
+                    "geofence_enabled",
                     "id",
                     "location",
                     "logo_url",
