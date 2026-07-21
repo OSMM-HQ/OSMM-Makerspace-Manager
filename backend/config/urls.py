@@ -8,6 +8,7 @@ from drf_spectacular.views import (
 )
 
 from apps.admin_api.views_hosting import TlsCheckView
+from apps.payments.views import StripeWebhookView
 
 
 def docs_root(_request):
@@ -33,6 +34,7 @@ def docs_root(_request):
 
 
 urlpatterns = [
+    path("api/v1/webhooks/stripe/<str:public_code>", StripeWebhookView.as_view(), name="stripe-webhook"),
     path('api/v1/', include('apps.machines.urls')),
     path('api/v1/public/', include('apps.events.urls_public')),
     path('api/v1/public/', include('apps.bookings.urls_public')),

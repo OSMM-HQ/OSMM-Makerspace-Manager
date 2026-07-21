@@ -22,3 +22,4 @@ Pillow
 celery[redis]>=5.4,<6
 redis>=5.0,<7
 dnspython>=2.7,<3
+stripe==15.3.1

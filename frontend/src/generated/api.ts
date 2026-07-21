@@ -38,6 +38,7 @@ export const openApiTags = [
   "Member activity",
   "Memberships",
   "Notifications",
+  "Payments",
   "Platform",
   "Presence",
   "Procurement",
@@ -348,7 +349,8 @@ export const openApiPaths = [
   "/api/v1/public/{makerspace_slug}/stats/",
   "/api/v1/public/{makerspace_slug}/tools/checkout",
   "/api/v1/public/{makerspace_slug}/tools/evidence-url",
-  "/api/v1/public/{makerspace_slug}/tools/return"
+  "/api/v1/public/{makerspace_slug}/tools/return",
+  "/api/v1/webhooks/stripe/{public_code}"
 ] as const;
 
 export type ApiPath = (typeof openApiPaths)[number];

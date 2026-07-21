@@ -23130,6 +23130,37 @@
                     }
                 }
             }
+        },
+        "/api/v1/webhooks/stripe/{public_code}": {
+            "post": {
+                "operationId": "api_v1_webhooks_stripe_create",
+                "description": "Verifies an event against the addressed makerspace's webhook secret. This foundation endpoint deliberately performs no payment state changes.",
+                "summary": "Verify a makerspace Stripe webhook",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "public_code",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Verified event safely acknowledged."
+                    },
+                    "400": {
+                        "description": "Invalid signature, payload, or configuration."
+                    },
+                    "404": {
+                        "description": "Makerspace was not found or is archived."
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -38032,6 +38063,10 @@
         {
             "name": "Printing",
             "description": "3D printing request and management APIs."
+        },
+        {
+            "name": "Payments",
+            "description": "Stripe payment configuration and verified webhooks."
         },
         {
             "name": "Containers",

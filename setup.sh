@@ -36,6 +36,13 @@ else
   read -r -s -p "Admin password (leave blank to auto-generate): "         ADMINPASS; echo
   GEN_PASS=0
   if [ -z "$ADMINPASS" ]; then ADMINPASS="$(rand_key 16)"; GEN_PASS=1; fi
+  read -r -p "Stripe secret key (optional; leave blank to skip): " STRIPE_SECRET_KEY
+  read -r -s -p "Stripe webhook secret (optional; leave blank to skip): " STRIPE_WEBHOOK_SECRET; echo
+  read -r -p "Stripe default currency [usd]: " STRIPE_DEFAULT_CURRENCY; STRIPE_DEFAULT_CURRENCY="${STRIPE_DEFAULT_CURRENCY:-usd}"
+  if [ -n "$STRIPE_SECRET_KEY" ] && [ -z "$STRIPE_WEBHOOK_SECRET" ] || [ -z "$STRIPE_SECRET_KEY" ] && [ -n "$STRIPE_WEBHOOK_SECRET" ]; then
+    warn "Stripe needs both secrets; leaving payments unconfigured."
+    STRIPE_SECRET_KEY=""; STRIPE_WEBHOOK_SECRET=""
+  fi
 
   say "Writing .env (secrets generated automatically)..."
   cat > .env <<EOF
@@ -68,6 +75,28 @@ if [ "$FIRST_RUN" = 1 ]; then
   "${COMPOSE[@]}" exec -T backend python manage.py setup_instance \
     --username "$ADMINUSER" --email "$ADMINEMAIL" --password "$ADMINPASS" \
     --makerspace-name "$MSNAME"
+
+  if [ -n "$STRIPE_SECRET_KEY" ]; then
+    SETUP_STRIPE_SECRET_KEY="$STRIPE_SECRET_KEY" \
+    SETUP_STRIPE_WEBHOOK_SECRET="$STRIPE_WEBHOOK_SECRET" \
+    SETUP_STRIPE_DEFAULT_CURRENCY="$STRIPE_DEFAULT_CURRENCY" \
+    SETUP_MAKERSPACE_NAME="$MSNAME" \
+    "${COMPOSE[@]}" exec -T \
+      -e SETUP_STRIPE_SECRET_KEY -e SETUP_STRIPE_WEBHOOK_SECRET \
+      -e SETUP_STRIPE_DEFAULT_CURRENCY -e SETUP_MAKERSPACE_NAME \
+      backend python manage.py shell -c '
+import os
+from django.utils.text import slugify
+from apps.makerspaces.models import Makerspace
+from apps.payments.models import MakerspacePaymentSettings
+makerspace = Makerspace.objects.get(slug=slugify(os.environ["SETUP_MAKERSPACE_NAME"]))
+settings = MakerspacePaymentSettings.for_makerspace(makerspace)
+settings.set_stripe_secret_key(os.environ["SETUP_STRIPE_SECRET_KEY"])
+settings.set_stripe_webhook_secret(os.environ["SETUP_STRIPE_WEBHOOK_SECRET"])
+settings.default_currency = os.environ["SETUP_STRIPE_DEFAULT_CURRENCY"]
+settings.save()
+'
+  fi
 
   PORT="$(grep -E '^HTTP_PORT=' .env | cut -d= -f2)"; PORT="${PORT:-80}"
   HOST="$(grep -E '^ALLOWED_HOSTS=' .env | cut -d= -f2 | cut -d, -f1)"; HOST="${HOST:-localhost}"
