@@ -103,6 +103,9 @@ class ServiceStartSerializer(serializers.Serializer):
     planned_grams = serializers.DecimalField(
         required=False, max_digits=12, decimal_places=2, min_value=Decimal("0.01")
     )
+    # NOTE: generic (non-gram) planned_quantity is intentionally NOT exposed here yet.
+    # The metering service layer + workflow accept it, but the staff surface to create
+    # non-gram pools ships in C.6 (custom machine-type configuration). See C.1 scope note.
 
 
 class ServiceConsumptionInputSerializer(serializers.Serializer):
@@ -115,6 +118,7 @@ class ServiceConsumptionInputSerializer(serializers.Serializer):
 class ServiceCompleteSerializer(serializers.Serializer):
     actual_minutes = serializers.IntegerField(min_value=0)
     actual_grams = serializers.DecimalField(required=False, max_digits=12, decimal_places=2, min_value=Decimal("0"))
+    # actual_quantity (generic units) deferred to C.6 with the non-gram staff surface.
     consumptions = ServiceConsumptionInputSerializer(many=True, required=False, default=list)
 
 

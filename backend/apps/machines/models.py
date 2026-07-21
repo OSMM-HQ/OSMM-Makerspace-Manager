@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.db.models import Q
 from apps.encryption.mappers import ScopedPiiModelMixin, ScopedPiiQuerySet
+from apps.machines.metering import MeteringUnit, validate_type_config
 from apps.machines.model_fields import PreservableCreatedAtField
 from apps.machines.service_file_policies import (
     default_service_file_policy,
@@ -74,6 +75,7 @@ class MachineType(models.Model):
     def clean(self):
         super().clean()
         validate_printer_config(self, self.capability_config)
+        validate_type_config(self.capability_config)
 
 
 class Machine(models.Model):
@@ -203,6 +205,8 @@ class MachineUsageEntry(ScopedPiiModelMixin, models.Model):
     percent_complete = models.PositiveSmallIntegerField(default=100)
     reason = models.TextField(blank=True)
     consumed_grams = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    metering_unit = models.CharField(max_length=12, choices=MeteringUnit.choices, default=MeteringUnit.WEIGHT)
+    consumed_quantity = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     # Typed print usage keeps the historical manual-log contract rather than
     # flattening it into generic hours.  These are encrypted when scoped PII is
     # enabled and are deliberately absent from public projections.
@@ -242,6 +246,10 @@ class MachineUsageEntry(ScopedPiiModelMixin, models.Model):
             models.CheckConstraint(
                 condition=Q(consumed_grams__gte=0),
                 name="machineusage_grams_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=Q(consumed_quantity__gte=0),
+                name="machineusage_quantity_nonnegative",
             ),
         ]
 

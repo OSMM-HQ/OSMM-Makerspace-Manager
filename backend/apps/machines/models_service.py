@@ -10,6 +10,7 @@ from django.db.models import Q
 
 from apps.encryption.mappers import ScopedPiiModelMixin, ScopedPiiQuerySet
 from apps.machines.model_fields import PreservableCreatedAtField
+from apps.machines.metering import ConsumablePoolUnit, MeteringUnit
 
 
 class ServiceQueue(models.Model):
@@ -161,6 +162,10 @@ class MachineServiceRequest(ScopedPiiModelMixin, models.Model):
     planned_grams = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     reserved_grams = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     actual_consumed_grams = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    metering_unit = models.CharField(max_length=12, choices=MeteringUnit.choices, null=True, blank=True)
+    planned_quantity = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    reserved_quantity = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    actual_consumed_quantity = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     run_consumable_pool = models.ForeignKey(
         "machines.MachineConsumablePool", null=True, blank=True, on_delete=models.PROTECT,
         related_name="run_service_requests",
@@ -210,6 +215,9 @@ class MachineServiceRequest(ScopedPiiModelMixin, models.Model):
             models.CheckConstraint(condition=Q(planned_grams__gte=0), name="service_req_planned_grams_nonnegative"),
             models.CheckConstraint(condition=Q(reserved_grams__gte=0), name="service_req_reserved_grams_nonnegative"),
             models.CheckConstraint(condition=Q(actual_consumed_grams__gte=0), name="service_req_actual_grams_nonnegative"),
+            models.CheckConstraint(condition=Q(planned_quantity__isnull=True) | Q(planned_quantity__gte=0), name="service_req_planned_quantity_nonnegative"),
+            models.CheckConstraint(condition=Q(reserved_quantity__isnull=True) | Q(reserved_quantity__gte=0), name="service_req_reserved_quantity_nonnegative"),
+            models.CheckConstraint(condition=Q(actual_consumed_quantity__isnull=True) | Q(actual_consumed_quantity__gte=0), name="service_req_actual_quantity_nonnegative"),
         ]
         ordering = ["-created_at"]
 
@@ -283,6 +291,7 @@ class MachineConsumablePool(models.Model):
     material = models.CharField(max_length=100)
     color = models.CharField(max_length=100, blank=True)
     brand = models.CharField(max_length=100, blank=True)
+    unit = models.CharField(max_length=12, choices=ConsumablePoolUnit.choices, default=ConsumablePoolUnit.GRAMS)
     lot_code = models.CharField(max_length=100, blank=True)
     initial_grams = models.DecimalField(max_digits=12, decimal_places=2)
     remaining_grams = models.DecimalField(max_digits=12, decimal_places=2)
@@ -333,6 +342,8 @@ class MachineConsumableAdjustment(models.Model):
     makerspace = models.ForeignKey("makerspaces.Makerspace", on_delete=models.PROTECT, related_name="machine_consumable_adjustments")
     kind = models.CharField(max_length=16, choices=Kind.choices)
     quantity_delta = models.DecimalField(max_digits=12, decimal_places=2)
+    metering_unit = models.CharField(max_length=12, choices=MeteringUnit.choices, default=MeteringUnit.WEIGHT)
+    consumed_quantity = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     service_request = models.ForeignKey(MachineServiceRequest, null=True, blank=True, on_delete=models.PROTECT, related_name="consumable_adjustments")
     usage_entry = models.ForeignKey("machines.MachineUsageEntry", null=True, blank=True, on_delete=models.PROTECT, related_name="consumable_adjustments")
     reason = models.TextField(blank=True)

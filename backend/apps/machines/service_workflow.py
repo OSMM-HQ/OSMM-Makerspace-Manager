@@ -105,7 +105,7 @@ def reject(service_request, actor, *, reason):
         return locked
 
 
-def start(service_request, actor, *, machine_id=None, estimated_minutes=None, consumable_pool_id=None, planned_grams=None):
+def start(service_request, actor, *, machine_id=None, estimated_minutes=None, consumable_pool_id=None, planned_grams=None, planned_quantity=None):
     with transaction.atomic():
         _assert_request_write_allowed(service_request)
         locked = _locked_request(service_request)
@@ -136,12 +136,13 @@ def start(service_request, actor, *, machine_id=None, estimated_minutes=None, co
         if estimated_minutes is not None:
             locked.estimated_minutes = _minutes(estimated_minutes, "estimated_minutes")
         _require_printer_start_inputs(locked, machine, consumable_pool_id, planned_grams)
-        if consumable_pool_id is not None or planned_grams is not None:
-            if consumable_pool_id is None or planned_grams is None:
-                raise ServiceConsumptionInvalid("A consumable pool and planned grams must be supplied together.")
+        if consumable_pool_id is not None or planned_grams is not None or planned_quantity is not None:
+            if consumable_pool_id is None or (planned_grams is None) == (planned_quantity is None):
+                raise ServiceConsumptionInvalid("A consumable pool and exactly one planned quantity must be supplied together.")
             from apps.machines.models import MachineConsumablePool
             from apps.machines.service_consumable_pools import reserve_for_request
-            reserve_for_request(locked, actor, pool=MachineConsumablePool.objects.get(pk=consumable_pool_id), planned_grams=planned_grams, machine=machine)
+            reserve_for_request(locked, actor, pool=MachineConsumablePool.objects.get(pk=consumable_pool_id),
+                                planned_grams=planned_grams, planned_quantity=planned_quantity, machine=machine)
             locked.refresh_from_db()
         locked.assigned_machine, locked.status, locked.handled_by, locked.started_at = machine, MachineServiceRequest.Status.IN_PROGRESS, actor, timezone.now()
         locked.run_machine_name = machine.name
@@ -160,7 +161,7 @@ def start(service_request, actor, *, machine_id=None, estimated_minutes=None, co
         return locked
 
 
-def complete(service_request, actor, *, actual_minutes, consumptions, actual_grams=None):
+def complete(service_request, actor, *, actual_minutes, consumptions, actual_grams=None, actual_quantity=None):
     with transaction.atomic():
         _assert_request_write_allowed(service_request)
         locked = _locked_request(service_request)
@@ -171,7 +172,8 @@ def complete(service_request, actor, *, actual_minutes, consumptions, actual_gra
         debit_consumptions(locked, actor, consumptions, outcome="completed")
         if locked.run_consumable_pool_id:
             from apps.machines.service_consumable_pools import reconcile_request
-            reconcile_request(locked, actor, actual_grams=locked.planned_grams if actual_grams is None else actual_grams)
+            reconcile_request(locked, actor, actual_grams=locked.planned_grams if actual_grams is None else actual_grams,
+                              actual_quantity=actual_quantity)
             locked.refresh_from_db()
             locked.actual_minutes = _minutes(actual_minutes, "actual_minutes")
         locked.status, locked.handled_by, locked.completed_at = MachineServiceRequest.Status.COMPLETED, actor, timezone.now()
@@ -182,7 +184,7 @@ def complete(service_request, actor, *, actual_minutes, consumptions, actual_gra
         return locked
 
 
-def fail(service_request, actor, *, reason, percent_complete, actual_minutes, consumptions, actual_grams=None):
+def fail(service_request, actor, *, reason, percent_complete, actual_minutes, consumptions, actual_grams=None, actual_quantity=None):
     with transaction.atomic():
         _assert_request_write_allowed(service_request)
         if not str(reason or "").strip():
@@ -195,8 +197,15 @@ def fail(service_request, actor, *, reason, percent_complete, actual_minutes, co
         debit_consumptions(locked, actor, consumptions, outcome="failed")
         if locked.run_consumable_pool_id:
             from apps.machines.service_consumable_pools import reconcile_request
-            expected = locked.planned_grams * locked.fail_percent_complete / 100
-            reconcile_request(locked, actor, actual_grams=expected if actual_grams is None else actual_grams, reason=locked.reason)
+            if locked.reserved_quantity is not None and locked.metering_unit != "weight":
+                expected_quantity = locked.reserved_quantity * locked.fail_percent_complete / 100
+                reconcile_request(locked, actor,
+                                  actual_quantity=expected_quantity if actual_quantity is None else actual_quantity,
+                                  reason=locked.reason)
+            else:
+                expected = locked.planned_grams * locked.fail_percent_complete / 100
+                reconcile_request(locked, actor, actual_grams=expected if actual_grams is None else actual_grams,
+                                  reason=locked.reason)
             locked.refresh_from_db()
             locked.actual_minutes = _minutes(actual_minutes, "actual_minutes")
             locked.fail_percent_complete = _percent(percent_complete)

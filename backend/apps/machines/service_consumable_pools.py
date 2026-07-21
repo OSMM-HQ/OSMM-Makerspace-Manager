@@ -184,11 +184,13 @@ def log_typed_manual_usage(machine, actor, *, duration_minutes, outcome, percent
         service_request = MachineServiceRequest.objects.select_for_update().get(pk=service_request.pk)
         if service_request.makerspace_id != machine.makerspace_id:
             raise ValidationError({"service_request": "Service request must belong to this makerspace."})
+    usage_unit = (metering_unit_for_pool(pool.unit) if pool else None) or MeteringUnit.WEIGHT
     entry = MachineUsageEntry.objects.create(
         machine=machine, hours=(Decimal(duration_minutes) * Decimal(percent_complete) / Decimal("6000")).quantize(Decimal("0.01")),
         source=MachineUsageEntry.Source.TYPED_MANUAL, service_request=service_request, consumable_pool=pool,
         duration_minutes=duration_minutes, outcome=outcome, percent_complete=percent_complete,
         reason=str(reason).strip(), consumed_grams=grams, note=str(note).strip(), logged_by=actor,
+        metering_unit=usage_unit, consumed_quantity=grams,
     )
     if grams:
         if pool is None:
@@ -200,3 +202,42 @@ def log_typed_manual_usage(machine, actor, *, duration_minutes, outcome, percent
               "outcome": outcome, "grams": str(grams)},
     )
     return entry
+
+# Metering wrappers retain the grams API while allowing non-printer services to
+# reserve and reconcile a physical pool in its configured unit.
+from apps.machines.metering import MeteringUnit, metering_unit_for_pool
+from apps.machines.service_metering import _apply as _metered_apply
+from apps.machines.service_metering import reconcile_request as _metered_reconcile
+from apps.machines.service_metering import reserve_for_request as _metered_reserve
+
+_legacy_reconcile_request = reconcile_request
+_legacy_reserve_for_request = reserve_for_request
+
+
+def _apply(*args, **kwargs):
+    return _metered_apply(*args, **kwargs)
+
+
+def reserve_for_request(service_request, actor, *, pool, planned_grams=None, planned_quantity=None, machine):
+    return _metered_reserve(_legacy_reserve_for_request, service_request, actor, pool=pool, planned_grams=planned_grams, planned_quantity=planned_quantity, machine=machine)
+
+
+def reconcile_request(service_request, actor, *, actual_grams=None, actual_quantity=None, reason=""):
+    return _metered_reconcile(_legacy_reconcile_request, service_request, actor, actual_grams=actual_grams, actual_quantity=actual_quantity, reason=reason)
+
+_legacy_create_pool = create_pool
+
+
+def create_pool(makerspace, actor, *, material, initial_grams, machine=None, color="", brand="", lot_code="", low_threshold_grams=None, unit="grams"):
+    from apps.machines.metering import ConsumablePoolUnit
+    if unit not in ConsumablePoolUnit.values:
+        raise ValidationError({"unit": "Unsupported consumable pool unit."})
+    if machine is not None and is_printer_type(machine.machine_type) and unit != ConsumablePoolUnit.GRAMS:
+        raise ValidationError({"unit": "Printer consumable pools use grams."})
+    pool = _legacy_create_pool(makerspace, actor, material=material, initial_grams=initial_grams,
+                               machine=machine, color=color, brand=brand, lot_code=lot_code,
+                               low_threshold_grams=low_threshold_grams)
+    if unit != ConsumablePoolUnit.GRAMS:
+        pool.unit = unit
+        pool.save(update_fields=["unit", "updated_at"])
+    return pool
