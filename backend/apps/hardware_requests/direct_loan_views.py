@@ -18,7 +18,7 @@ from apps.hardware_requests.direct_loan_serializers import (
 from apps.hardware_requests.models import HardwareRequestItem, PublicToolLoan
 from apps.hardware_requests.permissions import CanIssueDirectLoan, CanReturnDirectLoan
 from apps.hardware_requests.view_helpers import ACTION_ERROR_RESPONSES
-from apps.makerspaces.guards import require_module
+from apps.makerspaces.guards import require_feature
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 from apps.makerspaces.origin_scope import origin_scoped_makerspace_id
 from apps.makerspaces.platform import module_enabled
@@ -30,7 +30,7 @@ class DirectLoanListCreateView(generics.ListAPIView):
 
     def get_queryset(self):
         makerspace_id = self.kwargs["makerspace_id"]
-        require_module(makerspace_id, "self_checkout")
+        require_feature(makerspace_id, "inventory.self_checkout")
         _require(self.request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace_id)
         queryset = PublicToolLoan.objects.select_related(
             "container", "request", "request__issued_by", "requester"
@@ -61,7 +61,7 @@ class DirectLoanListCreateView(generics.ListAPIView):
     )
     def post(self, request, makerspace_id, *args, **kwargs):
         makerspace = _makerspace_for_action(request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace_id)
-        require_module(makerspace, "self_checkout")
+        require_feature(makerspace, "inventory.self_checkout")
         _require(request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace.id)
         serializer = DirectLoanIssueSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -107,7 +107,7 @@ class DirectLoanReturnView(APIView):
         if allowed is not rbac.ALL:
             queryset = queryset.filter(makerspace_id__in=allowed)
         loan = get_object_or_404(queryset, pk=pk)
-        require_module(loan.makerspace, "self_checkout")
+        require_feature(loan.makerspace, "inventory.self_checkout")
         _require(request.user, rbac.Action.RETURN_REQUEST, loan.makerspace_id)
         serializer = DirectLoanReturnSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -134,7 +134,7 @@ class DirectLoanMemberListView(generics.ListAPIView):
     def get_queryset(self):
         makerspace_id = self.kwargs["makerspace_id"]
         makerspace = _makerspace_for_action(self.request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace_id)
-        require_module(makerspace, "self_checkout")
+        require_feature(makerspace, "inventory.self_checkout")
         _require(self.request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace.id)
         return MakerspaceMembership.objects.select_related("user").filter(
             makerspace=makerspace,

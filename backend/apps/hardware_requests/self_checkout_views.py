@@ -20,7 +20,7 @@ from apps.evidence.responses import storage_unavailable_response
 from apps.evidence.serializers import EvidenceUrlResponseSerializer
 from apps.evidence.storage import StorageUnavailable, evidence_object_key, presigned_upload
 from apps.makerspaces.lookup import get_public_makerspace
-from apps.makerspaces.platform import module_enabled
+from apps.makerspaces.guards import require_feature
 from apps.presence.guard import require_active_member_presence
 from apps.openapi import (
     PUBLIC_TOOL_CHECKOUT_EXAMPLE,
@@ -44,7 +44,7 @@ class PublicToolEvidenceUploadUrlView(APIView):
     )
     def post(self, request, makerspace_slug, *args, **kwargs):
         makerspace = get_public_makerspace(makerspace_slug)
-        _require_module(makerspace, "self_checkout")
+        require_feature(makerspace, "inventory.self_checkout")
         require_active_member_presence(request.user, makerspace)
         serializer = PublicToolEvidenceUrlRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -98,7 +98,7 @@ class PublicToolCheckoutView(APIView):
     )
     def post(self, request, makerspace_slug, *args, **kwargs):
         makerspace = get_public_makerspace(makerspace_slug)
-        _require_module(makerspace, "self_checkout")
+        require_feature(makerspace, "inventory.self_checkout")
         require_active_member_presence(request.user, makerspace)
         serializer = PublicToolCheckoutSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -127,7 +127,7 @@ class PublicToolReturnView(APIView):
     )
     def post(self, request, makerspace_slug, *args, **kwargs):
         makerspace = get_public_makerspace(makerspace_slug)
-        _require_module(makerspace, "self_checkout")
+        require_feature(makerspace, "inventory.self_checkout")
         require_active_member_presence(request.user, makerspace)
         serializer = PublicToolScanSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)

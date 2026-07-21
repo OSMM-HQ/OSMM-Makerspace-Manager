@@ -9,6 +9,7 @@ from django.db.models import Q
 from django.db.models.functions import Lower
 from django.utils.crypto import get_random_string
 
+from apps.makerspaces.capabilities import default_enabled_features, validate_capabilities
 from apps.makerspaces.secrets import decrypt_value, encrypt_value
 from apps.makerspaces.validators import (
     DEFAULT_PRESENCE_PRESETS,
@@ -46,7 +47,6 @@ def normalize_frontend_domain(value):
 DEFAULT_ENABLED_MODULES = [
     "public_inventory",
     "request_workflow",
-    "self_checkout",
     "staff_admin",
     "guest_handover",
     "scanner",
@@ -179,6 +179,7 @@ class Makerspace(models.Model):
     )
     cors_allowed_origins = models.JSONField(default=list, blank=True)
     enabled_modules = models.JSONField(default=default_enabled_modules, blank=True)
+    enabled_features = models.JSONField(default=default_enabled_features, blank=True)
     resource_limit_overrides = models.JSONField(default=dict, blank=True)
     storage_bytes_used = models.BigIntegerField(default=0)
     theme_config = models.JSONField(default=default_theme_config, blank=True)
@@ -254,11 +255,9 @@ class Makerspace(models.Model):
     def clean(self):
         if self.presence_preset_minutes:
             validate_presence_presets(self.presence_preset_minutes)
-        enabled_modules = set(self.enabled_modules or [])
-        if "printing" in enabled_modules and "machine_service" not in enabled_modules:
-            raise ValidationError(
-                {"enabled_modules": "Printing requires machine service to be enabled."}
-            )
+        self.enabled_modules, self.enabled_features = validate_capabilities(
+            self.enabled_modules or [], self.enabled_features or []
+        )
         if self.hidden_from_central_directory and not self.frontend_domain:
             raise ValidationError(
                 {

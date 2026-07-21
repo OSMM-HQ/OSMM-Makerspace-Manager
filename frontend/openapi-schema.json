@@ -29620,8 +29620,11 @@
                         "readOnly": true
                     },
                     "cors_allowed_origins": {},
-                    "enabled_modules": {},
+                    "enabled_modules": {
+                        "readOnly": true
+                    },
                     "resource_limit_overrides": {},
+                    "enabled_features": {},
                     "theme_config": {},
                     "branding_config": {
                         "readOnly": true
@@ -29718,6 +29721,7 @@
                     "domain_verification_record",
                     "domain_verification_token",
                     "domain_verified_at",
+                    "enabled_modules",
                     "frontend_domain_status",
                     "id",
                     "is_platform_subdomain",
@@ -32580,8 +32584,11 @@
                         "readOnly": true
                     },
                     "cors_allowed_origins": {},
-                    "enabled_modules": {},
+                    "enabled_modules": {
+                        "readOnly": true
+                    },
                     "resource_limit_overrides": {},
+                    "enabled_features": {},
                     "theme_config": {},
                     "branding_config": {
                         "readOnly": true
@@ -36986,6 +36993,12 @@
                             "type": "string"
                         }
                     },
+                    "features": {
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        }
+                    },
                     "workflows": {
                         "type": "array",
                         "items": {
@@ -37004,6 +37017,7 @@
                 "required": [
                     "branding",
                     "email_enabled",
+                    "features",
                     "frontend",
                     "makerspace",
                     "modules",

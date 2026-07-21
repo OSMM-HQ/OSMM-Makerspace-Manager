@@ -112,6 +112,7 @@ class MakerspaceDetailView(generics.RetrieveUpdateAPIView):
 
     def perform_update(self, serializer):
         was_enabled = serializer.instance.superadmin_access_enabled
+        previous_features = list(serializer.instance.enabled_features)
         instance = serializer.save()
         audit.record(
             self.request.user,
@@ -119,6 +120,14 @@ class MakerspaceDetailView(generics.RetrieveUpdateAPIView):
             makerspace=instance,
             target=instance,
         )
+        if previous_features != instance.enabled_features:
+            audit.record(
+                self.request.user,
+                "makerspace.features_changed",
+                makerspace=instance,
+                target=instance,
+                meta={"before": previous_features, "after": instance.enabled_features},
+            )
         if was_enabled != instance.superadmin_access_enabled:
             audit.record(
                 self.request.user,

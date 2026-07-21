@@ -142,6 +142,23 @@ route through it. `/auth/me` + `/auth/login` carry typed effective `actions` per
 membership/role-assignment APIs enforce non-escalation (can't grant a role you don't hold; can't touch a
 MANAGE_MAKERSPACE target/role) with makerspace-first lock ordering.
 
+**Two-level capabilities (modules + features).** `Makerspace.enabled_modules` (whole modules) is
+**superadmin-only** — edited only in the `/control/` capability matrix; a staff-API PATCH containing
+`enabled_modules` is a hard **403**. `Makerspace.enabled_features` (namespaced sub-features via the
+`apps/makerspaces/capabilities.py` registry — `payments.machines|bookings|events|membership`,
+`inventory.self_checkout`) is **Space-Manager-writable** (`MANAGE_MAKERSPACE`), validated so a feature can
+be enabled only when its parent module (and any `requires_*`) is on, and audited (`makerspace.features_changed`).
+A `FeatureDefinition.parent_module` of **None** = a standalone feature with no module prerequisite (effective
+purely when enabled) — `inventory.self_checkout` is standalone (self-checkout + staff direct handouts are
+per-makerspace loan capabilities independent of the public catalogue; they must NOT be reparented under
+`public_inventory`). `feature_enabled`/`require_feature` (typed key `feature`) mirror the module guards;
+bootstrap exposes effective `features: string[]` + feature-workflows. `payments.*` keys are **dormant
+substrate** in the capabilities layer — enforcement lands in the payment tracks (C.2/C.3), not here. The
+`/control/` matrix widget must derive its disable rule from each feature's real `parent_module` (never
+disable a parentless feature — a disabled checkbox is omitted from POST and would silently clear the
+capability). Widget templates live in the **app** templates dir (`apps/<app>/templates/...`), not project
+`templates/`, so the form renderer (app-dirs only) finds them.
+
 **Console parity principle.** Every backend lifecycle capability reachable in the Django `/control/`
 admin must have a React staff-console surface — a capability with no console surface is a latent
 dead/broken feature for normal staff. New workflow actions ship their staff UI in the same batch.

@@ -32,6 +32,7 @@ export type Makerspace = {
   logo_url?: string | null;
   cover_image_url?: string | null;
   enabled_modules?: string[];
+  enabled_features?: string[];
   resource_limit_overrides?: Record<string, unknown>;
   branding_config?: {
     display_name?: string;

@@ -1,10 +1,12 @@
 import re
 
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
 from apps.accounts.models import User
 from apps.inventory import public_image_storage
@@ -13,6 +15,7 @@ from apps.integrations.smtp_validation import validate_smtp_settings
 from apps.integrations.webhook_validation import validate_webhook_url
 from apps.makerspaces import domain_verification, limits
 from apps.makerspaces.hosting import canonical_host
+from apps.makerspaces.capabilities import validate_capabilities
 from apps.makerspaces.models import (
     Makerspace,
     default_branding_config,
@@ -111,6 +114,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "cors_allowed_origins",
             "enabled_modules",
             "resource_limit_overrides",
+            "enabled_features",
             "theme_config",
             "branding_config",
             "public_display_name",
@@ -155,6 +159,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             # current display-name override) but only written via the validated
             # public_display_name field, never as an unchecked whole-blob PATCH.
             "branding_config",
+            "enabled_modules",
             "created_at",
             "updated_at",
         ]
@@ -234,18 +239,22 @@ class MakerspaceSerializer(serializers.ModelSerializer):
         except Exception as exc:
             raise serializers.ValidationError(exc.messages) from exc
 
+    def to_internal_value(self, data):
+        request = self.context.get("request")
+        if request is not None and "enabled_modules" in data:
+            raise PermissionDenied("Capabilities can only be changed in /control/.")
+        return super().to_internal_value(data)
+
     def validate(self, attrs):
-        enabled_modules = set(
-            attrs.get(
-                "enabled_modules",
-                self.instance.enabled_modules if self.instance is not None else [],
+        try:
+            _, enabled_features = validate_capabilities(
+                attrs.get("enabled_modules", self.instance.enabled_modules if self.instance else []),
+                attrs.get("enabled_features", self.instance.enabled_features if self.instance else []),
             )
-            or []
-        )
-        if "printing" in enabled_modules and "machine_service" not in enabled_modules:
-            raise serializers.ValidationError(
-                {"enabled_modules": "Printing requires machine service to be enabled."}
-            )
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message_dict) from exc
+        if "enabled_features" in attrs:
+            attrs["enabled_features"] = enabled_features
         if "resource_limit_overrides" in attrs:
             actor = self.context["request"].user
             is_superadmin = actor.is_superuser or actor.role == User.Role.SUPERADMIN

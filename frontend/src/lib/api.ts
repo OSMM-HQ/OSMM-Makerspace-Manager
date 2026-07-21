@@ -32,6 +32,7 @@ export type TenantBootstrap = {
     allowed_origins: string[];
   };
   modules: string[];
+  features: string[];
   workflows: string[];
   theme: Record<string, string>;
   branding: Record<string, string>;

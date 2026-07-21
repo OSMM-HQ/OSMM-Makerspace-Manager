@@ -1044,6 +1044,42 @@ def test_makerspace_update_can_clear_integration_secrets(monkeypatch):
     assert makerspace.get_smtp_password() == ""
 
 
+def test_space_manager_can_change_features_but_not_modules():
+    makerspace = make_space("makerspace-feature-settings")
+    makerspace.enabled_modules = ["public_inventory"]
+    makerspace.enabled_features = []
+    makerspace.save(update_fields=["enabled_modules", "enabled_features"])
+    manager = make_member("makerspace-feature-settings-manager", makerspace)
+    client = authenticated_client(manager)
+    url = f"/api/v1/admin/makerspaces/{makerspace.id}"
+
+    enabled = client.patch(
+        url,
+        {"enabled_features": ["inventory.self_checkout"]},
+        format="json",
+    )
+
+    assert enabled.status_code == 200
+    assert enabled.data["enabled_features"] == ["inventory.self_checkout"]
+    makerspace.refresh_from_db()
+    assert makerspace.enabled_features == ["inventory.self_checkout"]
+    feature_audit = AuditLog.objects.get(
+        action="makerspace.features_changed", makerspace=makerspace
+    )
+    assert feature_audit.meta == {
+        "before": [],
+        "after": ["inventory.self_checkout"],
+    }
+
+    modules = client.patch(url, {"enabled_modules": ["machines"]}, format="json")
+
+    assert modules.status_code == 403
+    makerspace.refresh_from_db()
+    assert makerspace.enabled_modules == ["public_inventory"]
+    assert AuditLog.objects.filter(
+        action="makerspace.features_changed", makerspace=makerspace
+    ).count() == 1
+
 def test_api_client_secret_rotation_returns_new_secret_once():
     makerspace = make_space("client-rotate")
     admin = make_member("client-rotate-admin", makerspace)

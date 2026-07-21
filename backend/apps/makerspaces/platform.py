@@ -5,12 +5,12 @@ from django.conf import settings
 from apps.inventory import public_image_storage
 from apps.integrations.email import email_enabled
 from apps.makerspaces.models import Makerspace, default_branding_config, default_theme_config
+from apps.makerspaces.capabilities import FEATURE_MODULES, FEATURES
 
 
 MODULE_WORKFLOWS = {
     "public_inventory": ["catalog"],
     "request_workflow": ["request_submit", "request_status"],
-    "self_checkout": ["self_checkout", "self_return"],
     "staff_admin": ["staff_inventory", "staff_requests"],
     "guest_handover": ["guest_issue", "guest_return"],
     "scanner": ["qr_scan", "container_lookup"],
@@ -28,6 +28,10 @@ MODULE_WORKFLOWS = {
     "maintenance": ["maintenance"],
     "procurement": ["procurement"],
     "evidence_uploads": ["evidence_uploads"],
+}
+
+FEATURE_WORKFLOWS = {
+    "inventory.self_checkout": ["self_checkout", "self_return"],
 }
 
 
@@ -76,8 +80,26 @@ def module_enabled(makerspace, module_key):
     return module_key in set(makerspace.enabled_modules or [])
 
 
+def feature_enabled(makerspace, key):
+    definition = FEATURES.get(key)
+    if definition is None or key not in set(makerspace.enabled_features or []):
+        return False
+    # A string parent must be a recognised feature-module; None => standalone feature
+    # with no parent-module prerequisite (e.g. self-checkout on a private makerspace).
+    if definition.parent_module is not None and definition.parent_module not in FEATURE_MODULES:
+        return False
+    required_modules = [
+        module
+        for module in (definition.parent_module, *definition.requires_modules)
+        if module is not None
+    ]
+    return all(
+        module_enabled(makerspace, module) for module in required_modules
+    ) and all(feature_enabled(makerspace, feature) for feature in definition.requires_features)
+
 def bootstrap_payload(makerspace):
     modules = sorted(set(makerspace.enabled_modules or []))
+    features = sorted(key for key, definition in FEATURES.items() if definition.frontend_exposed and feature_enabled(makerspace, key))
     theme = default_theme_config()
     theme.update(makerspace.theme_config or {})
     logo_url = public_image_storage.public_url(makerspace.logo_key) or theme.get("logo_url") or ""
@@ -86,13 +108,11 @@ def bootstrap_payload(makerspace):
     branding.update(makerspace.branding_config or {})
     if not branding.get("display_name"):
         branding["display_name"] = makerspace.name
-    workflows = sorted(
-        {
-            workflow
-            for module in modules
-            for workflow in MODULE_WORKFLOWS.get(module, [])
-        }
-    )
+    workflows = sorted({
+        workflow for module in modules for workflow in MODULE_WORKFLOWS.get(module, [])
+    } | {
+        workflow for feature in features for workflow in FEATURE_WORKFLOWS.get(feature, [])
+    })
     return {
         "makerspace": {
             "id": makerspace.id,
@@ -112,6 +132,7 @@ def bootstrap_payload(makerspace):
             "allowed_origins": sorted(makerspace_public_origins(makerspace)),
         },
         "modules": modules,
+        "features": features,
         "workflows": workflows,
         "theme": theme,
         "branding": branding,

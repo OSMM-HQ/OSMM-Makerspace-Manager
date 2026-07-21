@@ -1,8 +1,9 @@
+import { featureEnabled } from "../../lib/features";
 import type { Makerspace } from "./panels/shared";
 import { readStorage, removeStorage, writeStorage } from "../../lib/safeStorage";
 
 const TAB_MODULES: Record<string, string[]> = {
-  direct: ["self_checkout"],
+  direct: ["public_inventory"],
   printing: ["printing"],
   events: ["events"],
   bookings: ["bookings"],
@@ -40,6 +41,9 @@ export function filterTabsByEnabledModules(tabs: readonly string[], makerspace?:
   if (!modules) return tabs;
   const enabled = new Set(modules);
   return tabs.filter((tabName) => {
+    if (tabName === "direct") {
+      return featureEnabled(makerspace.enabled_features ?? [], "inventory.self_checkout");
+    }
     const required = TAB_MODULES[tabName];
     return !required || required.some((moduleName) => enabled.has(moduleName));
   });

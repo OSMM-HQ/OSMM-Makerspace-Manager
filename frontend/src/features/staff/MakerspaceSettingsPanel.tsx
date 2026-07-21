@@ -8,11 +8,11 @@ import { MakerspaceBookingSettings } from "./MakerspaceBookingSettings";
 import { MakerspaceCustomDomainSettings } from "./MakerspaceCustomDomainSettings";
 import { MakerspaceEmailSettings } from "./MakerspaceEmailSettings";
 import { MakerspaceFilamentSettings } from "./MakerspaceFilamentSettings";
+import { MakerspaceFeatureSettings } from "./MakerspaceFeatureSettings";
 import { MakerspaceGeneralSettings } from "./MakerspaceGeneralSettings";
 import { IntegrationHealthPanel } from "./IntegrationHealthPanel";
 import { MakerspaceLocationSettings } from "./MakerspaceLocationSettings";
 import { MakerspaceMembershipSettings } from "./MakerspaceMembershipSettings";
-import { MakerspaceModuleSettings } from "./MakerspaceModuleSettings";
 import { MakerspaceSubdomainSettings } from "./MakerspaceSubdomainSettings";
 import { MakerspaceWebhookSettings } from "./MakerspaceWebhookSettings";
 import { NotificationMuteMatrix } from "./NotificationMuteMatrix";
@@ -109,17 +109,17 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
           settings={settings.data}
           loading={settings.isLoading}
         />
-        <MakerspaceModuleSettings
-          makerspace={makerspace}
-          settings={settings.data}
-          loading={settings.isLoading}
-        />
         <MakerspaceLocationSettings
           makerspace={makerspace}
           settings={settings.data}
           loading={settings.isLoading}
         />
         <MakerspaceMembershipSettings makerspace={makerspace} settings={settings.data} loading={settings.isLoading} />
+        <MakerspaceFeatureSettings
+          makerspace={makerspace}
+          settings={settings.data}
+          loading={settings.isLoading}
+        />
         <IntegrationHealthPanel makerspace={makerspace} />
         <div className="min-w-0 rounded-md border border-line bg-bg p-4">
           <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">

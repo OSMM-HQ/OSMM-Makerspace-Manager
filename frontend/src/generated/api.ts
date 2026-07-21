@@ -1933,8 +1933,9 @@ export type Makerspace = {
   "hidden_from_central_directory"?: boolean;
   "public_api_key": string;
   "cors_allowed_origins"?: unknown;
-  "enabled_modules"?: unknown;
+  "enabled_modules": unknown;
   "resource_limit_overrides"?: unknown;
+  "enabled_features"?: unknown;
   "theme_config"?: unknown;
   "branding_config": unknown;
   "public_display_name"?: string;
@@ -2688,6 +2689,7 @@ export type PatchedMakerspace = {
   "cors_allowed_origins"?: unknown;
   "enabled_modules"?: unknown;
   "resource_limit_overrides"?: unknown;
+  "enabled_features"?: unknown;
   "theme_config"?: unknown;
   "branding_config"?: unknown;
   "public_display_name"?: string;
@@ -3850,6 +3852,7 @@ export type TenantBootstrap = {
   "makerspace": TenantBootstrapMakerspace;
   "frontend": TenantBootstrapFrontend;
   "modules": Array<string>;
+  "features": Array<string>;
   "workflows": Array<string>;
   "theme": unknown;
   "branding": unknown;

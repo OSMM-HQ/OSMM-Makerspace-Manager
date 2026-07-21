@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -6,6 +6,7 @@ import { MakerspaceBrand } from "../../components/MakerspaceBrand";
 import { SpaceWorksBadge } from "../../components/SpaceWorksLogo";
 import { Card } from "../../components/ui/Card";
 import QrScanner from "../../components/ui/QrScanner";
+import { featureEnabled } from "../../lib/features";
 import { useTenant, useTenantPath } from "../../lib/tenant";
 import { formatSlug } from "./PublicInventoryParts";
 import { PublicEvidenceUpload } from "./PublicEvidenceUpload";
@@ -64,16 +65,13 @@ export function PublicSelfCheckoutPage() {
 
   const bootstrapQuery = useTenantBootstrap(makerspaceSlug, tenant.mode === "central");
   const bootstrap = tenant.mode === "single" ? tenant.bootstrap : bootstrapQuery.data;
-  const modules = useMemo(
-    () => (tenant.mode === "single" ? tenant.modules : new Set(bootstrap?.modules ?? [])),
-    [bootstrap?.modules, tenant],
-  );
+  const features = tenant.mode === "single" ? tenant.bootstrap?.features ?? [] : bootstrap?.features ?? [];
   const displayName =
     bootstrap?.branding.display_name ||
     bootstrap?.makerspace.name ||
     formatSlug(makerspaceSlug) ||
     "Makerspace";
-  const enabled = modules.has("self_checkout");
+  const enabled = featureEnabled(features, "inventory.self_checkout");
 
   const loanMutation = useMutation({
     mutationFn: ({ payload }: MutationInput) =>

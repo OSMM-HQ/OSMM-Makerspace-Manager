@@ -18,6 +18,7 @@ class MakerspaceSwitcherSerializer(serializers.ModelSerializer):
             # required so the console can gate module tabs (Machines, Events, ...) for a
             # switcher-slim role such as machine_manager / print_manager.
             "enabled_modules",
+            "enabled_features",
         ]
         read_only_fields = fields
 

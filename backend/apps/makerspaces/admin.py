@@ -4,7 +4,8 @@ from django.core.exceptions import ValidationError
 from django.template.response import TemplateResponse
 from unfold.admin import ModelAdmin, TabularInline
 
-from apps.makerspaces.admin_images import MakerspaceAdminForm, MakerspaceImageAdminMixin
+from apps.makerspaces.admin_capabilities import MakerspaceAdminForm, MakerspaceCapabilityAdminMixin
+from apps.makerspaces.admin_images import MakerspaceImageAdminMixin
 from apps.makerspaces.admin_subdomains import SubdomainRequestAdmin
 from apps.makerspaces.models import Makerspace, MakerspaceMembership, MakerspaceWaiver, MembershipRequest
 from config.admin_access import SuperuserOnlyModelAdmin
@@ -42,7 +43,7 @@ class MakerspaceMembershipInline(TabularInline):
 
 
 @admin.register(Makerspace)
-class MakerspaceAdmin(MakerspaceImageAdminMixin, SuperuserOnlyModelAdmin, ModelAdmin):
+class MakerspaceAdmin(MakerspaceImageAdminMixin, MakerspaceCapabilityAdminMixin, SuperuserOnlyModelAdmin, ModelAdmin):
     form = MakerspaceAdminForm
     actions = ["archive_makerspaces", "unarchive_makerspaces", "purge_makerspaces"]
     list_display = (
@@ -76,6 +77,10 @@ class MakerspaceAdmin(MakerspaceImageAdminMixin, SuperuserOnlyModelAdmin, ModelA
                     "default_loan_days",
                 )
             },
+        ),
+        (
+            "Capabilities",
+            {"fields": ("capabilities",)},
         ),
         (
             "Public images",
