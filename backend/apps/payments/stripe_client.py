@@ -42,6 +42,16 @@ def create_checkout_session(makerspace_or_settings, **params):
     return build_client(makerspace_or_settings).v1.checkout.sessions.create(params=params)
 
 
+def expire_checkout_session(makerspace_or_settings, session_id):
+    """Best-effort expiry for a Checkout Session no longer payable locally."""
+    try:
+        return build_client(makerspace_or_settings).v1.checkout.sessions.expire(session_id)
+    except Exception:
+        # Stripe returns an error when a session was already paid or expired.  The
+        # local terminal reconciliation remains authoritative in either case.
+        return None
+
+
 def construct_event(payload, sig_header, webhook_secret):
     """Verify and parse a Stripe event without configuring a global API key."""
     if not webhook_secret:

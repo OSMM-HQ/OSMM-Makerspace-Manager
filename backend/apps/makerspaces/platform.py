@@ -56,6 +56,17 @@ def makerspace_public_origins(makerspace):
     return makerspace_staff_origins(makerspace) | set(makerspace.cors_allowed_origins or [])
 
 
+def member_area_url(makerspace):
+    """Return the canonical member-area URL for a makerspace frontend."""
+    if (
+        makerspace.frontend_domain
+        and makerspace.frontend_domain_status == Makerspace.DomainStatus.VERIFIED
+    ):
+        return f"https://{makerspace.frontend_domain}/member"
+    base = (settings.PUBLIC_APP_BASE_URL or "http://localhost:5000").rstrip("/")
+    return f"{base}/m/{makerspace.slug}/member" if base and makerspace.slug else ""
+
+
 def resolve_frontend(*, tenant=None, slug=None, origin=None, host=None):
     if tenant:
         return Makerspace.objects.filter(

@@ -71,6 +71,7 @@ from apps.admin_api.views_machine_service import (
     MachineServiceReprintView,
     MachineServiceStartView,
 )
+from apps.admin_api.views_payments import PaymentMarkOfflineView, PaymentWaiveView
 from apps.admin_api.views_machine_service_printer import (
     MachineServicePrinterPoolAdjustmentView,
     MachineServicePrinterPoolDetailView,
@@ -196,6 +197,8 @@ urlpatterns = [
         MachineServiceCollectView.as_view(),
         name="admin-machine-service-request-collect",
     ),
+    path("machine-service/payments/<int:pk>/mark-offline", PaymentMarkOfflineView.as_view(), name="admin-machine-service-payment-mark-offline"),
+    path("machine-service/payments/<int:pk>/waive", PaymentWaiveView.as_view(), name="admin-machine-service-payment-waive"),
     path(
         "machine-service/requests/<int:pk>/reprint",
         MachineServiceReprintView.as_view(),

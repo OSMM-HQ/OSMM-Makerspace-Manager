@@ -9,6 +9,7 @@ from apps.makerspaces.views_memberships import (
 )
 from apps.makerspaces.views_member_referrals import MemberReferralView
 from apps.makerspaces.member_activity_views import MemberActivityView
+from apps.payments.views_member import MemberPaymentCheckoutView, MemberPaymentHistoryView
 
 urlpatterns = [
     path("bootstrap", BootstrapView.as_view(), name="tenant-bootstrap"),
@@ -21,5 +22,7 @@ urlpatterns = [
     path("member/makerspaces/<int:makerspace_id>/waiver", MemberWaiverView.as_view(), name="member-waiver"),
     path("member/makerspaces/<int:makerspace_id>/waiver/accept", MemberWaiverAcceptView.as_view(), name="member-waiver-accept"),
     path("member/makerspaces/<int:makerspace_id>/activity", MemberActivityView.as_view(), name="member-activity"),
+    path("member/makerspaces/<int:makerspace_id>/payments", MemberPaymentHistoryView.as_view(), name="member-payment-history"),
+    path("member/makerspaces/<int:makerspace_id>/payments/<int:payment_id>/checkout", MemberPaymentCheckoutView.as_view(), name="member-payment-checkout"),
     path("member/makerspaces/<int:makerspace_id>/referrals", MemberReferralView.as_view(), name="member-referrals"),
 ]

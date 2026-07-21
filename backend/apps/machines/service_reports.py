@@ -1,5 +1,6 @@
 """Canonical, PII-free reporting rows for machine service work."""
 
+from collections import defaultdict
 from decimal import Decimal, ROUND_HALF_UP
 
 from django.db.models import Count, DecimalField, ExpressionWrapper, F, FloatField, IntegerField, OuterRef, Q, Subquery, Sum, Value
@@ -7,6 +8,7 @@ from django.db.models.functions import Coalesce
 
 from apps.machines.models import Machine, MachineServiceRequest, MachineUsageEntry, ServiceRequestConsumption
 from apps.machines.printer_capabilities import PRINTER_SLUG
+from apps.payments.models import Payment
 from apps.operations.report_registry import ReportResult
 from apps.operations.report_scope import scoped_ids
 
@@ -53,6 +55,17 @@ def build_printer_service_report(makerspace_id, *, limit=None, date_range=None):
     ).filter(terminal).order_by()
     if date_range:
         requests = requests.filter(_date_filter("completed_at", date_range) | _date_filter("failed_at", date_range))
+    payment_totals = defaultdict(lambda: [Decimal("0.00"), Decimal("0.00")])
+    request_machines = {
+        request_id: ((space_id, machine_id) if aggregate else machine_id)
+        for request_id, space_id, machine_id in requests.values_list("id", "makerspace_id", "assigned_machine_id")
+    }
+    for payment in Payment.objects.filter(makerspace_id__in=ids, subject_type=Payment.SubjectType.MACHINE_SERVICE_REQUEST, subject_id__in=request_machines):
+        key = request_machines[payment.subject_id]
+        if payment.status == Payment.Status.PENDING:
+            payment_totals[key][0] += payment.amount
+        elif payment.status in {Payment.Status.PAID_ONLINE, Payment.Status.PAID_OFFLINE}:
+            payment_totals[key][1] += payment.amount
     values = ["assigned_machine_id", "assigned_machine__name", "run_machine_model"]
     if aggregate:
         values.insert(0, "makerspace_id")
@@ -78,7 +91,7 @@ def build_printer_service_report(makerspace_id, *, limit=None, date_range=None):
             "machine_id": row["assigned_machine_id"], "machine_name": row["assigned_machine__name"], "model": row["run_machine_model"],
             "completed_hours": _hours(row["completed_minutes"]), "failed_partial_hours": _hours(row["failed_minutes"]),
             "manual_hours": float(manual_hours.get(key, Decimal("0"))), "consumed_grams": _amount(row["grams"]),
-            "payment_due": _amount(row["payment_due"]), "payment_paid": _amount(row["payment_paid"]),
+            "payment_due": _amount(payment_totals[key][0]), "payment_paid": _amount(payment_totals[key][1]),
         }
         if aggregate:
             record["makerspace_id"] = row["makerspace_id"]

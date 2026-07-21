@@ -53,7 +53,7 @@ def submit(bucket_or_machine, requester, *, requester_name, contact_email, conta
         return service_request
 
 
-def accept(service_request, actor, *, estimated_minutes=None, planned_grams=None, note="", payment_amount=None):
+def accept(service_request, actor, *, estimated_minutes=None, planned_grams=None, note=""):
     with transaction.atomic():
         _assert_request_write_allowed(service_request)
         locked = _locked_request(service_request)
@@ -74,17 +74,8 @@ def accept(service_request, actor, *, estimated_minutes=None, planned_grams=None
             locked.capability_payload = payload
         if note:
             locked.reason = str(note).strip()
-        if payment_amount is not None:
-            amount = _decimal(payment_amount, "payment_amount")
-            if amount < 0:
-                raise ServiceConsumptionInvalid("payment_amount must be non-negative.")
-            machine_type = locked.queue.machine_type if locked.queue_id else locked.bucket.machine.machine_type
-            if amount and not (machine_type.capability_config or {}).get("payment_enabled", False):
-                raise ServiceConsumptionInvalid("This machine type does not support service payments.")
-            locked.payment_amount = amount
-            locked.payment_status = "pending" if amount else "none"
         locked.status, locked.handled_by, locked.accepted_by, locked.accepted_at = MachineServiceRequest.Status.ACCEPTED, actor, actor, timezone.now()
-        locked.save(update_fields=["status", "handled_by", "accepted_by", "accepted_at", "estimated_minutes", "planned_grams", "capability_payload", "reason", "payment_amount", "payment_status", "updated_at"])
+        locked.save(update_fields=["status", "handled_by", "accepted_by", "accepted_at", "estimated_minutes", "planned_grams", "capability_payload", "reason", "updated_at"])
         _audit_transition(actor, locked, "accepted")
         _notify_after_commit(locked, "accepted")
         return locked
@@ -181,6 +172,8 @@ def complete(service_request, actor, *, actual_minutes, consumptions, actual_gra
         _release_queue_machine(locked)
         _audit_transition(actor, locked, "completed")
         _notify_after_commit(locked, "completed")
+        from apps.machines.service_payments import create_for_completed_request
+        create_for_completed_request(locked, actor)
         return locked
 
 
@@ -226,9 +219,7 @@ def collect(service_request, actor):
         _require_module(locked.makerspace)
         _require_edge(locked, MachineServiceRequest.Status.COLLECTED)
         locked.status, locked.handled_by, locked.collected_by, locked.collected_at = MachineServiceRequest.Status.COLLECTED, actor, actor, timezone.now()
-        if locked.payment_amount and locked.payment_amount > 0:
-            locked.payment_status, locked.paid_at = "paid", timezone.now()
-        locked.save(update_fields=["status", "handled_by", "collected_by", "collected_at", "payment_status", "paid_at", "updated_at"])
+        locked.save(update_fields=["status", "handled_by", "collected_by", "collected_at", "updated_at"])
         _audit_transition(actor, locked, "collected")
         _notify_after_commit(locked, "collected")
         return locked
@@ -249,7 +240,7 @@ def create_reprint(service_request, actor):
             capability_payload=original.capability_payload, status=MachineServiceRequest.Status.ACCEPTED,
             assigned_machine=original.assigned_machine if original.bucket_id else None, accepted_by=actor,
             accepted_at=timezone.now(), estimated_minutes=original.estimated_minutes, planned_grams=original.planned_grams,
-            payment_amount=original.payment_amount, payment_status="none", reprint_of=root,
+            reprint_of=root,
         )
         _audit_transition(actor, child, "reprint_created", extra={"reprint_of_id": root.pk})
         return child

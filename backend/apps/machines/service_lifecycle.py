@@ -10,6 +10,8 @@ def collect_private_object_keys(makerspace, add):
 
 def delete_for_makerspace(makerspace, cursor):
     """Clear N1 rows in dependency order inside the authorized purge context."""
+    from apps.payments.models import Payment, ProcessedStripeEvent
+
     from apps.machines.models import (
         MachineServiceRequest,
         MachineConsumablePool,
@@ -41,6 +43,9 @@ def delete_for_makerspace(makerspace, cursor):
     cursor.execute("DELETE FROM machines_machineconsumableadjustment WHERE makerspace_id = %s", [makerspace.id])
     cursor.execute("DELETE FROM machines_machineusageentry WHERE machine_id IN (SELECT id FROM machines_machine WHERE makerspace_id = %s)", [makerspace.id])
     ServiceRequestFile.objects.filter(makerspace=makerspace).delete()
+    # Generic-subject payments must go before their MachineServiceRequest subjects.
+    Payment.objects.filter(makerspace=makerspace).delete()
+    ProcessedStripeEvent.objects.filter(makerspace=makerspace).delete()
     MachineServiceRequest.objects.filter(makerspace=makerspace).delete()
     ServiceBucket.objects.filter(machine__makerspace=makerspace).delete()
     MachineConsumablePool.objects.filter(makerspace=makerspace).delete()

@@ -20,6 +20,7 @@ from apps.machines import service_workflow
 from apps.machines.models import Machine, MachineServiceRequest
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.payments.models import Payment
 
 
 SERVICE_ERRORS = {
@@ -109,7 +110,18 @@ class MachineServiceRequestListCreateView(APIView):
                 rows = rows.filter(**{field: value})
         if machine_type := request.query_params.get("machine_type"):
             rows = rows.filter(queue__machine_type__slug=machine_type)
-        return Response(MachineServiceRequestSerializer(rows.order_by("-created_at"), many=True).data)
+        rows = list(rows.order_by("-created_at"))
+        payments = Payment.objects.filter(
+            makerspace=makerspace,
+            subject_type=Payment.SubjectType.MACHINE_SERVICE_REQUEST,
+            subject_id__in=[row.pk for row in rows],
+        )
+        payment_map = {payment.subject_id: payment for payment in payments}
+        return Response(MachineServiceRequestSerializer(
+            rows,
+            many=True,
+            context={"payments_by_subject_id": payment_map},
+        ).data)
 
     @extend_schema(tags=["Admin machine service"], summary="Submit a machine service request for a member",
                    request=MachineServiceSubmitSerializer,

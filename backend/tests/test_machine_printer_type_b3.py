@@ -46,14 +46,15 @@ def test_printer_type_contract_drives_full_generic_lifecycle():
         },
     )
     assert request.assigned_machine_id is None
-    accept(request, actor, estimated_minutes=30, payment_amount="10")
+    accept(request, actor, estimated_minutes=30)
     started = start(request, actor, machine_id=target.id, consumable_pool_id=pool.id, planned_grams="20")
     assert started.run_machine_model == "MK4"
     assert (started.run_consumable_material, started.run_consumable_color) == ("PLA", "Blue")
     complete(started, actor, actual_minutes=25, consumptions=[], actual_grams="12")
     collected = collect(started, actor)
     pool.refresh_from_db()
-    assert (collected.payment_status, pool.remaining_grams) == ("paid", Decimal("88.00"))
+    # C.3: collect() no longer marks the legacy payment_status; the Payment model is the authority.
+    assert (collected.payment_status, pool.remaining_grams) == ("none", Decimal("88.00"))
 
     usage = log_typed_manual_usage(
         target, actor, duration_minutes=60, outcome="failed", percent_complete=50,

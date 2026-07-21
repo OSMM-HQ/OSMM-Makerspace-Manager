@@ -3274,6 +3274,118 @@
                 }
             }
         },
+        "/api/v1/admin/machine-service/payments/{id}/mark-offline": {
+            "post": {
+                "operationId": "api_v1_admin_machine_service_payments_mark_offline_create",
+                "summary": "Mark a machine-service payment paid offline",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StaffPayment"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/machine-service/payments/{id}/waive": {
+            "post": {
+                "operationId": "api_v1_admin_machine_service_payments_waive_create",
+                "summary": "Waive a machine-service payment",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StaffPayment"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/machine-service/requests/{id}": {
             "get": {
                 "operationId": "api_v1_admin_machine_service_requests_retrieve",
@@ -19316,6 +19428,119 @@
                 }
             }
         },
+        "/api/v1/member/makerspaces/{makerspace_id}/payments": {
+            "get": {
+                "operationId": "api_v1_member_makerspaces_payments_list",
+                "summary": "List the caller's payment history",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/MemberPayment"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/member/makerspaces/{makerspace_id}/payments/{payment_id}/checkout": {
+            "post": {
+                "operationId": "api_v1_member_makerspaces_payments_checkout_create",
+                "summary": "Generate a Checkout link for the caller's pending payment",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "payment_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/CheckoutUrl"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/member/makerspaces/{makerspace_id}/referrals": {
             "post": {
                 "operationId": "api_v1_member_makerspaces_referrals_create",
@@ -23134,8 +23359,8 @@
         "/api/v1/webhooks/stripe/{public_code}": {
             "post": {
                 "operationId": "api_v1_webhooks_stripe_create",
-                "description": "Verifies an event against the addressed makerspace's webhook secret. This foundation endpoint deliberately performs no payment state changes.",
-                "summary": "Verify a makerspace Stripe webhook",
+                "description": "Verifies the Stripe signature using request.body and the addressed makerspace's webhook secret before applying an idempotent event.",
+                "summary": "Receive a makerspace Stripe webhook",
                 "parameters": [
                     {
                         "in": "path",
@@ -23151,7 +23376,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "Verified event safely acknowledged."
+                        "description": "Verified event acknowledged."
                     },
                     "400": {
                         "description": "Invalid signature, payload, or configuration."
@@ -25109,6 +25334,18 @@
                 ],
                 "type": "string",
                 "description": "* `email` - Email\n* `telegram` - Telegram\n* `slack` - Slack\n* `mattermost` - Mattermost"
+            },
+            "CheckoutUrl": {
+                "type": "object",
+                "properties": {
+                    "checkout_url": {
+                        "type": "string",
+                        "format": "uri"
+                    }
+                },
+                "required": [
+                    "checkout_url"
+                ]
             },
             "ClaimableInvitation": {
                 "type": "object",
@@ -28733,15 +28970,13 @@
                         "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
                         "readOnly": true
                     },
-                    "payment_amount": {
-                        "type": "string",
-                        "format": "decimal",
-                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
-                        "readOnly": true,
-                        "nullable": true
-                    },
-                    "payment_status": {
-                        "type": "string",
+                    "payment": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/StaffPayment"
+                            }
+                        ],
+                        "nullable": true,
                         "readOnly": true
                     },
                     "run_machine_model": {
@@ -28784,8 +29019,7 @@
                     "id",
                     "machine",
                     "machine_type",
-                    "payment_amount",
-                    "payment_status",
+                    "payment",
                     "planned_grams",
                     "queue_id",
                     "reason",
@@ -30012,6 +30246,41 @@
                     "queue_position",
                     "status",
                     "title"
+                ]
+            },
+            "MemberPayment": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "subject_type": {
+                        "$ref": "#/components/schemas/SubjectTypeEnum"
+                    },
+                    "subject_label": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/Status66aEnum"
+                    },
+                    "checkout_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "checkout_url",
+                    "created_at",
+                    "id",
+                    "subject_label",
+                    "subject_type"
                 ]
             },
             "MemberPresenceActivity": {
@@ -35978,11 +36247,6 @@
                         "format": "decimal",
                         "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
                     },
-                    "payment_amount": {
-                        "type": "string",
-                        "format": "decimal",
-                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
-                    },
                     "note": {
                         "type": "string"
                     }
@@ -36448,6 +36712,53 @@
                     "user"
                 ]
             },
+            "StaffPayment": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "subject_type": {
+                        "$ref": "#/components/schemas/SubjectTypeEnum"
+                    },
+                    "subject_label": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "$ref": "#/components/schemas/Status66aEnum"
+                    },
+                    "checkout_url": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "amount": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "currency": {
+                        "type": "string",
+                        "pattern": "^[a-z]{3}$",
+                        "maxLength": 3
+                    }
+                },
+                "required": [
+                    "amount",
+                    "checkout_url",
+                    "created_at",
+                    "currency",
+                    "id",
+                    "subject_label",
+                    "subject_type"
+                ]
+            },
             "StateEnum": {
                 "enum": [
                     "requested",
@@ -36465,6 +36776,17 @@
                 ],
                 "type": "string",
                 "description": "* `active` - Active\n* `revoked` - Revoked"
+            },
+            "Status66aEnum": {
+                "enum": [
+                    "pending",
+                    "paid_online",
+                    "paid_offline",
+                    "waived",
+                    "canceled"
+                ],
+                "type": "string",
+                "description": "* `pending` - Pending\n* `paid_online` - Paid online\n* `paid_offline` - Paid offline\n* `waived` - Waived\n* `canceled` - Canceled"
             },
             "Status83eEnum": {
                 "enum": [
@@ -36933,6 +37255,13 @@
                 "required": [
                     "detail"
                 ]
+            },
+            "SubjectTypeEnum": {
+                "enum": [
+                    "machine_service_request"
+                ],
+                "type": "string",
+                "description": "* `machine_service_request` - Machine service request"
             },
             "TakenItemsReport": {
                 "type": "object",

@@ -120,12 +120,17 @@ def test_payment_hook_reprint_provenance_and_registry_seam():
     target = machine(space, suffix="payment", type_row=kind)
     actor = make_user("kernel-payment-actor")
     request = submit(target, make_user("kernel-payment-requester"), actor=actor, requester_name="R", contact_email="r@test", contact_phone="1", title="Paid job")
-    accept(request, actor, payment_amount="10")
+    accept(request, actor)
     start(request, actor, machine_id=target.id)
     from apps.machines.service_workflow import complete, create_reprint
     complete(request, actor, actual_minutes=1, consumptions=[])
     collect(request, actor)
     reprint = create_reprint(request, actor)
     request.refresh_from_db()
-    assert (request.payment_status, request.paid_at is not None, reprint.reprint_of_id) == ("paid", True, request.id)
+    # C.3: the Payment model is the sole payment authority; legacy payment_* are historic read-only
+    # (accept no longer sets an amount, collect no longer marks paid, reprint never copies payment).
+    # Reprint provenance and the report-registry seam are unaffected.
+    assert reprint.reprint_of_id == request.id
+    assert (request.payment_status, request.paid_at) == ("none", None)
+    assert (reprint.payment_status, reprint.payment_amount) == ("none", None)
     assert report_definition("machine-service").builder_path == "apps.machines.service_reports.build_machine_service_report"

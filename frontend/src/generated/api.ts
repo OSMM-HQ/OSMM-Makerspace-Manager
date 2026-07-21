@@ -109,6 +109,8 @@ export const openApiPaths = [
   "/api/v1/admin/machine-service/consumable-pools/{id}/adjustments",
   "/api/v1/admin/machine-service/files/{id}",
   "/api/v1/admin/machine-service/files/{id}/url",
+  "/api/v1/admin/machine-service/payments/{id}/mark-offline",
+  "/api/v1/admin/machine-service/payments/{id}/waive",
   "/api/v1/admin/machine-service/requests/{id}",
   "/api/v1/admin/machine-service/requests/{id}/accept",
   "/api/v1/admin/machine-service/requests/{id}/collect",
@@ -303,6 +305,8 @@ export const openApiPaths = [
   "/api/v1/internal/cron/return-reminders",
   "/api/v1/internal/tls-check",
   "/api/v1/member/makerspaces/{makerspace_id}/activity",
+  "/api/v1/member/makerspaces/{makerspace_id}/payments",
+  "/api/v1/member/makerspaces/{makerspace_id}/payments/{payment_id}/checkout",
   "/api/v1/member/makerspaces/{makerspace_id}/referrals",
   "/api/v1/member/makerspaces/{makerspace_id}/waiver",
   "/api/v1/member/makerspaces/{makerspace_id}/waiver/accept",
@@ -809,6 +813,10 @@ export type ChangePasswordResponse = {
 };
 
 export type ChannelEnum = "email" | "telegram" | "slack" | "mattermost";
+
+export type CheckoutUrl = {
+  "checkout_url": string;
+};
 
 export type ClaimableInvitation = {
   "id": number;
@@ -1711,8 +1719,7 @@ export type MachineServiceRequest = {
   "planned_grams": string;
   "reserved_grams": string;
   "actual_consumed_grams": string;
-  "payment_amount": string | null;
-  "payment_status": string;
+  "payment": StaffPayment | null;
   "run_machine_model": string;
   "files": Array<ServiceFile>;
   "consumptions": Array<ServiceConsumption>;
@@ -2023,6 +2030,15 @@ export type MemberMachineServiceActivity = {
   "status": string;
   "created_at": string;
   "queue_position": number | null;
+};
+
+export type MemberPayment = {
+  "id": number;
+  "subject_type": SubjectTypeEnum;
+  "subject_label": string;
+  "status"?: Status66aEnum;
+  "checkout_url": string;
+  "created_at": string;
 };
 
 export type MemberPresenceActivity = {
@@ -3559,7 +3575,6 @@ export type RoleId = {
 export type ServiceAccept = {
   "estimated_minutes"?: number;
   "planned_grams"?: string;
-  "payment_amount"?: string;
   "note"?: string;
 };
 
@@ -3699,9 +3714,22 @@ export type StaffMembership = {
   "created_at": string;
 };
 
+export type StaffPayment = {
+  "id": number;
+  "subject_type": SubjectTypeEnum;
+  "subject_label": string;
+  "status"?: Status66aEnum;
+  "checkout_url": string;
+  "created_at": string;
+  "amount": string;
+  "currency": string;
+};
+
 export type StateEnum = "requested" | "invited" | "active" | "revoked";
 
 export type Status37fEnum = "active" | "revoked";
+
+export type Status66aEnum = "pending" | "paid_online" | "paid_offline" | "waived" | "canceled";
 
 export type Status83eEnum = "ok" | "warn" | "error" | "unknown";
 
@@ -3824,6 +3852,8 @@ export type SubdomainRequest = {
 export type SubdomainRequestError = {
   "detail": string;
 };
+
+export type SubjectTypeEnum = "machine_service_request";
 
 export type TakenItemsReport = {
   "rows": Array<Array<unknown>>;

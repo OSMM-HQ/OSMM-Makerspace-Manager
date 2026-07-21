@@ -16,6 +16,7 @@ type Presence = { active: boolean; session: { expires_at: string } | null };
 type Invitations = { invitations: ClaimableInvitation[] };
 type ReferralOutcome = { state: "invited" };
 type ClaimOutcome = { id: number; outcome: "active" | "pending_approval" };
+type MemberPayment = { id: number; subject_label: string; status: string; checkout_url: string; created_at: string };
 
 function message(error: unknown) {
   if (error instanceof StructuredApiError && error.status === 401) return "Sign in to manage your membership.";
@@ -42,6 +43,7 @@ export function MemberArea() {
   const waiver = useQuery({ queryKey: ["member", resolvedSlug, "waiver"], queryFn: () => staffRequest<Waiver>(`/member/makerspaces/${makerspaceId}/waiver`), enabled: makerspaceId >= 0 && membership?.membership_status === "active", retry: false });
   const presence = useQuery({ queryKey: ["member", resolvedSlug, "presence"], queryFn: () => staffRequest<Presence>(`/public/${resolvedSlug}/presence-sessions/current`), enabled: Boolean(resolvedSlug) && membership?.membership_status === "active", retry: false });
   const activity = useQuery({ queryKey: ["member", resolvedSlug, "activity"], queryFn: () => staffRequest<MemberActivity>(`/member/makerspaces/${makerspaceId}/activity`), enabled: makerspaceId >= 0 && membership?.membership_status === "active", retry: false });
+  const payments = useQuery({ queryKey: ["member", resolvedSlug, "payments"], queryFn: () => staffRequest<MemberPayment[]>(`/member/makerspaces/${makerspaceId}/payments`), enabled: makerspaceId >= 0 && membership?.membership_status === "active", retry: false });
   const refresh = () => client.invalidateQueries({ queryKey: ["member"] });
   const request = useMutation({ mutationFn: () => staffRequest<MembershipOutcome>(`/public/${resolvedSlug}/membership-requests`, { method: "POST", body: JSON.stringify({}) }), onSuccess: refresh });
   const accept = useMutation({ mutationFn: () => staffRequest(`/member/makerspaces/${makerspaceId}/waiver/accept`, { method: "POST" }), onSuccess: refresh });
@@ -49,8 +51,9 @@ export function MemberArea() {
   const end = useMutation({ mutationFn: () => staffRequest(`/public/${resolvedSlug}/presence-sessions/current/end`, { method: "POST" }), onSuccess: refresh });
   const refer = useMutation({ mutationFn: (inviteEmail: string) => staffRequest<ReferralOutcome>(`/member/makerspaces/${makerspaceId}/referrals`, { method: "POST", body: JSON.stringify({ invite_email: inviteEmail }) }), onSuccess: refresh });
   const claim = useMutation({ mutationFn: (id: number) => staffRequest<ClaimOutcome>(`/memberships/invitations/${id}/claim`, { method: "POST" }), onSuccess: refresh });
+  const generatePaymentLink = useMutation({ mutationFn: (id: number) => staffRequest<{ checkout_url: string }>(`/member/makerspaces/${makerspaceId}/payments/${id}/checkout`, { method: "POST" }), onSuccess: (data) => { refresh(); window.location.assign(data.checkout_url); } });
   const spaceInvitations = invitations.data?.invitations.filter((item) => item.makerspace.slug === resolvedSlug) ?? [];
-  const error = bootstrap.error ?? (!unauthenticated ? memberships.error : null) ?? request.error ?? accept.error ?? start.error ?? end.error ?? activity.error;
+  const error = bootstrap.error ?? (!unauthenticated ? memberships.error : null) ?? request.error ?? accept.error ?? start.error ?? end.error ?? activity.error ?? generatePaymentLink.error;
   const login = useMutation({ mutationFn: (payload: { username: string; password: string }) => staffRequest<{ access: string }>("/auth/login", { method: "POST", credentials: "include", body: JSON.stringify(payload) }), onSuccess: (data) => { setAccessToken(data.access); setShowSignIn(false); client.invalidateQueries({ queryKey: ["member"] }); } });
   const policy: MembershipPolicyEnum | undefined = bootstrap.data?.makerspace.membership_policy;
 
@@ -66,7 +69,7 @@ export function MemberArea() {
     {membership ? <><section className="desk-panel p-5"><h2 className="font-semibold text-ink">Membership</h2><p className="mt-1 text-sm text-muted">{membership.makerspace.name} · {membership.membership_status} · {membership.role}</p></section>
       {waiver.data?.has_waiver ? <section className="desk-panel p-5"><h2 className="font-semibold text-ink">Current waiver ({waiver.data.version})</h2><p className="mt-3 whitespace-pre-wrap text-sm text-muted">{waiver.data.body}</p><button className="desk-button-primary mt-4" disabled={accept.isPending} onClick={() => accept.mutate()}>Accept waiver</button></section> : null}
       <section className="desk-panel p-5"><h2 className="font-semibold text-ink">Presence</h2><p className="mt-1 text-sm text-muted">{presence.data?.active ? `Active until ${new Date(presence.data.session?.expires_at ?? "").toLocaleTimeString()}` : "No active session."}</p><button className="desk-button-primary mt-4" disabled={start.isPending || end.isPending} onClick={() => presence.data?.active ? end.mutate() : start.mutate()}>{presence.data?.active ? "End presence" : "Start 2-hour presence"}</button></section>
-      {activity.data ? <MemberActivityPanel activity={activity.data} /> : null}</> : null}
+      {activity.data ? <MemberActivityPanel activity={activity.data} /> : null}{payments.data?.length ? <section className="desk-panel p-5"><h2 className="font-semibold text-ink">Payments</h2><ul className="mt-3 space-y-2 text-sm text-muted">{payments.data.map((payment) => <li key={payment.id}><span className="font-medium text-ink">{payment.subject_label}</span> · {payment.status}{payment.checkout_url ? <> · <a className="text-accent-ink underline" href={payment.checkout_url}>Pay now</a></> : payment.status === "pending" ? <> · <button className="text-accent-ink underline" disabled={generatePaymentLink.isPending} onClick={() => generatePaymentLink.mutate(payment.id)}>Generate payment link</button></> : null}</li>)}</ul></section> : null}</> : null}
     {memberships.data && resolvedSlug && makerspaceId >= 0 ? <MemberReferrals
       canRefer={membership?.membership_status === "active" && membership.can_refer}
       referralsEnabled={membership?.membership_status === "active" && membership.referrals_enabled}
