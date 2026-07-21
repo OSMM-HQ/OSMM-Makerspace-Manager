@@ -21,9 +21,11 @@ to the very end** (after all Parts) — no per-Part QA gate. Specs live (gitigno
 Analytics/reports, public Roadmap, Machine Manager role + delegated role assignment, public
 self-booking + shared custom forms, per-feature×per-channel notification matrix (Slack/Mattermost),
 scoped PII encryption (Parts H1–H4), custom editable per-makerspace roles (Part L), and **Phase C**
-(capabilities toggles + Stripe payments C.2/C.3 + advisory geofenced check-in C.7). Remaining Phase C:
-C.6 (custom machine-type config + non-gram staff surface) then C.4/C.5 (reconciliation dashboard;
-bookings/events/membership-dues payments) — detailed live state is tracked in the assistant's memory, not here.
+(capabilities toggles + Stripe payments C.2/C.3 + advisory geofenced check-in C.7 + C.3-hardening + **C.6**
+custom machine-type config + non-gram service console + **P1-A** unified per-space machine-type pricing).
+Remaining Phase C: a **Stripe-Connect payments-credentials track** (SM self-serve per-makerspace keys +
+managed-hosting Stripe Connect) then C.4 (reconciliation dashboard) and C.5 (bookings/events/membership-dues
+payments) — detailed live state is tracked in the assistant's memory, not here.
 
 **Standing build conventions for this program:**
 - **Parallel Codex via git worktree.** A second track runs in a sibling worktree
@@ -162,9 +164,21 @@ capability). Widget templates live in the **app** templates dir (`apps/<app>/tem
 
 **Payments (Stripe, C.2/C.3; dormant until configured).** `apps/payments.Payment` is the **single payment
 authority** (one row per subject via unique `(makerspace, subject_type, subject_id)`; positive amount;
-statuses pending/paid_online/paid_offline/waived/canceled; terminal rows immutable). Effective online payment
-= `feature_enabled(ms,"payments.<domain>")` AND `MakerspacePaymentSettings.is_configured` — blank creds fail
-closed; no platform-wide Stripe fallback. **Never-block:** machine `complete()`/`collect()` succeed even if
+statuses pending/paid_online/paid_offline/waived/canceled; terminal rows immutable — **enforced by a Postgres
+BEFORE UPDATE/DELETE trigger that blocks terminal-row mutation AND blocks DELETE unless the purge GUC
+`app.allow_immutable_delete='on'` is set; `Payment`+`ProcessedStripeEvent` are in the lifecycle purge graph**).
+Effective online payment = `feature_enabled(ms,"payments.<domain>")` AND `MakerspacePaymentSettings.is_configured`
+— blank creds fail closed; no platform-wide Stripe fallback (a **Stripe-Connect creds track** for managed hosting
+is planned, self-host stays per-makerspace raw keys). The webhook settles both synchronous
+(`checkout.session.completed` payment_status=paid) and **asynchronous** (`checkout.session.async_payment_succeeded`,
+matched by session id) charges. **Machine-service pricing lives in `apps/machines.MakerspaceMachineTypePricing`
+(per makerspace × machine_type; built-in AND custom types; `rate_per_unit`/`flat_fee`/`payment_enabled`),
+NOT in `MachineType.capability_config` (which is structural-only — no pricing/payment keys); currency = the
+makerspace default currency snapshotted into `Payment`; the charge quantity is `service_payments.effective_quantity`
+(minutes→`actual_minutes`, else `actual_consumed_quantity`, else grams). Configuring machine types AND their
+pricing is gated by `rbac.is_space_manager_identity` (space-manager membership only — NOT `MANAGE_MACHINES`
+breadth — honoring archived/hard-hidden scoping; surfaced to the console via the per-membership
+`can_configure_machine_types` flag).** **Never-block:** machine `complete()`/`collect()` succeed even if
 Payment creation or Stripe checkout fails; checkout is created post-commit best-effort (and can be regenerated
 on demand via the member endpoint). **Webhook always settles:** `apply_webhook_event` verifies the
 per-makerspace signature on `request.body`, is idempotent via `ProcessedStripeEvent`, and settles a matching
@@ -192,12 +206,17 @@ dead/broken feature for normal staff. New workflow actions ship their staff UI i
 Each line names a shipped feature and, where useful, the load-bearing rule it introduced (folded into the
 invariants above). Use `git log --oneline`/`git blame` for the implementing commits and per-file history.
 
-- **Phase C — capabilities + payments + geofence** (2026-07-21, `dev`): Track 1 two-level module/feature
+- **Phase C — capabilities + payments + geofence** (2026-07-21/22, `dev`): Track 1 two-level module/feature
   toggles (`41e6a2a`); C.2 Stripe foundation — per-makerspace encrypted creds + verify-only webhook
   (`92eda37`); C.3 machine-service payments — `apps/payments.Payment` as the single payment authority,
   gated non-blocking charge at machine `complete()`, idempotent webhook settlement, member/staff surfaces
   + reconciliation, legacy `payment_*` → read-only historic with a backfill migration (`9c1d928`); C.7
-  **advisory** geofenced presence check-in — records proximity buckets, never blocks (`007ef55`).
+  **advisory** geofenced presence check-in — records proximity buckets, never blocks (`007ef55`);
+  C.3-hardening — `Payment` DELETE-immutability trigger + purge-graph wiring + async Stripe checkout
+  settlement (`c8225c0`); **C.6 + P1-A** — custom machine-type config (SM-identity authority) + generic
+  non-gram `MachineServiceConsole` + seed migration `0017`, and the unified per-space
+  `MakerspaceMachineTypePricing` override (pricing out of `capability_config`, built-ins priceable per-space,
+  migration `0018` fail-safe backfill) (`8d39cb0`).
 - **FabLab Parts C–N + L + H + Settings + K** (2026-07-16→18, `dev`): Events, Bookings (+ public
   self-booking + shared `forms_schema` custom forms + structured event location), Maintenance, Analytics
   reports, public Roadmap, Machine Manager role + SM-delegated role assignment, per-feature×per-channel
