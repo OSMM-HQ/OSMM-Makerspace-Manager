@@ -20,9 +20,10 @@ to the very end** (after all Parts) — no per-Part QA gate. Specs live (gitigno
 **Shipped on `dev` (see condensed changelog for the module list):** Events, Bookings, Maintenance,
 Analytics/reports, public Roadmap, Machine Manager role + delegated role assignment, public
 self-booking + shared custom forms, per-feature×per-channel notification matrix (Slack/Mattermost),
-scoped PII encryption (Parts H1–H4), custom editable per-makerspace roles (Part L). In flight: Part N
-(machine service requests, in a git worktree) and Part M (member accounts) — detailed live state is
-tracked in the assistant's memory, not here.
+scoped PII encryption (Parts H1–H4), custom editable per-makerspace roles (Part L), and **Phase C**
+(capabilities toggles + Stripe payments C.2/C.3 + advisory geofenced check-in C.7). Remaining Phase C:
+C.6 (custom machine-type config + non-gram staff surface) then C.4/C.5 (reconciliation dashboard;
+bookings/events/membership-dues payments) — detailed live state is tracked in the assistant's memory, not here.
 
 **Standing build conventions for this program:**
 - **Parallel Codex via git worktree.** A second track runs in a sibling worktree
@@ -159,6 +160,29 @@ disable a parentless feature — a disabled checkbox is omitted from POST and wo
 capability). Widget templates live in the **app** templates dir (`apps/<app>/templates/...`), not project
 `templates/`, so the form renderer (app-dirs only) finds them.
 
+**Payments (Stripe, C.2/C.3; dormant until configured).** `apps/payments.Payment` is the **single payment
+authority** (one row per subject via unique `(makerspace, subject_type, subject_id)`; positive amount;
+statuses pending/paid_online/paid_offline/waived/canceled; terminal rows immutable). Effective online payment
+= `feature_enabled(ms,"payments.<domain>")` AND `MakerspacePaymentSettings.is_configured` — blank creds fail
+closed; no platform-wide Stripe fallback. **Never-block:** machine `complete()`/`collect()` succeed even if
+Payment creation or Stripe checkout fails; checkout is created post-commit best-effort (and can be regenerated
+on demand via the member endpoint). **Webhook always settles:** `apply_webhook_event` verifies the
+per-makerspace signature on `request.body`, is idempotent via `ProcessedStripeEvent`, and settles a matching
+pending Payment to paid_online **regardless of the live feature toggle** (a real charge is never stranded); a
+paid event for an already-terminal payment is audited (`payment.paid_after_terminal`), not dropped. Reconciling
+(mark_offline/waive) best-effort **expires** any live Checkout session. Checkout return URLs come from
+`platform.member_area_url` (VERIFIED custom domain → `/member`, else shared `/m/<slug>/member`). Legacy
+`MachineServiceRequest.payment_*` are **read-only historic** (a backfill migration maps them into Payment);
+refunds are out of scope. Amounts are staff-private (serializer split); requesters/members see status + own
+checkout link only.
+
+**Presence geofence is ADVISORY, not an access gate (C.7).** Browser-supplied coordinates are spoofable, so
+`presence.geofence.evaluate_geofence` only classifies a reading (in_range / distance+accuracy buckets, raw
+coords never stored) and records it in the `presence.started` audit — it **never blocks** session creation, and
+the client never hard-blocks check-in on a location error. Do **not** convert it into a fail-closed gate
+without adding an unforgeable proximity factor (owner decision). Dormant/self-host safe: no geo config ⇒ no
+check and the `geofence_enabled` bootstrap flag is **omitted entirely** (byte-for-byte-unchanged invariant).
+
 **Console parity principle.** Every backend lifecycle capability reachable in the Django `/control/`
 admin must have a React staff-console surface — a capability with no console surface is a latent
 dead/broken feature for normal staff. New workflow actions ship their staff UI in the same batch.
@@ -168,6 +192,12 @@ dead/broken feature for normal staff. New workflow actions ship their staff UI i
 Each line names a shipped feature and, where useful, the load-bearing rule it introduced (folded into the
 invariants above). Use `git log --oneline`/`git blame` for the implementing commits and per-file history.
 
+- **Phase C — capabilities + payments + geofence** (2026-07-21, `dev`): Track 1 two-level module/feature
+  toggles (`41e6a2a`); C.2 Stripe foundation — per-makerspace encrypted creds + verify-only webhook
+  (`92eda37`); C.3 machine-service payments — `apps/payments.Payment` as the single payment authority,
+  gated non-blocking charge at machine `complete()`, idempotent webhook settlement, member/staff surfaces
+  + reconciliation, legacy `payment_*` → read-only historic with a backfill migration (`9c1d928`); C.7
+  **advisory** geofenced presence check-in — records proximity buckets, never blocks (`007ef55`).
 - **FabLab Parts C–N + L + H + Settings + K** (2026-07-16→18, `dev`): Events, Bookings (+ public
   self-booking + shared `forms_schema` custom forms + structured event location), Maintenance, Analytics
   reports, public Roadmap, Machine Manager role + SM-delegated role assignment, per-feature×per-channel
