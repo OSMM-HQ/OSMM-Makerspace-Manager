@@ -76,6 +76,11 @@ from apps.admin_api.views_machine_service import (
     MachineServiceStartView,
 )
 from apps.admin_api.views_payments import PaymentMarkOfflineView, PaymentWaiveView
+from apps.admin_api.views_payment_settings import (
+    MakerspacePaymentSettingsView,
+    StripeConnectOnboardingView,
+)
+from apps.admin_api.views_platform_payments import PlatformStripeConnectSettingsView
 from apps.admin_api.views_machine_service_printer import (
     MachineServicePrinterPoolAdjustmentView,
     MachineServicePrinterPoolDetailView,
@@ -143,6 +148,21 @@ from apps.admin_api.views_roles import CapabilityCatalogView, RoleDetailView, Ro
 from apps.presence.views import PresenceRosterView
 
 urlpatterns = [
+    path(
+        "platform/payment-settings",
+        PlatformStripeConnectSettingsView.as_view(),
+        name="admin-platform-payment-settings",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/payment-settings",
+        MakerspacePaymentSettingsView.as_view(),
+        name="admin-makerspace-payment-settings",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/payment-settings/connect/onboard",
+        StripeConnectOnboardingView.as_view(),
+        name="admin-makerspace-payment-connect-onboard",
+    ),
     path(
         "makerspace/<int:makerspace_id>/presence-sessions/current",
         PresenceRosterView.as_view(),

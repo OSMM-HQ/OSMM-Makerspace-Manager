@@ -3,6 +3,7 @@
 from importlib import import_module
 
 from apps.payments.models import MakerspacePaymentSettings
+from apps.payments.resolution import PaymentSource, resolve_payment_source
 
 
 class PaymentsUnavailable(Exception):
@@ -17,39 +18,88 @@ def _stripe_module():
     return import_module("stripe")
 
 
-def _payment_settings(makerspace_or_settings):
-    if hasattr(makerspace_or_settings, "get_stripe_secret_key"):
+def _source(makerspace_or_settings):
+    if isinstance(makerspace_or_settings, PaymentSource):
         return makerspace_or_settings
-    return MakerspacePaymentSettings.for_makerspace(makerspace_or_settings)
+    if hasattr(makerspace_or_settings, "get_stripe_secret_key"):
+        payment_settings = makerspace_or_settings
+        if not payment_settings.raw_credentials_configured:
+            return None
+        try:
+            return PaymentSource(
+                "raw",
+                payment_settings.get_stripe_secret_key(),
+                payment_settings.get_stripe_webhook_secret(),
+                publishable_key=payment_settings.stripe_publishable_key,
+            )
+        except Exception:
+            return None
+    return resolve_payment_source(makerspace_or_settings)
 
 
 def build_client(makerspace_or_settings):
     """Build a fresh client for this request without setting ``stripe.api_key``."""
-    payment_settings = _payment_settings(makerspace_or_settings)
-    if not payment_settings.is_configured:
+    source = _source(makerspace_or_settings)
+    if source is None or not source.secret_key:
         raise PaymentsUnavailable("Stripe is not configured for this makerspace.")
-    try:
-        secret_key = payment_settings.get_stripe_secret_key()
-    except Exception as exc:
-        raise PaymentsUnavailable("Stripe is not configured for this makerspace.") from exc
-    if not secret_key:
-        raise PaymentsUnavailable("Stripe is not configured for this makerspace.")
-    return _stripe_module().StripeClient(api_key=secret_key)
+    return _stripe_module().StripeClient(api_key=source.secret_key)
 
 
-def create_checkout_session(makerspace_or_settings, **params):
+def create_checkout_session(
+    makerspace_or_settings, *, idempotency_key=None, **params
+):
     """Create a Checkout Session through a makerspace-specific client (for C.3)."""
-    return build_client(makerspace_or_settings).v1.checkout.sessions.create(params=params)
+    source = _source(makerspace_or_settings)
+    if source is None:
+        raise PaymentsUnavailable("Stripe is not configured for this makerspace.")
+    options = {}
+    if source.provider == "connect" and source.connected_account_id:
+        options["stripe_account"] = source.connected_account_id
+    if idempotency_key:
+        options["idempotency_key"] = idempotency_key
+    return build_client(source).v1.checkout.sessions.create(
+        params=params, **({"options": options} if options else {})
+    )
 
 
 def expire_checkout_session(makerspace_or_settings, session_id):
-    """Best-effort expiry for a Checkout Session no longer payable locally."""
+    """Return whether Stripe authoritatively expired the Checkout Session."""
     try:
-        return build_client(makerspace_or_settings).v1.checkout.sessions.expire(session_id)
+        source = _source(makerspace_or_settings)
+        if source is None:
+            return False
+        options = (
+            {"stripe_account": source.connected_account_id}
+            if source.provider == "connect" and source.connected_account_id
+            else None
+        )
+        build_client(source).v1.checkout.sessions.expire(
+            session_id, **({"options": options} if options else {})
+        )
+        return True
     except Exception:
-        # Stripe returns an error when a session was already paid or expired.  The
-        # local terminal reconciliation remains authoritative in either case.
-        return None
+        # Expiry can race natural closure; only an authoritative retrieve clears it.
+        return checkout_session_is_closed(makerspace_or_settings, session_id)
+
+
+def checkout_session_is_closed(makerspace_or_settings, session_id):
+    """Return True only when Stripe authoritatively reports a closed session."""
+    try:
+        source = _source(makerspace_or_settings)
+        if source is None:
+            return False
+        options = (
+            {"stripe_account": source.connected_account_id}
+            if source.provider == "connect" and source.connected_account_id
+            else None
+        )
+        session = build_client(source).v1.checkout.sessions.retrieve(
+            session_id, **({"options": options} if options else {})
+        )
+        status = session.get("status") if isinstance(session, dict) else session.status
+        return status == "expired"
+    except Exception:
+        return False
 
 
 def construct_event(payload, sig_header, webhook_secret):

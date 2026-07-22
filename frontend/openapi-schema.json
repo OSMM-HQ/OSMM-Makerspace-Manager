@@ -10838,6 +10838,204 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/payment-settings": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_payment_settings_retrieve",
+                "summary": "Retrieve makerspace payment settings",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin payment settings"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MakerspacePaymentSettings"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentSettingsError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentSettingsError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "api_v1_admin_makerspace_payment_settings_partial_update",
+                "summary": "Update makerspace payment settings",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin payment settings"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMakerspacePaymentSettings"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMakerspacePaymentSettings"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedMakerspacePaymentSettings"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MakerspacePaymentSettings"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "description": "Invalid payment settings."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentSettingsError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentSettingsError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/payment-settings/connect/onboard": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_payment_settings_connect_onboard_create",
+                "summary": "Start Stripe Connect onboarding",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Admin payment settings"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/StripeConnectOnboarding"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentSettingsError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentSettingsError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentSettingsError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/pending-requests": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_pending_requests_list",
@@ -15237,6 +15435,75 @@
                             "application/json": {
                                 "schema": {
                                     "$ref": "#/components/schemas/PlatformEmailSettings"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/platform/payment-settings": {
+            "get": {
+                "operationId": "api_v1_admin_platform_payment_settings_retrieve",
+                "summary": "Retrieve or update platform Stripe Connect settings",
+                "tags": [
+                    "Platform"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PlatformStripeConnectSettings"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "api_v1_admin_platform_payment_settings_partial_update",
+                "summary": "Retrieve or update platform Stripe Connect settings",
+                "tags": [
+                    "Platform"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedPlatformStripeConnectSettings"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedPlatformStripeConnectSettings"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedPlatformStripeConnectSettings"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PlatformStripeConnectSettings"
                                 }
                             }
                         },
@@ -20451,6 +20718,44 @@
                 }
             }
         },
+        "/api/v1/payments/connect/callback": {
+            "get": {
+                "operationId": "api_v1_payments_connect_callback_retrieve",
+                "summary": "Complete Stripe Connect onboarding",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "code",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "error",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "state",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "responses": {
+                    "302": {
+                        "description": "Redirect to trusted staff settings."
+                    }
+                }
+            }
+        },
         "/api/v1/procurement/makerspace/{makerspace_id}/to-buy": {
             "get": {
                 "operationId": "api_v1_procurement_makerspace_to_buy_list",
@@ -23498,6 +23803,26 @@
                     }
                 }
             }
+        },
+        "/api/v1/webhooks/stripe/connect": {
+            "post": {
+                "operationId": "api_v1_webhooks_stripe_connect_create",
+                "summary": "Receive a platform Stripe Connect webhook",
+                "tags": [
+                    "Payments"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Verified event acknowledged."
+                    },
+                    "400": {
+                        "description": "Invalid signature or configuration."
+                    },
+                    "404": {
+                        "description": "Stripe Connect is dormant."
+                    }
+                }
+            }
         }
     },
     "components": {
@@ -25506,6 +25831,17 @@
                 ],
                 "type": "string",
                 "description": "* `available` - Available\n* `damaged` - Damaged\n* `lost` - Lost\n* `unknown` - Unknown"
+            },
+            "ConnectStatusEnum": {
+                "enum": [
+                    "unconnected",
+                    "pending",
+                    "active",
+                    "restricted",
+                    "disconnected"
+                ],
+                "type": "string",
+                "description": "* `unconnected` - Unconnected\n* `pending` - Pending\n* `active` - Active\n* `restricted` - Restricted\n* `disconnected` - Disconnected"
             },
             "ConsumableCandidate": {
                 "type": "object",
@@ -30239,6 +30575,81 @@
                     "updated_at"
                 ]
             },
+            "MakerspacePaymentSettings": {
+                "type": "object",
+                "properties": {
+                    "default_currency": {
+                        "type": "string",
+                        "maxLength": 3
+                    },
+                    "stripe_publishable_key": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 255
+                    },
+                    "stripe_publishable_key_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "stripe_secret_key": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "stripe_secret_key_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "stripe_webhook_secret": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "stripe_webhook_secret_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "connect_account_id": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "connect_status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ConnectStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "connect_charges_enabled": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "connect_payouts_enabled": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "connect_status_updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "effective_mode": {
+                        "type": "string",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "connect_account_id",
+                    "connect_charges_enabled",
+                    "connect_payouts_enabled",
+                    "connect_status",
+                    "connect_status_updated_at",
+                    "effective_mode",
+                    "stripe_publishable_key_set",
+                    "stripe_secret_key_set",
+                    "stripe_webhook_secret_set"
+                ]
+            },
             "Measurement883Enum": {
                 "enum": [
                     "count",
@@ -33235,6 +33646,70 @@
                     }
                 }
             },
+            "PatchedMakerspacePaymentSettings": {
+                "type": "object",
+                "properties": {
+                    "default_currency": {
+                        "type": "string",
+                        "maxLength": 3
+                    },
+                    "stripe_publishable_key": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 255
+                    },
+                    "stripe_publishable_key_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "stripe_secret_key": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "stripe_secret_key_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "stripe_webhook_secret": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "stripe_webhook_secret_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "connect_account_id": {
+                        "type": "string",
+                        "readOnly": true,
+                        "nullable": true
+                    },
+                    "connect_status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ConnectStatusEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "connect_charges_enabled": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "connect_payouts_enabled": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "connect_status_updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "effective_mode": {
+                        "type": "string",
+                        "readOnly": true
+                    }
+                }
+            },
             "PatchedMembershipCapabilities": {
                 "type": "object",
                 "properties": {
@@ -33320,6 +33795,54 @@
                         "type": "string",
                         "format": "email",
                         "maxLength": 254
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                }
+            },
+            "PatchedPlatformStripeConnectSettings": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "stripe_publishable_key": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 255
+                    },
+                    "stripe_publishable_key_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "stripe_secret_key": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "stripe_secret_key_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "stripe_webhook_secret": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "stripe_webhook_secret_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "stripe_connect_client_id": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "application_fee_bps": {
+                        "type": "integer",
+                        "maximum": 10000,
+                        "minimum": 0
                     },
                     "updated_at": {
                         "type": "string",
@@ -33491,6 +34014,17 @@
                     }
                 }
             },
+            "PaymentSettingsError": {
+                "type": "object",
+                "properties": {
+                    "detail": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "detail"
+                ]
+            },
             "PlatformEmailSettings": {
                 "type": "object",
                 "properties": {
@@ -33539,6 +34073,61 @@
                 "required": [
                     "id",
                     "smtp_password_set",
+                    "updated_at"
+                ]
+            },
+            "PlatformStripeConnectSettings": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "stripe_publishable_key": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 255
+                    },
+                    "stripe_publishable_key_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "stripe_secret_key": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "stripe_secret_key_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "stripe_webhook_secret": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "stripe_webhook_secret_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "stripe_connect_client_id": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "application_fee_bps": {
+                        "type": "integer",
+                        "maximum": 10000,
+                        "minimum": 0
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "id",
+                    "stripe_publishable_key_set",
+                    "stripe_secret_key_set",
+                    "stripe_webhook_secret_set",
                     "updated_at"
                 ]
             },
@@ -37524,6 +38113,18 @@
                 ],
                 "type": "string",
                 "description": "* `draft` - Draft\n* `counting` - Counting\n* `completed` - Completed\n* `approved` - Approved\n* `applied` - Applied\n* `cancelled` - Cancelled"
+            },
+            "StripeConnectOnboarding": {
+                "type": "object",
+                "properties": {
+                    "authorize_url": {
+                        "type": "string",
+                        "format": "uri"
+                    }
+                },
+                "required": [
+                    "authorize_url"
+                ]
             },
             "SubdomainRequest": {
                 "type": "object",

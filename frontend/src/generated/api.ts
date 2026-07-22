@@ -18,6 +18,7 @@ export const openApiTags = [
   "Admin maintenance",
   "Admin makerspaces",
   "Admin memberships",
+  "Admin payment settings",
   "Admin requests",
   "Admin roles",
   "Admin users",
@@ -199,6 +200,8 @@ export const openApiPaths = [
   "/api/v1/admin/makerspace/{makerspace_id}/membership-invitations",
   "/api/v1/admin/makerspace/{makerspace_id}/notification-recipients",
   "/api/v1/admin/makerspace/{makerspace_id}/notification-rules",
+  "/api/v1/admin/makerspace/{makerspace_id}/payment-settings",
+  "/api/v1/admin/makerspace/{makerspace_id}/payment-settings/connect/onboard",
   "/api/v1/admin/makerspace/{makerspace_id}/pending-requests",
   "/api/v1/admin/makerspace/{makerspace_id}/presence-sessions/current",
   "/api/v1/admin/makerspace/{makerspace_id}/problem-reports/{id}/resolve",
@@ -240,6 +243,7 @@ export const openApiPaths = [
   "/api/v1/admin/memberships/{id}/unverify",
   "/api/v1/admin/memberships/{id}/verify",
   "/api/v1/admin/platform/email-settings",
+  "/api/v1/admin/platform/payment-settings",
   "/api/v1/admin/products/{id}/assets/generate",
   "/api/v1/admin/qr-print-batches/{id}",
   "/api/v1/admin/qr-print-batches/{id}/download",
@@ -320,6 +324,7 @@ export const openApiPaths = [
   "/api/v1/notifications/makerspace/{makerspace_id}/read-all",
   "/api/v1/notifications/makerspace/{makerspace_id}/unread-count",
   "/api/v1/notifications/makerspace/{makerspace_id}/{id}/read",
+  "/api/v1/payments/connect/callback",
   "/api/v1/procurement/makerspace/{makerspace_id}/to-buy",
   "/api/v1/procurement/makerspace/{makerspace_id}/to-buy/export",
   "/api/v1/procurement/to-buy/receipts/{id}",
@@ -356,6 +361,7 @@ export const openApiPaths = [
   "/api/v1/public/{makerspace_slug}/tools/checkout",
   "/api/v1/public/{makerspace_slug}/tools/evidence-url",
   "/api/v1/public/{makerspace_slug}/tools/return",
+  "/api/v1/webhooks/stripe/connect",
   "/api/v1/webhooks/stripe/{public_code}"
 ] as const;
 
@@ -833,6 +839,8 @@ export type ClaimableInvitation = {
 export type ClientTypeEnum = "browser" | "server";
 
 export type ConditionEnum = "available" | "damaged" | "lost" | "unknown";
+
+export type ConnectStatusEnum = "unconnected" | "pending" | "active" | "restricted" | "disconnected";
 
 export type ConsumableCandidate = {
   "id": number;
@@ -1998,6 +2006,22 @@ export type Makerspace = {
   "updated_at": string;
 };
 
+export type MakerspacePaymentSettings = {
+  "default_currency"?: string;
+  "stripe_publishable_key"?: string;
+  "stripe_publishable_key_set": boolean;
+  "stripe_secret_key"?: string;
+  "stripe_secret_key_set": boolean;
+  "stripe_webhook_secret"?: string;
+  "stripe_webhook_secret_set": boolean;
+  "connect_account_id": string | null;
+  "connect_status": ConnectStatusEnum;
+  "connect_charges_enabled": boolean;
+  "connect_payouts_enabled": boolean;
+  "connect_status_updated_at": string;
+  "effective_mode": string;
+};
+
 export type Measurement883Enum = "count" | "grams";
 
 export type MemberAccountability = {
@@ -2766,6 +2790,22 @@ export type PatchedMakerspace = {
   "updated_at"?: string;
 };
 
+export type PatchedMakerspacePaymentSettings = {
+  "default_currency"?: string;
+  "stripe_publishable_key"?: string;
+  "stripe_publishable_key_set"?: boolean;
+  "stripe_secret_key"?: string;
+  "stripe_secret_key_set"?: boolean;
+  "stripe_webhook_secret"?: string;
+  "stripe_webhook_secret_set"?: boolean;
+  "connect_account_id"?: string | null;
+  "connect_status"?: ConnectStatusEnum;
+  "connect_charges_enabled"?: boolean;
+  "connect_payouts_enabled"?: boolean;
+  "connect_status_updated_at"?: string;
+  "effective_mode"?: string;
+};
+
 export type PatchedMembershipCapabilities = {
   "can_refer"?: boolean;
   "can_verify"?: boolean;
@@ -2794,6 +2834,19 @@ export type PatchedPlatformEmailSettings = {
   "smtp_use_tls"?: boolean;
   "smtp_use_ssl"?: boolean;
   "from_email"?: string;
+  "updated_at"?: string;
+};
+
+export type PatchedPlatformStripeConnectSettings = {
+  "id"?: number;
+  "stripe_publishable_key"?: string;
+  "stripe_publishable_key_set"?: boolean;
+  "stripe_secret_key"?: string;
+  "stripe_secret_key_set"?: boolean;
+  "stripe_webhook_secret"?: string;
+  "stripe_webhook_secret_set"?: boolean;
+  "stripe_connect_client_id"?: string;
+  "application_fee_bps"?: number;
   "updated_at"?: string;
 };
 
@@ -2838,6 +2891,10 @@ export type PatchedToBuyItem = {
   "updated_at"?: string;
 };
 
+export type PaymentSettingsError = {
+  "detail": string;
+};
+
 export type PlatformEmailSettings = {
   "id": number;
   "smtp_host"?: string;
@@ -2848,6 +2905,19 @@ export type PlatformEmailSettings = {
   "smtp_use_tls"?: boolean;
   "smtp_use_ssl"?: boolean;
   "from_email"?: string;
+  "updated_at": string;
+};
+
+export type PlatformStripeConnectSettings = {
+  "id": number;
+  "stripe_publishable_key"?: string;
+  "stripe_publishable_key_set": boolean;
+  "stripe_secret_key"?: string;
+  "stripe_secret_key_set": boolean;
+  "stripe_webhook_secret"?: string;
+  "stripe_webhook_secret_set": boolean;
+  "stripe_connect_client_id"?: string;
+  "application_fee_bps"?: number;
   "updated_at": string;
 };
 
@@ -3886,6 +3956,10 @@ export type StockTransferLineInput = {
 };
 
 export type StockTransferStatusEnum = "applied" | "cancelled";
+
+export type StripeConnectOnboarding = {
+  "authorize_url": string;
+};
 
 export type SubdomainRequest = {
   "id": number;

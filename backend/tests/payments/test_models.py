@@ -48,10 +48,13 @@ def test_is_configured_requires_both_payment_secrets():
     settings = MakerspacePaymentSettings(makerspace=makerspace)
 
     assert settings.is_configured is False
+    settings.stripe_publishable_key = "pk_test_client_safe"
+    assert settings.is_configured is False
     settings.set_stripe_secret_key("sk_test_secret")
     assert settings.is_configured is False
     settings.set_stripe_webhook_secret("whsec_test_secret")
     assert settings.is_configured is True
+    assert settings.stripe_publishable_key == "pk_test_client_safe"
 
 
 def test_default_currency_is_lowercased_and_validated():
@@ -164,6 +167,8 @@ def test_webhook_rejects_an_unconfigured_makerspace_without_creating_settings():
 def test_payment_settings_admin_masks_secrets_and_is_superuser_only():
     makerspace = make_space("payment-admin")
     settings = configured_settings(makerspace)
+    settings.stripe_publishable_key = "pk_admin_client_safe"
+    settings.save(update_fields=["stripe_publishable_key"])
     model_admin = admin.site._registry[MakerspacePaymentSettings]
     form = model_admin.form(instance=settings)
     staff = SimpleNamespace(
@@ -176,6 +181,7 @@ def test_payment_settings_admin_masks_secrets_and_is_superuser_only():
 
     assert "sk_test_secret" not in form.as_p()
     assert "whsec_test_secret" not in form.as_p()
+    assert "pk_admin_client_safe" not in form.as_p()
     assert model_admin.has_view_permission(SimpleNamespace(user=staff)) is False
     assert model_admin.list_filter == ("makerspace",)
 

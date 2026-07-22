@@ -32,6 +32,7 @@ const Categories = lazy(() => import("./panels/Categories").then((m) => ({ defau
 const NeedsFixShelf = lazy(() => import("./panels/NeedsFixShelf").then((m) => ({ default: m.NeedsFixShelf })));
 const ApiClientsPanel = lazy(() => import("./ApiClientsPanel").then((m) => ({ default: m.ApiClientsPanel })));
 const PlatformEmailPanel = lazy(() => import("./PlatformEmailPanel").then((m) => ({ default: m.PlatformEmailPanel })));
+const PlatformStripeConnectPanel = lazy(() => import("./PlatformStripeConnectPanel").then((m) => ({ default: m.PlatformStripeConnectPanel })));
 const MakerspaceSettingsPanel = lazy(() => import("./MakerspaceSettingsPanel").then((m) => ({ default: m.MakerspaceSettingsPanel })));
 
 export function StaffTabContent({
@@ -199,7 +200,12 @@ export function StaffTabContent({
       {activeTab === "email-logs" && canManageMakerspace ? (
         <EmailLogPanel key={makerspaceKey} makerspace={activeMakerspace} />
       ) : null}
-      {activeTab === "platform" ? <PlatformEmailPanel /> : null}
+      {activeTab === "platform" ? (
+        <>
+          <PlatformEmailPanel />
+          {activeMakerspace.platform_hosting ? <PlatformStripeConnectPanel /> : null}
+        </>
+      ) : null}
       {activeTab === "users" && canManageMakerspace ? (
         <Users makerspaces={makerspaces} isSuperadmin={isSuperadmin} currentUser={currentUser} onAuthRefresh={onAuthRefresh} />
       ) : null}

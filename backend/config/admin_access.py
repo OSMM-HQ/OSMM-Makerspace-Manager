@@ -38,6 +38,7 @@ GLOBAL_ADMIN_MODELS = {
     "axes.accessfailurelog",
     "axes.accesslog",
     "integrations.platformemailsettings",
+    "payments.platformstripeconnectsettings",
     "encryption.piiglobalwritefence",
     "roadmap.roadmapitem",
     "token_blacklist.blacklistedtoken",
@@ -234,4 +235,3 @@ class SuperuserOnlyModelAdmin:
 
     def has_module_permission(self, request):
         return self._has_superuser_access(request)
-

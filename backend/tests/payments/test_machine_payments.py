@@ -113,13 +113,16 @@ def test_reconciliation_expires_an_open_checkout_session(monkeypatch):
     space = make_space("c3-payment-expire")
     actor = make_member("c3-payment-expire-user", space)
     payment = payment_for(service_request(space, actor), actor)
+    configured_settings(space)
     Payment.objects.filter(pk=payment.pk).update(stripe_checkout_session_id="cs_expire")
     expired = []
-    def expire(makerspace, session_id):
-        expired.append((makerspace, session_id))
+    def expire(source, session_id):
+        expired.append((source, session_id))
     monkeypatch.setattr("apps.payments.services.stripe_client.expire_checkout_session", expire)
     mark_offline(payment, actor)
-    assert expired == [(space, "cs_expire")]
+    assert expired[0][0].provider == Payment.StripeProvider.RAW
+    assert expired[0][0].connected_account_id is None
+    assert expired[0][1] == "cs_expire"
 
 
 def test_terminal_payment_webhook_is_audited_as_an_anomaly(monkeypatch):
@@ -141,6 +144,7 @@ def test_terminal_payment_webhook_is_audited_as_an_anomaly(monkeypatch):
 def test_member_can_generate_a_missing_checkout_url(monkeypatch):
     from rest_framework.test import APIClient
     space = make_space("c3-payment-regenerate")
+    configured_settings(space)
     actor = make_member("c3-payment-regenerate-user", space)
     payment = payment_for(service_request(space, actor), actor)
     monkeypatch.setattr("apps.payments.services.member_area_url", lambda _: "https://space.example/member")

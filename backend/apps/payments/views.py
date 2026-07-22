@@ -1,5 +1,7 @@
 import logging
 
+from cryptography.fernet import InvalidToken
+from django.core.exceptions import ImproperlyConfigured
 from drf_spectacular.utils import OpenApiResponse, extend_schema
 from rest_framework import status
 from rest_framework.permissions import AllowAny
@@ -25,13 +27,21 @@ class StripeWebhookView(APIView):
             logger.warning("stripe_webhook_unknown_makerspace", extra={"public_code": public_code})
             return Response({"detail": "Makerspace not found."}, status=status.HTTP_404_NOT_FOUND)
         payment_settings = MakerspacePaymentSettings.for_makerspace(makerspace)
-        if not payment_settings.is_configured:
+        if not payment_settings.raw_credentials_configured:
             logger.warning("stripe_webhook_unconfigured", extra={"makerspace_id": makerspace.id})
             return Response({"detail": "Payments are not configured."}, status=status.HTTP_400_BAD_REQUEST)
         try:
             event = construct_event(request.body, request.headers.get("Stripe-Signature", ""), payment_settings.get_stripe_webhook_secret())
-        except (StripeWebhookSignatureError, PaymentsUnavailable, ValueError):
+        except (
+            StripeWebhookSignatureError,
+            PaymentsUnavailable,
+            ImproperlyConfigured,
+            InvalidToken,
+            ValueError,
+        ):
             logger.warning("stripe_webhook_rejected", extra={"makerspace_id": makerspace.id})
             return Response({"detail": "Invalid Stripe webhook signature."}, status=status.HTTP_400_BAD_REQUEST)
-        apply_webhook_event(makerspace, event)
+        apply_webhook_event(
+            makerspace, event, provider="raw"
+        )
         return Response({"detail": "Verified."}, status=status.HTTP_200_OK)

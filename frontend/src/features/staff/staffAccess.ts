@@ -35,7 +35,7 @@ export const TAB_LABELS: Record<string, string> = {
   emailtemplates: "Email templates",
   "email-logs": "Email log",
   api: "API access",
-  platform: "Platform email",
+  platform: "Platform settings",
 };
 
 export const TAB_GROUPS: { label: string; tabs: string[] }[] = [

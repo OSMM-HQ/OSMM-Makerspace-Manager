@@ -111,6 +111,7 @@ services:
       DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-Makerspace <noreply@makerspace.local>}
       # Base URL used to build password-reset links in emails (forgot-password flow).
       PUBLIC_APP_BASE_URL: ${PUBLIC_APP_BASE_URL:-}
+      STRIPE_CONNECT_REDIRECT_URI: ${STRIPE_CONNECT_REDIRECT_URI:-}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL:-redis://redis:6379/0}
     command: >
       sh -c "python manage.py collectstatic --noinput &&

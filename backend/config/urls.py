@@ -9,6 +9,10 @@ from drf_spectacular.views import (
 
 from apps.admin_api.views_hosting import TlsCheckView
 from apps.payments.views import StripeWebhookView
+from apps.payments.views_connect import (
+    StripeConnectCallbackView,
+    StripeConnectWebhookView,
+)
 
 
 def docs_root(_request):
@@ -34,6 +38,16 @@ def docs_root(_request):
 
 
 urlpatterns = [
+    path(
+        "api/v1/webhooks/stripe/connect",
+        StripeConnectWebhookView.as_view(),
+        name="stripe-connect-webhook",
+    ),
+    path(
+        "api/v1/payments/connect/callback",
+        StripeConnectCallbackView.as_view(),
+        name="stripe-connect-callback",
+    ),
     path("api/v1/webhooks/stripe/<str:public_code>", StripeWebhookView.as_view(), name="stripe-webhook"),
     path('api/v1/', include('apps.machines.urls')),
     path('api/v1/public/', include('apps.events.urls_public')),

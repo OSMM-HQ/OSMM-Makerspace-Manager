@@ -29,6 +29,16 @@ def _item(title, icon, route):
     }
 
 
+def _managed_active_superuser(request):
+    return bool(os.environ.get("PLATFORM_DOMAIN_SUFFIX", "").strip()) and _is_active_superuser(request)
+
+
+def _managed_item(title, icon, route):
+    item = _item(title, icon, route)
+    item["permission"] = _managed_active_superuser
+    return item
+
+
 UNFOLD = {
     "SITE_TITLE": SITE_NAME,
     "SITE_HEADER": SITE_NAME,
@@ -133,6 +143,7 @@ UNFOLD = {
                     _item("Subdomain requests", "dns", "admin:makerspaces_subdomainrequest_changelist"),
                     _item("Platform email", "mail", "admin:integrations_platformemailsettings_changelist"),
                     _item("Payments", "payments", "admin:payments_makerspacepaymentsettings_changelist"),
+                    _managed_item("Stripe Connect", "account_balance", "admin:payments_platformstripeconnectsettings_changelist"),
                     _item("Email templates", "mail", "admin:integrations_emailtemplate_changelist"),
                     _item("Email logs", "mark_email_read", "admin:integrations_emaillog_changelist"),
                     _item("Email mutes", "notifications_off", "admin:integrations_emailnotificationmute_changelist"),

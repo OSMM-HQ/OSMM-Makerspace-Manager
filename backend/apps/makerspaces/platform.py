@@ -1,4 +1,4 @@
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 from django.conf import settings
 
@@ -65,6 +65,27 @@ def member_area_url(makerspace):
         return f"https://{makerspace.frontend_domain}/member"
     base = (settings.PUBLIC_APP_BASE_URL or "http://localhost:5000").rstrip("/")
     return f"{base}/m/{makerspace.slug}/member" if base and makerspace.slug else ""
+
+
+def staff_payment_settings_url(makerspace=None, *, outcome):
+    """Return a trusted staff settings URL without accepting browser input."""
+    verified_domain = (
+        makerspace is not None
+        and makerspace.frontend_domain
+        and makerspace.frontend_domain_status == Makerspace.DomainStatus.VERIFIED
+    )
+    if verified_domain:
+        base = f"https://{makerspace.frontend_domain}"
+    else:
+        base = (settings.PUBLIC_APP_BASE_URL or "http://localhost:5000").rstrip("/")
+    path = (
+        "/admin/settings"
+        if verified_domain
+        else f"/m/{makerspace.slug}/admin/settings"
+        if makerspace is not None and makerspace.slug
+        else "/admin/settings"
+    )
+    return f"{base}{path}?{urlencode({'stripe_connect': outcome})}"
 
 
 def resolve_frontend(*, tenant=None, slug=None, origin=None, host=None):
