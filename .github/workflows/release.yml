@@ -178,6 +178,7 @@ jobs:
         if: steps.head.outputs.current == 'true'
         shell: bash
         env:
+          GH_REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CURRENT_TAG: ${{ needs.prepare.outputs.tag }}
           OWNER: ${{ needs.prepare.outputs.registry_owner }}
