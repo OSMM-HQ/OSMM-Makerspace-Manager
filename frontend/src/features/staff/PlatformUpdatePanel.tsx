@@ -79,7 +79,7 @@ export function PlatformUpdatePanel() {
                 <span className={statusClass(data.status)}>{STATUS_COPY[data.status]}</span>
               </div>
               <p className="mt-1 text-sm text-muted">
-                When enabled, the host checks every five minutes and installs the newest completed main release.
+                When enabled, the host checks every seven days and installs the newest completed main release.
                 Turn it off to review releases first; manual updates still work.
               </p>
             </div>
@@ -135,7 +135,9 @@ export function PlatformUpdatePanel() {
             >
               {updateNow.isPending ? "Queueing..." : data.status === "queued" ? "Update queued" : data.status === "running" ? "Updating..." : "Update now"}
             </button>
-            <p className="text-sm text-muted">The host starts a queued update within five minutes.</p>
+            <p className="text-sm text-muted">
+              The host starts a queued update at its next scheduled check, which may take up to seven days.
+            </p>
           </div>
 
           <section aria-labelledby="backup-explainer" className="border-t border-line pt-4">
