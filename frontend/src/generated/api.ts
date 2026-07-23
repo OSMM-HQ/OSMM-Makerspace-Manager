@@ -253,6 +253,8 @@ export const openApiPaths = [
   "/api/v1/admin/platform/email-settings",
   "/api/v1/admin/platform/payment-settings",
   "/api/v1/admin/platform/social-auth-settings",
+  "/api/v1/admin/platform/update-settings",
+  "/api/v1/admin/platform/update-settings/update-now",
   "/api/v1/admin/products/{id}/assets/generate",
   "/api/v1/admin/qr-print-batches/{id}",
   "/api/v1/admin/qr-print-batches/{id}/download",
@@ -2969,6 +2971,21 @@ export type PatchedPlatformStripeConnectSettings = {
   "updated_at"?: string;
 };
 
+export type PatchedPlatformUpdateSettings = {
+  "automatic_updates_enabled"?: boolean;
+  "status"?: PlatformUpdateSettingsStatusEnum;
+  "current_version"?: string;
+  "available_version"?: string;
+  "target_version"?: string;
+  "update_requested_at"?: string | null;
+  "last_checked_at"?: string | null;
+  "last_updated_at"?: string | null;
+  "last_backup_at"?: string | null;
+  "last_backup_name"?: string;
+  "last_error"?: string;
+  "updated_at"?: string;
+};
+
 export type PatchedReturnPolicy = {
   "id"?: number;
   "default_loan_days"?: number;
@@ -3085,6 +3102,23 @@ export type PlatformStripeConnectSettings = {
   "application_fee_bps"?: number;
   "updated_at": string;
 };
+
+export type PlatformUpdateSettings = {
+  "automatic_updates_enabled"?: boolean;
+  "status": PlatformUpdateSettingsStatusEnum;
+  "current_version": string;
+  "available_version": string;
+  "target_version": string;
+  "update_requested_at": string | null;
+  "last_checked_at": string | null;
+  "last_updated_at": string | null;
+  "last_backup_at": string | null;
+  "last_backup_name": string;
+  "last_error": string;
+  "updated_at": string;
+};
+
+export type PlatformUpdateSettingsStatusEnum = "idle" | "queued" | "running" | "failed";
 
 export type PresenceCurrent = {
   "active": boolean;

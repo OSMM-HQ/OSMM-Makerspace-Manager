@@ -33,6 +33,7 @@ const Categories = lazy(() => import("./panels/Categories").then((m) => ({ defau
 const NeedsFixShelf = lazy(() => import("./panels/NeedsFixShelf").then((m) => ({ default: m.NeedsFixShelf })));
 const ApiClientsPanel = lazy(() => import("./ApiClientsPanel").then((m) => ({ default: m.ApiClientsPanel })));
 const PlatformEmailPanel = lazy(() => import("./PlatformEmailPanel").then((m) => ({ default: m.PlatformEmailPanel })));
+const PlatformUpdatePanel = lazy(() => import("./PlatformUpdatePanel").then((m) => ({ default: m.PlatformUpdatePanel })));
 const PlatformStripeConnectPanel = lazy(() => import("./PlatformStripeConnectPanel").then((m) => ({ default: m.PlatformStripeConnectPanel })));
 const PlatformSocialAuthPanel = lazy(() => import("./PlatformSocialAuthPanel").then((m) => ({ default: m.PlatformSocialAuthPanel })));
 const MakerspaceSettingsPanel = lazy(() => import("./MakerspaceSettingsPanel").then((m) => ({ default: m.MakerspaceSettingsPanel })));
@@ -208,6 +209,7 @@ export function StaffTabContent({
       ) : null}
       {activeTab === "platform" ? (
         <>
+          <PlatformUpdatePanel />
           <PlatformEmailPanel />
           <PlatformSocialAuthPanel />
           {activeMakerspace.platform_hosting ? <PlatformStripeConnectPanel /> : null}

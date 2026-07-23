@@ -58,8 +58,8 @@ bash setup.sh                                          # macOS / Linux
 powershell -ExecutionPolicy Bypass -File setup.ps1     # Windows
 ```
 
-It prints your URL and login when it finishes and offers to install hourly, backup-first production
-updates. (Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/).)
+It prints your URL and login when it finishes and offers to install five-minute, backup-first production update checks. Super Admins can control
+automatic or manual installation from **Platform settings -> Software updates**. (Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/).)
 
 **Path 2 — Prebuilt images (no local build).** Pull the two published images and start the stack —
 after `cp .env.example .env` (fill in the few values it asks for):

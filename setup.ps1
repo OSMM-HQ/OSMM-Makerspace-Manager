@@ -101,10 +101,16 @@ if ($firstRun) {
   $autoUpdate = Read-Host "Enable automatic production updates from main? [Y/n]"
   if (-not $autoUpdate -or $autoUpdate -match '^[Yy]') {
     try { & (Join-Path $PSScriptRoot "scripts\install-auto-update.ps1") }
-    catch { Warn "Could not install the hourly updater: $($_.Exception.Message) Run scripts\install-auto-update.ps1 later." }
+    catch { Warn "Could not install the five-minute updater: $($_.Exception.Message) Run scripts\install-auto-update.ps1 later." }
   }
   else {
-    Warn "Automatic updates are off. Run scripts\update.ps1 whenever you want to upgrade."
+    try {
+      & (Join-Path $PSScriptRoot "scripts\install-auto-update.ps1")
+      docker @compose exec -T backend python manage.py update_control set-auto off *> $null
+      if ($LASTEXITCODE -ne 0) { throw "The update preference could not be saved." }
+      Warn "Automatic installation is off. The host will still check for releases so Update now works from Platform settings."
+    }
+    catch { Warn "Could not install the five-minute update checker: $($_.Exception.Message) Run scripts\install-auto-update.ps1 later, then turn automatic updates off in Platform settings." }
   }
 
   $port = (Select-String -Path ".env" -Pattern '^HTTP_PORT=(.*)$').Matches.Groups[1].Value; if (-not $port) { $port = "80" }

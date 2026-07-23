@@ -111,6 +111,7 @@ INSTALLED_APPS = [
     "apps.operations",
     "apps.procurement",
     "apps.notifications",
+    "apps.updates",
     "apps.machines",
     "apps.events",
     "apps.bookings",

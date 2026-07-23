@@ -91,7 +91,11 @@ release is marked latest only after both images are available. The self-host upd
 as its gate, creates a PostgreSQL backup, deploys the exact immutable tag, runs migrations through the
 Compose migration service, and records the version only after the readiness check passes.
 
-Guided setup offers hourly automatic updates by default. Install or repair the schedule manually with:
+Guided setup offers automatic checks every five minutes by default. A Super Admin can then open
+**Staff console -> Platform settings -> Software updates** to turn automatic installation on or off,
+see the installed/latest versions, or queue **Update now**. The web application never receives Docker
+socket access: it records the request in PostgreSQL and the host scheduler performs the privileged work.
+Install or repair the schedule manually with:
 
 ```bash
 bash scripts/install-auto-update.sh                 # macOS / Linux cron
@@ -101,14 +105,19 @@ powershell -ExecutionPolicy Bypass -File scripts/install-auto-update.ps1  # Wind
 Run an immediate checked update with:
 
 ```bash
-bash scripts/update.sh
-powershell -ExecutionPolicy Bypass -File scripts/update.ps1
+bash scripts/update.sh --force
+powershell -ExecutionPolicy Bypass -File scripts/update.ps1 -Force
 ```
 
-Pre-update database dumps are written to `backups/` and retained for 14 days. The scripts use
-`.spaceworks-update.lock` to prevent overlapping runs and `.spaceworks-version` to avoid redeploying
-the same release. If an update fails, the version marker is not advanced and the backup path is printed.
-Review the logs before retrying or pinning the previous immutable tag.
+Pre-update database dumps are written to `backups/` and retained for 14 days. Each compressed dump
+contains PostgreSQL data: users, settings, inventory, requests, loan history, and audit metadata. It does
+**not** contain MinIO objects such as evidence photos, machine images, documents, or print files; back up
+the `minio_data` volume separately. The update backup is a recovery point, not an automatic rollback.
+
+The scripts use `.spaceworks-update.lock` to prevent overlapping runs and `.spaceworks-version` to avoid
+redeploying the same release. If an update fails, the version marker is not advanced, the UI records a
+safe failure message, and the backup path remains in the host log. Review `backups/auto-update.log` before
+retrying or pinning the previous immutable tag.
 
 For a manual deployment, set `MAKERSPACE_IMAGE_TAG` to a release such as
 `0.5.0-main.42.a1b2c3d4e5f6`, then run:

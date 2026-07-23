@@ -102,10 +102,15 @@ settings.save()
   AUTOUPDATE="${AUTOUPDATE:-Y}"
   if [[ "$AUTOUPDATE" =~ ^[Yy]$ ]]; then
     if ! bash scripts/install-auto-update.sh; then
-      warn "Could not install the hourly updater. Run bash scripts/install-auto-update.sh later."
+      warn "Could not install the five-minute updater. Run bash scripts/install-auto-update.sh later."
     fi
   else
-    warn "Automatic updates are off. Run scripts/update.sh whenever you want to upgrade."
+    if bash scripts/install-auto-update.sh; then
+      "${COMPOSE[@]}" exec -T backend python manage.py update_control set-auto off >/dev/null
+      warn "Automatic installation is off. The host will still check for releases so Update now works from Platform settings."
+    else
+      warn "Could not install the five-minute update checker. Run bash scripts/install-auto-update.sh later, then turn automatic updates off in Platform settings."
+    fi
   fi
 
   PORT="$(grep -E '^HTTP_PORT=' .env | cut -d= -f2)"; PORT="${PORT:-80}"

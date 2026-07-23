@@ -406,6 +406,9 @@ cd backend && pytest
   `EmailLog` outbox + Celery task, webhook (auth via `X-Telegram-Bot-Api-Secret-Token` vs
   `TELEGRAM_WEBHOOK_SECRET`, fail-closed), `PlatformEmailSettings`, `DailyEmailCounter`, staff-notification
   recipient matrix.
+- `backend/apps/updates/` — singleton platform update state, audited superadmin controls, and the
+  `update_control` management command used by the privileged host scheduler. The web process never gets
+  Docker-socket access; host scripts claim queued/automatic releases and report check/backup/result state.
 - `backend/apps/inventory/` — `InventoryProduct`/`InventoryAsset`, `availability.py` (**the only place**
   available/reserved/issued/damaged/lost counts change: `reserve_for_request`, `issue_items`/`return_items`,
   `issue_available`/`return_to_available`, `consume_available`; row-locked, never-below-zero,

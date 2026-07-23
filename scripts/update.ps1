@@ -1,4 +1,7 @@
 <# Apply the newest fully-published Space Works release to production Compose. #>
+[CmdletBinding()]
+param([switch]$Force)
+
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
@@ -10,6 +13,8 @@ $backupDir = Join-Path $root "backups"
 $releaseApi = "https://api.github.com/repos/SpaceWorks-HQ/SpaceWorks/releases/latest"
 $utf8 = [Text.UTF8Encoding]::new($false)
 $lock = $null
+$claimed = $false
+$completed = $false
 $previousTag = [Environment]::GetEnvironmentVariable("MAKERSPACE_IMAGE_TAG", "Process")
 
 function Say([string]$message) { Write-Host "[Space Works updater] $message" }
@@ -38,10 +43,17 @@ try {
   }
 
   $current = if (Test-Path $versionPath) { (Get-Content -Raw $versionPath).Trim() } else { "" }
-  if ($current -eq $version) {
-    Say "$version is already installed."
+  $claimArgs = @("--current=$current", "--available=$version")
+  if ($Force) { $claimArgs += "--force" }
+  $decisionOutput = docker @compose exec -T backend python manage.py update_control claim @claimArgs
+  Assert-DockerSuccess "The running Space Works backend could not accept the update check."
+  $decision = ([string[]]$decisionOutput)[-1].Trim()
+  if ($decision -ne "run") {
+    if ($current -eq $version) { Say "$version is already installed." }
+    else { Say "$version is available; automatic updates are off and no manual update is queued." }
     return
   }
+  $claimed = $true
 
   Say "Updating $(if ($current) { $current } else { 'untracked installation' }) to $version."
   $env:MAKERSPACE_IMAGE_TAG = $version
@@ -55,6 +67,8 @@ try {
   Assert-DockerSuccess "Database backup failed; update cancelled."
   docker @compose exec -T db test -s "/backups/$backupName"
   Assert-DockerSuccess "Database backup was empty; update cancelled."
+  docker @compose exec -T backend python manage.py update_control record-backup --name $backupName *> $null
+  Assert-DockerSuccess "The database backup was created but its status could not be recorded."
 
   Say "Pulling immutable release images."
   docker @compose pull migrate backend worker beat frontend
@@ -73,10 +87,19 @@ try {
   if (-not $ready) { throw "Release $version did not become ready. The backup is backups/$backupName." }
 
   [IO.File]::WriteAllText($versionPath, "$version`n", $utf8)
+  docker @compose exec -T backend python manage.py update_control complete --version $version *> $null
+  Assert-DockerSuccess "Release $version is running but its status could not be recorded."
+  $completed = $true
   Get-ChildItem -LiteralPath $backupDir -Filter "pre-update-*.sql.gz" -File |
     Where-Object LastWriteTimeUtc -lt (Get-Date).ToUniversalTime().AddDays(-14) |
     Remove-Item -Force
   Say "Update complete: $version."
+}
+catch {
+  if ($claimed -and -not $completed) {
+    docker @compose exec -T backend python manage.py update_control fail --message "Host update failed. Check backups/auto-update.log." *> $null
+  }
+  throw
 }
 finally {
   if ($null -eq $previousTag) { Remove-Item Env:MAKERSPACE_IMAGE_TAG -ErrorAction SilentlyContinue }
