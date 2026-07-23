@@ -12,12 +12,11 @@ def create_for_active_membership(membership, actor):
     try:
         makerspace = membership.makerspace
         if (
-            actor is None
-            or makerspace.membership_dues_amount <= 0
+            makerspace.membership_dues_amount <= 0
             or not online_payments_enabled(makerspace, "membership")
         ):
             return None
-        payment = _get_or_create(membership, actor)
+        payment = _get_or_create(membership, actor or membership.user)
         if payment.status == Payment.Status.PENDING:
             _schedule_checkout(payment)
         return payment

@@ -22,7 +22,7 @@ class PaymentReconciliationSerializer(serializers.ModelSerializer):
         )
         read_only_fields = fields
 
-    def get_subject_label(self, payment):
+    def get_subject_label(self, payment) -> str:
         return subject_label(
             payment,
             self.context.get("payment_subject_labels", {}),
