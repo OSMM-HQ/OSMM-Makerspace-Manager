@@ -55,6 +55,7 @@ export const openApiTags = [
   "QR assets",
   "QR print batches",
   "Reports",
+  "Social auth",
   "Stock transfers",
   "Stocktake",
   "Telegram",
@@ -252,6 +253,7 @@ export const openApiPaths = [
   "/api/v1/admin/memberships/{id}/verify",
   "/api/v1/admin/platform/email-settings",
   "/api/v1/admin/platform/payment-settings",
+  "/api/v1/admin/platform/social-auth-settings",
   "/api/v1/admin/products/{id}/assets/generate",
   "/api/v1/admin/qr-print-batches/{id}",
   "/api/v1/admin/qr-print-batches/{id}/download",
@@ -314,6 +316,11 @@ export const openApiPaths = [
   "/api/v1/auth/member-sign-up",
   "/api/v1/auth/refresh",
   "/api/v1/auth/reset-password",
+  "/api/v1/auth/social/apple",
+  "/api/v1/auth/social/google",
+  "/api/v1/auth/social/nonce",
+  "/api/v1/auth/social/providers",
+  "/api/v1/auth/social/providers/{provider}",
   "/api/v1/bootstrap",
   "/api/v1/config",
   "/api/v1/guest-admin/makerspace/{makerspace_id}/active-loans",
@@ -857,6 +864,8 @@ export type ClaimableInvitation = {
   "role": string | null;
 };
 
+export type ClientPlatformEnum = "web" | "ios" | "android";
+
 export type ClientTypeEnum = "browser" | "server";
 
 export type ConditionEnum = "available" | "damaged" | "lost" | "unknown";
@@ -966,6 +975,8 @@ export type Dashboard = {
   "maintenance_overdue"?: number;
   "pending_payments"?: number;
 };
+
+export type DeliveryEnum = "web" | "device";
 
 export type DeviceChallengeResponse = {
   "challenge": string;
@@ -2932,6 +2943,19 @@ export type PatchedPlatformEmailSettings = {
   "updated_at"?: string;
 };
 
+export type PatchedPlatformSocialAuthSettings = {
+  "google_web_client_id"?: string;
+  "google_ios_client_id"?: string;
+  "google_android_client_id"?: string;
+  "apple_service_id"?: string;
+  "apple_native_app_ids"?: unknown;
+  "apple_team_id"?: string;
+  "apple_key_id"?: string;
+  "apple_private_key"?: string;
+  "apple_private_key_set"?: boolean;
+  "updated_at"?: string;
+};
+
 export type PatchedPlatformStripeConnectSettings = {
   "id"?: number;
   "stripe_publishable_key"?: string;
@@ -3036,6 +3060,19 @@ export type PlatformEmailSettings = {
 
 export type PlatformEnum = "apple" | "android";
 
+export type PlatformSocialAuthSettings = {
+  "google_web_client_id"?: string;
+  "google_ios_client_id"?: string;
+  "google_android_client_id"?: string;
+  "apple_service_id"?: string;
+  "apple_native_app_ids"?: unknown;
+  "apple_team_id"?: string;
+  "apple_key_id"?: string;
+  "apple_private_key"?: string;
+  "apple_private_key_set": boolean;
+  "updated_at": string;
+};
+
 export type PlatformStripeConnectSettings = {
   "id": number;
   "stripe_publishable_key"?: string;
@@ -3139,7 +3176,7 @@ export type ProductQrHistory = {
   "scans": Array<QrHistoryItem>;
 };
 
-export type ProviderEnum = "fcm" | "apns";
+export type Provider760Enum = "google" | "apple";
 
 export type ProvisionSubdomainRequest = {
   "label": string;
@@ -3195,6 +3232,9 @@ export type PublicCategory = {
 export type PublicConfig = {
   "email_enabled": boolean;
   "public_image_max_bytes": number;
+  "social_auth"?: {
+  [key: string]: unknown;
+};
 };
 
 export type PublicEvent = {
@@ -3533,9 +3573,11 @@ export type PushDevice = {
 
 export type PushDeviceRegistration = {
   "token": string;
-  "provider": ProviderEnum;
+  "provider": PushDeviceRegistrationProviderEnum;
   "environment": EnvironmentEnum;
 };
+
+export type PushDeviceRegistrationProviderEnum = "fcm" | "apns";
 
 export type QrCode = {
   "id": number;
@@ -3943,6 +3985,53 @@ export type SetStatus = {
 
 export type SeverityEnum = "info" | "warning" | "error" | "critical";
 
+export type SocialIdentity = {
+  "provider": string;
+  "created_at": string;
+  "updated_at": string;
+};
+
+export type SocialLink = {
+  "provider": Provider760Enum;
+  "id_token": string;
+  "nonce": string;
+  "client_platform"?: ClientPlatformEnum;
+  "apple_name"?: string;
+};
+
+export type SocialLogin = {
+  "id_token": string;
+  "nonce": string;
+  "surface": SurfaceEnum;
+  "delivery": DeliveryEnum;
+  "client_platform": ClientPlatformEnum;
+  "apple_name"?: string;
+};
+
+export type SocialLoginResponse = {
+  "access": string;
+  "refresh"?: string;
+  "device_grant"?: {
+  [key: string]: unknown;
+};
+  "user": {
+  [key: string]: unknown;
+};
+  "outcome": string;
+};
+
+export type SocialNonce = {
+  "provider": Provider760Enum;
+  "surface": SurfaceEnum;
+  "delivery": DeliveryEnum;
+  "client_platform": ClientPlatformEnum;
+};
+
+export type SocialNonceResponse = {
+  "nonce": string;
+  "expires_in": number;
+};
+
 export type SpaceImageFinalizeRequest = {
   "object_key": string;
 };
@@ -4128,6 +4217,8 @@ export type SubdomainRequestError = {
 };
 
 export type SubjectTypeEnum = "machine_service_request" | "booking" | "event_registration" | "makerspace_membership";
+
+export type SurfaceEnum = "member" | "staff";
 
 export type TakenItemsReport = {
   "rows": Array<Array<unknown>>;

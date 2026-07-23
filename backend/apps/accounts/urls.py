@@ -22,8 +22,20 @@ from apps.accounts.views_device import (
     DeviceLogoutView,
     DeviceRefreshView,
 )
+from apps.accounts.views_social import (
+    AppleSocialLoginView,
+    GoogleSocialLoginView,
+    SocialNonceView,
+    SocialProviderDetailView,
+    SocialProviderListLinkView,
+)
 
 urlpatterns = [
+    path("social/nonce", SocialNonceView.as_view(), name="social-nonce"),
+    path("social/google", GoogleSocialLoginView.as_view(), name="social-google"),
+    path("social/apple", AppleSocialLoginView.as_view(), name="social-apple"),
+    path("social/providers", SocialProviderListLinkView.as_view(), name="social-providers"),
+    path("social/providers/<str:provider>", SocialProviderDetailView.as_view(), name="social-provider-detail"),
     path("device/attestation-challenge", DeviceAttestationChallengeView.as_view(), name="device-attestation-challenge"),
     path("device/login", DeviceLoginView.as_view(), name="device-login"),
     path("device/refresh", DeviceRefreshView.as_view(), name="device-refresh"),

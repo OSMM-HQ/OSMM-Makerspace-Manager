@@ -117,6 +117,7 @@ from apps.admin_api.views_maintenance import (
 from apps.admin_api.views_notification_recipients import NotificationRecipientsView
 from apps.admin_api.views_notification_rules import NotificationRulesView
 from apps.admin_api.views_platform import PlatformEmailSettingsView
+from apps.admin_api.views_platform_social import PlatformSocialAuthSettingsView
 from apps.admin_api.views_subdomain_requests import SubdomainRequestListCreateView
 from apps.admin_api.views_warranty import (
     AssetWarrantyView,
@@ -562,6 +563,11 @@ urlpatterns = [
         "platform/email-settings",
         PlatformEmailSettingsView.as_view(),
         name="admin-platform-email-settings",
+    ),
+    path(
+        "platform/social-auth-settings",
+        PlatformSocialAuthSettingsView.as_view(),
+        name="admin-platform-social-auth-settings",
     ),
     path("makerspaces", views.MakerspaceListCreateView.as_view(), name="admin-makerspaces"),
     path("makerspaces/<int:pk>", views.MakerspaceDetailView.as_view(), name="admin-makerspace"),

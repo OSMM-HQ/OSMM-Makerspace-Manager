@@ -62,6 +62,27 @@ def staff_origin_is_registered(origin):
     return False
 
 
+def member_origin_is_registered(origin):
+    """Trust first-party application origins, never public API-client origins."""
+    if not origin:
+        return False
+    if origin in set(settings.CORS_ALLOWED_ORIGINS) | set(
+        settings.PLATFORM_STAFF_ORIGINS
+    ):
+        return True
+    host = _origin_host(origin)
+    if not host:
+        return False
+    return any(
+        origin in makerspace_staff_origins(makerspace)
+        for makerspace in Makerspace.objects.filter(
+            frontend_domain__iexact=host,
+            frontend_domain_status=Makerspace.DomainStatus.VERIFIED,
+            archived_at__isnull=True,
+        )
+    )
+
+
 def _is_staff_path(path):
     if not path:
         return False

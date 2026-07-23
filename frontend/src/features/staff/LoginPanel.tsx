@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import { publicV1Request } from "../../lib/api";
 import { SpaceWorksBadge } from "../../components/SpaceWorksLogo";
+import { SocialSignInButtons } from "../auth/SocialSignInButtons";
+import type { SocialLoginResult } from "../auth/socialSdk";
 
 const RESET_SENT_MESSAGE =
   "If an account exists for that email, a reset link has been sent. Check your inbox.";
@@ -11,11 +13,13 @@ export function LoginPanel({
   guestOnly,
   isPending,
   onSubmit,
+  onSocialSuccess,
 }: {
   error?: string;
   guestOnly: boolean;
   isPending: boolean;
   onSubmit: (payload: { username: string; password: string }) => void;
+  onSocialSuccess?: (result: SocialLoginResult) => void;
 }) {
   const [mode, setMode] = useState<"login" | "forgot">("login");
   const [username, setUsername] = useState("");
@@ -160,6 +164,9 @@ export function LoginPanel({
           >
             Forgot password?
           </button>
+        ) : null}
+        {onSocialSuccess ? (
+          <SocialSignInButtons surface="staff" onSuccess={onSocialSuccess} />
         ) : null}
       </form>
     </main>

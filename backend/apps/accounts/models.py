@@ -120,6 +120,15 @@ from apps.accounts.models_devices import (  # noqa: E402
     DeviceRefreshFamily,
     DeviceRefreshToken,
 )
+from apps.accounts.models_social import (  # noqa: E402
+    PlatformSocialAuthSettings,
+    SocialClientPlatform,
+    SocialDelivery,
+    SocialIdentity,
+    SocialLoginNonce,
+    SocialProvider,
+    SocialSurface,
+)
 
 __all__ = [
     'DailyOtpEmailCounter',
@@ -130,5 +139,12 @@ __all__ = [
     'DeviceRefreshFamily',
     'DeviceRefreshToken',
     'EmailVerificationChallenge',
+    'PlatformSocialAuthSettings',
+    'SocialClientPlatform',
+    'SocialDelivery',
+    'SocialIdentity',
+    'SocialLoginNonce',
+    'SocialProvider',
+    'SocialSurface',
     'User',
 ]

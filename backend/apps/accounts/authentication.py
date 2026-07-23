@@ -15,6 +15,12 @@ class SpaceWorksJWTAuthentication(JWTAuthentication):
         if authenticated is None:
             return None
         user, token = authenticated
+        if token.get("surface") == "staff":
+            _validate_staff_surface(request, token)
+        if token.get("surface") == "member" and not _member_surface_path_allowed(
+            request.path
+        ):
+            raise PermissionDenied("Member sessions cannot access staff APIs.")
         grant_id = token.get("device_grant_id")
         if grant_id is None:
             if request.headers.get("X-Makerspace-Id") is not None:
@@ -50,3 +56,36 @@ from drf_spectacular.contrib.rest_framework_simplejwt import (  # noqa: E402
 
 class SpaceWorksJWTScheme(SimpleJWTScheme):
     target_class = "apps.accounts.authentication.SpaceWorksJWTAuthentication"
+
+
+def _member_surface_path_allowed(path):
+    return path.startswith(
+        (
+            "/api/v1/auth/",
+            "/api/v1/member/",
+            "/api/v1/memberships/",
+            "/api/v1/public/",
+        )
+    )
+
+
+def _validate_staff_surface(request, token):
+    from apps.accounts.social_nonces import request_origin
+    from apps.makerspaces.cors import staff_origin_is_registered
+    from apps.makerspaces.origin_scope import (
+        AMBIGUOUS_STAFF_ORIGIN_SCOPE,
+        NO_STAFF_ORIGIN_SCOPE,
+        staff_origin_scope,
+    )
+
+    if not staff_origin_is_registered(request_origin(request)):
+        raise PermissionDenied("Staff social sessions require a trusted staff origin.")
+    actual = staff_origin_scope(request)
+    expected = str(token.get("staff_scope") or "")
+    if actual is AMBIGUOUS_STAFF_ORIGIN_SCOPE:
+        raise PermissionDenied("Staff origin is ambiguous.")
+    if expected == "platform":
+        if actual is not NO_STAFF_ORIGIN_SCOPE:
+            raise PermissionDenied("Staff session origin does not match.")
+    elif str(actual) != expected:
+        raise PermissionDenied("Staff session origin does not match.")

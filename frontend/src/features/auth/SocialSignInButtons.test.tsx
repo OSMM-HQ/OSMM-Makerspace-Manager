@@ -1,0 +1,55 @@
+import { render, screen, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+import { SocialSignInButtons } from "./SocialSignInButtons";
+
+const { mountGoogleButton, publicV1Request } = vi.hoisted(() => ({
+  mountGoogleButton: vi.fn(),
+  publicV1Request: vi.fn(),
+}));
+
+vi.mock("../../lib/api", () => ({ publicV1Request }));
+vi.mock("./socialSdk", async () => {
+  const actual = await vi.importActual<typeof import("./socialSdk")>("./socialSdk");
+  return { ...actual, mountGoogleButton };
+});
+
+describe("SocialSignInButtons", () => {
+  beforeEach(() => {
+    mountGoogleButton.mockReset();
+    publicV1Request.mockReset();
+  });
+
+  it("stays absent when the public config omits social auth", async () => {
+    publicV1Request.mockResolvedValue({ email_enabled: false });
+    const { container } = render(
+      <SocialSignInButtons surface="member" onSuccess={vi.fn()} />,
+    );
+
+    await waitFor(() => expect(publicV1Request).toHaveBeenCalledWith("/config"));
+    expect(container).toBeEmptyDOMElement();
+    expect(mountGoogleButton).not.toHaveBeenCalled();
+  });
+
+  it("mounts Google only with the frontend-safe configured client ID", async () => {
+    publicV1Request.mockResolvedValue({
+      social_auth: {
+        google: { enabled: true, web_client_id: "google-web-client" },
+      },
+    });
+    mountGoogleButton.mockResolvedValue(undefined);
+
+    render(<SocialSignInButtons surface="staff" onSuccess={vi.fn()} />);
+
+    expect(await screen.findByLabelText("Social sign in")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(mountGoogleButton).toHaveBeenCalledWith(
+        expect.any(HTMLElement),
+        "google-web-client",
+        "staff",
+        expect.any(Function),
+        expect.any(Function),
+      ),
+    );
+  });
+});

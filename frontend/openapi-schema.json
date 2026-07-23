@@ -16598,6 +16598,75 @@
                 }
             }
         },
+        "/api/v1/admin/platform/social-auth-settings": {
+            "get": {
+                "operationId": "api_v1_admin_platform_social_auth_settings_retrieve",
+                "summary": "Retrieve or update platform social auth settings",
+                "tags": [
+                    "Platform"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PlatformSocialAuthSettings"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "patch": {
+                "operationId": "api_v1_admin_platform_social_auth_settings_partial_update",
+                "summary": "Retrieve or update platform social auth settings",
+                "tags": [
+                    "Platform"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedPlatformSocialAuthSettings"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedPlatformSocialAuthSettings"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PatchedPlatformSocialAuthSettings"
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PlatformSocialAuthSettings"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/admin/products/{id}/assets/generate": {
             "post": {
                 "operationId": "api_v1_admin_products_assets_generate_create",
@@ -20770,6 +20839,395 @@
                     },
                     "400": {
                         "description": "Invalid/expired token or password."
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/social/apple": {
+            "post": {
+                "operationId": "api_v1_auth_social_apple_create",
+                "tags": [
+                    "Social auth"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SocialLogin"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SocialLogin"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SocialLogin"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SocialLoginResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/social/google": {
+            "post": {
+                "operationId": "api_v1_auth_social_google_create",
+                "tags": [
+                    "Social auth"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SocialLogin"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SocialLogin"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SocialLogin"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SocialLoginResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/social/nonce": {
+            "post": {
+                "operationId": "api_v1_auth_social_nonce_create",
+                "tags": [
+                    "Social auth"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SocialNonce"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SocialNonce"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SocialNonce"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SocialNonceResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/social/providers": {
+            "get": {
+                "operationId": "api_v1_auth_social_providers_list",
+                "tags": [
+                    "Social auth"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/SocialIdentity"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            },
+            "post": {
+                "operationId": "api_v1_auth_social_providers_create",
+                "tags": [
+                    "Social auth"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SocialLink"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SocialLink"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SocialLink"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/SocialIdentity"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/social/providers/{provider}": {
+            "delete": {
+                "operationId": "api_v1_auth_social_providers_destroy",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "provider",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Social auth"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
                     }
                 }
             }
@@ -27554,6 +28012,15 @@
                     "role"
                 ]
             },
+            "ClientPlatformEnum": {
+                "enum": [
+                    "web",
+                    "ios",
+                    "android"
+                ],
+                "type": "string",
+                "description": "* `web` - Web\n* `ios` - iOS\n* `android` - Android"
+            },
             "ClientTypeEnum": {
                 "enum": [
                     "browser",
@@ -27946,6 +28413,14 @@
                         "default": 0
                     }
                 }
+            },
+            "DeliveryEnum": {
+                "enum": [
+                    "web",
+                    "device"
+                ],
+                "type": "string",
+                "description": "* `web` - Web\n* `device` - Device"
             },
             "DeviceChallengeResponse": {
                 "type": "object",
@@ -35824,6 +36299,49 @@
                     }
                 }
             },
+            "PatchedPlatformSocialAuthSettings": {
+                "type": "object",
+                "properties": {
+                    "google_web_client_id": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "google_ios_client_id": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "google_android_client_id": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "apple_service_id": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "apple_native_app_ids": {},
+                    "apple_team_id": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "apple_key_id": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "apple_private_key": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "apple_private_key_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                }
+            },
             "PatchedPlatformStripeConnectSettings": {
                 "type": "object",
                 "properties": {
@@ -36243,6 +36761,53 @@
                 ],
                 "type": "string",
                 "description": "* `apple` - Apple\n* `android` - Android"
+            },
+            "PlatformSocialAuthSettings": {
+                "type": "object",
+                "properties": {
+                    "google_web_client_id": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "google_ios_client_id": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "google_android_client_id": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "apple_service_id": {
+                        "type": "string",
+                        "maxLength": 255
+                    },
+                    "apple_native_app_ids": {},
+                    "apple_team_id": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "apple_key_id": {
+                        "type": "string",
+                        "maxLength": 64
+                    },
+                    "apple_private_key": {
+                        "type": "string",
+                        "writeOnly": true
+                    },
+                    "apple_private_key_set": {
+                        "type": "boolean",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "apple_private_key_set",
+                    "updated_at"
+                ]
             },
             "PlatformStripeConnectSettings": {
                 "type": "object",
@@ -36669,13 +37234,13 @@
                     "scans"
                 ]
             },
-            "ProviderEnum": {
+            "Provider760Enum": {
                 "enum": [
-                    "fcm",
-                    "apns"
+                    "google",
+                    "apple"
                 ],
                 "type": "string",
-                "description": "* `fcm` - FCM\n* `apns` - APNs"
+                "description": "* `google` - Google\n* `apple` - Apple"
             },
             "ProvisionSubdomainRequest": {
                 "type": "object",
@@ -36902,6 +37467,10 @@
                     },
                     "public_image_max_bytes": {
                         "type": "integer"
+                    },
+                    "social_auth": {
+                        "type": "object",
+                        "additionalProperties": {}
                     }
                 },
                 "required": [
@@ -38296,7 +38865,7 @@
                         "pattern": "^[A-Za-z0-9_:.-]{20,4096}$"
                     },
                     "provider": {
-                        "$ref": "#/components/schemas/ProviderEnum"
+                        "$ref": "#/components/schemas/PushDeviceRegistrationProviderEnum"
                     },
                     "environment": {
                         "$ref": "#/components/schemas/EnvironmentEnum"
@@ -38307,6 +38876,14 @@
                     "provider",
                     "token"
                 ]
+            },
+            "PushDeviceRegistrationProviderEnum": {
+                "enum": [
+                    "fcm",
+                    "apns"
+                ],
+                "type": "string",
+                "description": "* `fcm` - FCM\n* `apns` - APNs"
             },
             "QrCode": {
                 "type": "object",
@@ -39759,6 +40336,162 @@
                 "type": "string",
                 "description": "* `info` - Info\n* `warning` - Warning\n* `error` - Error\n* `critical` - Critical"
             },
+            "SocialIdentity": {
+                "type": "object",
+                "properties": {
+                    "provider": {
+                        "type": "string"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "created_at",
+                    "provider",
+                    "updated_at"
+                ]
+            },
+            "SocialLink": {
+                "type": "object",
+                "properties": {
+                    "provider": {
+                        "$ref": "#/components/schemas/Provider760Enum"
+                    },
+                    "id_token": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 16384
+                    },
+                    "nonce": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 512
+                    },
+                    "client_platform": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/ClientPlatformEnum"
+                            }
+                        ],
+                        "default": "web"
+                    },
+                    "apple_name": {
+                        "type": "string",
+                        "maxLength": 200
+                    }
+                },
+                "required": [
+                    "id_token",
+                    "nonce",
+                    "provider"
+                ]
+            },
+            "SocialLogin": {
+                "type": "object",
+                "properties": {
+                    "id_token": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 16384
+                    },
+                    "nonce": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 512
+                    },
+                    "surface": {
+                        "$ref": "#/components/schemas/SurfaceEnum"
+                    },
+                    "delivery": {
+                        "$ref": "#/components/schemas/DeliveryEnum"
+                    },
+                    "client_platform": {
+                        "$ref": "#/components/schemas/ClientPlatformEnum"
+                    },
+                    "apple_name": {
+                        "type": "string",
+                        "maxLength": 200
+                    }
+                },
+                "required": [
+                    "client_platform",
+                    "delivery",
+                    "id_token",
+                    "nonce",
+                    "surface"
+                ]
+            },
+            "SocialLoginResponse": {
+                "type": "object",
+                "properties": {
+                    "access": {
+                        "type": "string"
+                    },
+                    "refresh": {
+                        "type": "string"
+                    },
+                    "device_grant": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    },
+                    "user": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    },
+                    "outcome": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "access",
+                    "outcome",
+                    "user"
+                ]
+            },
+            "SocialNonce": {
+                "type": "object",
+                "properties": {
+                    "provider": {
+                        "$ref": "#/components/schemas/Provider760Enum"
+                    },
+                    "surface": {
+                        "$ref": "#/components/schemas/SurfaceEnum"
+                    },
+                    "delivery": {
+                        "$ref": "#/components/schemas/DeliveryEnum"
+                    },
+                    "client_platform": {
+                        "$ref": "#/components/schemas/ClientPlatformEnum"
+                    }
+                },
+                "required": [
+                    "client_platform",
+                    "delivery",
+                    "provider",
+                    "surface"
+                ]
+            },
+            "SocialNonceResponse": {
+                "type": "object",
+                "properties": {
+                    "nonce": {
+                        "type": "string"
+                    },
+                    "expires_in": {
+                        "type": "integer"
+                    }
+                },
+                "required": [
+                    "expires_in",
+                    "nonce"
+                ]
+            },
             "SpaceImageFinalizeRequest": {
                 "type": "object",
                 "properties": {
@@ -40458,6 +41191,14 @@
                 ],
                 "type": "string",
                 "description": "* `machine_service_request` - Machine service request\n* `booking` - Booking\n* `event_registration` - Event registration\n* `makerspace_membership` - Makerspace membership"
+            },
+            "SurfaceEnum": {
+                "enum": [
+                    "member",
+                    "staff"
+                ],
+                "type": "string",
+                "description": "* `member` - Member\n* `staff` - Staff"
             },
             "TakenItemsReport": {
                 "type": "object",

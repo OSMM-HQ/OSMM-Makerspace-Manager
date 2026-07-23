@@ -121,6 +121,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "apps.makerspaces.middleware.TenantHostValidationMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "apps.accounts.social_csp.SocialCspMiddleware",
     "csp.middleware.CSPMiddleware",
     "config.admin_access.AdminCspEvalMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -407,6 +408,8 @@ REST_FRAMEWORK = {
         "device_login_user": env("THROTTLE_DEVICE_LOGIN_USER", default="10/hour"),
         "device_refresh": env("THROTTLE_DEVICE_REFRESH", default="30/min"),
         "push_device_registration": env("THROTTLE_PUSH_DEVICE_REGISTRATION", default="10/min"),
+        "social_nonce": env("THROTTLE_SOCIAL_NONCE", default="10/min"),
+        "social_login": env("THROTTLE_SOCIAL_LOGIN", default="10/min"),
         "password_reset_request": env(
             "THROTTLE_PASSWORD_RESET_REQUEST",
             default="5/min",
@@ -548,6 +551,13 @@ DEVICE_ANDROID_ATTESTATION_VERIFY_TOKEN = env("DEVICE_ANDROID_ATTESTATION_VERIFY
 DEVICE_ATTESTATION_CHALLENGE_TTL_SECONDS = env.int("DEVICE_ATTESTATION_CHALLENGE_TTL_SECONDS", default=180)
 DEVICE_ATTESTATION_PROVIDER_TIMEOUT_SECONDS = env.int("DEVICE_ATTESTATION_PROVIDER_TIMEOUT_SECONDS", default=10)
 PUSH_TOKEN_HMAC_KEY = env("PUSH_TOKEN_HMAC_KEY", default="")
+SOCIAL_AUTH_NONCE_TTL_SECONDS = env.int("SOCIAL_AUTH_NONCE_TTL_SECONDS", default=300)
+SOCIAL_AUTH_CLOCK_SKEW_SECONDS = env.int("SOCIAL_AUTH_CLOCK_SKEW_SECONDS", default=60)
+SOCIAL_AUTH_JWKS_TIMEOUT_SECONDS = env.int("SOCIAL_AUTH_JWKS_TIMEOUT_SECONDS", default=5)
+SOCIAL_AUTH_JWKS_CACHE_SECONDS = env.int("SOCIAL_AUTH_JWKS_CACHE_SECONDS", default=3600)
+SOCIAL_AUTH_JWKS_MAX_BYTES = env.int("SOCIAL_AUTH_JWKS_MAX_BYTES", default=1048576)
+SOCIAL_GOOGLE_JWKS_URL = env("SOCIAL_GOOGLE_JWKS_URL", default="https://www.googleapis.com/oauth2/v3/certs")
+SOCIAL_APPLE_JWKS_URL = env("SOCIAL_APPLE_JWKS_URL", default="https://appleid.apple.com/auth/keys")
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Space Works API",

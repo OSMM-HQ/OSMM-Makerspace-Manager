@@ -176,6 +176,8 @@ class UserAdmin(SuperuserOnlyModelAdmin, DjangoUserAdmin, ModelAdmin):
 
 admin.site.unregister(Group)
 
+from apps.accounts import admin_social  # noqa: E402,F401
+
 
 @admin.register(Group)
 class GroupAdmin(SuperuserOnlyModelAdmin, DjangoGroupAdmin, ModelAdmin):

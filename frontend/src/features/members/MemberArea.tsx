@@ -3,8 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "react-router-dom";
 
 import type { MembershipOutcome, MembershipPolicyEnum } from "../../generated/api";
-import { bootstrapTenant, fetchMe, refreshAccessToken, setAccessToken, StructuredApiError, staffRequest } from "../../lib/api";
-import { LoginPanel } from "../staff/LoginPanel";
+import { bootstrapTenant, fetchMe, refreshAccessToken, StructuredApiError, staffRequest } from "../../lib/api";
+import { MemberAuthPanel } from "./MemberAuthPanel";
 import { JoinMembershipCta } from "./JoinMembershipCta";
 import { presenceStartLocation } from "./geolocation";
 import { MemberActivityPanel, type MemberActivity } from "./MemberActivity";
@@ -61,11 +61,10 @@ export function MemberArea() {
   const generatePaymentLink = useMutation({ mutationFn: (id: number) => staffRequest<{ checkout_url: string }>(`/member/makerspaces/${makerspaceId}/payments/${id}/checkout`, { method: "POST" }), onSuccess: (data) => { refresh(); window.location.assign(data.checkout_url); } });
   const spaceInvitations = invitations.data?.invitations.filter((item) => item.makerspace.slug === resolvedSlug) ?? [];
   const error = bootstrap.error ?? (!unauthenticated ? memberships.error : null) ?? request.error ?? accept.error ?? start.error ?? end.error ?? activity.error ?? generatePaymentLink.error;
-  const login = useMutation({ mutationFn: (payload: { username: string; password: string }) => staffRequest<{ access: string }>("/auth/login", { method: "POST", credentials: "include", body: JSON.stringify(payload) }), onSuccess: (data) => { setAccessToken(data.access); setShowSignIn(false); client.invalidateQueries({ queryKey: ["member"] }); } });
   const policy: MembershipPolicyEnum | undefined = bootstrap.data?.makerspace.membership_policy;
 
   if (restoring) return <main className="desk-shell grid place-items-center px-5 text-sm text-muted">Restoring session…</main>;
-  if (showSignIn) return <LoginPanel guestOnly={false} isPending={login.isPending} error={login.error?.message} onSubmit={login.mutate} />;
+  if (showSignIn) return <MemberAuthPanel onAuthenticated={() => { setShowSignIn(false); void client.invalidateQueries({ queryKey: ["member"] }); }} />;
 
   return <main className="desk-shell mx-auto max-w-3xl space-y-5 px-5 py-8"><header><p className="text-xs font-semibold uppercase tracking-wide text-accent-ink">Member area</p><h1 className="mt-2 text-3xl font-bold text-ink">Your makerspace access</h1></header>
     {bootstrap.isLoading ? <section className="desk-panel p-5 text-sm text-muted">Loading makerspace joining options…</section> : null}

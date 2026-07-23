@@ -15,6 +15,7 @@ import {
 import { SpaceWorksBadge } from "../../components/SpaceWorksLogo";
 import { ChangePasswordGate } from "./ChangePasswordGate";
 import { LoginPanel } from "./LoginPanel";
+import type { SocialLoginResult } from "../auth/socialSdk";
 import { MakerspacePicker } from "./MakerspacePicker";
 import { StaffAccessDenied } from "./StaffAccessDenied";
 import { StaffWorkspace } from "./StaffWorkspace";
@@ -142,6 +143,10 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
       hydrateUser(data.user);
     },
   });
+  const socialLoginSucceeded = useCallback((result: SocialLoginResult) => {
+    setAccessToken(result.access);
+    hydrateUser(result.user as unknown as StaffAuthUser);
+  }, [hydrateUser]);
 
   const makerspaces = useStaffGet<Makerspace[]>(
     ["staff", "makerspaces"],
@@ -197,6 +202,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
         guestOnly={guestOnly}
         isPending={login.isPending}
         onSubmit={login.mutate}
+        onSocialSuccess={socialLoginSucceeded}
       />
     );
   }
