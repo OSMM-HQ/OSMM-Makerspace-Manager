@@ -15,11 +15,32 @@ $utf8 = [Text.UTF8Encoding]::new($false)
 $lock = $null
 $claimed = $false
 $completed = $false
+$deploymentStarted = $false
+$current = ""
 $previousTag = [Environment]::GetEnvironmentVariable("MAKERSPACE_IMAGE_TAG", "Process")
 
 function Say([string]$message) { Write-Host "[Space Works updater] $message" }
 function Assert-DockerSuccess([string]$message) {
   if ($LASTEXITCODE -ne 0) { throw $message }
+}
+function Wait-BackendReady {
+  for ($attempt = 0; $attempt -lt 60; $attempt++) {
+    docker @compose exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/readiness/', timeout=3).read()" *> $null
+    if ($LASTEXITCODE -eq 0) { return $true }
+    Start-Sleep -Seconds 3
+  }
+  return $false
+}
+function Invoke-ApplicationRollback([string]$version) {
+  Say "Update failed; rolling application containers back to $version."
+  $env:MAKERSPACE_IMAGE_TAG = $version
+  docker @compose pull migrate backend worker beat frontend | Out-Host
+  if ($LASTEXITCODE -ne 0) { Say "Could not refresh previous images; trying the host's cached copies." }
+  docker @compose up -d | Out-Host
+  if ($LASTEXITCODE -ne 0) { return $false }
+  if (-not (Wait-BackendReady)) { return $false }
+  Say "Rollback complete: $version is healthy."
+  return $true
 }
 
 try {
@@ -75,16 +96,11 @@ try {
   Assert-DockerSuccess "Could not pull release images; update cancelled."
 
   Say "Running migrations and replacing application containers."
+  $deploymentStarted = $true
   docker @compose up -d
   Assert-DockerSuccess "Compose could not deploy release $version."
 
-  $ready = $false
-  for ($attempt = 0; $attempt -lt 60; $attempt++) {
-    docker @compose exec -T backend python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/readiness/', timeout=3).read()" *> $null
-    if ($LASTEXITCODE -eq 0) { $ready = $true; break }
-    Start-Sleep -Seconds 3
-  }
-  if (-not $ready) { throw "Release $version did not become ready. The backup is backups/$backupName." }
+  if (-not (Wait-BackendReady)) { throw "Release $version did not become ready. The backup is backups/$backupName." }
 
   [IO.File]::WriteAllText($versionPath, "$version`n", $utf8)
   docker @compose exec -T backend python manage.py update_control complete --version $version *> $null
@@ -96,10 +112,23 @@ try {
   Say "Update complete: $version."
 }
 catch {
+  $updateError = $_
+  $failureMessage = "Host update failed. Check backups/auto-update.log."
   if ($claimed -and -not $completed) {
-    docker @compose exec -T backend python manage.py update_control fail --message "Host update failed. Check backups/auto-update.log." *> $null
+    if ($deploymentStarted -and $current -match '^\d+\.\d+\.\d+-main\.\d+\.[0-9a-f]{12}$') {
+      try { $rolledBack = Invoke-ApplicationRollback $current }
+      catch { $rolledBack = $false }
+      if ($rolledBack) {
+        $failureMessage = "Update failed; application containers rolled back to $current. The database backup was retained."
+      }
+      else {
+        Say "ERROR: automatic rollback to $current failed."
+        $failureMessage = "Update and automatic rollback failed. Restore the database backup and previous image tag manually."
+      }
+    }
+    docker @compose exec -T backend python manage.py update_control fail --message $failureMessage *> $null
   }
-  throw
+  throw $updateError
 }
 finally {
   if ($null -eq $previousTag) { Remove-Item Env:MAKERSPACE_IMAGE_TAG -ErrorAction SilentlyContinue }

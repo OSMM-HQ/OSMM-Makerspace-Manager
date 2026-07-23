@@ -11,9 +11,23 @@ VERSION_FILE="$ROOT/.spaceworks-version"
 RELEASE_API="https://api.github.com/repos/SpaceWorks-HQ/SpaceWorks/releases/latest"
 update_claimed=0
 update_complete=0
+deployment_started=0
+previous_version=""
 
 say() { printf '[Space Works updater] %s\n' "$*"; }
 die() { printf '[Space Works updater] ERROR: %s\n' "$*" >&2; exit 1; }
+wait_for_backend() {
+  local attempt
+  for attempt in $(seq 1 60); do
+    if "${COMPOSE[@]}" exec -T backend python -c \
+      "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/readiness/', timeout=3).read()" \
+      >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 3
+  done
+  return 1
+}
 force_arg=()
 if [[ "${1:-}" == "--force" ]]; then
   force_arg=(--force)
@@ -39,9 +53,25 @@ printf '%s\n' "$$" > "$LOCK_DIR/pid"
 cleanup() {
   exit_code=$?
   trap - EXIT
+  set +e
   if [[ "$update_claimed" == 1 && "$update_complete" == 0 ]]; then
+    failure_message="Host update failed. Check backups/auto-update.log."
+    if [[ "$deployment_started" == 1 && \
+      "$previous_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-main\.[0-9]+\.[0-9a-f]{12}$ ]]; then
+      say "Update failed; rolling application containers back to $previous_version."
+      export MAKERSPACE_IMAGE_TAG="$previous_version"
+      "${COMPOSE[@]}" pull migrate backend worker beat frontend || \
+        say "Could not refresh previous images; trying the host's cached copies."
+      if "${COMPOSE[@]}" up -d && wait_for_backend; then
+        say "Rollback complete: $previous_version is healthy."
+        failure_message="Update failed; application containers rolled back to $previous_version. The database backup was retained."
+      else
+        say "ERROR: automatic rollback to $previous_version failed."
+        failure_message="Update and automatic rollback failed. Restore the database backup and previous image tag manually."
+      fi
+    fi
     "${COMPOSE[@]}" exec -T backend python manage.py update_control fail \
-      --message "Host update failed. Check backups/auto-update.log." >/dev/null 2>&1 || true
+      --message "$failure_message" >/dev/null 2>&1 || true
   fi
   rm -f "$LOCK_DIR/pid"
   rmdir "$LOCK_DIR" 2>/dev/null || true
@@ -64,6 +94,7 @@ current=""
 if [[ -f "$VERSION_FILE" ]]; then
   current="$(tr -d '[:space:]' < "$VERSION_FILE")"
 fi
+previous_version="$current"
 
 decision="$("${COMPOSE[@]}" exec -T backend python manage.py update_control claim \
   --current="$current" --available="$version" "${force_arg[@]}")" \
@@ -97,19 +128,10 @@ say "Pulling immutable release images."
 "${COMPOSE[@]}" pull migrate backend worker beat frontend
 
 say "Running migrations and replacing application containers."
+deployment_started=1
 "${COMPOSE[@]}" up -d
 
-ready=0
-for _ in $(seq 1 60); do
-  if "${COMPOSE[@]}" exec -T backend python -c \
-    "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/readiness/', timeout=3).read()" \
-    >/dev/null 2>&1; then
-    ready=1
-    break
-  fi
-  sleep 3
-done
-[[ "$ready" == 1 ]] || die "Release $version did not become ready. The backup is backups/$backup_name."
+wait_for_backend || die "Release $version did not become ready. The backup is backups/$backup_name."
 
 printf '%s\n' "$version" > "$VERSION_FILE"
 "${COMPOSE[@]}" exec -T backend python manage.py update_control complete \

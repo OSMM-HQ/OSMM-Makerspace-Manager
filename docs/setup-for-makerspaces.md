@@ -130,9 +130,10 @@ You have two good options before giving up:
   **Staff console -> Platform settings -> Software updates** to control automatic installation or select
   **Update now**. Run `scripts/update.sh --force`
   (Mac/Linux) or `scripts/update.ps1 -Force` (Windows) to update immediately; the updater backs up
-  PostgreSQL and verifies the new release before marking it installed. Your `.env` and data are
-  preserved. This update backup covers the database, not MinIO photos and files; back up the MinIO
-  data volume separately.
+  PostgreSQL and verifies the new release before marking it installed. If the new application fails,
+  it automatically returns to the previous retained release. Your `.env` and data are preserved. The
+  database snapshot is retained but never restored automatically, and it does not cover MinIO photos
+  and files; back up the MinIO data volume separately.
 
 ## Something went wrong?
 
