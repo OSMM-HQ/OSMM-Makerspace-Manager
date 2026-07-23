@@ -20,12 +20,12 @@ to the very end** (after all Parts) — no per-Part QA gate. Specs live (gitigno
 **Shipped on `dev` (see condensed changelog for the module list):** Events, Bookings, Maintenance,
 Analytics/reports, public Roadmap, Machine Manager role + delegated role assignment, public
 self-booking + shared custom forms, per-feature×per-channel notification matrix (Slack/Mattermost),
-scoped PII encryption (Parts H1–H4), custom editable per-makerspace roles (Part L), and **Phase C**
-(capabilities toggles + Stripe payments C.2/C.3 + advisory geofenced check-in C.7 + C.3-hardening + **C.6**
-custom machine-type config + non-gram service console + **P1-A** unified per-space machine-type pricing).
-Remaining Phase C: a **Stripe-Connect payments-credentials track** (SM self-serve per-makerspace keys +
-managed-hosting Stripe Connect) then C.4 (reconciliation dashboard) and C.5 (bookings/events/membership-dues
-payments) — detailed live state is tracked in the assistant's memory, not here.
+scoped PII encryption (Parts H1–H4), custom editable per-makerspace roles (Part L), and **Phase C**.
+Phase C is complete on `dev`: capabilities toggles; Stripe payments C.2/C.3; advisory geofenced
+check-in C.7; C.3 hardening; C.6 custom machine-type config; unified per-space pricing; self-serve
+raw Stripe credentials + managed Stripe Connect; reconciliation; booking/event/membership charges;
+attested mobile device sessions + native push + Stripe PaymentSheet; and Google/Apple social sign-in
+for member and staff surfaces. The one deferred end-to-end user QA remains an owner-run release gate.
 
 **Standing build conventions for this program:**
 - **Parallel Codex via git worktree.** A second track runs in a sibling worktree
@@ -190,6 +190,30 @@ paid event for an already-terminal payment is audited (`payment.paid_after_termi
 refunds are out of scope. Amounts are staff-private (serializer split); requesters/members see status + own
 checkout link only.
 
+**Payment credentials, subjects, and reconciliation (Phase C final tracks).** Self-hosted makerspaces
+may manage their own encrypted Stripe credentials; managed hosting resolves through platform Stripe
+Connect without exposing secret values. Credential mutation validates live Stripe ownership and protects
+in-flight checkout/webhook sessions. Booking, event-registration, membership-dues, and machine-service
+charges all create the same immutable `Payment` subject rows. Reconciliation is makerspace-scoped through
+RBAC, reports/dashboard aggregates never flatten tenants, and offline/waive actions audit the actor and
+best-effort expire live online sessions.
+
+**Native clients use attested device grants, never browser-token shortcuts.** Device login starts with a
+short-lived attestation challenge and creates a revocable `DeviceGrant`; access tokens carry
+`device_grant_id`, refresh tokens rotate in a grant family, and replay revokes that family. Native
+makerspace selection uses `X-Makerspace-Id` only with a valid grant and active scoped membership. Push
+tokens are encrypted with an HMAC dedup fingerprint, owned by a device grant, and disabled when a provider
+reports them invalid. Native Stripe PaymentSheet delegates to the same Payment/Connect resolution and
+idempotency rules as web checkout.
+
+**Social identity is global; authorization remains per makerspace.** `SocialIdentity(provider, sub)` links
+Google/Apple to the global `User`; it never grants a role. Provider JWTs are server-verified against bounded,
+cached static JWKS endpoints and one-time origin/device-bound nonces. Auto-linking is allowed only when both
+provider and local email are verified; staff social login never creates an account or membership. Social
+tokens carry `surface=member|staff`: member tokens are rejected by staff APIs, while staff tokens require
+the exact trusted staff origin and matching tenant scope on access and refresh. Provider secrets remain
+write-only/encrypted, and unconfigured social auth is omitted from public config.
+
 **Presence geofence is ADVISORY, not an access gate (C.7).** Browser-supplied coordinates are spoofable, so
 `presence.geofence.evaluate_geofence` only classifies a reading (in_range / distance+accuracy buckets, raw
 coords never stored) and records it in the `presence.started` audit — it **never blocks** session creation, and
@@ -206,6 +230,11 @@ dead/broken feature for normal staff. New workflow actions ship their staff UI i
 Each line names a shipped feature and, where useful, the load-bearing rule it introduced (folded into the
 invariants above). Use `git log --oneline`/`git blame` for the implementing commits and per-file history.
 
+- **Phase C final tracks** (2026-07-23, `dev`): encrypted per-space Stripe credentials + managed Stripe
+  Connect (`3b43f47`); makerspace-scoped reconciliation dashboard/reports (`1ad63f5`); unified booking,
+  event-registration, and membership-dues Payment subjects (`159a88f`, hardened by `396cb27`); attested
+  device grants, rotating native refresh, native push, and Stripe PaymentSheet (`1aa2029`); server-verified
+  Google/Apple member + staff social sign-in with surface/origin enforcement (`ad2fe42`).
 - **Phase C — capabilities + payments + geofence** (2026-07-21/22, `dev`): Track 1 two-level module/feature
   toggles (`41e6a2a`); C.2 Stripe foundation — per-makerspace encrypted creds + verify-only webhook
   (`92eda37`); C.3 machine-service payments — `apps/payments.Payment` as the single payment authority,
@@ -350,7 +379,8 @@ cd backend && pytest
 - `backend/config/` — Django project (`settings.py`, `urls.py`, wsgi/asgi). All API routes under `/api/`.
   `config/admin_access.py` holds the `/control/` gating, CSP middleware, and the hidden-scope drift-guard
   registries (`NESTED_MAKERSPACE_LOOKUPS`, `GLOBAL_ADMIN_MODELS`).
-- `backend/apps/accounts/` — custom `User` model (`AUTH_USER_MODEL`), JWT auth, and `rbac.py` (the Auth &
+- `backend/apps/accounts/` — custom `User` model (`AUTH_USER_MODEL`), browser JWT auth, attested device
+  grants/rotating refresh families, Google/Apple social identities + nonce/JWKS verification, and `rbac.py` (the Auth &
   RBAC module: `can(...)`, action-based `actions_for_membership`/`makerspaces_for_action`/`scope_by_action`,
   makerspace scoping, superadmin hide/archive exclusion).
 - `backend/apps/makerspaces/` — `Makerspace` model (tenant root; unique `slug`; `frontend_domain`,
@@ -371,7 +401,8 @@ cd backend && pytest
   cross-makerspace), stocktake, adjustments, ledger, `report_registry.py` + `report_scope.py` +
   `reports_*` builders, CSV/XLSX exports, container APIs, QR print batches (`qr_zip.py`), dashboard,
   accountability. `views.py`/`services.py` are thin re-export barrels over `views_*`/`services_*`.
-- `backend/apps/integrations/` — Telegram/email/Slack/Mattermost delivery, `dispatch_email` choke point +
+- `backend/apps/integrations/` — Telegram/email/Slack/Mattermost/native-push delivery, encrypted FCM/APNs
+  platform credentials + device registrations, `dispatch_email` choke point +
   `EmailLog` outbox + Celery task, webhook (auth via `X-Telegram-Bot-Api-Secret-Token` vs
   `TELEGRAM_WEBHOOK_SECRET`, fail-closed), `PlatformEmailSettings`, `DailyEmailCounter`, staff-notification
   recipient matrix.
@@ -388,6 +419,8 @@ cd backend && pytest
   `notifications.py` (Telegram seam), public submit/verify/status views, `send_return_reminders` command.
 - `backend/apps/checkin/` — fail-closed Check-In API client (`verify()`, `CheckinUnavailable`→503 /
   `CheckinDenied`→403; `stub` vs `http` via `CHECKIN_MODE`).
+- `backend/apps/payments/` — immutable multi-subject Payment authority, per-space raw credentials + managed
+  Stripe Connect resolution, checkout/webhook settlement, reconciliation, and native PaymentSheet intents.
 - `backend/apps/printing/` — 3D Printing Manager: `PrintBucket`/`PrintRequest`/`PrintPrinter`/
   `FilamentSpool`/`ManualPrintLog`; `workflow.py` (single source of truth), `permissions.py`
   (`CanManagePrinting`), `emails.py`, `storage.py` (print upload presign), `reports_*`, public
@@ -399,7 +432,9 @@ cd backend && pytest
 - `backend/tests/` — pytest behavior tests (external behavior, not implementation).
 - `frontend/src/features/inventory/` — public catalog/detail/self-checkout + `ProductCard`/
   `AvailabilityBadge`. `frontend/src/features/staff/` — staff console panels (grouped nav via
-  `StaffApp.tsx` `TAB_GROUPS`; capabilities from action-based `staffAccess.ts`). `frontend/src/features/
+  `StaffApp.tsx` `TAB_GROUPS`; capabilities from action-based `staffAccess.ts`; payment reconciliation and
+  platform credential panels). `frontend/src/features/auth/` + `members/MemberAuthPanel.tsx` provide the
+  provider-config-driven social/member auth surfaces. `frontend/src/features/
   printing|bookings|forms|...` — feature slices. `frontend/src/lib/`, `components/ui/`, `types/`,
   `generated/api.ts`.
 

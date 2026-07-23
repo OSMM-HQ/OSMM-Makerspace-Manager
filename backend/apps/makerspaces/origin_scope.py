@@ -5,7 +5,11 @@ from rest_framework.exceptions import PermissionDenied
 
 from apps.accounts import rbac
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
-from apps.makerspaces.origin_scope_routes import request_route_targets
+from apps.makerspaces.origin_scope_routes import (
+    MAKERSPACE_KWARG_ROUTES as _MAKERSPACE_KWARG_ROUTES,
+    MODEL_LOOKUPS as _MODEL_LOOKUPS,
+    request_route_targets,
+)
 from apps.makerspaces.platform import makerspace_staff_origins
 
 

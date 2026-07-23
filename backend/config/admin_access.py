@@ -33,11 +33,14 @@ NESTED_MAKERSPACE_LOOKUPS = {
 # Registered admin models that are intentionally NOT makerspace-scoped (account/global).
 GLOBAL_ADMIN_MODELS = {
     "accounts.user",
+    "accounts.platformsocialauthsettings",
+    "accounts.socialidentity",
     "auth.group",
     "axes.accessattempt",
     "axes.accessfailurelog",
     "axes.accesslog",
     "integrations.platformemailsettings",
+    "integrations.platformpushsettings",
     "payments.platformstripeconnectsettings",
     "encryption.piiglobalwritefence",
     "roadmap.roadmapitem",

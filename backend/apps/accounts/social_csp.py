@@ -37,7 +37,7 @@ class SocialCspMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
         header = response.get("Content-Security-Policy")
-        if not header:
+        if not header or not response.get("Content-Type", "").startswith("text/html"):
             return response
         origins = social_csp_origins()
         if not origins:

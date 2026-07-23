@@ -4,6 +4,8 @@ import pytest
 from django.utils import timezone
 
 from apps.accounts.models import User
+from apps.bookings.models import BookableSpace, Booking
+from apps.events.models import Event, EventRegistration
 from apps.hardware_requests.models import HardwareRequest, PublicProblemReport, PublicToolLoan
 from apps.integrations.models import EmailLog
 from apps.makerspaces.models import MakerspaceMembership
@@ -41,10 +43,28 @@ def test_pending_payments_are_manager_only_and_ignore_dates_or_modules():
         membership_role=MakerspaceMembership.Role.MACHINE_MANAGER,
         role=User.Role.REQUESTER,
     )
+    now = timezone.now()
+    bookable = BookableSpace.objects.create(
+        makerspace=makerspace, name="Dashboard paid space", created_by=manager
+    )
+    booking = Booking.objects.create(
+        space=bookable, member=manager, name=manager.username,
+        email=manager.email or "dashboard-booking@example.test", phone="1",
+        starts_at=now + timedelta(days=1), ends_at=now + timedelta(days=1, hours=1),
+    )
+    event = Event.objects.create(
+        makerspace=makerspace, title="Dashboard paid event",
+        starts_at=now + timedelta(days=1), ends_at=now + timedelta(days=1, hours=1),
+        created_by=manager,
+    )
+    registration = EventRegistration.objects.create(
+        event=event, member=manager, name=manager.username,
+        email=manager.email or "dashboard-event@example.test", phone="1",
+    )
     Payment.objects.create(
         makerspace=makerspace,
         subject_type=Payment.SubjectType.BOOKING,
-        subject_id=501,
+        subject_id=booking.pk,
         member=manager,
         amount="8.00",
         currency="usd",
@@ -53,7 +73,7 @@ def test_pending_payments_are_manager_only_and_ignore_dates_or_modules():
     Payment.objects.create(
         makerspace=makerspace,
         subject_type=Payment.SubjectType.EVENT_REGISTRATION,
-        subject_id=502,
+        subject_id=registration.pk,
         member=manager,
         amount="9.00",
         currency="usd",

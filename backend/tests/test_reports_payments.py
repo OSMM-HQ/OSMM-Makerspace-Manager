@@ -5,6 +5,8 @@ import pytest
 from django.utils import timezone
 
 from apps.accounts import rbac
+from apps.bookings.models import BookableSpace, Booking
+from apps.events.models import Event, EventRegistration
 from apps.makerspaces.models import MakerspaceMembership, MakerspaceRole
 from apps.operations.reports_payments import build_payment_reconciliation
 from apps.payments.models import Payment
@@ -14,6 +16,30 @@ pytestmark = pytest.mark.django_db
 
 
 def add_payment(space, actor, subject_type, subject_id, amount, currency="usd", status="pending", created_at=None):
+    now = timezone.now()
+    if subject_type == Payment.SubjectType.BOOKING:
+        bookable = BookableSpace.objects.create(
+            makerspace=space, name=f"Payment report space {subject_id}", created_by=actor
+        )
+        subject_id = Booking.objects.create(
+            space=bookable, member=actor, name=actor.username,
+            email=actor.email or f"{actor.username}@example.test", phone="1",
+            starts_at=now + timedelta(days=1), ends_at=now + timedelta(days=1, hours=1),
+        ).pk
+    elif subject_type == Payment.SubjectType.EVENT_REGISTRATION:
+        event = Event.objects.create(
+            makerspace=space, title=f"Payment report event {subject_id}",
+            starts_at=now + timedelta(days=1), ends_at=now + timedelta(days=1, hours=1),
+            created_by=actor,
+        )
+        subject_id = EventRegistration.objects.create(
+            event=event, member=actor, name=actor.username,
+            email=actor.email or f"{actor.username}@example.test", phone="1",
+        ).pk
+    elif subject_type == Payment.SubjectType.MAKERSPACE_MEMBERSHIP:
+        subject_id = MakerspaceMembership.objects.get(
+            makerspace=space, user=actor
+        ).pk
     row = Payment.objects.create(
         makerspace=space, subject_type=subject_type, subject_id=subject_id,
         member=actor, amount=Decimal(amount), currency=currency, status=status,

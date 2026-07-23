@@ -58,10 +58,8 @@ class AnalyticsView(APIView):
         responses={200: ANALYTICS_REPORT_RESPONSE, **ERROR_RESPONSES},
     )
     def get(self, request, makerspace_id, report_key="summary", *args, **kwargs):
+        makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
         definition = reports.validate_report_key(report_key)
-        makerspace = _makerspace_for_inventory_view(
-            request.user, makerspace_id, definition.required_action
-        )
         require_action(request.user, definition.required_action, makerspace.id)
         require_module(makerspace, "reports")
         _require_source_modules(makerspace, definition.required_modules)
@@ -123,10 +121,8 @@ class ReportExportView(APIView):
         responses=EXPORT_RESPONSES,
     )
     def get(self, request, makerspace_id, report_key, *args, **kwargs):
+        makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
         definition = reports.validate_report_key(report_key, for_export=True)
-        makerspace = _makerspace_for_inventory_view(
-            request.user, makerspace_id, definition.required_action
-        )
         require_action(request.user, definition.required_action, makerspace.id)
         require_module(makerspace, "reports")
         _require_source_modules(makerspace, definition.required_modules)
@@ -196,8 +192,10 @@ def _date_param(request, name):
     return parsed
 
 
-def _makerspace_for_inventory_view(user, makerspace_id, action=rbac.Action.VIEW_AUDIT):
-    queryset = rbac.scope_by_action(user, action, Makerspace.objects.all(), field="id")
+def _makerspace_for_inventory_view(user, makerspace_id):
+    queryset = rbac.scope_by_action(
+        user, rbac.Action.VIEW_INVENTORY, Makerspace.objects.all(), field="id"
+    )
     queryset = rbac.hide_from_superadmin(user, queryset, field="id")
     return get_object_or_404(queryset, pk=makerspace_id)
 
