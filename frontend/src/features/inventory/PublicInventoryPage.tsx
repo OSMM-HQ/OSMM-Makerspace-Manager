@@ -156,9 +156,6 @@ export function PublicInventoryPage() {
               <div className="rounded-lg border border-line bg-surface px-3 py-2 text-sm text-muted">
                 {inventoryQuery.data?.count ?? "-"} listed items
               </div>
-              <Link className="desk-button" to="/roadmap">
-                Roadmap
-              </Link>
               {bootstrap?.makerspace.public_stats_enabled ? (
                 <Link className="desk-button" to={tenantPath("stats")}>
                   Stats

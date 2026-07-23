@@ -58,7 +58,8 @@ bash setup.sh                                          # macOS / Linux
 powershell -ExecutionPolicy Bypass -File setup.ps1     # Windows
 ```
 
-It prints your URL and login when it finishes. (Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/).)
+It prints your URL and login when it finishes and offers to install hourly, backup-first production
+updates. (Requires [Docker Desktop](https://www.docker.com/products/docker-desktop/).)
 
 **Path 2 — Prebuilt images (no local build).** Pull the two published images and start the stack —
 after `cp .env.example .env` (fill in the few values it asks for):
@@ -79,6 +80,19 @@ full stack automatically.
 | **Production** reference (env vars, TLS, upgrades, releases) | **[docs/self-hosting.md](docs/self-hosting.md)** |
 | **Advanced** config (Telegram, HMAC, Supabase, cron) | **[.github/ADVANCED.md](.github/ADVANCED.md)** |
 | **Develop / contribute** (run from source, tests, releases) | **[.github/DEVELOPMENT.md](.github/DEVELOPMENT.md)** |
+
+## Roadmap
+
+Space Works 0.5 is focused on reliable self-hosting and complete makerspace operations:
+
+- automatic, backup-first updates from every successful `main` release;
+- stable public, member, staff, and superadmin workflows across the full module set;
+- continued accessibility, mobile, reporting, and operational resilience work.
+
+Current work and shipped changes are tracked in
+[GitHub issues](https://github.com/SpaceWorks-HQ/SpaceWorks/issues),
+[pull requests](https://github.com/SpaceWorks-HQ/SpaceWorks/pulls), and the release notes. The running
+product intentionally does not expose a separate roadmap page.
 
 ## Roles & access
 
@@ -121,8 +135,9 @@ docker compose -f docker-compose.prod.yml exec backend python manage.py setup_in
 ```
 
 With no arguments it seeds **`superadmin` / `super123`** and forces a password change on first login.
-Pin `MAKERSPACE_IMAGE_TAG` to an immutable release (e.g. `0.5.0-main.42.a1b2c3d4e5f6`) in production — see
-**[docs/self-hosting.md](docs/self-hosting.md)** for env vars, TLS, and upgrades.
+Guided installs can receive each successful `main` release automatically with a backup and readiness
+check. Run `scripts/update.sh` (macOS/Linux) or `scripts/update.ps1` (Windows) for an immediate
+update; see **[docs/self-hosting.md](docs/self-hosting.md)** for scheduling, pinning, TLS, and recovery.
 
 **No server of your own?** Space Works is multi-tenant — partner with a nearby makerspace to run your space
 as a tenant on their instance. **Prefer managed Postgres?** Point `DATABASE_URL` at any managed

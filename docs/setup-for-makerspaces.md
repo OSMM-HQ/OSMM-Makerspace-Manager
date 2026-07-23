@@ -53,6 +53,7 @@ The script will ask you a few simple questions (press Enter to accept the sugges
 | Admin login username | `admin` is fine |
 | Admin email | your email |
 | Admin password | type one, or leave blank and it makes a strong one for you |
+| Automatic updates | press Enter for hourly, backup-first updates from successful `main` releases |
 
 Then it builds and starts everything. **The first time takes a few minutes** — that's normal.
 
@@ -125,8 +126,10 @@ You have two good options before giving up:
   `docker compose … up -d` command.
 - **Stop it:** `docker compose -f docker-compose.prod.yml -f docker/compose.build.yml down`
   (your data is safe — it's kept in a database volume).
-- **Update to a newer version:** download the new ZIP over the folder and run the setup script
-  again; your `.env` and data are preserved.
+- **Update to a newer version:** guided installs check hourly by default. Run `scripts/update.sh`
+  (Mac/Linux) or `scripts/update.ps1` (Windows) to update immediately; the updater backs up
+  PostgreSQL and verifies the new release before marking it installed. Your `.env` and data are
+  preserved.
 
 ## Something went wrong?
 

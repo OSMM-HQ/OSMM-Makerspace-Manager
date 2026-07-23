@@ -3055,7 +3055,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/MachineServiceReport"
+                                    "$ref": "#/components/schemas/MachineServiceReportResponse"
                                 }
                             }
                         },
@@ -10726,7 +10726,7 @@
                         "content": {
                             "application/json": {
                                 "schema": {
-                                    "$ref": "#/components/schemas/MachineServiceReport"
+                                    "$ref": "#/components/schemas/MachineServiceReportResponse"
                                 }
                             }
                         },
@@ -25909,31 +25909,6 @@
                 }
             }
         },
-        "/api/v1/public/roadmap": {
-            "get": {
-                "operationId": "api_v1_public_roadmap_list",
-                "description": "List the platform roadmap and changelog items that are published for public viewing. Descriptions are returned as plain text.",
-                "summary": "List public roadmap items",
-                "tags": [
-                    "Public roadmap"
-                ],
-                "responses": {
-                    "200": {
-                        "content": {
-                            "application/json": {
-                                "schema": {
-                                    "type": "array",
-                                    "items": {
-                                        "$ref": "#/components/schemas/PublicRoadmap"
-                                    }
-                                }
-                            }
-                        },
-                        "description": ""
-                    }
-                }
-            }
-        },
         "/api/v1/webhooks/stripe/{public_code}": {
             "post": {
                 "operationId": "api_v1_webhooks_stripe_create",
@@ -26735,8 +26710,9 @@
                     },
                     "smtp_port": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "smtp_username": {
                         "type": "string",
@@ -26789,8 +26765,9 @@
                     },
                     "default_loan_days": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     }
                 },
                 "required": [
@@ -27326,23 +27303,27 @@
                 "properties": {
                     "min_booking_duration_minutes": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 1
+                        "maximum": 9223372036854775807,
+                        "minimum": 1,
+                        "format": "int64"
                     },
                     "max_booking_duration_minutes": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 1
+                        "maximum": 9223372036854775807,
+                        "minimum": 1,
+                        "format": "int64"
                     },
                     "booking_lead_time_minutes": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "max_booking_advance_days": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 1
+                        "maximum": 9223372036854775807,
+                        "minimum": 1,
+                        "format": "int64"
                     },
                     "approval_mode": {
                         "$ref": "#/components/schemas/ApprovalModeEnum"
@@ -27917,8 +27898,9 @@
                     },
                     "display_order": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "icon": {
                         "type": "string",
@@ -30367,33 +30349,39 @@
                     },
                     "total_quantity": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "available_quantity": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "reserved_quantity": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "issued_quantity": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "damaged_quantity": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "lost_quantity": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "needs_fix_quantity": {
                         "type": "integer",
@@ -30481,13 +30469,15 @@
                     },
                     "total_quantity": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "available_quantity": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "reserved_quantity": {
                         "type": "integer",
@@ -31728,6 +31718,16 @@
                     "status_totals"
                 ]
             },
+            "MachineServiceReportResponse": {
+                "oneOf": [
+                    {
+                        "$ref": "#/components/schemas/MachineServiceReport"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PrinterServiceReport"
+                    }
+                ]
+            },
             "MachineServiceRequest": {
                 "type": "object",
                 "properties": {
@@ -32835,8 +32835,9 @@
                     },
                     "geofence_radius_m": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 1
+                        "maximum": 9223372036854775807,
+                        "minimum": 1,
+                        "format": "int64"
                     },
                     "geofence_enabled": {
                         "type": "boolean"
@@ -32982,8 +32983,9 @@
                     },
                     "smtp_port": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "smtp_username": {
                         "type": "string",
@@ -33036,8 +33038,9 @@
                     },
                     "default_loan_days": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "presence_preset_minutes": {},
                     "created_at": {
@@ -35385,8 +35388,9 @@
                     },
                     "smtp_port": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "smtp_username": {
                         "type": "string",
@@ -35439,8 +35443,9 @@
                     },
                     "default_loan_days": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     }
                 }
             },
@@ -35461,23 +35466,27 @@
                 "properties": {
                     "min_booking_duration_minutes": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 1
+                        "maximum": 9223372036854775807,
+                        "minimum": 1,
+                        "format": "int64"
                     },
                     "max_booking_duration_minutes": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 1
+                        "maximum": 9223372036854775807,
+                        "minimum": 1,
+                        "format": "int64"
                     },
                     "booking_lead_time_minutes": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "max_booking_advance_days": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 1
+                        "maximum": 9223372036854775807,
+                        "minimum": 1,
+                        "format": "int64"
                     },
                     "approval_mode": {
                         "$ref": "#/components/schemas/ApprovalModeEnum"
@@ -35618,8 +35627,9 @@
                     },
                     "display_order": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "icon": {
                         "type": "string",
@@ -36041,8 +36051,9 @@
                     },
                     "geofence_radius_m": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 1
+                        "maximum": 9223372036854775807,
+                        "minimum": 1,
+                        "format": "int64"
                     },
                     "geofence_enabled": {
                         "type": "boolean"
@@ -36188,8 +36199,9 @@
                     },
                     "smtp_port": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "smtp_username": {
                         "type": "string",
@@ -36242,8 +36254,9 @@
                     },
                     "default_loan_days": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "presence_preset_minutes": {},
                     "created_at": {
@@ -36382,8 +36395,9 @@
                     },
                     "smtp_port": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "smtp_username": {
                         "type": "string",
@@ -36523,8 +36537,9 @@
                     },
                     "default_loan_days": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     }
                 }
             },
@@ -36848,8 +36863,9 @@
                     },
                     "smtp_port": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "smtp_username": {
                         "type": "string",
@@ -37285,6 +37301,75 @@
                 ],
                 "type": "string",
                 "description": "* `grams` - Grams\n* `milliliters` - Milliliters\n* `millimeters` - Millimeters\n* `count` - Count"
+            },
+            "PrinterServiceReport": {
+                "type": "object",
+                "properties": {
+                    "printer_metrics": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PrinterServiceReportRow"
+                        }
+                    }
+                },
+                "required": [
+                    "printer_metrics"
+                ]
+            },
+            "PrinterServiceReportRow": {
+                "type": "object",
+                "properties": {
+                    "makerspace_id": {
+                        "type": "integer"
+                    },
+                    "machine_id": {
+                        "type": "integer"
+                    },
+                    "machine_name": {
+                        "type": "string"
+                    },
+                    "model": {
+                        "type": "string"
+                    },
+                    "completed_hours": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "failed_partial_hours": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "manual_hours": {
+                        "type": "number",
+                        "format": "double"
+                    },
+                    "consumed_grams": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "payment_due": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
+                    "payment_paid": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    }
+                },
+                "required": [
+                    "completed_hours",
+                    "consumed_grams",
+                    "failed_partial_hours",
+                    "machine_id",
+                    "machine_name",
+                    "manual_hours",
+                    "model",
+                    "payment_due",
+                    "payment_paid"
+                ]
             },
             "ProblemReportTriage": {
                 "type": "object",
@@ -38296,53 +38381,6 @@
                     "status"
                 ]
             },
-            "PublicRoadmap": {
-                "type": "object",
-                "properties": {
-                    "title": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "description": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "status": {
-                        "allOf": [
-                            {
-                                "$ref": "#/components/schemas/PublicRoadmapStatusEnum"
-                            }
-                        ],
-                        "readOnly": true
-                    },
-                    "category": {
-                        "type": "string",
-                        "readOnly": true
-                    },
-                    "published_at": {
-                        "type": "string",
-                        "format": "date-time",
-                        "readOnly": true,
-                        "nullable": true
-                    }
-                },
-                "required": [
-                    "category",
-                    "description",
-                    "published_at",
-                    "status",
-                    "title"
-                ]
-            },
-            "PublicRoadmapStatusEnum": {
-                "enum": [
-                    "shipped",
-                    "in_progress",
-                    "planned"
-                ],
-                "type": "string",
-                "description": "* `shipped` - Shipped\n* `in_progress` - In progress\n* `planned` - Planned"
-            },
             "PublicSpaceAvailability": {
                 "type": "object",
                 "properties": {
@@ -39060,8 +39098,9 @@
                     },
                     "target_id": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "status": {
                         "allOf": [
@@ -39261,13 +39300,15 @@
                     },
                     "target_id": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "sort_order": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     }
                 },
                 "required": [
@@ -39876,8 +39917,9 @@
                     },
                     "default_loan_days": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     }
                 },
                 "required": [
@@ -40995,8 +41037,9 @@
                     },
                     "quantity": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": 0
+                        "maximum": 9223372036854775807,
+                        "minimum": 0,
+                        "format": "int64"
                     },
                     "from_status": {
                         "type": "string",
@@ -41152,18 +41195,21 @@
                     },
                     "expected_quantity": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64"
                     },
                     "counted_quantity": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64"
                     },
                     "variance_quantity": {
                         "type": "integer",
-                        "maximum": 2147483647,
-                        "minimum": -2147483648
+                        "maximum": 9223372036854775807,
+                        "minimum": -9223372036854775808,
+                        "format": "int64"
                     },
                     "condition": {
                         "$ref": "#/components/schemas/ConditionEnum"

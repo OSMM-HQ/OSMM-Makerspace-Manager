@@ -43,7 +43,6 @@ GLOBAL_ADMIN_MODELS = {
     "integrations.platformpushsettings",
     "payments.platformstripeconnectsettings",
     "encryption.piiglobalwritefence",
-    "roadmap.roadmapitem",
     "token_blacklist.blacklistedtoken",
     "token_blacklist.outstandingtoken",
 }

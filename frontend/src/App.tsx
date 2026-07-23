@@ -16,7 +16,6 @@ import { PublicSelfCheckoutPage } from "./features/inventory/PublicSelfCheckoutP
 import { usePublicMakerspaces } from "./features/inventory/usePublicInventory";
 import { PublicPrintRequestPage } from "./features/printing/PublicPrintRequestPage";
 import { MemberArea } from "./features/members/MemberArea";
-import { RoadmapPage } from "./features/roadmap/RoadmapPage";
 import { KioskPage, ScannerPage, SuperadminPage } from "./features/staff/PlatformApps";
 import { ResetPasswordPage } from "./features/staff/ResetPasswordPage";
 import { StaffApp } from "./features/staff/StaffApp";
@@ -84,9 +83,6 @@ function LandingPage() {
             </div>
           </SpaceWorksHomeLink>
           <div className="flex flex-wrap items-center gap-2">
-            <Link className="desk-button" to="/roadmap">
-              Roadmap
-            </Link>
             <ThemeToggle />
             <Link className="desk-button" to="/admin">
               Staff login
@@ -315,7 +311,6 @@ export default function App() {
         <Route path="/member" element={<MemberArea />} />
         <Route path="/stats" element={<PublicStatsPage />} />
         <Route path="/about" element={<AboutPage />} />
-        <Route path="/roadmap" element={<RoadmapPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/admin/*" element={<StaffApp />} />
         <Route path="/guest-admin/*" element={<StaffApp guestOnly />} />
@@ -329,7 +324,6 @@ export default function App() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/about" element={<AboutPage />} />
-      <Route path="/roadmap" element={<RoadmapPage />} />
       <Route path="/m/:slug" element={<PublicInventoryPage />} />
       <Route path="/m/:slug/checkout" element={<PublicSelfCheckoutPage />} />
       <Route path="/m/:slug/events" element={<PublicEventsPage />} />

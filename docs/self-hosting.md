@@ -84,26 +84,42 @@ docker compose -f docker-compose.prod.yml exec backend python manage.py send_ret
 
 The command is idempotent. It only sends reminders for issued or partially returned requests whose `return_due_at` is in the past and whose reminder has not already been sent. Requests returned before the due time are skipped.
 
-## Upgrades
+## Automatic and manual upgrades
 
-Pin an immutable release tag for stable deployments. Continuous release tags include the version
-series, Actions run number, and commit SHA (for example `0.5.0-main.42.a1b2c3d4e5f6`).
-The matching minor (`0.5`), `main`, and `latest` are rolling tags:
+Every successful push to `main` publishes matching backend/frontend images and a GitHub Release. The
+release is marked latest only after both images are available. The self-host updater uses that release
+as its gate, creates a PostgreSQL backup, deploys the exact immutable tag, runs migrations through the
+Compose migration service, and records the version only after the readiness check passes.
 
-```env
-MAKERSPACE_IMAGE_TAG=0.5.0-main.42.a1b2c3d4e5f6
+Guided setup offers hourly automatic updates by default. Install or repair the schedule manually with:
+
+```bash
+bash scripts/install-auto-update.sh                 # macOS / Linux cron
+powershell -ExecutionPolicy Bypass -File scripts/install-auto-update.ps1  # Windows Task Scheduler
 ```
 
-Then run:
+Run an immediate checked update with:
+
+```bash
+bash scripts/update.sh
+powershell -ExecutionPolicy Bypass -File scripts/update.ps1
+```
+
+Pre-update database dumps are written to `backups/` and retained for 14 days. The scripts use
+`.spaceworks-update.lock` to prevent overlapping runs and `.spaceworks-version` to avoid redeploying
+the same release. If an update fails, the version marker is not advanced and the backup path is printed.
+Review the logs before retrying or pinning the previous immutable tag.
+
+For a manual deployment, set `MAKERSPACE_IMAGE_TAG` to a release such as
+`0.5.0-main.42.a1b2c3d4e5f6`, then run:
 
 ```powershell
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-The backend container runs migrations on startup. Keep a database backup before changing versions.
-
-Manual dependency audit: `pip install pip-audit && pip-audit -r backend/requirements.txt`.
+Do not schedule a blind container watcher: application images must not restart without the migration
+service and readiness gate. Manual dependency audit: `pip install pip-audit && pip-audit -r backend/requirements.txt`.
 
 ## Publishing new images (maintainers)
 

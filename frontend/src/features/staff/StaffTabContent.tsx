@@ -3,6 +3,7 @@ import { lazy, Suspense } from "react";
 import { Skeleton } from "../../components/ui";
 import type { StaffAuthUser } from "../../lib/api";
 import { Panel, type Makerspace } from "./panels/shared";
+import { StaffPanelErrorBoundary } from "./StaffPanelErrorBoundary";
 
 const DashboardPanel = lazy(() => import("./panels/DashboardPanel").then((m) => ({ default: m.DashboardPanel })));
 const NotificationInbox = lazy(() => import("./panels/NotificationInbox").then((m) => ({ default: m.NotificationInbox })));
@@ -87,7 +88,8 @@ export function StaffTabContent({
   }
   const makerspaceKey = activeMakerspace.id;
   return (
-    <Suspense fallback={<div className="p-4"><Skeleton className="h-40 w-full" /></div>}>
+    <StaffPanelErrorBoundary resetKey={`${makerspaceKey}:${activeTab}`}>
+      <Suspense fallback={<div className="p-4"><Skeleton className="h-40 w-full" /></div>}>
       {activeTab === "dashboard" ? (
         <DashboardPanel key={makerspaceKey} makerspace={activeMakerspace} canManageMakerspace={canManageMakerspace} />
       ) : null}
@@ -215,6 +217,7 @@ export function StaffTabContent({
         <Users makerspaces={makerspaces} isSuperadmin={isSuperadmin} currentUser={currentUser} onAuthRefresh={onAuthRefresh} />
       ) : null}
       {activeTab === "audit" && canViewAudit ? <AuditLog /> : null}
-    </Suspense>
+      </Suspense>
+    </StaffPanelErrorBoundary>
   );
 }

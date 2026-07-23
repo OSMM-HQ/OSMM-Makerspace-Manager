@@ -51,7 +51,6 @@ export const openApiTags = [
   "Public machine service",
   "Public machines",
   "Public requests",
-  "Public roadmap",
   "QR assets",
   "QR print batches",
   "Reports",
@@ -361,7 +360,6 @@ export const openApiPaths = [
   "/api/v1/public/machine-service/3d-printer/requests/{public_token}/status",
   "/api/v1/public/makerspaces/",
   "/api/v1/public/requests/{public_token}/status",
-  "/api/v1/public/roadmap",
   "/api/v1/public/{makerspace_slug}/events/",
   "/api/v1/public/{makerspace_slug}/events/{public_token}/register/",
   "/api/v1/public/{makerspace_slug}/inventory/",
@@ -1792,6 +1790,8 @@ export type MachineServiceReport = {
   "failure_summary": Array<MachineServiceFailure>;
 };
 
+export type MachineServiceReportResponse = MachineServiceReport | PrinterServiceReport;
+
 export type MachineServiceRequest = {
   "id": number;
   "bucket_id": number;
@@ -3151,6 +3151,23 @@ export type PrinterPoolCreateUnitEnum = "grams" | "milliliters" | "millimeters" 
 
 export type PrinterPoolUnitEnum = "grams" | "milliliters" | "millimeters" | "count";
 
+export type PrinterServiceReport = {
+  "printer_metrics": Array<PrinterServiceReportRow>;
+};
+
+export type PrinterServiceReportRow = {
+  "makerspace_id"?: number;
+  "machine_id": number;
+  "machine_name": string;
+  "model": string;
+  "completed_hours": number;
+  "failed_partial_hours": number;
+  "manual_hours": number;
+  "consumed_grams": string;
+  "payment_due": string;
+  "payment_paid": string;
+};
+
 export type ProblemReportTriage = {
   "outcome": ProblemReportTriageOutcomeEnum;
   "resolutions"?: Array<ProblemReportTriageResolution>;
@@ -3403,16 +3420,6 @@ export type PublicRequestStatus = {
   "created_at": string;
   "items": Array<PublicRequestItemStatus>;
 };
-
-export type PublicRoadmap = {
-  "title": string;
-  "description": string;
-  "status": PublicRoadmapStatusEnum;
-  "category": string;
-  "published_at": string | null;
-};
-
-export type PublicRoadmapStatusEnum = "shipped" | "in_progress" | "planned";
 
 export type PublicSpaceAvailability = {
   "public_token": string;

@@ -98,6 +98,16 @@ settings.save()
 '
   fi
 
+  read -r -p "Enable automatic production updates from main? [Y/n]: " AUTOUPDATE
+  AUTOUPDATE="${AUTOUPDATE:-Y}"
+  if [[ "$AUTOUPDATE" =~ ^[Yy]$ ]]; then
+    if ! bash scripts/install-auto-update.sh; then
+      warn "Could not install the hourly updater. Run bash scripts/install-auto-update.sh later."
+    fi
+  else
+    warn "Automatic updates are off. Run scripts/update.sh whenever you want to upgrade."
+  fi
+
   PORT="$(grep -E '^HTTP_PORT=' .env | cut -d= -f2)"; PORT="${PORT:-80}"
   HOST="$(grep -E '^ALLOWED_HOSTS=' .env | cut -d= -f2 | cut -d, -f1)"; HOST="${HOST:-localhost}"
   SUFFIX=""; [ "$PORT" != "80" ] && SUFFIX=":$PORT"

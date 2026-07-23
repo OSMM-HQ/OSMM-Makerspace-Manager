@@ -3,7 +3,7 @@ from datetime import datetime, time, timedelta
 from django.utils import timezone
 from django.utils.dateparse import parse_date
 from drf_spectacular.types import OpenApiTypes
-from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, extend_schema
+from drf_spectacular.utils import OpenApiParameter, OpenApiResponse, PolymorphicProxySerializer, extend_schema
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -22,6 +22,12 @@ DATE_RANGE_PARAMETERS = [
     OpenApiParameter("end", OpenApiTypes.DATE, OpenApiParameter.QUERY),
     OpenApiParameter("machine_type", str, OpenApiParameter.QUERY),
 ]
+REPORT_RESPONSE = PolymorphicProxySerializer(
+    component_name="MachineServiceReportResponse",
+    serializers=[MachineServiceReportSerializer, PrinterServiceReportSerializer],
+    resource_type_field_name=None,
+)
+
 ERROR_RESPONSES = {
     400: OpenApiResponse(ErrorSerializer, description="Invalid request."),
     401: OpenApiResponse(description="Authentication credentials were not provided."),
@@ -33,7 +39,7 @@ ERROR_RESPONSES = {
 class MakerspaceMachineServiceReportView(APIView):
     permission_classes = [IsActiveStaff]
 
-    @extend_schema(tags=["Admin machine service"], summary="Retrieve makerspace machine-service report", request=None, parameters=DATE_RANGE_PARAMETERS, responses={200: MachineServiceReportSerializer, **ERROR_RESPONSES})
+    @extend_schema(tags=["Admin machine service"], summary="Retrieve makerspace machine-service report", request=None, parameters=DATE_RANGE_PARAMETERS, responses={200: REPORT_RESPONSE, **ERROR_RESPONSES})
     def get(self, request, makerspace_id, *args, **kwargs):
         # Authorize before the module check so a foreign/hidden makerspace returns a
         # uniform 403 and never leaks its module state via a 400-vs-403 difference.
@@ -49,7 +55,7 @@ class MakerspaceMachineServiceReportView(APIView):
 class SuperadminMachineServiceReportView(APIView):
     permission_classes = [IsActiveStaff]
 
-    @extend_schema(tags=["Admin machine service"], summary="Retrieve aggregate machine-service report", request=None, parameters=DATE_RANGE_PARAMETERS, responses={200: MachineServiceReportSerializer, **ERROR_RESPONSES})
+    @extend_schema(tags=["Admin machine service"], summary="Retrieve aggregate machine-service report", request=None, parameters=DATE_RANGE_PARAMETERS, responses={200: REPORT_RESPONSE, **ERROR_RESPONSES})
     def get(self, request, *args, **kwargs):
         if not _is_superadmin(request.user):
             raise PermissionDenied()
