@@ -12,6 +12,7 @@ type DashboardCounts = {
   failed_emails?: number;
   stocktakes_awaiting_approval?: number;
   warranty_expiring?: number;
+  pending_payments?: number;
 };
 
 type Tile = {
@@ -32,9 +33,10 @@ const TILES: Tile[] = [
   { key: "failed_emails", label: "Failed emails", actionNeeded: true },
   { key: "stocktakes_awaiting_approval", label: "Stocktakes awaiting approval", actionNeeded: true },
   { key: "warranty_expiring", label: "Warranties expiring", actionNeeded: true },
+  { key: "pending_payments", label: "Pending payments", actionNeeded: true },
 ];
 
-export function DashboardPanel({ makerspace }: { makerspace: Makerspace }) {
+export function DashboardPanel({ makerspace, canManageMakerspace }: { makerspace: Makerspace; canManageMakerspace: boolean }) {
   const dashboard = useStaffGet<DashboardCounts>(
     ["dashboard", makerspace.id],
     `/admin/makerspace/${makerspace.id}/dashboard`,
@@ -45,7 +47,7 @@ export function DashboardPanel({ makerspace }: { makerspace: Makerspace }) {
       {dashboard.isLoading ? <p className="mb-3 text-sm text-muted">Loading dashboard...</p> : null}
       {dashboard.error ? <p className="mb-3 text-sm text-danger">{dashboard.error.message}</p> : null}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {TILES.map((tile) => {
+        {TILES.filter((tile) => tile.key !== "pending_payments" || canManageMakerspace).map((tile) => {
           const value = dashboard.data?.[tile.key] ?? 0;
           const needsAttention = tile.actionNeeded && value > 0;
           return (

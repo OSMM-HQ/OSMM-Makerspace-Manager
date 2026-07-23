@@ -1,7 +1,7 @@
 const ALL_TABS = [
   "dashboard", "notifications", "requests", "direct", "inventory", "needsfix", "categories", "machines", "events", "bookings", "members", "tobuy", "transfers",
   "stocktake", "containers", "ledger", "reports", "accountability", "warranty", "bulk", "qr", "scanner", "api", "settings", "emailtemplates", "users", "platform", "audit",
-  "email-logs",
+  "email-logs", "payments",
 ] as const;
 
 export const STAFF_TAB_KEYS: readonly string[] = ALL_TABS;
@@ -36,10 +36,11 @@ export const TAB_LABELS: Record<string, string> = {
   "email-logs": "Email log",
   api: "API access",
   platform: "Platform settings",
+  payments: "Payments",
 };
 
 export const TAB_GROUPS: { label: string; tabs: string[] }[] = [
-  { label: "Operate", tabs: ["dashboard", "notifications", "requests", "direct", "ledger", "transfers", "stocktake", "tobuy"] },
+  { label: "Operate", tabs: ["dashboard", "notifications", "requests", "direct", "payments", "ledger", "transfers", "stocktake", "tobuy"] },
   { label: "Inventory", tabs: ["inventory", "categories", "needsfix", "containers", "bulk", "qr", "scanner"] },
   { label: "Machines", tabs: ["machines"] },
   { label: "Events", tabs: ["events"] },
@@ -98,6 +99,7 @@ export function getStaffAccess(actions: readonly string[], isSuperadmin: boolean
     if (tabName === "events") return enabledModules.includes("events") && canManageEvents;
     if (tabName === "bookings") return enabledModules.includes("bookings") && canManageBookings;
     if (tabName === "members") return canManageMakerspace;
+    if (tabName === "payments") return canManageMakerspace;
     if (tabName === "requests") return canSeeHardware || canSeePrinting;
     return true;
   });

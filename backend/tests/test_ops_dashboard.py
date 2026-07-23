@@ -11,6 +11,7 @@ from apps.machines.models import Machine, MachineServiceRequest, MachineType, Se
 from apps.maintenance.models import MaintenanceSchedule
 from apps.operations import views_dashboard
 from apps.operations.models import StocktakeSession
+from apps.payments.models import Payment
 from tests.return_helpers import authenticated_client, make_member, make_product, make_space, make_user
 
 pytestmark = pytest.mark.django_db
@@ -29,6 +30,42 @@ def test_space_manager_gets_dashboard_with_all_count_keys():
     assert response.status_code == 200
     assert set(response.data) == set(views_dashboard.DashboardSerializer().fields)
     assert all(isinstance(value, int) for value in response.data.values())
+
+
+def test_pending_payments_are_manager_only_and_ignore_dates_or_modules():
+    makerspace = make_space("ops-dashboard-payments")
+    manager = make_member("ops-dashboard-payments-manager", makerspace)
+    machine_manager = make_member(
+        "ops-dashboard-payments-machine-manager",
+        makerspace,
+        membership_role=MakerspaceMembership.Role.MACHINE_MANAGER,
+        role=User.Role.REQUESTER,
+    )
+    Payment.objects.create(
+        makerspace=makerspace,
+        subject_type=Payment.SubjectType.BOOKING,
+        subject_id=501,
+        member=manager,
+        amount="8.00",
+        currency="usd",
+        created_by=manager,
+    )
+    Payment.objects.create(
+        makerspace=makerspace,
+        subject_type=Payment.SubjectType.EVENT_REGISTRATION,
+        subject_id=502,
+        member=manager,
+        amount="9.00",
+        currency="usd",
+        status=Payment.Status.PAID_ONLINE,
+        created_by=manager,
+    )
+
+    manager_response = authenticated_client(manager).get(dashboard_url(makerspace))
+    machine_response = authenticated_client(machine_manager).get(dashboard_url(makerspace))
+
+    assert manager_response.data["pending_payments"] == 1
+    assert "pending_payments" not in machine_response.data
 
 
 def test_dashboard_rejects_guest_non_member_and_archived_makerspace():

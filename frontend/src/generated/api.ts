@@ -161,6 +161,7 @@ export const openApiPaths = [
   "/api/v1/admin/makerspace/{makerspace_id}/analytics/maintenance-activity",
   "/api/v1/admin/makerspace/{makerspace_id}/analytics/member-activity",
   "/api/v1/admin/makerspace/{makerspace_id}/analytics/most-lent",
+  "/api/v1/admin/makerspace/{makerspace_id}/analytics/payment-reconciliation",
   "/api/v1/admin/makerspace/{makerspace_id}/analytics/qr-scans",
   "/api/v1/admin/makerspace/{makerspace_id}/analytics/recently-added",
   "/api/v1/admin/makerspace/{makerspace_id}/analytics/returns",
@@ -202,6 +203,11 @@ export const openApiPaths = [
   "/api/v1/admin/makerspace/{makerspace_id}/notification-rules",
   "/api/v1/admin/makerspace/{makerspace_id}/payment-settings",
   "/api/v1/admin/makerspace/{makerspace_id}/payment-settings/connect/onboard",
+  "/api/v1/admin/makerspace/{makerspace_id}/payments",
+  "/api/v1/admin/makerspace/{makerspace_id}/payments/bulk/mark-offline",
+  "/api/v1/admin/makerspace/{makerspace_id}/payments/bulk/waive",
+  "/api/v1/admin/makerspace/{makerspace_id}/payments/{payment_id}/mark-offline",
+  "/api/v1/admin/makerspace/{makerspace_id}/payments/{payment_id}/waive",
   "/api/v1/admin/makerspace/{makerspace_id}/pending-requests",
   "/api/v1/admin/makerspace/{makerspace_id}/presence-sessions/current",
   "/api/v1/admin/makerspace/{makerspace_id}/problem-reports/{id}/resolve",
@@ -472,7 +478,7 @@ export type AdminRequestItem = {
   "issued_assets": Array<unknown>;
 };
 
-export type AnalyticsReportResponse = AnalyticsSummary | TakenItemsReport | ActiveLoansReport | ReturnsReport | DamagedMissingReport | DamagedLostReport | QrScansReport | MostLentReport | TopBorrowersReport | RecentlyAddedReport | MachineUsageReport | EventAttendanceReport | BookingUtilizationReport | MaintenanceActivityReport | MemberActivityReport | FabLabHealthReport;
+export type AnalyticsReportResponse = AnalyticsSummary | TakenItemsReport | ActiveLoansReport | ReturnsReport | DamagedMissingReport | DamagedLostReport | QrScansReport | MostLentReport | TopBorrowersReport | RecentlyAddedReport | MachineUsageReport | EventAttendanceReport | BookingUtilizationReport | MaintenanceActivityReport | MemberActivityReport | FabLabHealthReport | PaymentReconciliationReport;
 
 export type AnalyticsSummary = {
   "products": number;
@@ -943,6 +949,7 @@ export type Dashboard = {
   "stocktakes_awaiting_approval"?: number;
   "warranty_expiring"?: number;
   "maintenance_overdue"?: number;
+  "pending_payments"?: number;
 };
 
 export type DirectLoan = {
@@ -2891,6 +2898,37 @@ export type PatchedToBuyItem = {
   "updated_at"?: string;
 };
 
+export type PaymentBulkAction = {
+  "ids": Array<number>;
+};
+
+export type PaymentReconciliation = {
+  "id": number;
+  "subject_type": SubjectTypeEnum;
+  "subject_id": number;
+  "subject_label": string;
+  "status": Status66aEnum;
+  "amount": string;
+  "currency": string;
+  "created_at": string;
+  "updated_at": string;
+};
+
+export type PaymentReconciliationReport = {
+  "rows": Array<Array<unknown>>;
+  "typed_rows": Array<PaymentReconciliationReportRow>;
+};
+
+export type PaymentReconciliationReportRow = {
+  "makerspace_id"?: number;
+  "currency": string;
+  "subject_type": string;
+  "status": string;
+  "payment_count": number;
+  "amount_total": string;
+  "outstanding_amount": string;
+};
+
 export type PaymentSettingsError = {
   "detail": string;
 };
@@ -3974,7 +4012,7 @@ export type SubdomainRequestError = {
   "detail": string;
 };
 
-export type SubjectTypeEnum = "machine_service_request";
+export type SubjectTypeEnum = "machine_service_request" | "booking" | "event_registration" | "makerspace_membership";
 
 export type TakenItemsReport = {
   "rows": Array<Array<unknown>>;

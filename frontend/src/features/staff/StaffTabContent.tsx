@@ -34,6 +34,7 @@ const ApiClientsPanel = lazy(() => import("./ApiClientsPanel").then((m) => ({ de
 const PlatformEmailPanel = lazy(() => import("./PlatformEmailPanel").then((m) => ({ default: m.PlatformEmailPanel })));
 const PlatformStripeConnectPanel = lazy(() => import("./PlatformStripeConnectPanel").then((m) => ({ default: m.PlatformStripeConnectPanel })));
 const MakerspaceSettingsPanel = lazy(() => import("./MakerspaceSettingsPanel").then((m) => ({ default: m.MakerspaceSettingsPanel })));
+const PaymentsPanel = lazy(() => import("./PaymentsPanel").then((m) => ({ default: m.PaymentsPanel })));
 
 export function StaffTabContent({
   activeMakerspace,
@@ -87,7 +88,7 @@ export function StaffTabContent({
   return (
     <Suspense fallback={<div className="p-4"><Skeleton className="h-40 w-full" /></div>}>
       {activeTab === "dashboard" ? (
-        <DashboardPanel key={makerspaceKey} makerspace={activeMakerspace} />
+        <DashboardPanel key={makerspaceKey} makerspace={activeMakerspace} canManageMakerspace={canManageMakerspace} />
       ) : null}
       {activeTab === "notifications" ? (
         <NotificationInbox key={makerspaceKey} makerspace={activeMakerspace} />
@@ -122,6 +123,7 @@ export function StaffTabContent({
       {activeTab === "events" && canManageEvents ? <EventsPanel key={makerspaceKey} makerspaceId={activeMakerspace.id} /> : null}
       {activeTab === "bookings" && canManageBookings ? <BookingsPanel key={makerspaceKey} makerspaceId={activeMakerspace.id} /> : null}
       {activeTab === "members" && canManageMakerspace ? <MembersPanel key={makerspaceKey} makerspaceId={activeMakerspace.id} /> : null}
+      {activeTab === "payments" && canManageMakerspace ? <PaymentsPanel key={makerspaceKey} makerspaceId={activeMakerspace.id} /> : null}
       {activeTab === "tobuy" ? (
         <ProcurementPanel
           key={makerspaceKey}
@@ -166,6 +168,7 @@ export function StaffTabContent({
           printingOnly={printingOnly}
           canViewAudit={canViewAudit}
           canManageMachines={canManageMachines}
+          canManageMakerspace={canManageMakerspace}
         />
       ) : null}
       {activeTab === "direct" && canIssueDirectLoan ? <DirectLoans key={makerspaceKey} makerspace={activeMakerspace} /> : null}

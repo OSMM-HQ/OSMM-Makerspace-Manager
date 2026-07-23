@@ -101,3 +101,6 @@ from apps.operations.serializers_reports_fablab import (  # noqa: E402
     MemberActivityReportSerializer,
     ReportErrorSerializer,
 )
+from apps.operations.serializers_reports_payments import (  # noqa: E402
+    PaymentReconciliationReportSerializer,
+)

@@ -7,85 +7,25 @@ import { OperationsReportsFablab } from "./OperationsReportsFablab";
 import { OperationsReportsHardware } from "./OperationsReportsHardware";
 import { OperationsReportsMachineService } from "./OperationsReportsMachineService";
 import { OperationsReportsMembers } from "./OperationsReportsMembers";
+import { OperationsReportsPayments } from "./OperationsReportsPayments";
 import { Panel, type Makerspace, useStaffGet } from "./shared";
+import {
+  exportReports,
+  loadSavedReportViews,
+  newSavedViewId,
+  reportDefinitions,
+  reportTitle,
+  savedViewsStorageKey,
+  sourceModule,
+  type ReportKey,
+  type SavedReportView,
+} from "./operationsReportsConfig";
 
 type Summary = {
   products: number; assets: number; active_loans: number;
   available_quantity: number; issued_quantity: number;
   damaged_quantity: number; missing_quantity: number;
 };
-
-const reportDefinitions = [
-  { key: "summary", title: "Summary" },
-  { key: "taken-items", title: "Taken items" },
-  { key: "active-loans", title: "Active loans" },
-  { key: "returns", title: "Returns" },
-  { key: "damaged-missing", title: "Damaged / missing" },
-  { key: "damaged-lost", title: "Damaged / lost" },
-  { key: "qr-scans", title: "QR scans" },
-  { key: "most-lent", title: "Most lent" },
-  { key: "top-borrowers", title: "Top borrowers" },
-  { key: "recently-added", title: "Recently added" },
-  { key: "machine-usage", title: "Machine usage" },
-  { key: "event-attendance", title: "Event attendance" },
-  { key: "booking-utilization", title: "Booking utilization" },
-  { key: "maintenance-activity", title: "Maintenance activity" },
-  { key: "member-activity", title: "Member activity" },
-  { key: "fablab-health", title: "FabLab health" },
-] as const;
-
-type ReportKey = (typeof reportDefinitions)[number]["key"];
-
-type SavedReportView = {
-  id: string; name: string; startDate: string; endDate: string;
-  scope: "all" | `makerspace:${number}`; scopeLabel: string;
-  selectedReport: ReportKey;
-};
-
-const savedViewsStorageKey = "operations-reports-saved-views-v1";
-const exportReports = reportDefinitions.map((report) => report.key).filter((key) => key !== "summary");
-function sourceModule(key: ReportKey) {
-  if (key === "machine-usage" || key === "maintenance-activity") return "machines";
-  if (key === "event-attendance") return "events";
-  if (key === "booking-utilization") return "bookings";
-  return null;
-}
-function isReportKey(value: string): value is ReportKey {
-  return reportDefinitions.some((report) => report.key === value);
-}
-
-function reportTitle(key: ReportKey) {
-  return reportDefinitions.find((report) => report.key === key)?.title ?? key;
-}
-
-function newSavedViewId() {
-  if (typeof crypto !== "undefined" && "randomUUID" in crypto) return crypto.randomUUID();
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function loadSavedReportViews(): SavedReportView[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(savedViewsStorageKey);
-    const parsed = raw ? JSON.parse(raw) : [];
-    if (!Array.isArray(parsed)) return [];
-    return parsed.filter((view): view is SavedReportView => {
-      return Boolean(
-        view &&
-          typeof view.id === "string" &&
-          typeof view.name === "string" &&
-          typeof view.startDate === "string" &&
-          typeof view.endDate === "string" &&
-          typeof view.scope === "string" &&
-          typeof view.scopeLabel === "string" &&
-          typeof view.selectedReport === "string" &&
-          isReportKey(view.selectedReport),
-      );
-    });
-  } catch {
-    return [];
-  }
-}
 
 export function OperationsReports({
   makerspace,
@@ -94,6 +34,7 @@ export function OperationsReports({
   printingOnly = false,
   canViewAudit,
   canManageMachines,
+  canManageMakerspace,
 }: {
   makerspace: Makerspace;
   makerspaces: Makerspace[];
@@ -101,6 +42,7 @@ export function OperationsReports({
   printingOnly?: boolean;
   canViewAudit: boolean;
   canManageMachines: boolean;
+  canManageMakerspace: boolean;
 }) {
   const [allMakerspaces, setAllMakerspaces] = useState(false);
   const [startDate, setStartDate] = useState("");
@@ -125,6 +67,7 @@ export function OperationsReports({
   const currentScope: SavedReportView["scope"] = aggregate ? "all" : `makerspace:${makerspace.id}`;
   const makerspaceName = (id: number) => makerspaces.find((space) => space.id === id)?.name ?? `#${id}`;
   const availableExports = exportReports.filter((key) => {
+    if (key === "payment-reconciliation" && !canManageMakerspace) return false;
     if (!reportsEnabled) return false;
     const module = sourceModule(key);
     if (key === "maintenance-activity" && !aggregate && !(makerspace.enabled_modules ?? []).includes("maintenance")) return false;
@@ -190,7 +133,7 @@ export function OperationsReports({
             <label className="grid gap-1 text-xs text-muted">
               <span>Report</span>
               <select className="desk-input" value={selectedReport} onChange={(event) => setSelectedReport(event.target.value as ReportKey)}>
-                {reportDefinitions.map((report) => (
+                {reportDefinitions.filter((report) => report.key !== "payment-reconciliation" || canManageMakerspace).map((report) => (
                   <option key={report.key} value={report.key}>
                     {report.title}
                   </option>
@@ -287,6 +230,7 @@ export function OperationsReports({
 
       <OperationsReportsHardware analyticsBase={analyticsBase} scopeKey={scopeKey} startDate={startDate} endDate={endDate} enabled={hardwareEnabled} aggregate={aggregate} makerspaceName={makerspaceName} />
       <OperationsReportsMembers makerspaceId={makerspace.id} aggregate={aggregate} startDate={startDate} endDate={endDate} enabled={hardwareEnabled} />
+      {canManageMakerspace ? <OperationsReportsPayments analyticsBase={analyticsBase} scopeKey={scopeKey} startDate={startDate} endDate={endDate} enabled={reportsEnabled} /> : null}
       </>
       ) : null}
 

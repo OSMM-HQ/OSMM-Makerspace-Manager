@@ -1,0 +1,52 @@
+from rest_framework import serializers
+
+from apps.payments.models import Payment
+
+
+class PaymentReconciliationSerializer(serializers.ModelSerializer):
+    subject_label = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Payment
+        fields = (
+            "id",
+            "subject_type",
+            "subject_id",
+            "subject_label",
+            "status",
+            "amount",
+            "currency",
+            "created_at",
+            "updated_at",
+        )
+        read_only_fields = fields
+
+    def get_subject_label(self, payment):
+        if payment.subject_type == Payment.SubjectType.MACHINE_SERVICE_REQUEST:
+            from apps.machines.models import MachineServiceRequest
+
+            return (
+                MachineServiceRequest.objects.filter(pk=payment.subject_id)
+                .values_list("title", flat=True)
+                .first()
+                or "Machine service"
+            )
+        return f"{payment.get_subject_type_display()} #{payment.subject_id}"
+
+
+class PaymentListFilterSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(choices=Payment.Status.choices, required=False)
+    subject_type = serializers.ChoiceField(
+        choices=Payment.SubjectType.choices, required=False
+    )
+
+
+class PaymentBulkActionSerializer(serializers.Serializer):
+    ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1), allow_empty=False
+    )
+
+    def validate_ids(self, value):
+        if len(value) != len(set(value)):
+            raise serializers.ValidationError("Payment IDs must be unique.")
+        return value

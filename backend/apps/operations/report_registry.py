@@ -4,6 +4,8 @@ from typing import Callable
 from django.utils.module_loading import import_string
 from rest_framework.exceptions import APIException
 
+from apps.accounts import rbac
+
 
 @dataclass(frozen=True)
 class ReportResult:
@@ -19,6 +21,7 @@ class ReportDefinition:
     required_modules: tuple[str, ...] = ()
     exportable: bool = True
     summary: bool = False
+    required_action: str = rbac.Action.VIEW_AUDIT
 
     def builder(self) -> Callable:
         return import_string(self.builder_path)
@@ -67,6 +70,12 @@ REPORT_DEFINITIONS = (
         "machines_enabled", "machines_available", "machines_active", "machines_usage_hours",
         "maintenance_enabled", "maintenance_available", "maintenance_logs", "maintenance_total_cost", "maintenance_overdue_schedules",
     )),
+    ReportDefinition(
+        "payment-reconciliation",
+        "apps.operations.reports_payments.build_payment_reconciliation",
+        ("currency", "subject_type", "status", "payment_count", "amount_total", "outstanding_amount"),
+        required_action=rbac.Action.MANAGE_MAKERSPACE,
+    ),
 )
 
 REPORT_REGISTRY = {definition.key: definition for definition in REPORT_DEFINITIONS}

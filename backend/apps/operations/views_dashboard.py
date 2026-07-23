@@ -20,6 +20,7 @@ from apps.inventory.models import InventoryProduct
 from apps.makerspaces.models import Makerspace
 from apps.makerspaces.platform import module_enabled
 from apps.operations.models import StocktakeSession
+from apps.payments.models import Payment
 from apps.warranty.models import Warranty
 
 
@@ -36,6 +37,7 @@ class DashboardSerializer(serializers.Serializer):
     stocktakes_awaiting_approval = serializers.IntegerField(required=False, default=0)
     warranty_expiring = serializers.IntegerField(required=False, default=0)
     maintenance_overdue = serializers.IntegerField(required=False, default=0)
+    pending_payments = serializers.IntegerField(required=False, default=0)
 
 
 @extend_schema(
@@ -69,10 +71,17 @@ class DashboardView(APIView):
             or rbac.can(request.user, rbac.Action.MANAGE_MAKERSPACE, makerspace.id)
         ):
             raise PermissionDenied()
-        return Response(build_dashboard(makerspace))
+        return Response(
+            build_dashboard(
+                makerspace,
+                include_pending_payments=rbac.can(
+                    request.user, rbac.Action.MANAGE_MAKERSPACE, makerspace.id
+                ),
+            )
+        )
 
 
-def build_dashboard(makerspace):
+def build_dashboard(makerspace, *, include_pending_payments=True):
     now = timezone.now()
     today = timezone.localdate()
     counts = {key: 0 for key in DashboardSerializer().fields}
@@ -164,6 +173,16 @@ def build_dashboard(makerspace):
             ).count()
         except Exception:
             pass
+
+    if include_pending_payments:
+        try:
+            counts["pending_payments"] = Payment.objects.filter(
+                makerspace=makerspace, status=Payment.Status.PENDING
+            ).count()
+        except Exception:
+            pass
+    else:
+        counts.pop("pending_payments", None)
 
     return counts
 

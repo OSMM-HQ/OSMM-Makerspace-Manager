@@ -1,0 +1,154 @@
+"""Transactional reconciliation for every payment subject type."""
+
+import logging
+
+from django.db import transaction
+from django.utils import timezone
+from rest_framework.exceptions import APIException, NotFound, PermissionDenied
+
+from apps.accounts import rbac
+from apps.audit import services as audit
+from apps.payments import stripe_client
+from apps.payments.models import Payment
+from apps.payments.resolution import source_for_payment
+
+logger = logging.getLogger(__name__)
+
+SUBJECT_ACTIONS = {
+    Payment.SubjectType.MACHINE_SERVICE_REQUEST: rbac.Action.MANAGE_MACHINES,
+    Payment.SubjectType.BOOKING: rbac.Action.MANAGE_BOOKINGS,
+    Payment.SubjectType.EVENT_REGISTRATION: rbac.Action.MANAGE_EVENTS,
+    Payment.SubjectType.MAKERSPACE_MEMBERSHIP: rbac.Action.MANAGE_MAKERSPACE,
+}
+
+
+class PaymentConflict(APIException):
+    status_code = 409
+
+    def __init__(self, payment_ids):
+        self.detail = {
+            "detail": "Only pending payments can be reconciled.",
+            "code": "payment_terminal",
+            "payment_ids": list(payment_ids),
+        }
+
+
+def list_payments(*, actor, makerspace_id, status=None, subject_type=None):
+    queryset = rbac.scope_by_action(
+        actor,
+        rbac.Action.MANAGE_MAKERSPACE,
+        Payment.objects.select_related("makerspace"),
+        field="makerspace_id",
+    ).filter(makerspace_id=makerspace_id)
+    if status:
+        queryset = queryset.filter(status=status)
+    if subject_type:
+        queryset = queryset.filter(subject_type=subject_type)
+    return queryset.order_by("-created_at", "-pk")
+
+
+def mark_offline(payment, actor):
+    return _compat_reconcile(
+        actor=actor,
+        payment=payment,
+        target_status=Payment.Status.PAID_OFFLINE,
+    )
+
+
+def waive(payment, actor):
+    return _compat_reconcile(
+        actor=actor,
+        payment=payment,
+        target_status=Payment.Status.WAIVED,
+    )
+
+
+def _compat_reconcile(*, payment, actor, target_status):
+    current = Payment.objects.get(pk=payment.pk)
+    if current.status != Payment.Status.PENDING:
+        return current
+    return reconcile_payments(
+        actor=actor,
+        makerspace_id=current.makerspace_id,
+        payment_ids=[current.pk],
+        target_status=target_status,
+    )[0]
+
+
+@transaction.atomic
+def reconcile_payments(*, actor, makerspace_id, payment_ids, target_status):
+    """Lock, validate, then reconcile a batch without partial mutations."""
+    if target_status not in {Payment.Status.PAID_OFFLINE, Payment.Status.WAIVED}:
+        raise ValueError("Unsupported reconciliation status.")
+
+    requested_ids = list(payment_ids)
+    locked = list(
+        Payment.objects.select_for_update()
+        .select_related("makerspace")
+        .filter(makerspace_id=makerspace_id, pk__in=requested_ids)
+        .order_by("pk")
+    )
+    by_id = {payment.pk: payment for payment in locked}
+    if len(by_id) != len(requested_ids):
+        raise NotFound("Payment not found.")
+
+    _require_subject_authority(actor, locked)
+    terminal_ids = [payment.pk for payment in locked if payment.status != Payment.Status.PENDING]
+    if terminal_ids:
+        raise PaymentConflict(terminal_ids)
+
+    action = (
+        "payment.paid_offline"
+        if target_status == Payment.Status.PAID_OFFLINE
+        else "payment.waived"
+    )
+    for payment in locked:
+        _expire_checkout_best_effort(payment)
+        payment.status = target_status
+        payment.save(
+            update_fields=[
+                "status",
+                "stripe_checkout_session_expired_at",
+                "updated_at",
+            ]
+        )
+        audit.record(actor, action, makerspace=payment.makerspace, target=payment)
+    return [by_id[payment_id] for payment_id in requested_ids]
+
+
+def _require_subject_authority(actor, payments):
+    for subject_type, action in SUBJECT_ACTIONS.items():
+        ids = [payment.pk for payment in payments if payment.subject_type == subject_type]
+        if not ids:
+            continue
+        visible = set(
+            rbac.scope_by_action(
+                actor,
+                action,
+                Payment.objects.filter(pk__in=ids),
+                field="makerspace_id",
+            ).values_list("pk", flat=True)
+        )
+        if visible != set(ids):
+            raise PermissionDenied("Payment action is not permitted.")
+    if any(payment.subject_type not in SUBJECT_ACTIONS for payment in payments):
+        raise PermissionDenied("Payment subject type is not supported.")
+
+
+def _expire_checkout_best_effort(payment):
+    if not payment.stripe_checkout_session_id or payment.stripe_checkout_session_expired_at:
+        return
+    try:
+        source = source_for_payment(payment)
+        if source is None:
+            raise stripe_client.PaymentsUnavailable(
+                "The payment's Stripe source is no longer configured."
+            )
+        if stripe_client.expire_checkout_session(
+            source, payment.stripe_checkout_session_id
+        ):
+            payment.stripe_checkout_session_expired_at = timezone.now()
+    except Exception:
+        logger.exception(
+            "payment_checkout_expiry_failed", extra={"payment_id": payment.pk}
+        )

@@ -317,6 +317,7 @@
                                 "maintenance-activity",
                                 "member-activity",
                                 "most-lent",
+                                "payment-reconciliation",
                                 "printer-service",
                                 "qr-scans",
                                 "recently-added",
@@ -334,6 +335,33 @@
                         "schema": {
                             "type": "string",
                             "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
                         }
                     }
                 ],
@@ -6496,6 +6524,33 @@
                             "type": "string",
                             "format": "date"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
+                        }
                     }
                 ],
                 "tags": [
@@ -6594,6 +6649,33 @@
                         "schema": {
                             "type": "string",
                             "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
                         }
                     }
                 ],
@@ -6694,6 +6776,33 @@
                             "type": "string",
                             "format": "date"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
+                        }
                     }
                 ],
                 "tags": [
@@ -6792,6 +6901,33 @@
                         "schema": {
                             "type": "string",
                             "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
                         }
                     }
                 ],
@@ -6892,6 +7028,33 @@
                             "type": "string",
                             "format": "date"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
+                        }
                     }
                 ],
                 "tags": [
@@ -6990,6 +7153,33 @@
                         "schema": {
                             "type": "string",
                             "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
                         }
                     }
                 ],
@@ -7090,6 +7280,33 @@
                             "type": "string",
                             "format": "date"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
+                        }
                     }
                 ],
                 "tags": [
@@ -7188,6 +7405,33 @@
                         "schema": {
                             "type": "string",
                             "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
                         }
                     }
                 ],
@@ -7288,6 +7532,33 @@
                             "type": "string",
                             "format": "date"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
+                        }
                     }
                 ],
                 "tags": [
@@ -7386,6 +7657,159 @@
                         "schema": {
                             "type": "string",
                             "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
+                        }
+                    }
+                ],
+                "tags": [
+                    "Analytics"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/AnalyticsReportResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportError"
+                                }
+                            }
+                        },
+                        "description": "Invalid report request."
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportError"
+                                }
+                            }
+                        },
+                        "description": "Authentication required."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportError"
+                                }
+                            }
+                        },
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/ReportError"
+                                }
+                            }
+                        },
+                        "description": "Makerspace or report not found."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/analytics/payment-reconciliation": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_analytics_payment_reconciliation_retrieve",
+                "summary": "Get analytics report",
+                "parameters": [
+                    {
+                        "in": "query",
+                        "name": "end",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "limit",
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "start",
+                        "schema": {
+                            "type": "string",
+                            "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
                         }
                     }
                 ],
@@ -7486,6 +7910,33 @@
                             "type": "string",
                             "format": "date"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
+                        }
                     }
                 ],
                 "tags": [
@@ -7584,6 +8035,33 @@
                         "schema": {
                             "type": "string",
                             "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
                         }
                     }
                 ],
@@ -7684,6 +8162,33 @@
                             "type": "string",
                             "format": "date"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
+                        }
                     }
                 ],
                 "tags": [
@@ -7782,6 +8287,33 @@
                         "schema": {
                             "type": "string",
                             "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
                         }
                     }
                 ],
@@ -7882,6 +8414,33 @@
                             "type": "string",
                             "format": "date"
                         }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
+                        }
                     }
                 ],
                 "tags": [
@@ -7980,6 +8539,33 @@
                         "schema": {
                             "type": "string",
                             "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
                         }
                     }
                 ],
@@ -11036,6 +11622,478 @@
                 }
             }
         },
+        "/api/v1/admin/makerspace/{makerspace_id}/payments": {
+            "get": {
+                "operationId": "api_v1_admin_makerspace_payments_list",
+                "summary": "List makerspace payments for reconciliation",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
+                        }
+                    }
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PaymentReconciliation"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid payment request."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Payment or makerspace not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Payment is already terminal."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/payments/{payment_id}/mark-offline": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_payments_mark_offline_create",
+                "summary": "Mark a payment paid offline",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "payment_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentReconciliation"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid payment request."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Payment or makerspace not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Payment is already terminal."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/payments/{payment_id}/waive": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_payments_waive_create",
+                "summary": "Waive a payment",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "payment_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PaymentReconciliation"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid payment request."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Payment or makerspace not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Payment is already terminal."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/payments/bulk/mark-offline": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_payments_bulk_mark_offline_create",
+                "summary": "Mark payments paid offline in one transaction",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PaymentBulkAction"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PaymentBulkAction"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PaymentBulkAction"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PaymentReconciliation"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid payment request."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Payment or makerspace not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Payment is already terminal."
+                    }
+                }
+            }
+        },
+        "/api/v1/admin/makerspace/{makerspace_id}/payments/bulk/waive": {
+            "post": {
+                "operationId": "api_v1_admin_makerspace_payments_bulk_waive_create",
+                "summary": "Waive payments in one transaction",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PaymentBulkAction"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PaymentBulkAction"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PaymentBulkAction"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/PaymentReconciliation"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Invalid payment request."
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Permission denied."
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Payment or makerspace not found."
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": "Payment is already terminal."
+                    }
+                }
+            }
+        },
         "/api/v1/admin/makerspace/{makerspace_id}/pending-requests": {
             "get": {
                 "operationId": "api_v1_admin_makerspace_pending_requests_list",
@@ -11520,6 +12578,7 @@
                                 "maintenance-activity",
                                 "member-activity",
                                 "most-lent",
+                                "payment-reconciliation",
                                 "printer-service",
                                 "qr-scans",
                                 "recently-added",
@@ -11537,6 +12596,33 @@
                         "schema": {
                             "type": "string",
                             "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
                         }
                     }
                 ],
@@ -16165,6 +17251,7 @@
                                 "maintenance-activity",
                                 "member-activity",
                                 "most-lent",
+                                "payment-reconciliation",
                                 "printer-service",
                                 "qr-scans",
                                 "recently-added",
@@ -16182,6 +17269,33 @@
                         "schema": {
                             "type": "string",
                             "format": "date"
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "status",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "canceled",
+                                "paid_offline",
+                                "paid_online",
+                                "pending",
+                                "waived"
+                            ]
+                        }
+                    },
+                    {
+                        "in": "query",
+                        "name": "subject_type",
+                        "schema": {
+                            "type": "string",
+                            "enum": [
+                                "booking",
+                                "event_registration",
+                                "machine_service_request",
+                                "makerspace_membership"
+                            ]
                         }
                     }
                 ],
@@ -24328,6 +25442,9 @@
                     },
                     {
                         "$ref": "#/components/schemas/FabLabHealthReport"
+                    },
+                    {
+                        "$ref": "#/components/schemas/PaymentReconciliationReport"
                     }
                 ]
             },
@@ -26198,6 +27315,10 @@
                         "default": 0
                     },
                     "maintenance_overdue": {
+                        "type": "integer",
+                        "default": 0
+                    },
+                    "pending_payments": {
                         "type": "integer",
                         "default": 0
                     }
@@ -34014,6 +35135,145 @@
                     }
                 }
             },
+            "PaymentBulkAction": {
+                "type": "object",
+                "properties": {
+                    "ids": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer",
+                            "minimum": 1
+                        }
+                    }
+                },
+                "required": [
+                    "ids"
+                ]
+            },
+            "PaymentReconciliation": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "subject_type": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/SubjectTypeEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "subject_id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "subject_label": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Status66aEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "amount": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "currency": {
+                        "type": "string",
+                        "readOnly": true
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "amount",
+                    "created_at",
+                    "currency",
+                    "id",
+                    "status",
+                    "subject_id",
+                    "subject_label",
+                    "subject_type",
+                    "updated_at"
+                ]
+            },
+            "PaymentReconciliationReport": {
+                "type": "object",
+                "properties": {
+                    "rows": {
+                        "type": "array",
+                        "items": {
+                            "type": "array",
+                            "items": {}
+                        }
+                    },
+                    "typed_rows": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/PaymentReconciliationReportRow"
+                        }
+                    }
+                },
+                "required": [
+                    "rows",
+                    "typed_rows"
+                ]
+            },
+            "PaymentReconciliationReportRow": {
+                "type": "object",
+                "properties": {
+                    "makerspace_id": {
+                        "type": "integer"
+                    },
+                    "currency": {
+                        "type": "string"
+                    },
+                    "subject_type": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "payment_count": {
+                        "type": "integer"
+                    },
+                    "amount_total": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,18}(?:\\.\\d{0,2})?$"
+                    },
+                    "outstanding_amount": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,18}(?:\\.\\d{0,2})?$"
+                    }
+                },
+                "required": [
+                    "amount_total",
+                    "currency",
+                    "outstanding_amount",
+                    "payment_count",
+                    "status",
+                    "subject_type"
+                ]
+            },
             "PaymentSettingsError": {
                 "type": "object",
                 "properties": {
@@ -38183,10 +39443,13 @@
             },
             "SubjectTypeEnum": {
                 "enum": [
-                    "machine_service_request"
+                    "machine_service_request",
+                    "booking",
+                    "event_registration",
+                    "makerspace_membership"
                 ],
                 "type": "string",
-                "description": "* `machine_service_request` - Machine service request"
+                "description": "* `machine_service_request` - Machine service request\n* `booking` - Booking\n* `event_registration` - Event registration\n* `makerspace_membership` - Makerspace membership"
             },
             "TakenItemsReport": {
                 "type": "object",

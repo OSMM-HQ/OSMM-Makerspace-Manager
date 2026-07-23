@@ -1,11 +1,8 @@
-"""Payment mutation and Stripe reconciliation boundary."""
+"""Payment checkout boundary and compatibility exports."""
 
 import logging
 from decimal import Decimal, ROUND_HALF_UP
 from django.db import transaction
-from django.utils import timezone
-
-from apps.audit import services as audit
 from apps.makerspaces.platform import member_area_url
 from apps.payments import stripe_client
 from apps.payments.connect import refresh_connected_account, restrict_account_status
@@ -160,44 +157,6 @@ def _create_checkout_url_atomic(payment_id):
         return checkout_url
 
 
-def mark_offline(payment, actor):
-    return _reconcile(payment, actor, Payment.Status.PAID_OFFLINE, "payment.paid_offline")
-
-
-def waive(payment, actor):
-    return _reconcile(payment, actor, Payment.Status.WAIVED, "payment.waived")
-
-
-def _reconcile(payment, actor, status, action):
-    with transaction.atomic():
-        locked = Payment.objects.select_for_update().get(pk=payment.pk)
-        if locked.status == Payment.Status.PENDING:
-            if locked.stripe_checkout_session_id:
-                try:
-                    expiry_source = source_for_payment(locked)
-                    if expiry_source is None:
-                        raise stripe_client.PaymentsUnavailable(
-                            "The payment's Stripe source is no longer configured."
-                        )
-                    expiry_succeeded = stripe_client.expire_checkout_session(
-                        expiry_source, locked.stripe_checkout_session_id
-                    )
-                    if expiry_succeeded:
-                        locked.stripe_checkout_session_expired_at = timezone.now()
-                except Exception:
-                    logger.exception("payment_checkout_expiry_failed", extra={"payment_id": locked.pk})
-            locked.status = status
-            locked.save(
-                update_fields=[
-                    "status",
-                    "stripe_checkout_session_expired_at",
-                    "updated_at",
-                ]
-            )
-            audit.record(actor, action, makerspace=locked.makerspace, target=locked)
-        return locked
-
-
 def _value(value, key):
     return value.get(key) if isinstance(value, dict) else getattr(value, key, None)
 
@@ -218,3 +177,7 @@ def _checkout_idempotency_key(payment):
             payment.stripe_checkout_session_expired_at.timestamp() * 1_000_000
         )
     return f"payment-checkout-{payment.pk}-{generation}"
+
+
+# Compatibility imports for established machine-service callers.
+from apps.payments.reconciliation import mark_offline, waive  # noqa: E402

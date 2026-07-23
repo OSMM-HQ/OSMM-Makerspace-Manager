@@ -7,6 +7,9 @@ from apps.payments.models_settings import currency_validator
 class Payment(models.Model):
     class SubjectType(models.TextChoices):
         MACHINE_SERVICE_REQUEST = "machine_service_request", "Machine service request"
+        BOOKING = "booking", "Booking"
+        EVENT_REGISTRATION = "event_registration", "Event registration"
+        MAKERSPACE_MEMBERSHIP = "makerspace_membership", "Makerspace membership"
 
     class Status(models.TextChoices):
         PENDING = "pending", "Pending"

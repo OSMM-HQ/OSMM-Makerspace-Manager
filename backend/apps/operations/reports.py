@@ -17,12 +17,16 @@ DEFAULT_REPORT_LIMIT = 100
 MAX_REPORT_LIMIT = 500
 
 
-def report_data(report_key="summary", makerspace_id=None, *, limit=None, date_range=None):
+def report_data(
+    report_key="summary", makerspace_id=None, *, limit=None, date_range=None,
+    report_filters=None,
+):
     definition = report_definition(report_key)
     result = definition.builder()(
         makerspace_id,
         limit=_normalized_limit(limit),
         date_range=date_range,
+        **(report_filters or {}),
     )
     if definition.summary:
         return result
@@ -32,9 +36,14 @@ def report_data(report_key="summary", makerspace_id=None, *, limit=None, date_ra
     return {"rows": rows, "typed_rows": typed_result_rows(result, json_value)}
 
 
-def report_rows(report_key, makerspace_id=None, *, limit=None, date_range=None):
+def report_rows(
+    report_key, makerspace_id=None, *, limit=None, date_range=None,
+    report_filters=None,
+):
     definition = report_definition(report_key, for_export=True)
-    result = definition.builder()(makerspace_id, limit=limit, date_range=date_range)
+    result = definition.builder()(
+        makerspace_id, limit=limit, date_range=date_range, **(report_filters or {})
+    )
     if isinstance(result, ReportResult):
         return _matrix(result, json=False)
     return result

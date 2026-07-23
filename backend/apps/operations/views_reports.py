@@ -18,15 +18,22 @@ from apps.operations.report_exports import _csv_response, _xlsx_cell, _xlsx_resp
 from apps.operations.schemas_reports import ANALYTICS_REPORT_RESPONSE
 from apps.operations.serializers import EmptySerializer, GenericObjectSerializer
 from apps.operations.serializers_reports import ReportErrorSerializer
+from apps.operations.serializers_reports_payments import PaymentReportFilterSerializer
+from apps.payments.models import Payment
 
 
 DATE_RANGE_PARAMETERS = [
     OpenApiParameter("start", OpenApiTypes.DATE, OpenApiParameter.QUERY),
     OpenApiParameter("end", OpenApiTypes.DATE, OpenApiParameter.QUERY),
 ]
+PAYMENT_FILTER_PARAMETERS = [
+    OpenApiParameter("status", OpenApiTypes.STR, OpenApiParameter.QUERY, enum=Payment.Status.values),
+    OpenApiParameter("subject_type", OpenApiTypes.STR, OpenApiParameter.QUERY, enum=Payment.SubjectType.values),
+]
 PREVIEW_PARAMETERS = [
     OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY),
     *DATE_RANGE_PARAMETERS,
+    *PAYMENT_FILTER_PARAMETERS,
 ]
 ERROR_RESPONSES = {
     400: OpenApiResponse(ReportErrorSerializer, description="Invalid report request."),
@@ -51,14 +58,17 @@ class AnalyticsView(APIView):
         responses={200: ANALYTICS_REPORT_RESPONSE, **ERROR_RESPONSES},
     )
     def get(self, request, makerspace_id, report_key="summary", *args, **kwargs):
-        makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
-        require_action(request.user, rbac.Action.VIEW_AUDIT, makerspace.id)
-        require_module(makerspace, "reports")
         definition = reports.validate_report_key(report_key)
+        makerspace = _makerspace_for_inventory_view(
+            request.user, makerspace_id, definition.required_action
+        )
+        require_action(request.user, definition.required_action, makerspace.id)
+        require_module(makerspace, "reports")
         _require_source_modules(makerspace, definition.required_modules)
         return Response(reports.report_data(
             report_key, makerspace.id,
             limit=_limit_param(request), date_range=_date_range(request),
+            report_filters=_report_filters(request, report_key),
         ))
 
 
@@ -94,6 +104,7 @@ class AggregateAnalyticsView(APIView):
         reports.validate_report_key(report_key)
         return Response(reports.report_data(
             report_key, limit=_limit_param(request), date_range=_date_range(request),
+            report_filters=_report_filters(request, report_key),
         ))
 
 
@@ -107,17 +118,23 @@ class ReportExportView(APIView):
             OpenApiParameter("report_key", OpenApiTypes.STR, OpenApiParameter.PATH, enum=reports.REPORT_KEYS),
             OpenApiParameter("format", OpenApiTypes.STR, OpenApiParameter.QUERY, enum=["csv", "xlsx"]),
             *DATE_RANGE_PARAMETERS,
+            *PAYMENT_FILTER_PARAMETERS,
         ],
         responses=EXPORT_RESPONSES,
     )
     def get(self, request, makerspace_id, report_key, *args, **kwargs):
-        makerspace = _makerspace_for_inventory_view(request.user, makerspace_id)
-        require_action(request.user, rbac.Action.VIEW_AUDIT, makerspace.id)
-        require_module(makerspace, "reports")
         definition = reports.validate_report_key(report_key, for_export=True)
+        makerspace = _makerspace_for_inventory_view(
+            request.user, makerspace_id, definition.required_action
+        )
+        require_action(request.user, definition.required_action, makerspace.id)
+        require_module(makerspace, "reports")
         _require_source_modules(makerspace, definition.required_modules)
         fmt = _export_format(request)
-        rows = reports.report_rows(report_key, makerspace.id, date_range=_date_range(request))
+        rows = reports.report_rows(
+            report_key, makerspace.id, date_range=_date_range(request),
+            report_filters=_report_filters(request, report_key),
+        )
         return _xlsx_response(rows, f"{report_key}.xlsx") if fmt == "xlsx" else _csv_response(rows, f"{report_key}.csv")
 
 
@@ -131,6 +148,7 @@ class AggregateReportExportView(APIView):
             OpenApiParameter("report_key", OpenApiTypes.STR, OpenApiParameter.PATH, enum=reports.REPORT_KEYS),
             OpenApiParameter("format", OpenApiTypes.STR, OpenApiParameter.QUERY, enum=["csv", "xlsx"]),
             *DATE_RANGE_PARAMETERS,
+            *PAYMENT_FILTER_PARAMETERS,
         ],
         responses=EXPORT_RESPONSES,
     )
@@ -138,7 +156,10 @@ class AggregateReportExportView(APIView):
         _require_superadmin(request.user)
         reports.validate_report_key(report_key, for_export=True)
         fmt = _export_format(request)
-        rows = reports.report_rows(report_key, date_range=_date_range(request))
+        rows = reports.report_rows(
+            report_key, date_range=_date_range(request),
+            report_filters=_report_filters(request, report_key),
+        )
         return _xlsx_response(rows, f"{report_key}.xlsx") if fmt == "xlsx" else _csv_response(rows, f"{report_key}.csv")
 
 
@@ -175,8 +196,8 @@ def _date_param(request, name):
     return parsed
 
 
-def _makerspace_for_inventory_view(user, makerspace_id):
-    queryset = rbac.scope_by_action(user, rbac.Action.VIEW_INVENTORY, Makerspace.objects.all(), field="id")
+def _makerspace_for_inventory_view(user, makerspace_id, action=rbac.Action.VIEW_AUDIT):
+    queryset = rbac.scope_by_action(user, action, Makerspace.objects.all(), field="id")
     queryset = rbac.hide_from_superadmin(user, queryset, field="id")
     return get_object_or_404(queryset, pk=makerspace_id)
 
@@ -210,3 +231,11 @@ def _page_params(request):
 
 def _limit_param(request):
     return _positive_int_param(request, "limit", reports.DEFAULT_REPORT_LIMIT, reports.MAX_REPORT_LIMIT)
+
+
+def _report_filters(request, report_key):
+    if report_key != "payment-reconciliation":
+        return {}
+    serializer = PaymentReportFilterSerializer(data=request.query_params)
+    serializer.is_valid(raise_exception=True)
+    return serializer.validated_data
