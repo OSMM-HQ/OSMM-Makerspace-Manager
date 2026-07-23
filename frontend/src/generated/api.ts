@@ -801,7 +801,7 @@ export type BulkImportJob = {
 
 export type BulkImportJobCreate = {
   "mode": Mode087Enum;
-  "file"?: string;
+  "file"?: string | null;
   "rows"?: Array<{
   [key: string]: unknown;
 }>;
@@ -811,7 +811,7 @@ export type BulkImportJobCreate = {
 export type BulkImportJobStatusEnum = "pending" | "running" | "completed" | "failed";
 
 export type BulkImportPreview = {
-  "file"?: string;
+  "file"?: string | null;
   "rows"?: Array<{
   [key: string]: unknown;
 }>;
@@ -1689,13 +1689,13 @@ export type Machine = {
   "warranty_status": string;
   "is_public": boolean;
   "is_active": boolean;
-  "usage_hours": string;
-  "can_operate": string;
-  "can_edit": string;
-  "can_delegate": string;
-  "can_retire": string;
-  "can_unretire": string;
-  "can_manage": string;
+  "usage_hours": number;
+  "can_operate": boolean;
+  "can_edit": boolean;
+  "can_delegate": boolean;
+  "can_retire": boolean;
+  "can_unretire": boolean;
+  "can_manage": boolean;
   "created_at": string;
   "updated_at": string;
 };
@@ -2803,13 +2803,13 @@ export type PatchedMachine = {
   "warranty_status"?: string;
   "is_public"?: boolean;
   "is_active"?: boolean;
-  "usage_hours"?: string;
-  "can_operate"?: string;
-  "can_edit"?: string;
-  "can_delegate"?: string;
-  "can_retire"?: string;
-  "can_unretire"?: string;
-  "can_manage"?: string;
+  "usage_hours"?: number;
+  "can_operate"?: boolean;
+  "can_edit"?: boolean;
+  "can_delegate"?: boolean;
+  "can_retire"?: boolean;
+  "can_unretire"?: boolean;
+  "can_manage"?: boolean;
   "created_at"?: string;
   "updated_at"?: string;
 };

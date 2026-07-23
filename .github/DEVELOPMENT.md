@@ -9,8 +9,8 @@ bundles everything, so these only matter when you run the backend/frontend direc
 ## 0. Get the code
 
 ```bash
-git clone https://github.com/SpaceWorks-HQ/Space Works-Makerspace-Manager.git
-cd Space Works-Makerspace-Manager
+git clone https://github.com/SpaceWorks-HQ/SpaceWorks.git
+cd SpaceWorks
 ```
 
 ## 1. Database
@@ -68,14 +68,15 @@ cd backend && pytest
 
 ## Cutting a release (maintainers)
 
-Releases are driven straight from `main` — **Docker images only, no GitHub Release, no source zip**:
+Releases are driven straight from `main` and publish Docker images plus a tagged GitHub Release:
 
 1. Bump the root **`VERSION`** file to the new semantic version, e.g. `1.0.0`.
 2. Commit and push to `main`.
 
 Changing `VERSION` on `main` triggers `.github/workflows/release.yml`, which validates the version
-and publishes `:X.Y.Z`, `:X.Y`, and `:latest` for both `spaceworks-backend` and `spaceworks-frontend`. That is the
-**only** thing that publishes images — an ordinary push to `main` (no `VERSION` change) builds nothing.
+and publishes `:X.Y.Z`, `:X.Y`, and `:latest` for both `spaceworks-backend` and `spaceworks-frontend`.
+After the images succeed, it creates the `vX.Y.Z` tag and GitHub Release with generated release notes.
+An ordinary push to `main` without a `VERSION` change does not publish a release.
 
 > One-time org setup: the `spaceworks-backend` and `spaceworks-frontend` GHCR packages must be set to **Public**
 > (org → Packages → each package → visibility) so anyone can `docker compose pull` without logging in.

@@ -15,7 +15,7 @@ export function SiteFooter() {
           </Link>
           <a
             className="hover:text-ink"
-            href="https://github.com/SpaceWorks-HQ/Space Works-Makerspace-Manager/blob/main/LICENSE"
+            href="https://github.com/SpaceWorks-HQ/SpaceWorks/blob/main/LICENSE"
             target="_blank"
             rel="noreferrer"
           >

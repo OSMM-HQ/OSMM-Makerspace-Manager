@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="LICENSE"><img alt="License: AGPL-3.0-or-later" src="https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg"></a>
-  <a href="https://github.com/SpaceWorks-HQ/Space Works-Makerspace-Manager/actions/workflows/release.yml"><img alt="Release" src="https://github.com/SpaceWorks-HQ/Space Works-Makerspace-Manager/actions/workflows/release.yml/badge.svg"></a>
+  <a href="https://github.com/SpaceWorks-HQ/SpaceWorks/actions/workflows/release.yml"><img alt="Release" src="https://github.com/SpaceWorks-HQ/SpaceWorks/actions/workflows/release.yml/badge.svg"></a>
   <img alt="Stack" src="https://img.shields.io/badge/stack-Django%206%20%C2%B7%20React%2019-0b7285.svg">
   <a href=".github/CONTRIBUTING.md"><img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg"></a>
 </p>
@@ -52,8 +52,8 @@ in any addresses; the compose file passes them in). Pick one path:
 `.env`, builds everything, and creates your first admin + makerspace:
 
 ```bash
-git clone https://github.com/SpaceWorks-HQ/Space Works-Makerspace-Manager.git
-cd Space Works-Makerspace-Manager
+git clone https://github.com/SpaceWorks-HQ/SpaceWorks.git
+cd SpaceWorks
 bash setup.sh                                          # macOS / Linux
 powershell -ExecutionPolicy Bypass -File setup.ps1     # Windows
 ```
@@ -159,9 +159,9 @@ corresponding source code of your modified version under the same license.
 
 Thanks to **everyone** who has contributed to Space Works — code, docs, bug reports, or running it at their
 space. The wall below is pulled live from this repository's
-[GitHub contributor graph](https://github.com/SpaceWorks-HQ/Space Works-Makerspace-Manager/graphs/contributors) and
+[GitHub contributor graph](https://github.com/SpaceWorks-HQ/SpaceWorks/graphs/contributors) and
 shows **all** contributors — bots and automation included, no filtering:
 
-[![Contributors](https://contrib.rocks/image?repo=SpaceWorks-HQ/Space Works-Makerspace-Manager&max=100)](https://github.com/SpaceWorks-HQ/Space Works-Makerspace-Manager/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=SpaceWorks-HQ/SpaceWorks&max=100)](https://github.com/SpaceWorks-HQ/SpaceWorks/graphs/contributors)
 
 <sub>Contributor image by [contrib.rocks](https://contrib.rocks).</sub>

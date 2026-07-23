@@ -45,7 +45,7 @@ export function AboutPage() {
             Space Works is free and open source software, licensed under the{" "}
             <a
               className="underline hover:text-ink"
-              href="https://github.com/SpaceWorks-HQ/Space Works-Makerspace-Manager/blob/main/LICENSE"
+              href="https://github.com/SpaceWorks-HQ/SpaceWorks/blob/main/LICENSE"
               target="_blank"
               rel="noreferrer"
             >

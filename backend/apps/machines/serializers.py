@@ -208,7 +208,7 @@ class MachineSerializer(serializers.ModelSerializer):
             'updated_at',
         ]
 
-    def get_usage_hours(self, obj):
+    def get_usage_hours(self, obj) -> Decimal:
         if hasattr(obj, 'usage_total'):
             return obj.usage_total
         return services.machine_usage_total(obj)
@@ -262,22 +262,22 @@ class MachineSerializer(serializers.ModelSerializer):
         self._capability_cache = cache
         return capabilities
 
-    def get_can_operate(self, obj):
+    def get_can_operate(self, obj) -> bool:
         return self._capabilities(obj)['can_operate']
 
-    def get_can_edit(self, obj):
+    def get_can_edit(self, obj) -> bool:
         return self._capabilities(obj)['can_edit']
 
-    def get_can_delegate(self, obj):
+    def get_can_delegate(self, obj) -> bool:
         return self._capabilities(obj)['can_delegate']
 
-    def get_can_retire(self, obj):
+    def get_can_retire(self, obj) -> bool:
         return self._capabilities(obj)['can_retire']
 
-    def get_can_unretire(self, obj):
+    def get_can_unretire(self, obj) -> bool:
         return self._capabilities(obj)['can_unretire']
 
-    def get_can_manage(self, obj):
+    def get_can_manage(self, obj) -> bool:
         return self._capabilities(obj)['can_edit']
 
 

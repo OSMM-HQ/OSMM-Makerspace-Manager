@@ -26757,9 +26757,17 @@
                         "type": "boolean"
                     },
                     "smtp_from_email": {
-                        "type": "string",
-                        "format": "email",
-                        "maxLength": 254
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "email",
+                                "maxLength": 254
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "slack_webhook_url": {
                         "type": "string",
@@ -27802,7 +27810,8 @@
                     },
                     "file": {
                         "type": "string",
-                        "format": "uri"
+                        "format": "uri",
+                        "nullable": true
                     },
                     "rows": {
                         "type": "array",
@@ -27833,7 +27842,8 @@
                 "properties": {
                     "file": {
                         "type": "string",
-                        "format": "uri"
+                        "format": "uri",
+                        "nullable": true
                     },
                     "rows": {
                         "type": "array",
@@ -27894,8 +27904,16 @@
                         "maxLength": 100
                     },
                     "slug": {
-                        "type": "string",
-                        "pattern": "^[-a-zA-Z0-9_]+$"
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "pattern": "^[-a-zA-Z0-9_]+$"
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "display_order": {
                         "type": "integer",
@@ -31205,9 +31223,17 @@
                         "maxLength": 100
                     },
                     "camera_feed_url": {
-                        "type": "string",
-                        "format": "uri",
-                        "maxLength": 200
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "uri",
+                                "maxLength": 200
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "type_payload": {},
                     "image_url": {
@@ -31228,31 +31254,32 @@
                         "readOnly": true
                     },
                     "usage_hours": {
-                        "type": "string",
+                        "type": "number",
+                        "format": "double",
                         "readOnly": true
                     },
                     "can_operate": {
-                        "type": "string",
+                        "type": "boolean",
                         "readOnly": true
                     },
                     "can_edit": {
-                        "type": "string",
+                        "type": "boolean",
                         "readOnly": true
                     },
                     "can_delegate": {
-                        "type": "string",
+                        "type": "boolean",
                         "readOnly": true
                     },
                     "can_retire": {
-                        "type": "string",
+                        "type": "boolean",
                         "readOnly": true
                     },
                     "can_unretire": {
-                        "type": "string",
+                        "type": "boolean",
                         "readOnly": true
                     },
                     "can_manage": {
-                        "type": "string",
+                        "type": "boolean",
                         "readOnly": true
                     },
                     "created_at": {
@@ -32018,15 +32045,31 @@
                         "type": "string"
                     },
                     "source_link": {
-                        "type": "string",
-                        "format": "uri"
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "uri"
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "requester_name": {
                         "type": "string"
                     },
                     "contact_email": {
-                        "type": "string",
-                        "format": "email"
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "email"
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "contact_phone": {
                         "type": "string",
@@ -32766,9 +32809,17 @@
                         "maxLength": 200
                     },
                     "map_url": {
-                        "type": "string",
-                        "format": "uri",
-                        "maxLength": 200
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "uri",
+                                "maxLength": 200
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "geofence_latitude": {
                         "type": "string",
@@ -32953,9 +33004,17 @@
                         "type": "boolean"
                     },
                     "smtp_from_email": {
-                        "type": "string",
-                        "format": "email",
-                        "maxLength": 254
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "email",
+                                "maxLength": 254
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "slack_webhook_url": {
                         "type": "string",
@@ -33517,9 +33576,17 @@
                         "maxLength": 150
                     },
                     "email": {
-                        "type": "string",
-                        "format": "email",
-                        "maxLength": 254
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "email",
+                                "maxLength": 254
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "first_name": {
                         "type": "string",
@@ -34333,9 +34400,17 @@
                         "readOnly": true
                     },
                     "email": {
-                        "type": "string",
-                        "format": "email",
-                        "readOnly": true
+                        "readOnly": true,
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "email"
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "role": {
                         "type": "string",
@@ -35332,9 +35407,17 @@
                         "type": "boolean"
                     },
                     "smtp_from_email": {
-                        "type": "string",
-                        "format": "email",
-                        "maxLength": 254
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "email",
+                                "maxLength": 254
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "slack_webhook_url": {
                         "type": "string",
@@ -35522,8 +35605,16 @@
                         "maxLength": 100
                     },
                     "slug": {
-                        "type": "string",
-                        "pattern": "^[-a-zA-Z0-9_]+$"
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "pattern": "^[-a-zA-Z0-9_]+$"
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "display_order": {
                         "type": "integer",
@@ -35789,9 +35880,17 @@
                         "maxLength": 100
                     },
                     "camera_feed_url": {
-                        "type": "string",
-                        "format": "uri",
-                        "maxLength": 200
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "uri",
+                                "maxLength": 200
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "type_payload": {},
                     "image_url": {
@@ -35812,31 +35911,32 @@
                         "readOnly": true
                     },
                     "usage_hours": {
-                        "type": "string",
+                        "type": "number",
+                        "format": "double",
                         "readOnly": true
                     },
                     "can_operate": {
-                        "type": "string",
+                        "type": "boolean",
                         "readOnly": true
                     },
                     "can_edit": {
-                        "type": "string",
+                        "type": "boolean",
                         "readOnly": true
                     },
                     "can_delegate": {
-                        "type": "string",
+                        "type": "boolean",
                         "readOnly": true
                     },
                     "can_retire": {
-                        "type": "string",
+                        "type": "boolean",
                         "readOnly": true
                     },
                     "can_unretire": {
-                        "type": "string",
+                        "type": "boolean",
                         "readOnly": true
                     },
                     "can_manage": {
-                        "type": "string",
+                        "type": "boolean",
                         "readOnly": true
                     },
                     "created_at": {
@@ -35915,9 +36015,17 @@
                         "maxLength": 200
                     },
                     "map_url": {
-                        "type": "string",
-                        "format": "uri",
-                        "maxLength": 200
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "uri",
+                                "maxLength": 200
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "geofence_latitude": {
                         "type": "string",
@@ -36102,9 +36210,17 @@
                         "type": "boolean"
                     },
                     "smtp_from_email": {
-                        "type": "string",
-                        "format": "email",
-                        "maxLength": 254
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "email",
+                                "maxLength": 254
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "slack_webhook_url": {
                         "type": "string",
@@ -36288,9 +36404,17 @@
                         "type": "boolean"
                     },
                     "from_email": {
-                        "type": "string",
-                        "format": "email",
-                        "maxLength": 254
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "email",
+                                "maxLength": 254
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "updated_at": {
                         "type": "string",
@@ -36456,9 +36580,17 @@
                         "default": 1
                     },
                     "link": {
-                        "type": "string",
-                        "format": "uri",
-                        "maxLength": 200
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "uri",
+                                "maxLength": 200
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "status": {
                         "$ref": "#/components/schemas/ToBuyItemStatusEnum"
@@ -36738,9 +36870,17 @@
                         "type": "boolean"
                     },
                     "from_email": {
-                        "type": "string",
-                        "format": "email",
-                        "maxLength": 254
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "email",
+                                "maxLength": 254
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "updated_at": {
                         "type": "string",
@@ -37710,9 +37850,17 @@
                         "type": "string"
                     },
                     "source_link": {
-                        "type": "string",
-                        "format": "uri",
-                        "maxLength": 200
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "uri",
+                                "maxLength": 200
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "capability_payload": {}
                 },
@@ -37957,9 +38105,17 @@
                         "default": 1
                     },
                     "source_link": {
-                        "type": "string",
-                        "format": "uri",
-                        "maxLength": 200
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "uri",
+                                "maxLength": 200
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "file_ids": {
                         "type": "array",
@@ -41364,8 +41520,16 @@
                         "type": "string"
                     },
                     "map_url": {
-                        "type": "string",
-                        "format": "uri"
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "uri"
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "geofence_enabled": {
                         "type": "boolean"
@@ -41496,9 +41660,17 @@
                         "default": 1
                     },
                     "link": {
-                        "type": "string",
-                        "format": "uri",
-                        "maxLength": 200
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "uri",
+                                "maxLength": 200
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "status": {
                         "$ref": "#/components/schemas/ToBuyItemStatusEnum"
@@ -41971,10 +42143,18 @@
                         "maxLength": 150
                     },
                     "email": {
-                        "type": "string",
-                        "format": "email",
                         "title": "Email address",
-                        "maxLength": 254
+                        "oneOf": [
+                            {
+                                "type": "string",
+                                "format": "email",
+                                "maxLength": 254
+                            },
+                            {
+                                "type": "string",
+                                "maxLength": 0
+                            }
+                        ]
                     },
                     "first_name": {
                         "type": "string",

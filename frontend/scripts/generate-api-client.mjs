@@ -28,7 +28,10 @@ function schemaType(schema = {}) {
   if (schema.$ref) return `${typeName(schema.$ref)}${nullable}`;
   if (schema.enum) return `${schema.enum.map((value) => JSON.stringify(value)).join(" | ")}${nullable}`;
   if (schema.allOf) return `${schema.allOf.map(schemaType).join(" & ")}${nullable}`;
-  if (schema.oneOf || schema.anyOf) return `${(schema.oneOf ?? schema.anyOf).map(schemaType).join(" | ")}${nullable}`;
+  if (schema.oneOf || schema.anyOf) {
+    const variants = [...new Set((schema.oneOf ?? schema.anyOf).map(schemaType))];
+    return `${variants.join(" | ")}${nullable}`;
+  }
   if (schema.type === "array") return `Array<${schemaType(schema.items)}>${nullable}`;
   if (schema.type === "object" || schema.properties) {
     const properties = Object.entries(schema.properties ?? {});

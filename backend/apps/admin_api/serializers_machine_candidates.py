@@ -13,5 +13,5 @@ class OperatorCandidateSerializer(serializers.ModelSerializer):
         fields = ['user_id', 'username', 'display_name']
         read_only_fields = fields
 
-    def get_display_name(self, obj):
+    def get_display_name(self, obj) -> str:
         return obj.user.get_full_name() or obj.user.username
