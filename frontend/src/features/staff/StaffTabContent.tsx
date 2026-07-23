@@ -3,6 +3,7 @@ import { lazy, Suspense } from "react";
 import { Skeleton } from "../../components/ui";
 import type { StaffAuthUser } from "../../lib/api";
 import { Panel, type Makerspace } from "./panels/shared";
+import { StaffPanelErrorBoundary } from "./StaffPanelErrorBoundary";
 
 const DashboardPanel = lazy(() => import("./panels/DashboardPanel").then((m) => ({ default: m.DashboardPanel })));
 const NotificationInbox = lazy(() => import("./panels/NotificationInbox").then((m) => ({ default: m.NotificationInbox })));
@@ -32,6 +33,7 @@ const Categories = lazy(() => import("./panels/Categories").then((m) => ({ defau
 const NeedsFixShelf = lazy(() => import("./panels/NeedsFixShelf").then((m) => ({ default: m.NeedsFixShelf })));
 const ApiClientsPanel = lazy(() => import("./ApiClientsPanel").then((m) => ({ default: m.ApiClientsPanel })));
 const PlatformEmailPanel = lazy(() => import("./PlatformEmailPanel").then((m) => ({ default: m.PlatformEmailPanel })));
+const PlatformUpdatePanel = lazy(() => import("./PlatformUpdatePanel").then((m) => ({ default: m.PlatformUpdatePanel })));
 const PlatformStripeConnectPanel = lazy(() => import("./PlatformStripeConnectPanel").then((m) => ({ default: m.PlatformStripeConnectPanel })));
 const PlatformSocialAuthPanel = lazy(() => import("./PlatformSocialAuthPanel").then((m) => ({ default: m.PlatformSocialAuthPanel })));
 const MakerspaceSettingsPanel = lazy(() => import("./MakerspaceSettingsPanel").then((m) => ({ default: m.MakerspaceSettingsPanel })));
@@ -87,7 +89,8 @@ export function StaffTabContent({
   }
   const makerspaceKey = activeMakerspace.id;
   return (
-    <Suspense fallback={<div className="p-4"><Skeleton className="h-40 w-full" /></div>}>
+    <StaffPanelErrorBoundary resetKey={`${makerspaceKey}:${activeTab}`}>
+      <Suspense fallback={<div className="p-4"><Skeleton className="h-40 w-full" /></div>}>
       {activeTab === "dashboard" ? (
         <DashboardPanel key={makerspaceKey} makerspace={activeMakerspace} canManageMakerspace={canManageMakerspace} />
       ) : null}
@@ -206,6 +209,7 @@ export function StaffTabContent({
       ) : null}
       {activeTab === "platform" ? (
         <>
+          <PlatformUpdatePanel />
           <PlatformEmailPanel />
           <PlatformSocialAuthPanel />
           {activeMakerspace.platform_hosting ? <PlatformStripeConnectPanel /> : null}
@@ -215,6 +219,7 @@ export function StaffTabContent({
         <Users makerspaces={makerspaces} isSuperadmin={isSuperadmin} currentUser={currentUser} onAuthRefresh={onAuthRefresh} />
       ) : null}
       {activeTab === "audit" && canViewAudit ? <AuditLog /> : null}
-    </Suspense>
+      </Suspense>
+    </StaffPanelErrorBoundary>
   );
 }

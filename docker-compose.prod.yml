@@ -7,6 +7,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-makerspace_manager}
     volumes:
       - makerspace_manager_pgdata:/var/lib/postgresql/data
+      - ./backups:/backups
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-makerspace} -d ${POSTGRES_DB:-makerspace_manager}"]
       interval: 10s

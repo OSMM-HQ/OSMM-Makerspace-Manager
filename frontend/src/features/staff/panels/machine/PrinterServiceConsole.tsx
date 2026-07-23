@@ -3,8 +3,8 @@ import type { Dispatch, SetStateAction } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type {
-  MachineServiceReport,
   MachineServiceRequest,
+  PrinterServiceReport,
   PrinterPool,
   TypedManualUsageResponse,
 } from "../../../../generated/api";
@@ -53,7 +53,7 @@ export function PrinterServiceConsole({ makerspaceId, canManage }: Props) {
   const pools = useStaffGet<PrinterPool[]>(["printer-pools", makerspaceId], poolsPath(makerspaceId), canManage);
   const requests = useStaffGet<MachineServiceRequest[]>(["printer-service-requests", makerspaceId], requestPath(makerspaceId), canManage);
   const manualUsage = useStaffGet<TypedManualUsageResponse[]>(["printer-manual-usage", makerspaceId], `/admin/makerspaces/${makerspaceId}/machine-service/typed-manual-usage?${printerFilter}`, canManage);
-  const report = useStaffGet<MachineServiceReport>(["printer-service-report", makerspaceId], `/admin/makerspace/${makerspaceId}/machine-service-report?${printerFilter}`, canManage);
+  const report = useStaffGet<PrinterServiceReport>(["printer-service-report", makerspaceId], `/admin/makerspace/${makerspaceId}/machine-service-report?${printerFilter}`, canManage);
   const printerType = types.data && (Array.isArray(types.data) ? types.data : types.data.results).find((type) => type.slug === "3d_printer");
   const printers = useMemo(() => (machines.data?.results ?? []).filter((machine) => machine.machine_type.slug === "3d_printer"), [machines.data]);
   const printerPools = useMemo(() => (pools.data ?? []).filter((pool) => (!pool.unit || pool.unit === "grams") && (!pool.machine_id || printers.some((printer) => printer.id === pool.machine_id))), [pools.data, printers]);
@@ -131,8 +131,17 @@ export function PrinterServiceConsole({ makerspaceId, canManage }: Props) {
       <ErrorBlock error={manualUsage.error ?? submitManual.error} />
     </Panel>
     <Panel title="Printer reports">
-      <div className="grid gap-2 md:grid-cols-4">{report.data?.status_totals.map((total) => <p className="rounded-md border border-line p-3 text-sm" key={`${total.makerspace_id ?? makerspaceId}`}>Submitted {total.submitted} · completed {total.completed} · failed {total.failed}</p>)}</div>
-      {report.data?.machines.map((machine) => <p className="mt-2 text-sm" key={machine.machine_id}>{machine.machine_name}: {machine.completed_count} complete, {machine.failed_count} failed, {machine.total_recorded_service_hours}h</p>)}
+      <div className="grid gap-2 md:grid-cols-2">
+        {report.data?.printer_metrics.map((metric) => (
+          <p className="rounded-md border border-line p-3 text-sm" key={`${metric.makerspace_id ?? makerspaceId}:${metric.machine_id}`}>
+            <strong>{metric.machine_name}</strong>
+            <span className="mt-1 block text-xs text-muted">
+              {metric.completed_hours}h complete - {metric.failed_partial_hours}h failed - {metric.manual_hours}h manual - {metric.consumed_grams}g used
+            </span>
+          </p>
+        ))}
+        {report.data && report.data.printer_metrics.length === 0 ? <p className="text-sm text-muted">No completed printer activity yet.</p> : null}
+      </div>
       <ErrorBlock error={report.error} />
     </Panel>
   </div>;

@@ -66,17 +66,18 @@ npm run dev                     # http://localhost:5000
 cd backend && pytest
 ```
 
-## Cutting a release (maintainers)
+## Releases (maintainers)
 
-Releases are driven straight from `main` and publish Docker images plus a tagged GitHub Release:
+Every commit pushed to `main` triggers `.github/workflows/release.yml`. It builds and publishes both
+Docker images, then creates a tagged GitHub Release with generated notes. Each release has an immutable
+tag such as `0.5.0-main.42.a1b2c3d4e5f6`; the run number and commit SHA prevent collisions.
 
-1. Bump the root **`VERSION`** file to the new semantic version, e.g. `1.0.0`.
-2. Commit and push to `main`.
+After both images succeed, the current `main` build is also promoted to the rolling `:X.Y`, `:main`,
+and `:latest` tags. If a newer commit reaches `main` while an older build is running, the older build
+keeps its immutable tags and Release but cannot move the rolling tags backwards.
 
-Changing `VERSION` on `main` triggers `.github/workflows/release.yml`, which validates the version
-and publishes `:X.Y.Z`, `:X.Y`, and `:latest` for both `spaceworks-backend` and `spaceworks-frontend`.
-After the images succeed, it creates the `vX.Y.Z` tag and GitHub Release with generated release notes.
-An ordinary push to `main` without a `VERSION` change does not publish a release.
+The root **`VERSION`** file selects the release series. Bump it to a semantic version such as `1.0.0`
+when starting a new series; ordinary commits should leave it unchanged.
 
 > One-time org setup: the `spaceworks-backend` and `spaceworks-frontend` GHCR packages must be set to **Public**
 > (org → Packages → each package → visibility) so anyone can `docker compose pull` without logging in.

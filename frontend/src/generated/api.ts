@@ -51,7 +51,6 @@ export const openApiTags = [
   "Public machine service",
   "Public machines",
   "Public requests",
-  "Public roadmap",
   "QR assets",
   "QR print batches",
   "Reports",
@@ -254,6 +253,8 @@ export const openApiPaths = [
   "/api/v1/admin/platform/email-settings",
   "/api/v1/admin/platform/payment-settings",
   "/api/v1/admin/platform/social-auth-settings",
+  "/api/v1/admin/platform/update-settings",
+  "/api/v1/admin/platform/update-settings/update-now",
   "/api/v1/admin/products/{id}/assets/generate",
   "/api/v1/admin/qr-print-batches/{id}",
   "/api/v1/admin/qr-print-batches/{id}/download",
@@ -361,7 +362,6 @@ export const openApiPaths = [
   "/api/v1/public/machine-service/3d-printer/requests/{public_token}/status",
   "/api/v1/public/makerspaces/",
   "/api/v1/public/requests/{public_token}/status",
-  "/api/v1/public/roadmap",
   "/api/v1/public/{makerspace_slug}/events/",
   "/api/v1/public/{makerspace_slug}/events/{public_token}/register/",
   "/api/v1/public/{makerspace_slug}/inventory/",
@@ -1792,6 +1792,8 @@ export type MachineServiceReport = {
   "failure_summary": Array<MachineServiceFailure>;
 };
 
+export type MachineServiceReportResponse = MachineServiceReport | PrinterServiceReport;
+
 export type MachineServiceRequest = {
   "id": number;
   "bucket_id": number;
@@ -2969,6 +2971,21 @@ export type PatchedPlatformStripeConnectSettings = {
   "updated_at"?: string;
 };
 
+export type PatchedPlatformUpdateSettings = {
+  "automatic_updates_enabled"?: boolean;
+  "status"?: PlatformUpdateSettingsStatusEnum;
+  "current_version"?: string;
+  "available_version"?: string;
+  "target_version"?: string;
+  "update_requested_at"?: string | null;
+  "last_checked_at"?: string | null;
+  "last_updated_at"?: string | null;
+  "last_backup_at"?: string | null;
+  "last_backup_name"?: string;
+  "last_error"?: string;
+  "updated_at"?: string;
+};
+
 export type PatchedReturnPolicy = {
   "id"?: number;
   "default_loan_days"?: number;
@@ -3086,6 +3103,23 @@ export type PlatformStripeConnectSettings = {
   "updated_at": string;
 };
 
+export type PlatformUpdateSettings = {
+  "automatic_updates_enabled"?: boolean;
+  "status": PlatformUpdateSettingsStatusEnum;
+  "current_version": string;
+  "available_version": string;
+  "target_version": string;
+  "update_requested_at": string | null;
+  "last_checked_at": string | null;
+  "last_updated_at": string | null;
+  "last_backup_at": string | null;
+  "last_backup_name": string;
+  "last_error": string;
+  "updated_at": string;
+};
+
+export type PlatformUpdateSettingsStatusEnum = "idle" | "queued" | "running" | "failed";
+
 export type PresenceCurrent = {
   "active": boolean;
   "session": PresenceSession | null;
@@ -3150,6 +3184,23 @@ export type PrinterPoolCreate = {
 export type PrinterPoolCreateUnitEnum = "grams" | "milliliters" | "millimeters" | "count";
 
 export type PrinterPoolUnitEnum = "grams" | "milliliters" | "millimeters" | "count";
+
+export type PrinterServiceReport = {
+  "printer_metrics": Array<PrinterServiceReportRow>;
+};
+
+export type PrinterServiceReportRow = {
+  "makerspace_id"?: number;
+  "machine_id": number;
+  "machine_name": string;
+  "model": string;
+  "completed_hours": number;
+  "failed_partial_hours": number;
+  "manual_hours": number;
+  "consumed_grams": string;
+  "payment_due": string;
+  "payment_paid": string;
+};
 
 export type ProblemReportTriage = {
   "outcome": ProblemReportTriageOutcomeEnum;
@@ -3403,16 +3454,6 @@ export type PublicRequestStatus = {
   "created_at": string;
   "items": Array<PublicRequestItemStatus>;
 };
-
-export type PublicRoadmap = {
-  "title": string;
-  "description": string;
-  "status": PublicRoadmapStatusEnum;
-  "category": string;
-  "published_at": string | null;
-};
-
-export type PublicRoadmapStatusEnum = "shipped" | "in_progress" | "planned";
 
 export type PublicSpaceAvailability = {
   "public_token": string;

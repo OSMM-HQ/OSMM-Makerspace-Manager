@@ -118,6 +118,10 @@ from apps.admin_api.views_notification_recipients import NotificationRecipientsV
 from apps.admin_api.views_notification_rules import NotificationRulesView
 from apps.admin_api.views_platform import PlatformEmailSettingsView
 from apps.admin_api.views_platform_social import PlatformSocialAuthSettingsView
+from apps.admin_api.views_platform_updates import (
+    PlatformUpdateRequestView,
+    PlatformUpdateSettingsView,
+)
 from apps.admin_api.views_subdomain_requests import SubdomainRequestListCreateView
 from apps.admin_api.views_warranty import (
     AssetWarrantyView,
@@ -149,6 +153,16 @@ from apps.admin_api.views_roles import CapabilityCatalogView, RoleDetailView, Ro
 from apps.presence.views import PresenceRosterView
 
 urlpatterns = [
+    path(
+        "platform/update-settings",
+        PlatformUpdateSettingsView.as_view(),
+        name="admin-platform-update-settings",
+    ),
+    path(
+        "platform/update-settings/update-now",
+        PlatformUpdateRequestView.as_view(),
+        name="admin-platform-update-now",
+    ),
     path(
         "platform/payment-settings",
         PlatformStripeConnectSettingsView.as_view(),

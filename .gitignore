@@ -7,6 +7,9 @@ venv/
 backend/.env
 # Root deployment env written by setup.sh / setup.ps1 (holds generated secrets).
 /.env
+/backups/
+/.spaceworks-version
+/.spaceworks-update.lock
 staticfiles/
 
 # Node / Vite

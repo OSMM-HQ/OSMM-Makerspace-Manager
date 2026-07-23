@@ -84,36 +84,60 @@ docker compose -f docker-compose.prod.yml exec backend python manage.py send_ret
 
 The command is idempotent. It only sends reminders for issued or partially returned requests whose `return_due_at` is in the past and whose reminder has not already been sent. Requests returned before the due time are skipped.
 
-## Upgrades
+## Automatic and manual upgrades
 
-Pin a release tag for stable deployments. Published image tags are the plain semantic version
-(e.g. `0.25.0`), the matching minor (`0.25`), and `latest`:
+Every successful push to `main` publishes matching backend/frontend images and a GitHub Release. The
+release is marked latest only after both images are available. The self-host updater uses that release
+as its gate, creates a PostgreSQL backup, deploys the exact immutable tag, runs migrations through the
+Compose migration service, and records the version only after the readiness check passes.
 
-```env
-MAKERSPACE_IMAGE_TAG=0.25.0
+Guided setup offers automatic checks every five minutes by default. A Super Admin can then open
+**Staff console -> Platform settings -> Software updates** to turn automatic installation on or off,
+see the installed/latest versions, or queue **Update now**. The web application never receives Docker
+socket access: it records the request in PostgreSQL and the host scheduler performs the privileged work.
+Install or repair the schedule manually with:
+
+```bash
+bash scripts/install-auto-update.sh                 # macOS / Linux cron
+powershell -ExecutionPolicy Bypass -File scripts/install-auto-update.ps1  # Windows Task Scheduler
 ```
 
-Then run:
+Run an immediate checked update with:
+
+```bash
+bash scripts/update.sh --force
+powershell -ExecutionPolicy Bypass -File scripts/update.ps1 -Force
+```
+
+Pre-update database dumps are written to `backups/` and retained for 14 days. Each compressed dump
+contains PostgreSQL data: users, settings, inventory, requests, loan history, and audit metadata. It does
+**not** contain MinIO objects such as evidence photos, machine images, documents, or print files; back up
+the `minio_data` volume separately. The update backup is a recovery point, not an automatic rollback.
+
+The scripts use `.spaceworks-update.lock` to prevent overlapping runs and `.spaceworks-version` to avoid
+redeploying the same release. If an update fails, the version marker is not advanced, the UI records a
+safe failure message, and the backup path remains in the host log. Review `backups/auto-update.log` before
+retrying or pinning the previous immutable tag.
+
+For a manual deployment, set `MAKERSPACE_IMAGE_TAG` to a release such as
+`0.5.0-main.42.a1b2c3d4e5f6`, then run:
 
 ```powershell
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-The backend container runs migrations on startup. Keep a database backup before changing versions.
-
-Manual dependency audit: `pip install pip-audit && pip-audit -r backend/requirements.txt`.
+Do not schedule a blind container watcher: application images must not restart without the migration
+service and readiness gate. Manual dependency audit: `pip install pip-audit && pip-audit -r backend/requirements.txt`.
 
 ## Publishing new images (maintainers)
 
-Images are published **only when you cut a release** — Docker-image-only (no GitHub Release, no source
-zip). It's driven straight from `main` by the root **`VERSION`** file (`release.yml`):
+Every push to `main` runs `release.yml`, publishes immutable backend and frontend image tags, and creates
+a matching GitHub Release. When both images succeed for the current branch head, the workflow promotes
+them to the rolling `:X.Y`, `:main`, and `:latest` tags.
 
-1. Edit `VERSION` to the new semantic version, e.g. `1.0.0`.
-2. Commit and push to `main`.
-
-Changing `VERSION` on `main` builds and pushes `:X.Y.Z`, `:X.Y`, and `:latest` for both images. Ordinary
-pushes to `main` publish nothing.
+The root **`VERSION`** file selects the semantic release series. Edit it (for example, to `1.0.0`) only
+when starting a new series; the workflow adds the run number and commit SHA to every release automatically.
 
 The `spaceworks-backend` / `spaceworks-frontend` GHCR packages must be set to **Public** (org → Packages)
 so operators can `docker compose pull` without authenticating.

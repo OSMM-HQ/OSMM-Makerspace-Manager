@@ -42,8 +42,8 @@ GLOBAL_ADMIN_MODELS = {
     "integrations.platformemailsettings",
     "integrations.platformpushsettings",
     "payments.platformstripeconnectsettings",
+    "updates.platformupdatesettings",
     "encryption.piiglobalwritefence",
-    "roadmap.roadmapitem",
     "token_blacklist.blacklistedtoken",
     "token_blacklist.outstandingtoken",
 }

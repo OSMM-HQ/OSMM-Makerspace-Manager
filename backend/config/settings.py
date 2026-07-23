@@ -1,6 +1,5 @@
 from datetime import timedelta
 from pathlib import Path
-from urllib.parse import urlsplit
 
 from celery.schedules import crontab
 import environ
@@ -84,6 +83,7 @@ INSTALLED_APPS = [
     "django.contrib.auth",
     "axes",
     "django.contrib.contenttypes",
+    "django.contrib.postgres",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
@@ -111,6 +111,7 @@ INSTALLED_APPS = [
     "apps.operations",
     "apps.procurement",
     "apps.notifications",
+    "apps.updates",
     "apps.machines",
     "apps.events",
     "apps.bookings",
@@ -494,13 +495,6 @@ SECURE_REFERRER_POLICY = "same-origin"
 # CDN is allowed for script/style/img/font; drop it (or adopt drf-spectacular-sidecar to
 # serve the assets from 'self') once the docs UI is locally hosted.
 _SWAGGER_CDN = "https://cdn.jsdelivr.net"
-_PUBLIC_IMAGE_CSP_ORIGINS = []
-if PUBLIC_IMAGE_BASE_URL:
-    _public_image_parts = urlsplit(PUBLIC_IMAGE_BASE_URL)
-    if _public_image_parts.scheme and _public_image_parts.netloc:
-        _PUBLIC_IMAGE_CSP_ORIGINS.append(
-            f"{_public_image_parts.scheme}://{_public_image_parts.netloc}"
-        )
 CONTENT_SECURITY_POLICY = {
     "DIRECTIVES": {
         "default-src": ["'self'"],
@@ -510,7 +504,7 @@ CONTENT_SECURITY_POLICY = {
         # JS eval, so it is far narrower than 'unsafe-eval'.
         "script-src": ["'self'", "'unsafe-inline'", "'wasm-unsafe-eval'", _SWAGGER_CDN],
         "style-src": ["'self'", "'unsafe-inline'", _SWAGGER_CDN],
-        "img-src": ["'self'", "data:", _SWAGGER_CDN, *_PUBLIC_IMAGE_CSP_ORIGINS],
+        "img-src": ["'self'", "data:", _SWAGGER_CDN],
         "font-src": ["'self'", "data:", _SWAGGER_CDN],
         "worker-src": ["'self'", "blob:"],
     }
