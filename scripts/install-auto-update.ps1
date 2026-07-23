@@ -5,7 +5,7 @@ $taskName = "SpaceWorks Automatic Production Update"
 $compose = @("compose", "-f", "docker-compose.prod.yml")
 
 if (-not (Get-Command Register-ScheduledTask -ErrorAction SilentlyContinue)) {
-  throw "Windows Task Scheduler cmdlets are unavailable. Schedule scripts/update.ps1 every five minutes."
+  throw "Windows Task Scheduler cmdlets are unavailable. Schedule scripts/update.ps1 every seven days."
 }
 
 docker @compose exec -T backend python manage.py update_control set-auto on *> $null
@@ -18,7 +18,7 @@ $action = New-ScheduledTaskAction `
 $trigger = New-ScheduledTaskTrigger `
   -Once `
   -At (Get-Date).AddMinutes(1) `
-  -RepetitionInterval (New-TimeSpan -Minutes 5)
+  -RepetitionInterval (New-TimeSpan -Days 7)
 $settings = New-ScheduledTaskSettingsSet `
   -StartWhenAvailable `
   -MultipleInstances IgnoreNew `
@@ -26,7 +26,7 @@ $settings = New-ScheduledTaskSettingsSet `
 
 Register-ScheduledTask `
   -TaskName $taskName `
-  -Description "Checks GitHub Releases every five minutes and safely updates Space Works production." `
+  -Description "Checks GitHub Releases every seven days and safely updates Space Works production." `
   -Action $action -Trigger $trigger -Settings $settings -Force | Out-Null
 
-Write-Host "Automatic Space Works updates are enabled and checked every five minutes."
+Write-Host "Automatic Space Works updates are enabled and checked every seven days."

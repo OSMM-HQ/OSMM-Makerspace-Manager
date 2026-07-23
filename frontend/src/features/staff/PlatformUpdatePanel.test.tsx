@@ -49,6 +49,7 @@ describe("PlatformUpdatePanel", () => {
 
     expect(await screen.findByRole("switch", { name: "Automatic updates" })).toBeChecked();
     expect(screen.getAllByText(/0.5.0-main.43/)).toHaveLength(2);
+    expect(screen.getByText(/checks every seven days/i)).toBeInTheDocument();
     expect(screen.getByText(/restore users, settings, inventory, requests, loans, and audit records/i)).toBeInTheDocument();
     expect(screen.getByText(/MinIO and are not inside this database backup/i)).toBeInTheDocument();
     expect(screen.getByText(/pre-update-20260722T095900Z.sql.gz/)).toBeInTheDocument();

@@ -53,7 +53,7 @@ The script will ask you a few simple questions (press Enter to accept the sugges
 | Admin login username | `admin` is fine |
 | Admin email | your email |
 | Admin password | type one, or leave blank and it makes a strong one for you |
-| Automatic updates | press Enter for five-minute, backup-first update checks from successful `main` releases |
+| Automatic updates | press Enter for seven-day, backup-first update checks from successful `main` releases |
 
 Then it builds and starts everything. **The first time takes a few minutes** — that's normal.
 
@@ -126,7 +126,7 @@ You have two good options before giving up:
   `docker compose … up -d` command.
 - **Stop it:** `docker compose -f docker-compose.prod.yml -f docker/compose.build.yml down`
   (your data is safe — it's kept in a database volume).
-- **Update to a newer version:** guided installs check every five minutes by default. Use
+- **Update to a newer version:** guided installs check every seven days by default. Use
   **Staff console -> Platform settings -> Software updates** to control automatic installation or select
   **Update now**. Run `scripts/update.sh --force`
   (Mac/Linux) or `scripts/update.ps1 -Force` (Windows) to update immediately; the updater backs up
