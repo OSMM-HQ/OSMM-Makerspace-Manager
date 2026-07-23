@@ -1,7 +1,7 @@
 from rest_framework import serializers
 
-from apps.machines.models import MachineServiceRequest
 from apps.payments.models import Payment
+from apps.payments.subjects import subject_label
 
 
 class MemberPaymentSerializer(serializers.ModelSerializer):
@@ -14,11 +14,7 @@ class MemberPaymentSerializer(serializers.ModelSerializer):
 
     def get_subject_label(self, payment) -> str:
         labels = self.context.get("payment_subject_labels", {})
-        if label := labels.get(payment.subject_id):
-            return label
-        if payment.subject_type == Payment.SubjectType.MACHINE_SERVICE_REQUEST:
-            return MachineServiceRequest.objects.filter(pk=payment.subject_id).values_list("title", flat=True).first() or "Machine service"
-        return "Payment"
+        return subject_label(payment, labels)
 
     def get_checkout_url(self, payment) -> str:
         return payment.stripe_checkout_url if payment.status == Payment.Status.PENDING else ""
@@ -31,4 +27,3 @@ class CheckoutUrlSerializer(serializers.Serializer):
 class StaffPaymentSerializer(MemberPaymentSerializer):
     class Meta(MemberPaymentSerializer.Meta):
         fields = MemberPaymentSerializer.Meta.fields + ("amount", "currency")
-

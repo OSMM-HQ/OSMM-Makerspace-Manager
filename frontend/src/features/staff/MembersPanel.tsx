@@ -11,6 +11,7 @@ import type {
 } from "../../generated/api";
 import { StructuredApiError, staffRequest } from "../../lib/api";
 import { Panel } from "./panels/shared";
+import { PaymentReconcileActions } from "./PaymentReconcileActions";
 
 type Presence = { display_name: string; role_label: string; started_at: string; expires_at: string };
 type Role = { id: number; name: string };
@@ -66,6 +67,7 @@ export function MembersPanel({ makerspaceId }: { makerspaceId: number }) {
       <p className="mb-4 text-sm text-muted">Membership, referral and verification delegation, waiver compliance, and active presence for this makerspace.</p>
       {rosterRows.map((row) => <MemberRow
         key={row.id}
+        makerspaceId={makerspaceId}
         member={row}
         roles={roles.data ?? []}
         changingRole={changeRole.isPending}
@@ -88,7 +90,8 @@ export function MembersPanel({ makerspaceId }: { makerspaceId: number }) {
   </div>;
 }
 
-function MemberRow({ member, roles, changingRole, changingCapabilities, changingVerification, onChangeRole, onCapability, onVerify, onRevoke }: {
+function MemberRow({ makerspaceId, member, roles, changingRole, changingCapabilities, changingVerification, onChangeRole, onCapability, onVerify, onRevoke }: {
+  makerspaceId: number;
   member: AdminMembership;
   roles: Role[];
   changingRole: boolean;
@@ -101,7 +104,8 @@ function MemberRow({ member, roles, changingRole, changingCapabilities, changing
 }) {
   const active = member.status === "active";
   const displayName = member.user.display_name || member.user.username;
-  return <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line py-3">
+  const paymentSummary = <PaymentReconcileActions makerspaceId={makerspaceId} payment={member.payment} invalidateKeys={[["members", makerspaceId]]} />;
+  return <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line py-3">{paymentSummary}
     <div><p className="font-semibold text-ink">{displayName}</p><p className="text-xs text-muted">{member.assigned_role?.name ?? "Member"} · {member.status} · waiver {member.waiver_current ? "current" : "needed"}</p></div>
     <div className="flex flex-wrap items-center gap-2">
       <Badge tone={member.verified_at ? "success" : "neutral"}>{member.verified_at ? "Verified" : "Not verified"}</Badge>

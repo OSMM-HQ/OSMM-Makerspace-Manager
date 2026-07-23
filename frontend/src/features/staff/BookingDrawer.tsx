@@ -13,6 +13,7 @@ import {
   type BookingAction,
   type BookingFilters,
 } from "./bookingsApi";
+import { PaymentReconcileActions } from "./PaymentReconcileActions";
 
 type PendingAction = { booking: Booking; action: BookingAction };
 
@@ -118,6 +119,14 @@ export function BookingDrawer({ makerspaceId, spaceId, onClose }: {
                         <summary className="cursor-pointer text-sm font-semibold text-ink">View custom answers</summary>
                         <div className="mt-3"><CustomAnswersView snapshot={booking.custom_answers} /></div>
                       </details>
+                      <PaymentReconcileActions
+                        makerspaceId={makerspaceId}
+                        payment={booking.payment}
+                        invalidateKeys={[
+                          ["booking-space", spaceId, "bookings"],
+                          ["booking-space", spaceId],
+                        ]}
+                      />
                       <BookingActions booking={booking} onAction={(nextAction) => setPendingAction({ booking, action: nextAction })} />
                     </article>
                   ))}

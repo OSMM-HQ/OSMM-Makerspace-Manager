@@ -220,6 +220,9 @@ def revoke_membership(actor, membership, reason=""):
         if changed:
             audit.record(actor, "membership.revoked", makerspace=makerspace, target=membership,
                          meta={"reason": membership.revocation_reason})
+            from apps.makerspaces.membership_payments import cancel_for_membership
+
+            cancel_for_membership(membership, actor)
         from apps.presence.services import end_sessions_for_membership
         end_sessions_for_membership(actor, membership)
         MembershipRequest.objects.filter(makerspace=makerspace, user=membership.user,

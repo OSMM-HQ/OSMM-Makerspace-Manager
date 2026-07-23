@@ -2,6 +2,7 @@ from rest_framework import serializers
 from drf_spectacular.utils import extend_schema_field, inline_serializer
 
 from apps.makerspaces.models import MakerspaceMembership, MembershipRequest
+from apps.admin_api.serializers_payment_summary import PaymentSummaryMixin
 
 
 class RoleIdSerializer(serializers.Serializer):
@@ -16,14 +17,15 @@ class RevokeSerializer(serializers.Serializer):
     reason = serializers.CharField(required=False, allow_blank=True)
 
 
-class AdminMembershipSerializer(serializers.ModelSerializer):
+class AdminMembershipSerializer(PaymentSummaryMixin, serializers.ModelSerializer):
     user = serializers.SerializerMethodField()
+    payment = serializers.SerializerMethodField()
     assigned_role = serializers.SerializerMethodField()
     waiver_current = serializers.SerializerMethodField()
 
     class Meta:
         model = MakerspaceMembership
-        fields = ("id", "status", "user", "assigned_role", "can_refer", "can_verify", "verified_at", "activated_at", "revoked_at", "revocation_reason", "waiver_accepted_at", "waiver_version_accepted", "waiver_current")
+        fields = ("id", "status", "user", "assigned_role", "can_refer", "can_verify", "verified_at", "activated_at", "revoked_at", "revocation_reason", "waiver_accepted_at", "waiver_version_accepted", "waiver_current", "payment")
 
     @extend_schema_field(inline_serializer("AdminMembershipUser", {
         "id": serializers.IntegerField(),

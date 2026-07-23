@@ -25100,11 +25100,21 @@
                     "waiver_current": {
                         "type": "boolean",
                         "readOnly": true
+                    },
+                    "payment": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/StaffPaymentSummary"
+                            }
+                        ],
+                        "nullable": true,
+                        "readOnly": true
                     }
                 },
                 "required": [
                     "assigned_role",
                     "id",
+                    "payment",
                     "user",
                     "waiver_current"
                 ]
@@ -26198,6 +26208,12 @@
                         "readOnly": true,
                         "nullable": true
                     },
+                    "payment_amount": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
                     "effective_requester_notifications_enabled": {
                         "type": "boolean",
                         "readOnly": true
@@ -26242,6 +26258,7 @@
                     "max_booking_duration_minutes",
                     "min_booking_duration_minutes",
                     "name",
+                    "payment_amount",
                     "public_token",
                     "requester_notifications_enabled",
                     "show_public_availability",
@@ -26350,6 +26367,12 @@
                     "requester_notifications_enabled": {
                         "type": "boolean",
                         "nullable": true
+                    },
+                    "payment_amount": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "default": "0.00"
                     }
                 },
                 "required": [
@@ -26414,6 +26437,15 @@
                         "type": "string",
                         "format": "date-time",
                         "readOnly": true
+                    },
+                    "payment": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/StaffPaymentSummary"
+                            }
+                        ],
+                        "nullable": true,
+                        "readOnly": true
                     }
                 },
                 "required": [
@@ -26424,6 +26456,7 @@
                     "id",
                     "name",
                     "note",
+                    "payment",
                     "phone",
                     "public_token",
                     "space_id",
@@ -28026,6 +28059,12 @@
                         "type": "integer",
                         "readOnly": true
                     },
+                    "payment_amount": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
                     "is_public": {
                         "type": "boolean",
                         "readOnly": true
@@ -28074,6 +28113,7 @@
                     "location",
                     "location_kind",
                     "makerspace_id",
+                    "payment_amount",
                     "registration_counts",
                     "starts_at",
                     "status",
@@ -28239,6 +28279,15 @@
                         "type": "string",
                         "format": "date-time",
                         "readOnly": true
+                    },
+                    "payment": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/StaffPaymentSummary"
+                            }
+                        ],
+                        "nullable": true,
+                        "readOnly": true
                     }
                 },
                 "required": [
@@ -28248,6 +28297,7 @@
                     "event_id",
                     "id",
                     "name",
+                    "payment",
                     "phone",
                     "status"
                 ]
@@ -28354,6 +28404,12 @@
                         "type": "integer",
                         "minimum": 0,
                         "default": 0
+                    },
+                    "payment_amount": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "default": "0.00"
                     },
                     "is_public": {
                         "type": "boolean",
@@ -31486,6 +31542,11 @@
                     "membership_policy": {
                         "$ref": "#/components/schemas/MembershipPolicyEnum"
                     },
+                    "membership_dues_amount": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
+                    },
                     "referrals_enabled": {
                         "type": "boolean"
                     },
@@ -32266,6 +32327,15 @@
                         "type": "string",
                         "format": "date-time",
                         "readOnly": true
+                    },
+                    "payment": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/StaffPaymentSummary"
+                            }
+                        ],
+                        "nullable": true,
+                        "readOnly": true
                     }
                 },
                 "required": [
@@ -32274,6 +32344,7 @@
                     "id",
                     "makerspace_id",
                     "makerspace_slug",
+                    "payment",
                     "role",
                     "user"
                 ]
@@ -34090,6 +34161,12 @@
                     "requester_notifications_enabled": {
                         "type": "boolean",
                         "nullable": true
+                    },
+                    "payment_amount": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "default": "0.00"
                     }
                 }
             },
@@ -34244,6 +34321,12 @@
                         "type": "integer",
                         "minimum": 0,
                         "default": 0
+                    },
+                    "payment_amount": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "default": "0.00"
                     },
                     "is_public": {
                         "type": "boolean",
@@ -34580,6 +34663,11 @@
                     },
                     "membership_policy": {
                         "$ref": "#/components/schemas/MembershipPolicyEnum"
+                    },
+                    "membership_dues_amount": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$"
                     },
                     "referrals_enabled": {
                         "type": "boolean"
@@ -38930,6 +39018,39 @@
                     "id",
                     "subject_label",
                     "subject_type"
+                ]
+            },
+            "StaffPaymentSummary": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "readOnly": true
+                    },
+                    "status": {
+                        "allOf": [
+                            {
+                                "$ref": "#/components/schemas/Status66aEnum"
+                            }
+                        ],
+                        "readOnly": true
+                    },
+                    "amount": {
+                        "type": "string",
+                        "format": "decimal",
+                        "pattern": "^-?\\d{0,10}(?:\\.\\d{0,2})?$",
+                        "readOnly": true
+                    },
+                    "currency": {
+                        "type": "string",
+                        "readOnly": true
+                    }
+                },
+                "required": [
+                    "amount",
+                    "currency",
+                    "id",
+                    "status"
                 ]
             },
             "StateEnum": {

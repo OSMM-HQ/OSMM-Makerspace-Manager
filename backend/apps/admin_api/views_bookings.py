@@ -13,6 +13,7 @@ from apps.admin_api.serializers_bookings import (
     BookingListResponseSerializer,
     EmptyActionSerializer,
 )
+from apps.admin_api.serializers_payment_summary import scoped_payment_context
 from apps.admin_api.views_bookable_spaces import manageable_space
 from apps.bookings import services
 from apps.bookings.models import Booking
@@ -23,6 +24,7 @@ from apps.hardware_requests.view_helpers import (
     ERROR_409,
 )
 from apps.makerspaces.guards import require_module
+from apps.payments.models import Payment
 
 
 SCOPED_ERROR_RESPONSES = {
@@ -93,12 +95,22 @@ class SpaceBookingListView(APIView):
         queryset = queryset.order_by('starts_at', 'id')
         paginator = _BookingPagination()
         page = paginator.paginate_queryset(queryset, request, view=self)
+        context = scoped_payment_context(
+            request.user,
+            rbac.Action.MANAGE_BOOKINGS,
+            Payment.SubjectType.BOOKING,
+            [booking.pk for booking in page],
+        )
         return Response(
             {
                 'count': paginator.page.paginator.count,
                 'next': paginator.get_next_link(),
                 'previous': paginator.get_previous_link(),
-                'results': BookingAdminSerializer(page, many=True).data,
+                'results': BookingAdminSerializer(
+                    page,
+                    many=True,
+                    context=context,
+                ).data,
             }
         )
 
@@ -112,7 +124,13 @@ class _BookingActionView(APIView):
         serializer = EmptyActionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         booking = self.operation(booking, actor=request.user)
-        return Response(BookingAdminSerializer(booking).data)
+        context = scoped_payment_context(
+            request.user,
+            rbac.Action.MANAGE_BOOKINGS,
+            Payment.SubjectType.BOOKING,
+            [booking.pk],
+        )
+        return Response(BookingAdminSerializer(booking, context=context).data)
 
 
 class BookingCancelView(_BookingActionView):

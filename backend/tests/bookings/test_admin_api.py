@@ -200,6 +200,7 @@ def test_space_crud_allowlist_flags_and_validation():
         'capacity', 'location', 'image_url', 'is_public',
         'show_public_availability', 'show_public_booker_names', 'is_active',
         'approval_mode', 'custom_form', 'requester_notifications_enabled',
+        'payment_amount',
         'min_booking_duration_minutes', 'max_booking_duration_minutes',
         'booking_lead_time_minutes', 'max_booking_advance_days',
         'effective_requester_notifications_enabled',

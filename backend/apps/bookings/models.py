@@ -66,6 +66,12 @@ class BookableSpace(models.Model):
         blank=True,
         default=None,
     )
+    payment_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
     min_booking_duration_minutes = models.PositiveIntegerField(
         default=30,
         validators=[MinValueValidator(1)],
@@ -112,6 +118,10 @@ class BookableSpace(models.Model):
             models.CheckConstraint(
                 condition=Q(max_booking_advance_days__gte=1),
                 name="bookspace_advance_positive",
+            ),
+            models.CheckConstraint(
+                condition=Q(payment_amount__gte=0),
+                name="bookspace_payment_nonnegative",
             ),
         ]
         indexes = [

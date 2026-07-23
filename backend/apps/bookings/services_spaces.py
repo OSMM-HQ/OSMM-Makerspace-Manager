@@ -17,7 +17,7 @@ SPACE_FIELDS = frozenset(
     {
         'name', 'kind', 'description', 'capacity', 'location', 'is_public',
         'show_public_availability', 'show_public_booker_names',
-        'custom_form', 'requester_notifications_enabled',
+        'custom_form', 'requester_notifications_enabled', 'payment_amount',
     }
 )
 
@@ -61,7 +61,7 @@ def create_space(
     audit_service, show_public_availability=False,
     show_public_booker_names=False,
     approval_mode=BookableSpace.ApprovalMode.INSTANT, custom_form=None,
-    requester_notifications_enabled=None,
+    requester_notifications_enabled=None, payment_amount=0,
 ):
     locked_makerspace = Makerspace.objects.select_for_update().get(pk=makerspace.pk)
     space = BookableSpace(
@@ -78,6 +78,7 @@ def create_space(
         approval_mode=approval_mode,
         custom_form=_canonical_form(custom_form),
         requester_notifications_enabled=requester_notifications_enabled,
+        payment_amount=payment_amount,
         is_active=True,
     )
     _validate_public_visibility(space)

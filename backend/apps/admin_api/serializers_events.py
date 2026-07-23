@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from apps.events.models import Event, EventRegistration
 from apps.forms_schema.serializers import CustomFormSchemaField
+from apps.admin_api.serializers_payment_summary import PaymentSummaryMixin
 
 
 class EventWriteSerializer(serializers.Serializer):
@@ -24,6 +25,13 @@ class EventWriteSerializer(serializers.Serializer):
     )
     custom_form = CustomFormSchemaField(allow_null=True, required=False)
     capacity = serializers.IntegerField(default=0, min_value=0, required=False)
+    payment_amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=0,
+        default=0,
+        required=False,
+    )
     is_public = serializers.BooleanField(default=False, required=False)
 
     def validate(self, attrs):
@@ -61,6 +69,7 @@ class EventAdminSerializer(serializers.ModelSerializer):
             'location_kind',
             'custom_form',
             'capacity',
+            'payment_amount',
             'is_public',
             'status',
             'created_by_id',
@@ -86,14 +95,15 @@ class EventAdminSerializer(serializers.ModelSerializer):
         )
 
 
-class EventRegistrationAdminSerializer(serializers.ModelSerializer):
+class EventRegistrationAdminSerializer(PaymentSummaryMixin, serializers.ModelSerializer):
     event_id = serializers.IntegerField(read_only=True)
+    payment = serializers.SerializerMethodField()
 
     class Meta:
         model = EventRegistration
         fields = (
             'id', 'event_id', 'name', 'email', 'phone', 'custom_answers',
-            'status', 'created_at',
+            'status', 'created_at', 'payment',
         )
         read_only_fields = fields
 

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { Badge } from "../../components/ui";
@@ -13,6 +14,12 @@ export function MakerspaceMembershipSettings({ makerspace, settings, loading }: 
   const queryClient = useQueryClient();
   const membershipPolicy = settings?.membership_policy ?? makerspace.membership_policy ?? "request";
   const referralsEnabled = settings?.referrals_enabled ?? makerspace.referrals_enabled ?? false;
+  const [duesAmount, setDuesAmount] = useState(
+    settings?.membership_dues_amount ?? makerspace.membership_dues_amount ?? "0.00",
+  );
+  useEffect(() => {
+    setDuesAmount(settings?.membership_dues_amount ?? makerspace.membership_dues_amount ?? "0.00");
+  }, [settings?.membership_dues_amount, makerspace.membership_dues_amount]);
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["makerspace-settings", makerspace.id] });
     queryClient.invalidateQueries({ queryKey: ["makerspaces"] });
@@ -27,6 +34,12 @@ export function MakerspaceMembershipSettings({ makerspace, settings, loading }: 
   const updateReferrals = useMutation({
     mutationFn: (next: boolean) => staffRequest<MakerspaceContract>(`/admin/makerspaces/${makerspace.id}`, {
       method: "PATCH", body: JSON.stringify({ referrals_enabled: next }),
+    }),
+    onSuccess: refresh,
+  });
+  const updateDues = useMutation({
+    mutationFn: () => staffRequest<MakerspaceContract>(`/admin/makerspaces/${makerspace.id}`, {
+      method: "PATCH", body: JSON.stringify({ membership_dues_amount: duesAmount }),
     }),
     onSuccess: refresh,
   });
@@ -52,6 +65,21 @@ export function MakerspaceMembershipSettings({ makerspace, settings, loading }: 
           {updateReferrals.error ? <p className="text-sm text-danger" role="alert">{updateReferrals.error.message}</p> : null}
         </div>
         <label className="flex min-w-0 items-start gap-3 text-sm text-ink sm:justify-self-start md:justify-self-end"><input className="mt-1 h-4 w-4" type="checkbox" checked={referralsEnabled} disabled={loading || updateReferrals.isPending} onChange={(event) => updateReferrals.mutate(event.target.checked)} /><span className="font-semibold">Enable referrals</span></label>
+      </div>
+    </div>
+    <div className="min-w-0 rounded-md border border-line bg-bg p-4">
+      <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_minmax(220px,280px)] md:items-start">
+        <div className="grid min-w-0 max-w-2xl gap-2">
+          <h3 className="text-base font-semibold text-ink">Membership dues</h3>
+          <p className="text-sm text-muted">Set the amount charged when a membership is activated. Use 0 for no charge.</p>
+          {updateDues.error ? <p className="text-sm text-danger" role="alert">{updateDues.error.message}</p> : null}
+        </div>
+        <form className="grid gap-2" onSubmit={(event) => { event.preventDefault(); updateDues.mutate(); }}>
+          <label className="grid gap-1 text-sm font-semibold text-ink">Dues amount
+            <input className="desk-input" type="number" min="0" step="0.01" value={duesAmount} disabled={loading || updateDues.isPending} onChange={(event) => setDuesAmount(event.target.value)} />
+          </label>
+          <button className="desk-button" type="submit" disabled={loading || updateDues.isPending}>{updateDues.isPending ? "Saving..." : "Save dues"}</button>
+        </form>
       </div>
     </div>
   </>;

@@ -8,12 +8,13 @@ import {
   type EventPayload, type StaffEvent,
 } from "./eventsApi";
 import { Panel } from "./panels/shared";
+import { PaymentReconcileActions } from "./PaymentReconcileActions";
 
 type FormValues = Omit<EventPayload, "starts_at" | "ends_at"> & { starts_at: string; ends_at: string };
 type Action = "publish" | "cancel" | "complete";
 
 const emptyForm: FormValues = {
-  title: "", description: "", starts_at: "", ends_at: "", location: "", capacity: 0, is_public: false,
+  title: "", description: "", starts_at: "", ends_at: "", location: "", capacity: 0, payment_amount: "0.00", is_public: false,
 };
 
 function localDate(value: string) {
@@ -29,6 +30,7 @@ function valuesFor(event: StaffEvent): FormValues {
     ends_at: localDate(event.ends_at),
     location: event.location,
     capacity: event.capacity,
+    payment_amount: event.payment_amount,
     is_public: event.is_public,
   };
 }
@@ -71,6 +73,10 @@ function EventFields({ values, setValues, disabled = false }: {
       <label className="grid gap-1 text-sm font-semibold text-ink">Capacity
         <input className="desk-input" type="number" min="0" value={values.capacity} onChange={(e) => set("capacity", Number(e.target.value))} disabled={disabled} />
         <span className="text-xs font-normal text-muted">Use 0 for Unlimited.</span>
+      </label>
+      <label className="grid gap-1 text-sm font-semibold text-ink">Registration price
+        <input className="desk-input" type="number" min="0" step="0.01" value={values.payment_amount} onChange={(e) => set("payment_amount", e.target.value)} disabled={disabled} />
+        <span className="text-xs font-normal text-muted">Use 0 for no charge.</span>
       </label>
       <label className="grid gap-1 text-sm font-semibold text-ink sm:col-span-2">Description
         <textarea className="desk-input min-h-24" value={values.description} onChange={(e) => set("description", e.target.value)} disabled={disabled} />
@@ -173,7 +179,7 @@ function EventDrawer({ eventId, makerspaceId, onClose }: { eventId: number; make
           {registrations.error ? <p className="text-sm text-danger">{errorText(registrations.error)}</p> : null}
           {registrations.data && !registrations.data.results.length ? <p className="text-sm text-muted">No registrations yet.</p> : null}
           {registrations.data?.results.length ? <div className="overflow-x-auto"><table className="w-full text-left text-sm"><caption className="sr-only">Event registration contact details</caption><thead className="text-xs text-muted"><tr><th className="p-2">Name</th><th className="p-2">Contact</th><th className="p-2">Status</th><th className="p-2">Action</th></tr></thead><tbody>
-            {registrations.data.results.map((row) => <tr key={row.id} className="border-t border-line"><td className="p-2">{row.name}</td><td className="p-2"><a className="block hover:underline" href={`mailto:${row.email}`}>{row.email}</a><a className="block text-muted hover:underline" href={`tel:${row.phone}`}>{row.phone}</a></td><td className="p-2"><StatusBadge status={row.status} /></td><td className="p-2">{row.status === "registered" && (event.status === "published" || event.status === "completed") ? <button className="desk-button" type="button" disabled={attended.isPending} onClick={() => attended.mutate(row.id)}>Mark attended</button> : "—"}</td></tr>)}
+            {registrations.data.results.map((row) => <tr key={row.id} className="border-t border-line"><td className="p-2">{row.name}<PaymentReconcileActions makerspaceId={makerspaceId} payment={row.payment} invalidateKeys={[["event", eventId, "registrations"], ["event", eventId], ["events", makerspaceId]]} /></td><td className="p-2"><a className="block hover:underline" href={`mailto:${row.email}`}>{row.email}</a><a className="block text-muted hover:underline" href={`tel:${row.phone}`}>{row.phone}</a></td><td className="p-2"><StatusBadge status={row.status} /></td><td className="p-2">{row.status === "registered" && (event.status === "published" || event.status === "completed") ? <button className="desk-button" type="button" disabled={attended.isPending} onClick={() => attended.mutate(row.id)}>Mark attended</button> : "—"}</td></tr>)}
           </tbody></table></div> : null}
           <div className="mt-3 flex items-center justify-between gap-2"><span className="text-xs text-muted">Page {page}</span><div className="flex gap-2"><button className="desk-button" type="button" disabled={!registrations.data?.previous} onClick={() => setPage((p) => Math.max(1, p - 1))}>Previous</button><button className="desk-button" type="button" disabled={!registrations.data?.next} onClick={() => setPage((p) => p + 1)}>Next</button></div></div>
         </section>

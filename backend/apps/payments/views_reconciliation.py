@@ -15,6 +15,7 @@ from apps.payments.serializers_reconciliation import (
     PaymentReconciliationSerializer,
 )
 from apps.makerspaces.models import Makerspace
+from apps.payments.subjects import resolve_subject_labels
 
 ERRORS = {
     400: OpenApiResponse(ErrorSerializer, description="Invalid payment request."),
@@ -49,10 +50,17 @@ class PaymentListView(APIView):
         )
         filters = PaymentListFilterSerializer(data=request.query_params)
         filters.is_valid(raise_exception=True)
-        rows = list_payments(
-            actor=request.user, makerspace_id=makerspace_id, **filters.validated_data
+        rows = list(
+            list_payments(
+                actor=request.user,
+                makerspace_id=makerspace_id,
+                **filters.validated_data,
+            )
         )
-        return Response(PaymentReconciliationSerializer(rows, many=True).data)
+        context = {"payment_subject_labels": resolve_subject_labels(rows)}
+        return Response(
+            PaymentReconciliationSerializer(rows, many=True, context=context).data
+        )
 
 
 class _PaymentActionView(APIView):
@@ -66,7 +74,10 @@ class _PaymentActionView(APIView):
             payment_ids=[payment_id],
             target_status=self.target_status,
         )[0]
-        return Response(PaymentReconciliationSerializer(payment).data)
+        context = {
+            "payment_subject_labels": resolve_subject_labels([payment])
+        }
+        return Response(PaymentReconciliationSerializer(payment, context=context).data)
 
 
 class PaymentMarkOfflineView(_PaymentActionView):
@@ -104,7 +115,12 @@ class _PaymentBulkActionView(APIView):
             payment_ids=payload.validated_data["ids"],
             target_status=self.target_status,
         )
-        return Response(PaymentReconciliationSerializer(payments, many=True).data)
+        context = {
+            "payment_subject_labels": resolve_subject_labels(payments)
+        }
+        return Response(
+            PaymentReconciliationSerializer(payments, many=True, context=context).data
+        )
 
 
 class PaymentBulkMarkOfflineView(_PaymentBulkActionView):

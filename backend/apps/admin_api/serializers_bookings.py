@@ -5,6 +5,7 @@ from apps.bookings import storage
 from apps.bookings.exceptions import BookerNamesRequiresAvailability
 from apps.bookings.models import BookableSpace, Booking
 from apps.forms_schema.serializers import CustomFormSchemaField
+from apps.admin_api.serializers_payment_summary import PaymentSummaryMixin
 
 
 class BookableSpaceWriteSerializer(serializers.Serializer):
@@ -34,6 +35,13 @@ class BookableSpaceWriteSerializer(serializers.Serializer):
     requester_notifications_enabled = serializers.BooleanField(
         allow_null=True,
         default=None,
+        required=False,
+    )
+    payment_amount = serializers.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        min_value=0,
+        default=0,
         required=False,
     )
 
@@ -79,6 +87,7 @@ class BookableSpaceAdminSerializer(serializers.ModelSerializer):
             'max_booking_advance_days',
             'custom_form',
             'requester_notifications_enabled',
+            'payment_amount',
             'effective_requester_notifications_enabled',
             'is_active',
             'created_by_id',
@@ -111,8 +120,9 @@ class BookableSpaceBookingRulesSerializer(serializers.ModelSerializer):
         )
 
 
-class BookingAdminSerializer(serializers.ModelSerializer):
+class BookingAdminSerializer(PaymentSummaryMixin, serializers.ModelSerializer):
     space_id = serializers.IntegerField(read_only=True)
+    payment = serializers.SerializerMethodField()
 
     class Meta:
         model = Booking
@@ -129,6 +139,7 @@ class BookingAdminSerializer(serializers.ModelSerializer):
             'note',
             'custom_answers',
             'created_at',
+            'payment',
         )
         read_only_fields = fields
 

@@ -5,6 +5,7 @@ from rest_framework import serializers
 from apps.accounts.models import User
 from apps.admin_api.serializers_users import UserSerializer
 from apps.makerspaces.models import MakerspaceMembership, MakerspaceRole
+from apps.admin_api.serializers_payment_summary import PaymentSummaryMixin
 
 
 class MembershipRoleSummarySerializer(serializers.ModelSerializer):
@@ -14,8 +15,9 @@ class MembershipRoleSummarySerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
 
-class MembershipListSerializer(serializers.ModelSerializer):
+class MembershipListSerializer(PaymentSummaryMixin, serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
+    payment = serializers.SerializerMethodField()
     makerspace_id = serializers.IntegerField(source="makerspace.id", read_only=True)
     makerspace_slug = serializers.SlugField(source="makerspace.slug", read_only=True)
     assigned_role = MembershipRoleSummarySerializer(allow_null=True, read_only=True)
@@ -24,7 +26,7 @@ class MembershipListSerializer(serializers.ModelSerializer):
         model = MakerspaceMembership
         fields = (
             "id", "user", "makerspace_id", "makerspace_slug", "role",
-            "assigned_role", "created_at",
+            "assigned_role", "created_at", "payment",
         )
         read_only_fields = fields
 

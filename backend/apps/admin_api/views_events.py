@@ -17,11 +17,13 @@ from apps.admin_api.serializers_events import (
     EventRegistrationListResponseSerializer,
     EventWriteSerializer,
 )
+from apps.admin_api.serializers_payment_summary import scoped_payment_context
 from apps.events import services
 from apps.events.models import Event, EventRegistration
 from apps.hardware_requests.exceptions import ErrorSerializer
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.models import Makerspace
+from apps.payments.models import Payment
 
 
 EVENT_VALIDATION_ERROR_SCHEMA = {'type': 'object', 'additionalProperties': {}}
@@ -268,10 +270,20 @@ class EventRegistrationListView(APIView):
         queryset = EventRegistration.objects.filter(event=event).order_by('created_at', 'id')
         paginator = _RegistrationPagination()
         page = paginator.paginate_queryset(queryset, request, view=self)
+        context = scoped_payment_context(
+            request.user,
+            rbac.Action.MANAGE_EVENTS,
+            Payment.SubjectType.EVENT_REGISTRATION,
+            [registration.pk for registration in page],
+        )
         return _paginated_response(
             paginator,
             page,
-            EventRegistrationAdminSerializer,
+            lambda rows, many: EventRegistrationAdminSerializer(
+                rows,
+                many=many,
+                context=context,
+            ),
         )
 
 
@@ -288,4 +300,15 @@ class EventRegistrationMarkAttendedView(APIView):
         registration = _manageable_registration(request.user, pk)
         _validate_empty_action(request)
         registration = services.mark_attended(registration, actor=request.user)
-        return Response(EventRegistrationAdminSerializer(registration).data)
+        context = scoped_payment_context(
+            request.user,
+            rbac.Action.MANAGE_EVENTS,
+            Payment.SubjectType.EVENT_REGISTRATION,
+            [registration.pk],
+        )
+        return Response(
+            EventRegistrationAdminSerializer(
+                registration,
+                context=context,
+            ).data
+        )

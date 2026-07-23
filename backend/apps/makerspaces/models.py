@@ -67,6 +67,7 @@ DEFAULT_ENABLED_MODULES = [
     "events",
     "bookings",
     "maintenance",
+    "membership",
 ]
 
 
@@ -142,6 +143,12 @@ class Makerspace(models.Model):
         max_length=16,
         choices=MembershipPolicy.choices,
         default=MembershipPolicy.REQUEST,
+    )
+    membership_dues_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
     )
     referrals_enabled = models.BooleanField(default=False)
     # 0 = off. When > 0, active filament spools at/below this remaining weight
@@ -245,6 +252,10 @@ class Makerspace(models.Model):
                 condition=Q(hidden_from_central_directory=False)
                 | Q(frontend_domain__isnull=False),
                 name="ck_makerspace_hidden_requires_domain",
+            ),
+            models.CheckConstraint(
+                condition=Q(membership_dues_amount__gte=0),
+                name="makerspace_dues_nonnegative",
             ),
         ]
 

@@ -5,17 +5,20 @@ from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.accounts import rbac
 from apps.admin_api.permissions import IsActiveStaff
 from apps.admin_api.serializers_memberships import (
     MembershipCreateSerializer,
     MembershipListSerializer,
     MembershipRoleAssignSerializer,
 )
+from apps.admin_api.serializers_payment_summary import scoped_payment_context
 from apps.admin_api.services_staff import attach_staff_membership
 from apps.admin_api.views_roles import ERRORS, _makerspace
 from apps.audit import services as audit
 from apps.makerspaces import role_services
 from apps.makerspaces.models import Makerspace, MakerspaceMembership, MakerspaceRole
+from apps.payments.models import Payment
 
 
 class MembershipListCreateView(APIView):
@@ -32,7 +35,20 @@ class MembershipListCreateView(APIView):
             .select_related("user", "makerspace", "assigned_role")
             .order_by("user__username")
         )
-        return Response(MembershipListSerializer(memberships, many=True).data)
+        memberships = list(memberships)
+        context = scoped_payment_context(
+            request.user,
+            rbac.Action.MANAGE_MAKERSPACE,
+            Payment.SubjectType.MAKERSPACE_MEMBERSHIP,
+            [membership.pk for membership in memberships],
+        )
+        return Response(
+            MembershipListSerializer(
+                memberships,
+                many=True,
+                context=context,
+            ).data
+        )
 
     @extend_schema(
         tags=["Admin memberships"],
@@ -80,8 +96,15 @@ class MembershipListCreateView(APIView):
             MakerspaceMembership.objects.select_related("user", "makerspace", "assigned_role")
             .get(pk=membership.pk)
         )
+        context = scoped_payment_context(
+            request.user,
+            rbac.Action.MANAGE_MAKERSPACE,
+            Payment.SubjectType.MAKERSPACE_MEMBERSHIP,
+            [membership.pk],
+        )
         return Response(
-            MembershipListSerializer(membership).data, status=status.HTTP_201_CREATED
+            MembershipListSerializer(membership, context=context).data,
+            status=status.HTTP_201_CREATED,
         )
 
 
@@ -114,4 +137,10 @@ class MembershipRoleAssignView(APIView):
             MakerspaceMembership.objects.select_related("user", "makerspace", "assigned_role")
             .get(pk=membership.pk)
         )
-        return Response(MembershipListSerializer(membership).data)
+        context = scoped_payment_context(
+            request.user,
+            rbac.Action.MANAGE_MAKERSPACE,
+            Payment.SubjectType.MAKERSPACE_MEMBERSHIP,
+            [membership.pk],
+        )
+        return Response(MembershipListSerializer(membership, context=context).data)

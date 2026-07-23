@@ -19,7 +19,7 @@ from apps.makerspaces.models import Makerspace
 
 EVENT_FIELDS = frozenset(
     {'title', 'description', 'starts_at', 'ends_at', 'location',
-     'location_kind', 'custom_form', 'capacity', 'is_public'}
+     'location_kind', 'custom_form', 'capacity', 'is_public', 'payment_amount'}
 )
 
 
@@ -70,8 +70,12 @@ def _lock_waiters(event):
 def _promote(event, actor, waiters, count=None):
     selected = waiters if count is None else waiters[:count]
     for registration in selected:
+        registration.event = event
         registration.status = EventRegistration.Status.REGISTERED
         registration.save(update_fields=["status"])
+        from apps.events.service_payments import create_for_registered_registration
+
+        create_for_registered_registration(registration, actor)
         meta = {"registration_id": registration.pk}
         _audit(event, actor, "event.registration_promoted", registration, meta)
         notify_event_lifecycle(event, "registration_promoted", registration.pk)
@@ -82,6 +86,7 @@ def _promote(event, actor, waiters, count=None):
 def create_event(
     *, makerspace, actor, title, description, starts_at, ends_at, location,
     capacity, is_public, location_kind=Event.LocationKind.OTHER, custom_form=None,
+    payment_amount=0,
 ):
     locked_space = Makerspace.objects.select_for_update().get(pk=makerspace.pk)
     event = Event(
@@ -95,6 +100,7 @@ def create_event(
         location_kind=location_kind,
         custom_form=_canonical_form(custom_form),
         capacity=capacity,
+        payment_amount=payment_amount,
         is_public=is_public,
     )
     _validate(event)
@@ -217,6 +223,9 @@ def cancel_registration(registration, *, actor=None):
     meta = {"registration_id": locked.pk, "old_status": old_status}
     _audit(event, actor, "event.registration_cancelled", locked, meta)
     notify_event_lifecycle(event, "registration_cancelled", locked.pk)
+    from apps.events.service_payments import cancel_for_registration
+
+    cancel_for_registration(locked, actor)
     if (
         old_status == EventRegistration.Status.REGISTERED
         and event.capacity > 0

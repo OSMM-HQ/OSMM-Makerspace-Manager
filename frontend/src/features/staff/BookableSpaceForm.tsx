@@ -16,6 +16,7 @@ export const EMPTY_SPACE_FORM: FormValues = {
   show_public_availability: false,
   show_public_booker_names: false,
   approval_mode: "instant",
+  payment_amount: "0.00",
   custom_form: null,
   requester_notifications_enabled: null,
 };
@@ -31,6 +32,7 @@ export function valuesForSpace(space: BookableSpace): FormValues {
     show_public_availability: space.show_public_availability,
     show_public_booker_names: space.show_public_booker_names,
     approval_mode: space.approval_mode,
+    payment_amount: space.payment_amount,
     custom_form: space.custom_form,
     requester_notifications_enabled: space.requester_notifications_enabled,
   };
@@ -94,6 +96,10 @@ export function BookableSpaceForm({ initialValues = EMPTY_SPACE_FORM, onSubmit, 
             <option value="instant">Instant confirmation</option>
             <option value="approve">Staff approval required</option>
           </select>
+        </label>
+        <label className="grid gap-1 text-sm font-semibold text-ink">Booking price
+          <input className="desk-input" type="number" min="0" step="0.01" value={values.payment_amount} onChange={(event) => set("payment_amount", event.target.value)} />
+          <span className="text-xs font-normal text-muted">Use 0 for no charge.</span>
         </label>
         <label className="grid gap-1 text-sm font-semibold text-ink">Requester email
           <select className="desk-input" value={notificationsValue} onChange={(event) => set("requester_notifications_enabled", event.target.value === "inherit" ? null : event.target.value === "on")}>

@@ -169,7 +169,7 @@ def test_admin_form_allows_standalone_self_checkout_without_public_inventory():
     assert "public_inventory" not in instance.enabled_modules
 
 
-def test_membership_payment_cannot_be_effective_before_membership_module_exists():
+def test_membership_payment_uses_the_registered_membership_module():
     from apps.makerspaces.models import Makerspace
     from apps.makerspaces.platform import feature_enabled
 
@@ -177,6 +177,8 @@ def test_membership_payment_cannot_be_effective_before_membership_module_exists(
         name="No membership", slug="no-membership", enabled_modules=["membership"],
         enabled_features=["payments.membership"],
     )
-    assert feature_enabled(makerspace, "payments.membership") is False
-    with pytest.raises(ValidationError):
-        validate_capabilities(["membership"], ["payments.membership"])
+    assert feature_enabled(makerspace, "payments.membership") is True
+    assert validate_capabilities(["membership"], ["payments.membership"]) == (
+        ["membership"],
+        ["payments.membership"],
+    )

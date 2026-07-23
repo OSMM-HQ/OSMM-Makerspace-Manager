@@ -106,6 +106,10 @@ def create_booking(
         {'booking_id': booking.pk, 'status': status},
     )
     notifications.notify_booking_status(booking, 'created')
+    if status == Booking.Status.CONFIRMED:
+        from apps.bookings.service_payments import create_for_confirmed_booking
+
+        create_for_confirmed_booking(booking, actor)
     return _refresh(booking)
 
 
@@ -158,6 +162,9 @@ def approve_booking(booking, *, actor):
         },
     )
     notifications.notify_booking_status(locked, 'confirmed')
+    from apps.bookings.service_payments import create_for_confirmed_booking
+
+    create_for_confirmed_booking(locked, actor)
     return _refresh(locked)
 
 
@@ -213,9 +220,13 @@ def _transition(booking, actor, new_status, action, event, *, require_ended=Fals
 
 @transaction.atomic
 def cancel_booking(booking, *, actor):
-    return _transition(
+    cancelled = _transition(
         booking, actor, Booking.Status.CANCELLED, 'booking.cancelled', 'cancelled'
     )
+    from apps.bookings.service_payments import cancel_for_booking
+
+    cancel_for_booking(cancelled, actor)
+    return cancelled
 
 
 @transaction.atomic

@@ -97,6 +97,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "public_stats_enabled",
             "public_print_status_lookup_policy",
             "membership_policy",
+            "membership_dues_amount",
             "referrals_enabled",
             "filament_low_stock_threshold_grams",
             "superadmin_access_enabled",

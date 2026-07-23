@@ -110,4 +110,9 @@ def _activate_membership(actor, makerspace, user, role, *, request=None, source)
             )
             send_member_welcome(membership, source=source)
             notify_member_joined(membership)
+            from apps.makerspaces.membership_payments import (
+                create_for_active_membership,
+            )
+
+            create_for_active_membership(membership, actor)
         return membership

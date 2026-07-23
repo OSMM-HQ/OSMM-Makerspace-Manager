@@ -11,6 +11,7 @@ from apps.payments.models import Payment
 from apps.payments.serializers import MemberPaymentSerializer
 from apps.payments.serializers import CheckoutUrlSerializer
 from apps.payments.services import create_checkout_url
+from apps.payments.subjects import resolve_subject_labels
 
 
 class MemberPaymentHistoryView(APIView):
@@ -20,8 +21,19 @@ class MemberPaymentHistoryView(APIView):
     def get(self, request, makerspace_id):
         if active_membership(request.user, makerspace_id) is None:
             return Response({"detail": "An active membership is required."}, status=403)
-        rows = Payment.objects.filter(makerspace_id=makerspace_id, member=request.user).order_by("-created_at")
-        return Response(MemberPaymentSerializer(rows, many=True).data)
+        rows = list(
+            Payment.objects.filter(
+                makerspace_id=makerspace_id,
+                member=request.user,
+            ).order_by("-created_at")
+        )
+        return Response(
+            MemberPaymentSerializer(
+                rows,
+                many=True,
+                context={"payment_subject_labels": resolve_subject_labels(rows)},
+            ).data
+        )
 
 
 class MemberPaymentCheckoutView(APIView):

@@ -63,6 +63,38 @@ def waive(payment, actor):
     )
 
 
+@transaction.atomic
+def cancel_pending(*, makerspace, subject_type, subject_id, actor):
+    """Cancel a subject's pending charge without affecting its domain workflow."""
+    payment = (
+        Payment.objects.select_for_update()
+        .filter(
+            makerspace=makerspace,
+            subject_type=subject_type,
+            subject_id=subject_id,
+        )
+        .first()
+    )
+    if payment is None or payment.status != Payment.Status.PENDING:
+        return payment
+    _expire_checkout_best_effort(payment)
+    payment.status = Payment.Status.CANCELED
+    payment.save(
+        update_fields=[
+            "status",
+            "stripe_checkout_session_expired_at",
+            "updated_at",
+        ]
+    )
+    audit.record(
+        actor,
+        "payment.canceled",
+        makerspace=makerspace,
+        target=payment,
+    )
+    return payment
+
+
 def _compat_reconcile(*, payment, actor, target_status):
     current = Payment.objects.get(pk=payment.pk)
     if current.status != Payment.Status.PENDING:

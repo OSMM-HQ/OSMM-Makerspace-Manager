@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { ApiPath } from "../../generated/api";
 import { staffRequest } from "../../lib/api";
+import type { PaymentSummary } from "./PaymentReconcileActions";
 
 export type EventStatus = "draft" | "published" | "cancelled" | "completed";
 export type EventRegistrationStatus = "registered" | "waitlisted" | "cancelled" | "attended";
@@ -16,6 +17,7 @@ export type StaffEvent = {
   ends_at: string;
   location: string;
   capacity: number;
+  payment_amount: string;
   is_public: boolean;
   status: EventStatus;
   created_by_id: number | null;
@@ -31,6 +33,7 @@ export type EventRegistration = {
   email: string;
   phone: string;
   status: EventRegistrationStatus;
+  payment: PaymentSummary | null;
   created_at: string;
 };
 
@@ -41,6 +44,7 @@ export type EventPayload = {
   ends_at: string;
   location: string;
   capacity: number;
+  payment_amount: string;
   is_public: boolean;
 };
 

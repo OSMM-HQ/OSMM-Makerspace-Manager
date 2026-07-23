@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ApiPath } from "../../generated/api";
 import { staffRequest } from "../../lib/api";
 import type { CustomAnswerSnapshot, CustomFormSchema } from "../forms/customFormTypes";
+import type { PaymentSummary } from "./PaymentReconcileActions";
 
 export type BookingStatus = "pending" | "confirmed" | "rejected" | "cancelled" | "completed" | "no_show";
 export type BookableSpace = {
@@ -19,6 +20,7 @@ export type BookableSpace = {
   show_public_availability: boolean;
   show_public_booker_names: boolean;
   approval_mode: "instant" | "approve";
+  payment_amount: string;
   custom_form: CustomFormSchema;
   requester_notifications_enabled: boolean | null;
   effective_requester_notifications_enabled: boolean;
@@ -31,7 +33,7 @@ export type BookableSpace = {
 export type BookableSpacePayload = Pick<BookableSpace,
   "name" | "kind" | "description" | "capacity" | "location" | "is_public" |
   "show_public_availability" | "show_public_booker_names" | "approval_mode" |
-  "custom_form" | "requester_notifications_enabled"
+  "custom_form" | "requester_notifications_enabled" | "payment_amount"
 >;
 
 export type Booking = {
@@ -46,6 +48,7 @@ export type Booking = {
   status: BookingStatus;
   note: string;
   custom_answers: CustomAnswerSnapshot | null;
+  payment: PaymentSummary | null;
   created_at: string;
 };
 

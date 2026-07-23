@@ -90,4 +90,8 @@ def _record_registration(event, actor, registration, status):
 
     services._audit(event, actor, "event.registration_created", registration, {"registration_id": registration.pk, "status": status})
     services.notify_event_lifecycle(event, "registration_created", registration.pk)
+    if status == EventRegistration.Status.REGISTERED:
+        from apps.events.service_payments import create_for_registered_registration
+
+        create_for_registered_registration(registration, actor)
     return services._refresh(registration)

@@ -34,7 +34,7 @@ FEATURE_DEFINITIONS = (
     ),
 )
 FEATURES = {definition.key: definition for definition in FEATURE_DEFINITIONS}
-FEATURE_MODULES = {"public_inventory", "machines", "machine_service", "bookings", "events"}
+FEATURE_MODULES = {"public_inventory", "machines", "machine_service", "bookings", "events", "membership"}
 
 
 def default_enabled_features():

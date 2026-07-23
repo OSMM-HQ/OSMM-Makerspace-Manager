@@ -415,6 +415,7 @@ export type AdminMembership = {
   "waiver_accepted_at"?: string | null;
   "waiver_version_accepted"?: string | null;
   "waiver_current": boolean;
+  "payment": StaffPaymentSummary | null;
 };
 
 export type AdminMembershipRole = {
@@ -664,6 +665,7 @@ export type BookableSpaceAdmin = {
   "max_booking_advance_days": number;
   "custom_form": unknown | null;
   "requester_notifications_enabled": boolean | null;
+  "payment_amount": string;
   "effective_requester_notifications_enabled": boolean;
   "is_active": boolean;
   "created_by_id": number | null;
@@ -697,6 +699,7 @@ export type BookableSpaceWrite = {
   "show_public_booker_names"?: boolean;
   "custom_form"?: unknown | null;
   "requester_notifications_enabled"?: boolean | null;
+  "payment_amount"?: string;
 };
 
 export type BookingAdmin = {
@@ -712,6 +715,7 @@ export type BookingAdmin = {
   "note": string;
   "custom_answers": unknown | null;
   "created_at": string;
+  "payment": StaffPaymentSummary | null;
 };
 
 export type BookingAdminStatusEnum = "pending" | "confirmed" | "rejected" | "cancelled" | "completed" | "no_show";
@@ -1125,6 +1129,7 @@ export type EventAdmin = {
   "location_kind": LocationKindEnum;
   "custom_form": unknown | null;
   "capacity": number;
+  "payment_amount": string;
   "is_public": boolean;
   "status": EventAdminStatusEnum;
   "created_by_id": number | null;
@@ -1172,6 +1177,7 @@ export type EventRegistrationAdmin = {
   "custom_answers": unknown | null;
   "status": EventRegistrationAdminStatusEnum;
   "created_at": string;
+  "payment": StaffPaymentSummary | null;
 };
 
 export type EventRegistrationAdminStatusEnum = "registered" | "waitlisted" | "cancelled" | "attended";
@@ -1199,6 +1205,7 @@ export type EventWrite = {
   "location_kind"?: LocationKindEnum;
   "custom_form"?: unknown | null;
   "capacity"?: number;
+  "payment_amount"?: string;
   "is_public"?: boolean;
 };
 
@@ -1963,6 +1970,7 @@ export type Makerspace = {
   "public_stats_enabled"?: boolean;
   "public_print_status_lookup_policy"?: PublicPrintStatusLookupPolicyEnum;
   "membership_policy"?: MembershipPolicyEnum;
+  "membership_dues_amount"?: string;
   "referrals_enabled"?: boolean;
   "filament_low_stock_threshold_grams"?: string;
   "superadmin_access_enabled"?: boolean;
@@ -2140,6 +2148,7 @@ export type MembershipList = {
   "role": RoleE91Enum;
   "assigned_role": MembershipRoleSummary | null;
   "created_at": string;
+  "payment": StaffPaymentSummary | null;
 };
 
 export type MembershipOutcome = {
@@ -2607,6 +2616,7 @@ export type PatchedBookableSpaceWrite = {
   "show_public_booker_names"?: boolean;
   "custom_form"?: unknown | null;
   "requester_notifications_enabled"?: boolean | null;
+  "payment_amount"?: string;
 };
 
 export type PatchedBox = {
@@ -2651,6 +2661,7 @@ export type PatchedEventWrite = {
   "location_kind"?: LocationKindEnum;
   "custom_form"?: unknown | null;
   "capacity"?: number;
+  "payment_amount"?: string;
   "is_public"?: boolean;
 };
 
@@ -2747,6 +2758,7 @@ export type PatchedMakerspace = {
   "public_stats_enabled"?: boolean;
   "public_print_status_lookup_policy"?: PublicPrintStatusLookupPolicyEnum;
   "membership_policy"?: MembershipPolicyEnum;
+  "membership_dues_amount"?: string;
   "referrals_enabled"?: boolean;
   "filament_low_stock_threshold_grams"?: string;
   "superadmin_access_enabled"?: boolean;
@@ -3876,6 +3888,13 @@ export type StaffPayment = {
   "status"?: Status66aEnum;
   "checkout_url": string;
   "created_at": string;
+  "amount": string;
+  "currency": string;
+};
+
+export type StaffPaymentSummary = {
+  "id": number;
+  "status": Status66aEnum;
   "amount": string;
   "currency": string;
 };

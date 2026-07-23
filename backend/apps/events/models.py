@@ -1,6 +1,7 @@
 ﻿from uuid import uuid4
 
 from django.conf import settings
+from django.core.validators import MinValueValidator
 from django.db import models
 from apps.encryption.mappers import ScopedPiiModelMixin
 from django.db.models import F, Q
@@ -48,6 +49,12 @@ class Event(models.Model):
         validators=[validate_form_schema],
     )
     capacity = models.PositiveIntegerField(default=0)
+    payment_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
     is_public = models.BooleanField(default=False)
     status = models.CharField(
         max_length=16,
@@ -74,6 +81,10 @@ class Event(models.Model):
             models.CheckConstraint(
                 condition=Q(capacity__gte=0),
                 name="event_capacity_nonnegative",
+            ),
+            models.CheckConstraint(
+                condition=Q(payment_amount__gte=0),
+                name="event_payment_nonnegative",
             ),
         ]
         indexes = [

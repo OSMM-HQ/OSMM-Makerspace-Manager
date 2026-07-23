@@ -12,6 +12,7 @@ from apps.payments.models import (
     PlatformStripeConnectSettings,
 )
 from apps.payments.resolution import resolve_payment_source, source_for_payment
+from apps.payments.subjects import resolve_subject_labels, subject_label
 from apps.payments.services_webhooks import (
     apply_connect_webhook_event,
     apply_webhook_event,
@@ -123,13 +124,14 @@ def _create_checkout_url_atomic(payment_id):
         if not member_url:
             logger.warning("payment_checkout_return_url_unavailable", extra={"payment_id": payment_id})
             raise stripe_client.PaymentsUnavailable("A payment return URL is not configured.")
+        label = subject_label(payment, resolve_subject_labels([payment]))
         checkout_params = {
             "mode": "payment",
             "client_reference_id": str(payment.pk),
             "success_url": f"{member_url}?checkout=success",
             "cancel_url": f"{member_url}?checkout=cancelled",
             "metadata": {"payment_id": str(payment.pk), "makerspace_id": str(payment.makerspace_id)},
-            "line_items": [{"price_data": {"currency": payment.currency, "unit_amount": int(payment.amount * 100), "product_data": {"name": "Machine service"}}, "quantity": 1}],
+            "line_items": [{"price_data": {"currency": payment.currency, "unit_amount": int(payment.amount * 100), "product_data": {"name": label}}, "quantity": 1}],
         }
         if payment.stripe_application_fee_amount:
             checkout_params["payment_intent_data"] = {

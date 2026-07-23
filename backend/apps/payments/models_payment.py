@@ -55,6 +55,43 @@ class Payment(models.Model):
 
             if not MachineServiceRequest.objects.filter(pk=self.subject_id, makerspace_id=self.makerspace_id).exists():
                 raise ValidationError({"subject_id": "Payment subject must belong to the payment makerspace."})
+        if self.subject_type == self.SubjectType.BOOKING and self.subject_id:
+            from apps.bookings.models import Booking
+
+            booking_exists = Booking.objects.filter(
+                pk=self.subject_id,
+                space__makerspace_id=self.makerspace_id,
+            ).exists()
+            if not booking_exists:
+                raise ValidationError(
+                    {"subject_id": "Payment subject must belong to the payment makerspace."}
+                )
+        if self.subject_type == self.SubjectType.EVENT_REGISTRATION and self.subject_id:
+            from apps.events.models import EventRegistration
+
+            registration_exists = EventRegistration.objects.filter(
+                pk=self.subject_id,
+                event__makerspace_id=self.makerspace_id,
+            ).exists()
+            if not registration_exists:
+                raise ValidationError(
+                    {"subject_id": "Payment subject must belong to the payment makerspace."}
+                )
+        if self.subject_type == self.SubjectType.MAKERSPACE_MEMBERSHIP and self.subject_id:
+            from apps.makerspaces.models import MakerspaceMembership
+
+            membership = MakerspaceMembership.objects.filter(
+                pk=self.subject_id,
+                makerspace_id=self.makerspace_id,
+            ).only("user_id").first()
+            if membership is None:
+                raise ValidationError(
+                    {"subject_id": "Payment subject must belong to the payment makerspace."}
+                )
+            if self.member_id != membership.user_id:
+                raise ValidationError(
+                    {"member": "Payment member must be the membership user."}
+                )
 
     def save(self, *args, **kwargs):
         if self.pk:

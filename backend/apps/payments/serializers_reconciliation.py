@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from apps.payments.models import Payment
+from apps.payments.subjects import subject_label
 
 
 class PaymentReconciliationSerializer(serializers.ModelSerializer):
@@ -22,16 +23,10 @@ class PaymentReconciliationSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_subject_label(self, payment):
-        if payment.subject_type == Payment.SubjectType.MACHINE_SERVICE_REQUEST:
-            from apps.machines.models import MachineServiceRequest
-
-            return (
-                MachineServiceRequest.objects.filter(pk=payment.subject_id)
-                .values_list("title", flat=True)
-                .first()
-                or "Machine service"
-            )
-        return f"{payment.get_subject_type_display()} #{payment.subject_id}"
+        return subject_label(
+            payment,
+            self.context.get("payment_subject_labels", {}),
+        )
 
 
 class PaymentListFilterSerializer(serializers.Serializer):

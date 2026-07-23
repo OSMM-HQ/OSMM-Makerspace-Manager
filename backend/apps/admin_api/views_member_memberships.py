@@ -10,10 +10,12 @@ from apps.accounts import rbac
 from apps.admin_api.permissions import IsActiveStaff
 from apps.admin_api.serializers_member_memberships import (AdminMembershipSerializer, InvitationSerializer,
     MembershipRequestSerializer, RevokeSerializer, RoleIdSerializer)
+from apps.admin_api.serializers_payment_summary import scoped_payment_context
 from apps.admin_api.views_roles import ERRORS
 from apps.makerspaces import membership_services, waiver_services
 from apps.makerspaces.models import Makerspace, MakerspaceMembership, MakerspaceRole, MakerspaceWaiver, MembershipRequest
 from apps.makerspaces.serializers_memberships import WaiverPublishSerializer
+from apps.payments.models import Payment
 
 
 class MembershipPagination(PageNumberPagination):
@@ -32,6 +34,18 @@ def _role(makerspace, role_id):
     return get_object_or_404(MakerspaceRole.objects.filter(makerspace=makerspace), pk=role_id)
 
 
+def _membership_context(actor, membership, **extra):
+    return {
+        **extra,
+        **scoped_payment_context(
+            actor,
+            rbac.Action.MANAGE_MAKERSPACE,
+            Payment.SubjectType.MAKERSPACE_MEMBERSHIP,
+            [membership.pk],
+        ),
+    }
+
+
 class AdminMembershipRosterView(APIView):
     permission_classes = [IsActiveStaff]
     pagination_class = MembershipPagination
@@ -43,8 +57,17 @@ class AdminMembershipRosterView(APIView):
         queryset = MakerspaceMembership.objects.filter(makerspace=makerspace).select_related("user", "assigned_role").order_by("user__username")
         pager = self.pagination_class()
         page = pager.paginate_queryset(queryset, request)
+        context = {
+            "active_waiver_version": active.version if active else None,
+            **scoped_payment_context(
+                request.user,
+                rbac.Action.MANAGE_MAKERSPACE,
+                Payment.SubjectType.MAKERSPACE_MEMBERSHIP,
+                [membership.pk for membership in page],
+            ),
+        }
         return pager.get_paginated_response(AdminMembershipSerializer(
-            page, many=True, context={"active_waiver_version": active.version if active else None}
+            page, many=True, context=context
         ).data)
 
 
@@ -85,7 +108,15 @@ class AdminRequestApproveView(APIView):
         serializer = RoleIdSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         membership = membership_services.approve_request(request.user, item, _role(makerspace, serializer.validated_data["role_id"]))
-        return Response(AdminMembershipSerializer(MakerspaceMembership.objects.select_related("user", "assigned_role").get(pk=membership.pk)).data)
+        membership = MakerspaceMembership.objects.select_related(
+            "user", "assigned_role"
+        ).get(pk=membership.pk)
+        return Response(
+            AdminMembershipSerializer(
+                membership,
+                context=_membership_context(request.user, membership),
+            ).data
+        )
 
 
 class AdminRequestRevokeView(APIView):
@@ -109,7 +140,15 @@ class AdminMembershipRevokeM2View(APIView):
         _makerspace(request.user, membership.makerspace_id)
         serializer = RevokeSerializer(data=request.data); serializer.is_valid(raise_exception=True)
         membership = membership_services.revoke_membership(request.user, membership, serializer.validated_data.get("reason", ""))
-        return Response(AdminMembershipSerializer(MakerspaceMembership.objects.select_related("user", "assigned_role").get(pk=membership.pk)).data)
+        membership = MakerspaceMembership.objects.select_related(
+            "user", "assigned_role"
+        ).get(pk=membership.pk)
+        return Response(
+            AdminMembershipSerializer(
+                membership,
+                context=_membership_context(request.user, membership),
+            ).data
+        )
 
 
 class AdminMembershipRoleM2View(APIView):
@@ -121,7 +160,15 @@ class AdminMembershipRoleM2View(APIView):
         makerspace = _makerspace(request.user, membership.makerspace_id)
         serializer = RoleIdSerializer(data=request.data); serializer.is_valid(raise_exception=True)
         membership = membership_services.change_role(request.user, membership, _role(makerspace, serializer.validated_data["role_id"]))
-        return Response(AdminMembershipSerializer(MakerspaceMembership.objects.select_related("user", "assigned_role").get(pk=membership.pk)).data)
+        membership = MakerspaceMembership.objects.select_related(
+            "user", "assigned_role"
+        ).get(pk=membership.pk)
+        return Response(
+            AdminMembershipSerializer(
+                membership,
+                context=_membership_context(request.user, membership),
+            ).data
+        )
 
 
 class AdminWaiverView(APIView):
