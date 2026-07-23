@@ -49,7 +49,15 @@ to get a change merged.
 
 ## Branches & commits
 
-- Branch from `main`: `git checkout -b feature/<short-slug>` (or `fix/<short-slug>`).
+- Always start from the latest `dev` branch, then create a dedicated branch for your work:
+
+  ```bash
+  git checkout dev
+  git pull --ff-only origin dev
+  git checkout -b feature/<short-slug>  # or fix/<short-slug>
+  ```
+
+- Do not work or commit directly on `dev` or `main`. Keep each change on its own feature/fix branch.
 - Use clear, conventional commit subjects, e.g. `feat(inventory): …`, `fix(printing): …`,
   `docs: …`, `chore: …`. Keep the subject one line.
 - Keep each PR focused on a single concern.
@@ -59,8 +67,9 @@ to get a change merged.
 1. Make sure `cd backend && pytest` passes and the frontend builds (`cd frontend && npm run build`).
 2. Update docs (`README.md`, `docs/`, and `CLAUDE.md` if you change tooling/architecture) alongside
    the code.
-3. Open a PR against `main` describing **what** changed and **why**, and call out any required env
-   vars, migrations, or manual steps.
+3. Open the PR against `dev`—not `main`—describing **what** changed and **why**, and call out any
+   required env vars, migrations, or manual steps. Maintainers promote tested changes from `dev`
+   to `main` through the release process.
 4. Be responsive to review feedback — verify suggestions technically rather than applying blindly.
 
 ## Reporting issues
