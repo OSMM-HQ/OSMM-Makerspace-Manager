@@ -1,21 +1,23 @@
-<p align="center">
+<div align="center">
+
   <img src="docs/banner.svg" alt="Space Works — Open Source Makerspace Manager" width="860">
-</p>
 
-<h1 align="center">Space Works — Open Source Makerspace Manager</h1>
+  <h1>Space Works — Open Source Makerspace Manager</h1>
 
-<p align="center">
+<p>
   Self-hostable, multi-tenant <strong>management platform for makerspaces</strong> — run your
   inventory, tool &amp; equipment lending, and 3D printing in one place. Browse, borrow, track, and
   stay accountable, without spreadsheets.
 </p>
 
-<p align="center">
+<p>
   <a href="LICENSE"><img alt="License: AGPL-3.0-or-later" src="https://img.shields.io/badge/license-AGPL--3.0--or--later-blue.svg"></a>
-  <a href="https://github.com/SpaceWorks-HQ/SpaceWorks/actions/workflows/release.yml"><img alt="Release" src="https://github.com/SpaceWorks-HQ/SpaceWorks/actions/workflows/release.yml/badge.svg"></a>
+  <a href="https://github.com/SpaceWorks-HQ/SpaceWorks/actions/workflows/release.yml"><img alt="Release" src="https://github.com/SpaceWorks-HQ/SpaceWorks/actions/workflows/release.yml/badge.svg?branch=main"></a>
   <img alt="Stack" src="https://img.shields.io/badge/stack-Django%206%20%C2%B7%20React%2019-0b7285.svg">
   <a href=".github/CONTRIBUTING.md"><img alt="PRs welcome" src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg"></a>
 </p>
+
+</div>
 
 ---
 
