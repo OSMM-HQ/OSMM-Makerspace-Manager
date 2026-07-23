@@ -70,13 +70,13 @@ cd backend && pytest
 
 Every commit pushed to `main` triggers `.github/workflows/release.yml`. It builds and publishes both
 Docker images, then creates a tagged GitHub Release with generated notes. The release title shows the
-current series (for example, `v0.5`), while its internal tag remains immutable, such as
-`0.5.0-main.42.a1b2c3d4e5f6`, so host updates always select one exact build.
+version from `VERSION` (for example, `v0.5.1`), while its internal tag remains immutable, such as
+`0.5.1-main.42.a1b2c3d4e5f6`, so host updates always select one exact build.
 
 After both images succeed, the current `main` build is promoted to the rolling `:X.Y`, `:main`, and
-`:latest` tags. The workflow then removes superseded Releases and GHCR versions, leaving only the
-current branch-head release. If a newer commit reaches `main` while an older build is running, the
-older build cannot promote or clean up the newer release.
+`:latest` tags. The workflow then removes older Releases and GHCR versions while retaining the current
+and immediately previous builds for automatic application rollback. If a newer commit reaches `main`
+while an older build is running, the older build cannot promote or clean up the newer release.
 
 The root **`VERSION`** file selects the release series. Bump it to a semantic version such as `1.0.0`
 when starting a new series; ordinary commits should leave it unchanged.

@@ -80,27 +80,32 @@ export function PlatformUpdatePanel() {
               </div>
               <p className="mt-1 text-sm text-muted">
                 When enabled, the host checks every seven days and installs the newest completed main release.
-                Turn it off to review releases first; manual updates still work.
+                Turn it off to stop automatic installation; scheduled checks and manual updates still work.
               </p>
             </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={data.automatic_updates_enabled}
-              aria-label="Automatic updates"
-              className={`relative h-7 w-12 shrink-0 rounded-full border transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50 ${
-                data.automatic_updates_enabled ? "border-accent bg-accent" : "border-outline bg-surface"
-              }`}
-              disabled={busy || data.status === "running"}
-              onClick={() => toggle.mutate(!data.automatic_updates_enabled)}
-            >
-              <span
-                aria-hidden="true"
-                className={`absolute top-1 h-5 w-5 rounded-full bg-panel transition-transform duration-200 ${
-                  data.automatic_updates_enabled ? "translate-x-6" : "translate-x-1"
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-ink">
+                {data.automatic_updates_enabled ? "On" : "Off"}
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={data.automatic_updates_enabled}
+                aria-label="Automatic updates"
+                className={`relative h-7 w-12 shrink-0 rounded-full border transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 disabled:cursor-not-allowed disabled:opacity-50 ${
+                  data.automatic_updates_enabled ? "border-accent bg-accent" : "border-outline bg-surface"
                 }`}
-              />
-            </button>
+                disabled={busy || data.status === "running"}
+                onClick={() => toggle.mutate(!data.automatic_updates_enabled)}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`absolute top-1 h-5 w-5 rounded-full bg-panel transition-transform duration-200 ${
+                    data.automatic_updates_enabled ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
           </div>
 
           <dl className="grid gap-x-8 gap-y-3 border-y border-line py-4 sm:grid-cols-2">
@@ -143,7 +148,10 @@ export function PlatformUpdatePanel() {
           <section aria-labelledby="backup-explainer" className="border-t border-line pt-4">
             <h3 id="backup-explainer" className="text-base font-semibold text-ink">What is the update backup?</h3>
             <p className="mt-1 max-w-3xl text-sm text-muted">
-              Before changing containers, Space Works saves a compressed PostgreSQL snapshot in the host&apos;s <code>backups/</code> folder. It can restore users, settings, inventory, requests, loans, and audit records if an update goes wrong. It is kept for 14 days and is not an automatic rollback.
+              Before changing containers, Space Works saves a compressed PostgreSQL snapshot in the host&apos;s <code>backups/</code> folder. It can restore users, settings, inventory, requests, loans, and audit records if an update goes wrong. It is kept for 14 days.
+            </p>
+            <p className="mt-2 max-w-3xl text-sm text-muted">
+              If deployment or readiness fails, the host automatically returns the application containers to the previous retained release. The database snapshot is preserved for recovery but is never restored automatically, avoiding destructive data replacement.
             </p>
             <p className="mt-2 max-w-3xl text-sm text-muted">
               Uploaded photos, evidence, documents, and print files live in MinIO and are not inside this database backup. Back up the MinIO data volume separately.

@@ -59,6 +59,28 @@ def test_update_now_queues_audited_request():
     ).exists()
 
 
+def test_automatic_updates_can_be_turned_off():
+    settings = PlatformUpdateSettings.load()
+    settings.automatic_updates_enabled = True
+    settings.save(update_fields=("automatic_updates_enabled", "updated_at"))
+    root = superadmin("updates-off-superadmin")
+
+    response = authenticated_client(root).patch(
+        reverse("admin-platform-update-settings"),
+        {"automatic_updates_enabled": False},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["automatic_updates_enabled"] is False
+    assert services.claim_update(
+        current_version="0.5.0-main.1.aaaaaaaaaaaa",
+        available_version="0.5.0-main.2.bbbbbbbbbbbb",
+    ) is False
+    event = AuditLog.objects.get(action="platform.update_settings_updated")
+    assert event.meta == {"automatic_updates_enabled": False}
+
+
 def test_host_claim_respects_toggle_and_manual_queue():
     settings = PlatformUpdateSettings.load()
 

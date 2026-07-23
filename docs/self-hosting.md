@@ -95,6 +95,8 @@ Guided setup offers automatic checks every seven days by default. A Super Admin 
 **Staff console -> Platform settings -> Software updates** to turn automatic installation on or off,
 see the installed/latest versions, or queue **Update now**. The web application never receives Docker
 socket access: it records the request in PostgreSQL and the host scheduler performs the privileged work.
+Turning automatic installation off leaves the seven-day host check active, so release information and
+manual requests still work without installing anything automatically.
 Install or repair the schedule manually with:
 
 ```bash
@@ -112,15 +114,19 @@ powershell -ExecutionPolicy Bypass -File scripts/update.ps1 -Force
 Pre-update database dumps are written to `backups/` and retained for 14 days. Each compressed dump
 contains PostgreSQL data: users, settings, inventory, requests, loan history, and audit metadata. It does
 **not** contain MinIO objects such as evidence photos, machine images, documents, or print files; back up
-the `minio_data` volume separately. The update backup is a recovery point, not an automatic rollback.
+the `minio_data` volume separately. The database snapshot is a recovery point and is never restored
+automatically.
 
 The scripts use `.spaceworks-update.lock` to prevent overlapping runs and `.spaceworks-version` to avoid
-redeploying the same release. If an update fails, the version marker is not advanced, the UI records a
-safe failure message, and the backup path remains in the host log. Review `backups/auto-update.log` before
-retrying or pinning the previous immutable tag.
+redeploying the same release. If migration, deployment, or readiness fails after replacement starts, the
+updater automatically pulls and starts the previous retained application release, then verifies its
+health. The version marker is not advanced, the UI records whether rollback succeeded, and the database
+backup remains available. Database migrations are not reversed automatically; keep migrations backward
+compatible with the immediately previous application release. If application rollback also fails, review
+`backups/auto-update.log` before restoring the database snapshot and previous image tag manually.
 
 For a manual deployment, set `MAKERSPACE_IMAGE_TAG` to a release such as
-`0.5.0-main.42.a1b2c3d4e5f6`, then run:
+`0.5.1-main.42.a1b2c3d4e5f6`, then run:
 
 ```powershell
 docker compose -f docker-compose.prod.yml pull
@@ -133,10 +139,11 @@ service and readiness gate. Manual dependency audit: `pip install pip-audit && p
 ## Publishing new images (maintainers)
 
 Every push to `main` runs `release.yml`, publishes matching backend and frontend images, and creates a
-GitHub Release titled for the series (for example, `v0.5`). Its internal tag still identifies the exact
-build used by the updater. When both images succeed for the current branch head, the workflow promotes
-them to the rolling `:X.Y`, `:main`, and `:latest` tags, then removes superseded Releases and GHCR
-versions so only the newest published build remains available.
+GitHub Release titled with the version from `VERSION` (for example, `v0.5.1`). Its internal tag still
+identifies the exact build used by the updater. When both images succeed for the current branch head, the workflow promotes
+them to the rolling `:X.Y`, `:main`, and `:latest` tags, then removes older Releases and GHCR versions.
+The current and immediately previous builds remain available so a failed deployment can roll its
+application containers back automatically.
 
 The root **`VERSION`** file selects the semantic release series. Edit it (for example, to `1.0.0`) only
 when starting a new series; the workflow adds the run number and commit SHA to every release automatically.

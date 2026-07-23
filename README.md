@@ -65,7 +65,7 @@ automatic or manual installation from **Platform settings -> Software updates**.
 after `cp .env.example .env` (fill in the few values it asks for):
 
 ```bash
-export MAKERSPACE_IMAGE_TAG=latest        # or pin a release, e.g. 0.5.0-main.42.a1b2c3d4e5f6
+export MAKERSPACE_IMAGE_TAG=latest        # or pin a release, e.g. 0.5.1-main.42.a1b2c3d4e5f6
 docker compose -f docker-compose.prod.yml up -d
 ```
 
@@ -136,7 +136,8 @@ docker compose -f docker-compose.prod.yml exec backend python manage.py setup_in
 
 With no arguments it seeds **`superadmin` / `super123`** and forces a password change on first login.
 Guided installs can receive each successful `main` release automatically with a backup and readiness
-check. Run `scripts/update.sh` (macOS/Linux) or `scripts/update.ps1` (Windows) for an immediate
+check. If deployment fails, the application containers return to the previous retained release. Run
+`scripts/update.sh --force` (macOS/Linux) or `scripts/update.ps1 -Force` (Windows) for an immediate
 update; see **[docs/self-hosting.md](docs/self-hosting.md)** for scheduling, pinning, TLS, and recovery.
 
 **No server of your own?** Space Works is multi-tenant — partner with a nearby makerspace to run your space

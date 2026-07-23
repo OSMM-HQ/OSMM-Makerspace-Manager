@@ -3,7 +3,7 @@ run-name: Release main@${{ github.sha }}
 
 # Every commit that reaches main is a releasable build. VERSION selects the
 # release series shown to users; the run number and commit SHA keep the current
-# container image retry-safe, for example: 0.5.0-main.42.a1b2c3d4e5f6.
+# container image retry-safe, for example: 0.5.1-main.42.a1b2c3d4e5f6.
 on:
   push:
     branches:
@@ -19,6 +19,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     outputs:
+      base: ${{ steps.release.outputs.base }}
       version: ${{ steps.release.outputs.version }}
       tag: ${{ steps.release.outputs.tag }}
       series: ${{ steps.release.outputs.series }}
@@ -44,6 +45,7 @@ jobs:
           registry_owner="$(printf '%s' "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
           version="${base}-main.${GITHUB_RUN_NUMBER}.${short_sha}"
 
+          echo "base=$base" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
           echo "tag=v$version" >> "$GITHUB_OUTPUT"
           echo "series=$series" >> "$GITHUB_OUTPUT"
@@ -103,7 +105,7 @@ jobs:
         with:
           tag_name: ${{ needs.prepare.outputs.tag }}
           target_commitish: ${{ github.sha }}
-          name: v${{ needs.prepare.outputs.series }}
+          name: v${{ needs.prepare.outputs.base }}
           generate_release_notes: true
           make_latest: false
           body: |
@@ -174,7 +176,7 @@ jobs:
           tag_name: ${{ needs.prepare.outputs.tag }}
           make_latest: true
 
-      - name: Remove superseded releases and container versions
+      - name: Retain current and previous releases and container versions
         if: steps.head.outputs.current == 'true'
         shell: bash
         env:
@@ -189,10 +191,21 @@ jobs:
           set -euo pipefail
 
           release_tags="$(gh release list --limit 1000 --json tagName --jq '.[].tagName')"
+          previous_release_tag=""
           while IFS= read -r tag; do
             [[ -z "$tag" || "$tag" == "$CURRENT_TAG" ]] && continue
-            gh release delete "$tag" --cleanup-tag --yes
+            if [[ -z "$previous_release_tag" ]]; then
+              previous_release_tag="$tag"
+              continue
+            fi
+            gh release delete "$tag" --yes
+            if gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${tag}" >/dev/null 2>&1; then
+              gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/${tag}"
+            else
+              echo "Git tag ${tag} is already absent."
+            fi
           done <<< "$release_tags"
+          previous_version="${previous_release_tag#v}"
 
           for package in spaceworks-backend spaceworks-frontend; do
             package_versions="$(gh api --paginate \
@@ -200,6 +213,9 @@ jobs:
               --jq '.[] | [.id, (.metadata.container.tags // [] | join(","))] | @tsv')"
             while IFS=$'\t' read -r version_id tags; do
               [[ -z "$version_id" ]] && continue
+              if [[ -n "$previous_version" && ",${tags}," == *",${previous_version},"* ]]; then
+                continue
+              fi
               case ",${tags}," in
                 *",${VERSION},"*|*",sha-${SHORT_SHA},"*|*",${SERIES},"*|*",main,"*|*",latest,"*)
                   continue
