@@ -1,4 +1,4 @@
-﻿from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
 import pytest
@@ -47,7 +47,7 @@ def test_self_host_limits_are_completely_dormant(makerspace):
     assert limits.custom_domain_allowed(makerspace) is True
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_managed_product_default_and_inclusive_boundary(makerspace):
     assert limits.resource_limit(makerspace, "products") == 500
     assert settings.MANAGED_RESOURCE_LIMITS["products"] == 500
@@ -64,7 +64,7 @@ def test_managed_product_default_and_inclusive_boundary(makerspace):
         limits.check_quota(makerspace, "products", adding=1)
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_per_space_override_can_lift_or_lower_product_cap(makerspace):
     makerspace.resource_limit_overrides = {"products": 1000}
     assert limits.resource_limit(makerspace, "products") == 1000
@@ -75,7 +75,7 @@ def test_per_space_override_can_lift_or_lower_product_cap(makerspace):
         limits.check_quota(makerspace, "products", adding=1)
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 @pytest.mark.parametrize("unlimited", [None, -1])
 def test_null_and_minus_one_overrides_mean_unlimited(makerspace, unlimited):
     makerspace.resource_limit_overrides = {"products": unlimited}
@@ -85,14 +85,14 @@ def test_null_and_minus_one_overrides_mean_unlimited(makerspace, unlimited):
     limits.check_quota(makerspace, "products", adding=10_000)
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_missing_override_key_falls_through_to_default(makerspace):
     makerspace.resource_limit_overrides = {"machines": 99}
 
     assert limits.resource_limit(makerspace, "products") == 500
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 @pytest.mark.parametrize(
     ("overrides", "expected"),
     [({}, False), ({"custom_domain": True}, True)],
@@ -185,7 +185,7 @@ def test_superadmin_can_save_resource_limit_overrides(makerspace):
     }
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 @pytest.mark.django_db(transaction=True)
 def test_concurrent_product_creates_are_serialized_at_quota_boundary(makerspace):
     makerspace.resource_limit_overrides = {"products": 1}

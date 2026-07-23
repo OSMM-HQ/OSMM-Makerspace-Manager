@@ -5,10 +5,10 @@ from rest_framework.test import APIClient
 
 from apps.boxes.models import QrCode, QrScanEvent
 from apps.evidence.models import EvidencePhoto
-from apps.hardware_requests.workflow_utils import get_or_create_requester
 from apps.accounts.models import User
 from apps.inventory.models import InventoryProduct
 from apps.makerspaces.models import MakerspaceMembership
+from apps.presence import services as presence
 from tests.return_helpers import (
     authenticated_client,
     make_accepted_request,
@@ -58,14 +58,13 @@ def test_cannot_revoke_qr_with_outstanding_loan():
         target_id=product.id,
     )
 
-    checkout = APIClient().post(
+    borrower = make_member("qr-revoke-borrower", makerspace)
+    presence.start_session(borrower, makerspace, 60)
+    checkout = authenticated_client(borrower).post(
         f"/api/v1/public/{makerspace.slug}/tools/checkout",
         {
             "payload": qr.payload,
-            "requester_name": "QR Borrower",
-            "contact_email": "member-1@example.com",
-            "contact_phone": "+15550101010",
-            "evidence_id": _public_issue_evidence(makerspace, "member-1@example.com").id,
+            "evidence_id": _public_issue_evidence(makerspace, borrower, "member-1").id,
         },
         format="json",
     )
@@ -302,12 +301,12 @@ def test_qr_rebind_hides_foreign_source_qr_id():
     assert response.status_code == 404
 
 
-def _public_issue_evidence(makerspace, identifier):
+def _public_issue_evidence(makerspace, uploaded_by, identifier):
     return EvidencePhoto.objects.create(
         makerspace=makerspace,
         evidence_type=EvidencePhoto.EvidenceType.ISSUE,
         object_key=f"evidence/{makerspace.id}/issue/{identifier}-{EvidencePhoto.objects.count() + 1}",
-        uploaded_by=get_or_create_requester(identifier),
+        uploaded_by=uploaded_by,
     )
 
 

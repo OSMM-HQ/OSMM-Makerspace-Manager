@@ -3,7 +3,7 @@ import pytest
 from apps.accounts.models import User
 from apps.makerspaces.models import MakerspaceMembership
 from apps.procurement.models import ToBuyItem
-from tests.test_printing import (
+from tests.return_helpers import (
     authenticated_client,
     make_member,
     make_print_manager,

@@ -28,7 +28,7 @@ type NotificationRecipient = {
   id: number;
   username: string;
   email: string;
-  role: "space_manager" | "inventory_manager" | "print_manager";
+  role: "space_manager" | "inventory_manager" | "machine_manager";
   receives_notifications: boolean;
 };
 
@@ -299,6 +299,6 @@ function roleLabel(role: NotificationRecipient["role"]) {
   return {
     space_manager: "Space manager",
     inventory_manager: "Inventory manager",
-    print_manager: "Print manager",
+    machine_manager: "Machine manager",
   }[role];
 }

@@ -10,8 +10,6 @@ _STAFF_PATH_PREFIXES = (
     "/api/v1/auth/",
     "/api/v1/admin/",
     "/api/v1/guest-admin/",
-    "/api/v1/printing/manage/",
-    "/api/v1/printing/admin/",
     "/api/v1/procurement/",
     "/api/v1/integrations/telegram/test-alert",
 )
@@ -53,7 +51,7 @@ def staff_origin_is_registered(origin):
     if not host:
         return False
     # Narrow to the (at most one) makerspace owning this host, then require the EXACT
-    # https://<frontend_domain> origin — never cors_allowed_origins.
+    # https://<frontend_domain> origin â€” never cors_allowed_origins.
     for makerspace in Makerspace.objects.filter(
         frontend_domain__iexact=host,
         frontend_domain_status=Makerspace.DomainStatus.VERIFIED,
@@ -62,6 +60,27 @@ def staff_origin_is_registered(origin):
         if origin in makerspace_staff_origins(makerspace):
             return True
     return False
+
+
+def member_origin_is_registered(origin):
+    """Trust first-party application origins, never public API-client origins."""
+    if not origin:
+        return False
+    if origin in set(settings.CORS_ALLOWED_ORIGINS) | set(
+        settings.PLATFORM_STAFF_ORIGINS
+    ):
+        return True
+    host = _origin_host(origin)
+    if not host:
+        return False
+    return any(
+        origin in makerspace_staff_origins(makerspace)
+        for makerspace in Makerspace.objects.filter(
+            frontend_domain__iexact=host,
+            frontend_domain_status=Makerspace.DomainStatus.VERIFIED,
+            archived_at__isnull=True,
+        )
+    )
 
 
 def _is_staff_path(path):

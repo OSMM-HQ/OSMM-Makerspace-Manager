@@ -1,4 +1,4 @@
-from decimal import Decimal
+﻿from decimal import Decimal
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -26,6 +26,8 @@ from apps.integrations.models import EmailTemplate
 from apps.inventory.models import Category, InventoryAsset, InventoryProduct
 from apps.makerspaces import lifecycle
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.machines.models import Machine, MachineConsumable, MachineDocument, MachineType
+from apps.maintenance.models import MaintenanceLog, MaintenanceLogDocument
 from apps.operations.models import (
     InventoryAdjustment,
     QrPrintBatch,
@@ -35,14 +37,7 @@ from apps.operations.models import (
     StockTransfer,
     StockTransferLine,
 )
-from apps.printing.models import (
-    FilamentSpool,
-    ManualPrintLog,
-    PrintBucket,
-    PrintPrinter,
-    PrintRequest,
-    PrintRequestFile,
-)
+from apps.payments.models import Payment, ProcessedStripeEvent
 
 pytestmark = pytest.mark.django_db
 
@@ -255,48 +250,6 @@ def populate_full_purge_graph(makerspace, survivor, actor):
         qr_ids=[qr.id],
     )
 
-    printer = PrintPrinter.objects.create(makerspace=makerspace, name="Lifecycle Printer")
-    spool = FilamentSpool.objects.create(
-        makerspace=makerspace,
-        printer=printer,
-        material="PLA",
-        color="black",
-        initial_weight_grams=Decimal("1000.00"),
-        remaining_weight_grams=Decimal("900.00"),
-    )
-    bucket = PrintBucket.objects.create(makerspace=makerspace, name="Lifecycle Bucket")
-    print_request = PrintRequest.objects.create(
-        bucket=bucket,
-        requester=requester,
-        title="Lifecycle Print",
-        quantity=1,
-        status=PrintRequest.Status.COMPLETED,
-        printer=printer,
-        filament_spool=spool,
-        estimated_minutes=45,
-        estimated_filament_grams=Decimal("25.00"),
-        filament_grams_used=Decimal("25.00"),
-        completed_at=timezone.now(),
-        contact_email="print@example.com",
-    )
-    PrintRequestFile.objects.create(
-        print_request=print_request,
-        makerspace=makerspace,
-        kind=PrintRequestFile.Kind.STL,
-        object_key=f"printing/{makerspace.id}/model.stl",
-        content_type="model/stl",
-        original_filename="model.stl",
-        owner_checkin_user_id="print-owner",
-        attached_at=timezone.now(),
-    )
-    ManualPrintLog.objects.create(
-        makerspace=makerspace,
-        printer=printer,
-        filament_spool=spool,
-        grams_used=Decimal("12.50"),
-        title="Walk-up print",
-        logged_by=actor,
-    )
 
     stocktake = StocktakeSession.objects.create(
         makerspace=makerspace,
@@ -407,10 +360,98 @@ def populate_full_purge_graph(makerspace, survivor, actor):
         target_id=str(makerspace.id),
         makerspace=makerspace,
     )
+    survivor_payment = Payment.objects.bulk_create([
+        Payment(
+            makerspace=makerspace,
+            subject_type=Payment.SubjectType.MACHINE_SERVICE_REQUEST,
+            subject_id=hardware_request.id,
+            member=requester,
+            amount="5.00",
+            currency="usd",
+            created_by=actor,
+        ),
+        Payment(
+            makerspace=survivor,
+            subject_type=Payment.SubjectType.MACHINE_SERVICE_REQUEST,
+            subject_id=survivor_product.id,
+            member=survivor_user,
+            amount="6.00",
+            currency="usd",
+            created_by=actor,
+        ),
+    ])[1]
+    ProcessedStripeEvent.objects.create(makerspace=makerspace, stripe_event_id="evt-lifecycle-purge")
+
+    machine_type = MachineType.objects.create(
+        makerspace=makerspace,
+        slug=f"maintenance-{makerspace.id}",
+        name="Maintenance Machine",
+    )
+    machine = Machine.objects.create(
+        makerspace=makerspace,
+        machine_type=machine_type,
+        name="Doomed Maintenance Machine",
+    )
+    maintenance_log = MaintenanceLog.objects.create(
+        machine=machine,
+        performed_by=actor,
+        summary="Private purge fixture",
+    )
+    maintenance_key = f"machines/{makerspace.id}/{machine.id}/logs/doomed.pdf"
+    MaintenanceLogDocument.objects.create(
+        log=maintenance_log,
+        object_key=maintenance_key,
+        size_bytes=123,
+        uploaded_by=actor,
+    )
+    machine_doc_key = f"machines/{makerspace.id}/{machine.id}/docs/manual.pdf"
+    MachineDocument.objects.create(
+        machine=machine,
+        doc_type=MachineDocument.DocType.MANUAL,
+        object_key=machine_doc_key,
+        original_filename="manual.pdf",
+        content_type="application/pdf",
+        size_bytes=321,
+    )
+    # COUNT consumable links the machine to a makerspace product via a PROTECT FK;
+    # purge must delete the machine (cascading the consumable) BEFORE the product.
+    MachineConsumable.objects.create(
+        machine=machine,
+        measurement=MachineConsumable.Measurement.COUNT,
+        product=product,
+        remaining=5,
+    )
+    survivor_type = MachineType.objects.create(
+        makerspace=survivor,
+        slug=f"maintenance-{survivor.id}",
+        name="Survivor Maintenance Machine",
+    )
+    survivor_machine = Machine.objects.create(
+        makerspace=survivor,
+        machine_type=survivor_type,
+        name="Survivor Maintenance Machine",
+    )
+    survivor_log = MaintenanceLog.objects.create(
+        machine=survivor_machine,
+        performed_by=actor,
+        summary="Survivor purge fixture",
+    )
+    survivor_key = f"machines/{survivor.id}/{survivor_machine.id}/logs/survivor.pdf"
+    survivor_document = MaintenanceLogDocument.objects.create(
+        log=survivor_log,
+        object_key=survivor_key,
+        size_bytes=456,
+        uploaded_by=actor,
+    )
 
     return {
         "survivor_adjustment": survivor_adjustment,
         "cross_transfer": cross_transfer,
+        "maintenance_key": maintenance_key,
+        "machine_doc_key": machine_doc_key,
+        "survivor_document": survivor_document,
+        "survivor_key": survivor_key,
+        "survivor_payment": survivor_payment,
     }
 
 
@@ -431,12 +472,6 @@ def assert_purged_makerspace_graph(space_id):
     assert RequesterAccountability.objects.filter(makerspace_id=space_id).count() == 0
     assert EvidencePhoto.objects.filter(makerspace_id=space_id).count() == 0
     assert PublicToolLoan.objects.filter(makerspace_id=space_id).count() == 0
-    assert PrintBucket.objects.filter(makerspace_id=space_id).count() == 0
-    assert PrintRequest.objects.filter(bucket__makerspace_id=space_id).count() == 0
-    assert PrintRequestFile.objects.filter(makerspace_id=space_id).count() == 0
-    assert PrintPrinter.objects.filter(makerspace_id=space_id).count() == 0
-    assert FilamentSpool.objects.filter(makerspace_id=space_id).count() == 0
-    assert ManualPrintLog.objects.filter(makerspace_id=space_id).count() == 0
     assert StocktakeSession.objects.filter(makerspace_id=space_id).count() == 0
     assert StocktakeLine.objects.filter(stocktake__makerspace_id=space_id).count() == 0
     assert InventoryAdjustment.objects.filter(makerspace_id=space_id).count() == 0
@@ -453,6 +488,12 @@ def assert_purged_makerspace_graph(space_id):
     assert EmailTemplate.objects.filter(makerspace_id=space_id).count() == 0
     assert MakerspaceMembership.objects.filter(makerspace_id=space_id).count() == 0
     assert AuditLog.objects.filter(makerspace_id=space_id).count() == 0
+    assert Payment.objects.filter(makerspace_id=space_id).count() == 0
+    assert ProcessedStripeEvent.objects.filter(makerspace_id=space_id).count() == 0
+    assert MaintenanceLog.objects.filter(machine__makerspace_id=space_id).count() == 0
+    assert MaintenanceLogDocument.objects.filter(
+        log__machine__makerspace_id=space_id
+    ).count() == 0
 
 
 @pytest.mark.django_db(transaction=True)
@@ -464,7 +505,8 @@ def test_comprehensive_purge_removes_entire_makerspace_graph_and_preserves_survi
     space_id = makerspace.id
     survivor_id = survivor.id
     survivor_adjustment_id = refs["survivor_adjustment"].id
-    monkeypatch.setattr(lifecycle, "_delete_storage_keys", lambda keys: None)
+    deleted_keys = []
+    monkeypatch.setattr(lifecycle, "_delete_storage_keys", deleted_keys.extend)
 
     archived = archive_space(makerspace, actor)
     lifecycle.purge(archived, actor)
@@ -472,6 +514,13 @@ def test_comprehensive_purge_removes_entire_makerspace_graph_and_preserves_survi
     assert_purged_makerspace_graph(space_id)
     assert not Makerspace.objects.filter(pk=space_id).exists()
     assert Makerspace.objects.filter(pk=survivor_id).exists()
+    assert refs["maintenance_key"] in deleted_keys
+    assert refs["machine_doc_key"] in deleted_keys
+    assert refs["survivor_key"] not in deleted_keys
+    assert MaintenanceLogDocument.objects.filter(
+        pk=refs["survivor_document"].pk
+    ).exists()
+    assert Payment.objects.filter(pk=refs["survivor_payment"].pk).exists()
 
     survivor_adjustment = InventoryAdjustment.objects.get(pk=survivor_adjustment_id)
     assert survivor_adjustment.makerspace_id == survivor_id
@@ -493,7 +542,8 @@ def test_comprehensive_purge_under_managed_postgres(monkeypatch):
     space_id = makerspace.id
     survivor_id = survivor.id
     survivor_adjustment_id = refs["survivor_adjustment"].id
-    monkeypatch.setattr(lifecycle, "_delete_storage_keys", lambda keys: None)
+    deleted_keys = []
+    monkeypatch.setattr(lifecycle, "_delete_storage_keys", deleted_keys.extend)
 
     archived = archive_space(makerspace, actor)
     lifecycle.purge(archived, actor)
@@ -501,6 +551,13 @@ def test_comprehensive_purge_under_managed_postgres(monkeypatch):
     assert_purged_makerspace_graph(space_id)
     assert not Makerspace.objects.filter(pk=space_id).exists()
     assert Makerspace.objects.filter(pk=survivor_id).exists()
+    assert refs["maintenance_key"] in deleted_keys
+    assert refs["machine_doc_key"] in deleted_keys
+    assert refs["survivor_key"] not in deleted_keys
+    assert MaintenanceLogDocument.objects.filter(
+        pk=refs["survivor_document"].pk
+    ).exists()
+    assert Payment.objects.filter(pk=refs["survivor_payment"].pk).exists()
 
     survivor_adjustment = InventoryAdjustment.objects.get(pk=survivor_adjustment_id)
     assert survivor_adjustment.makerspace_id == survivor_id
@@ -510,6 +567,37 @@ def test_comprehensive_purge_under_managed_postgres(monkeypatch):
         makerspace__isnull=True,
         meta__makerspace_id=space_id,
     ).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_purge_removes_scoped_pii_encryption_keys(monkeypatch):
+    """A makerspace that owns PII encryption keys still purges cleanly.
+
+    The key rows carry a PROTECT FK + a no-delete ORM guard/trigger; the purge
+    context authorizes their raw removal so the FK cannot block teardown.
+    """
+    from cryptography.fernet import Fernet
+    from django.test import override_settings
+
+    from apps.encryption.models import MakerspaceEncryptionKey
+    from apps.encryption.services import get_or_create_active_dek
+
+    actor = make_superadmin("lifecycle-enc-super")
+    doomed = make_space("lifecycle-enc-doomed")
+    monkeypatch.setattr(lifecycle, "_delete_storage_keys", lambda keys: None)
+
+    with override_settings(
+        PII_ENCRYPTION_ENABLED=True,
+        PII_KEY_BROKER="local",
+        PII_MASTER_KEY=Fernet.generate_key().decode(),
+    ):
+        get_or_create_active_dek(doomed.id)
+        assert MakerspaceEncryptionKey.objects.filter(makerspace=doomed).exists()
+        archived = archive_space(doomed, actor)
+        lifecycle.purge(archived, actor)
+
+    assert not MakerspaceEncryptionKey.objects.filter(makerspace_id=doomed.id).exists()
+    assert not Makerspace.objects.filter(pk=doomed.id).exists()
 
 
 @pytest.mark.django_db(transaction=True)
@@ -578,8 +666,8 @@ def test_archived_makerspace_is_excluded_from_api_scopes(monkeypatch, settings):
         "lifecycle-scope-visible",
         public_inventory_enabled=True,
     )
-    archived_space.enabled_modules = ["public_inventory", "request_workflow", "printing", "reports"]
-    visible_space.enabled_modules = ["public_inventory", "request_workflow", "printing", "reports"]
+    archived_space.enabled_modules = ["public_inventory", "request_workflow", "reports"]
+    visible_space.enabled_modules = ["public_inventory", "request_workflow", "reports"]
     archived_space.save(update_fields=["enabled_modules"])
     visible_space.save(update_fields=["enabled_modules"])
 
@@ -628,44 +716,12 @@ def test_archived_makerspace_is_excluded_from_api_scopes(monkeypatch, settings):
         issued_quantity=1,
     )
 
-    archived_bucket = PrintBucket.objects.create(makerspace=archived_space, name="Archived Bucket")
-    visible_bucket = PrintBucket.objects.create(makerspace=visible_space, name="Visible Bucket")
-    archived_printer = PrintPrinter.objects.create(makerspace=archived_space, name="Archived Printer")
-    visible_printer = PrintPrinter.objects.create(makerspace=visible_space, name="Visible Printer")
-    archived_print = PrintRequest.objects.create(
-        bucket=archived_bucket,
-        requester=archived_requester,
-        title="Archived Print",
-        status=PrintRequest.Status.COMPLETED,
-        printer=archived_printer,
-        estimated_minutes=60,
-        completed_at=timezone.now(),
-        contact_email="archived-print@example.com",
-    )
-    visible_print = PrintRequest.objects.create(
-        bucket=visible_bucket,
-        requester=visible_requester,
-        title="Visible Print",
-        status=PrintRequest.Status.COMPLETED,
-        printer=visible_printer,
-        estimated_minutes=60,
-        completed_at=timezone.now(),
-        contact_email="visible-print@example.com",
-    )
     AuditLog.objects.create(actor=actor, action="archived.scope", makerspace=archived_space)
     AuditLog.objects.create(actor=actor, action="visible.scope", makerspace=visible_space)
 
     archived = archive_space(archived_space, actor)
     client = authenticated_client(actor)
     public_client = APIClient()
-
-    managed = client.get(
-        reverse("printing:managed-request-list"),
-        {"makerspace": archived.id},
-    )
-    assert managed.status_code in (200, 403)
-    if managed.status_code == 200:
-        assert result_ids(managed) == set()
 
     ledger = client.get(reverse("ledger-aggregate"))
     assert ledger.status_code == 200
@@ -676,13 +732,6 @@ def test_archived_makerspace_is_excluded_from_api_scopes(monkeypatch, settings):
     assert summary.data["products"] == 1
     assert summary.data["active_loans"] == 1
     assert summary.data["issued_quantity"] == 1
-
-    printing_report = client.get(reverse("printing:admin-report"))
-    assert printing_report.status_code == 200
-    assert printing_report.data["totals"]["total_requests"] == 1
-    assert {row["makerspace_id"] for row in printing_report.data["printer_hours"]} == {
-        visible_space.id
-    }
 
     audit_logs = client.get(
         f"{reverse('admin-audit-logs')}?makerspace={archived.id}"
@@ -711,30 +760,12 @@ def test_archived_makerspace_is_excluded_from_api_scopes(monkeypatch, settings):
     )
     assert request_status.status_code == 404
 
-    print_status = public_client.get(
-        reverse(
-            "printing:public-request-status",
-            kwargs={"public_token": archived_print.public_token},
-        )
-    )
-    assert print_status.status_code == 404
-
-    visible_print_status = public_client.get(
-        reverse(
-            "printing:public-request-status",
-            kwargs={"public_token": visible_print.public_token},
-        )
-    )
-    assert visible_print_status.status_code == 200
-
-
-def test_archived_makerspace_rejects_staff_create_and_authenticated_printing(settings):
+def test_archived_makerspace_rejects_staff_creation(settings):
     settings.API_CLIENT_AUTH_REQUIRED = False
     actor = make_superadmin("lifecycle-archived-writes-super")
     space = make_space("lifecycle-archived-writes")
-    space.enabled_modules = ["staff_admin", "printing"]
+    space.enabled_modules = ["staff_admin"]
     space.save(update_fields=["enabled_modules"])
-    bucket = PrintBucket.objects.create(makerspace=space, name="Bucket")
 
     archived = archive_space(space, actor)
     client = authenticated_client(actor)
@@ -750,19 +781,3 @@ def test_archived_makerspace_rejects_staff_create_and_authenticated_printing(set
         format="json",
     )
     assert create_resp.status_code == 400
-
-    requester = make_user("lifecycle-archived-requester-2")
-    requester_client = authenticated_client(requester)
-
-    # Authenticated requester can no longer list buckets for an archived space...
-    buckets = requester_client.get(reverse("printing:bucket-list"), {"makerspace": archived.id})
-    assert buckets.status_code == 200
-    assert buckets.data == []
-
-    # ...nor create a print request against its bucket.
-    create_print = requester_client.post(
-        reverse("printing:request-list"),
-        {"bucket": bucket.id, "title": "x", "quantity": 1},
-        format="json",
-    )
-    assert create_print.status_code == 400

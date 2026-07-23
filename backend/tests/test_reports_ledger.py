@@ -17,6 +17,7 @@ from apps.hardware_requests.models import (
     PublicToolLoan,
 )
 from apps.inventory.models import InventoryAsset, TrackingMode
+from apps.presence import services as presence
 from tests.return_helpers import (
     authenticated_client,
     make_member,
@@ -119,6 +120,13 @@ def _direct_payload(**overrides):
         "contact_phone": "+15550101010",
     }
     payload.update(overrides)
+    if "borrower_id" not in payload and _current_direct_makerspace_is_live():
+        borrower = make_member(
+            f"direct-borrower-{_current_direct_makerspace.slug}-{User.objects.count()}",
+            _current_direct_makerspace,
+        )
+        presence.start_session(borrower, _current_direct_makerspace, 60)
+        payload["borrower_id"] = borrower.id
     if "evidence_id" not in payload and _current_direct_makerspace_is_live():
         payload["evidence_id"] = _direct_issue_evidence().id
     return payload

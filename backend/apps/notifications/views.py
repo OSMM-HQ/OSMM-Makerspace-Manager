@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 from apps.accounts import rbac
 from apps.admin_api.permissions import IsActiveStaff
 from apps.makerspaces.guards import require_module
-from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.makerspaces.models import Makerspace
 from apps.notifications.models import Notification
 from apps.notifications.serializers import NotificationSerializer
 
@@ -148,9 +148,4 @@ class NotificationMarkAllReadView(APIView):
         return Response({"updated": updated})
 
 def _is_guest_only(user, makerspace_id):
-    if user.is_superuser or user.role == user.Role.SUPERADMIN:
-        return False
-    return (
-        rbac.membership_role(user, makerspace_id)
-        == MakerspaceMembership.Role.GUEST_ADMIN
-    )
+    return rbac.is_handout_only(user, makerspace_id)

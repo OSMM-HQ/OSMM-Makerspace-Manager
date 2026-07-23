@@ -6,7 +6,9 @@ from django.utils import timezone
 from apps.makerspaces.hosting import canonical_host
 from apps.makerspaces.models import Makerspace
 
-EXPECTED_HOST_PREFIX = "_osmm-verify"
+EXPECTED_HOST_PREFIX = "_spaceworks-verify"
+LEGACY_EXPECTED_HOST_PREFIX = "_osmm-verify"
+EXPECTED_HOST_PREFIXES = (EXPECTED_HOST_PREFIX, LEGACY_EXPECTED_HOST_PREFIX)
 DOMAIN_CHANGE_COOLDOWN_MESSAGE = (
     "You changed your domain recently; please wait before changing it again."
 )
@@ -153,16 +155,21 @@ def verify_domain(makerspace):
             detail="Platform-managed subdomain — verified automatically.",
         )
 
-    name = f"{EXPECTED_HOST_PREFIX}.{target}"
-    try:
-        records = _resolve_txt(name)
-    except Exception as exc:  # DNS failures are verification state, not request failures.
+    records = []
+    lookup_errors = []
+    for prefix in EXPECTED_HOST_PREFIXES:
+        try:
+            records.extend(_resolve_txt(f"{prefix}.{target}"))
+        except Exception as exc:  # A legacy DNS label may be absent during transition.
+            lookup_errors.append(exc)
+
+    if not records and lookup_errors:
         return _commit_status(
             makerspace,
             target,
             Makerspace.DomainStatus.FAILED,
             set_verified_at=False,
-            detail=f"DNS lookup failed: {exc}",
+            detail=f"DNS lookup failed: {lookup_errors[0]}",
         )
 
     if makerspace.domain_verification_token in records:

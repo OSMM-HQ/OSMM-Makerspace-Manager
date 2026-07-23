@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.conf import settings
 from unfold.admin import ModelAdmin
 
 from apps.integrations.models import EmailLog
@@ -8,13 +9,11 @@ from config.admin_access import SuperuserOnlyModelAdmin
 @admin.register(EmailLog)
 class EmailLogAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     actions = ["retry_selected"]
-    list_display = ("created_at", "to_email", "stream", "event", "status", "makerspace")
+    list_display = ("created_at", "recipient_display", "stream", "event", "status", "makerspace")
     list_filter = ("status", "stream", "makerspace")
-    search_fields = ("to_email", "subject", "event", "error", "makerspace__name")
+    search_fields = ("event", "error", "makerspace__name")
     readonly_fields = (
         "makerspace",
-        "to_email",
-        "subject",
         "stream",
         "event",
         "audience",
@@ -27,6 +26,12 @@ class EmailLogAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
         "sent_at",
     )
     fields = readonly_fields
+
+    @admin.display(description="Recipient")
+    def recipient_display(self, obj):
+        if obj.makerspace_id or not settings.PII_ENCRYPTION_ENABLED:
+            return obj.to_email
+        return "Redacted"
 
     # permissions=["view"] keeps the action available on this read-only admin
     # (has_change_permission is False), tied to view access rather than edit.

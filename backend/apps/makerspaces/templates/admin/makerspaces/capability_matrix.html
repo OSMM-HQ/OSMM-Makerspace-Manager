@@ -1,0 +1,30 @@
+<div class="capability-matrix">
+  {% for group, options, index in widget.optgroups %}
+    {% for option in options %}
+      {% if option.value|slice:":7" == "feature" %}
+        <label class="capability-feature" data-feature-option>
+      {% else %}
+        <label class="capability-module" data-module-option>
+      {% endif %}
+        <input type="checkbox" name="{{ widget.name }}" value="{{ option.value }}"{% if option.selected %} checked{% endif %}>
+        {{ option.label }}
+      </label>
+    {% endfor %}
+  {% endfor %}
+</div>
+{{ feature_parents|json_script:"capability-feature-parents" }}
+<script>
+  (function () {
+    const parents = JSON.parse(document.getElementById('capability-feature-parents').textContent);
+    document.querySelectorAll('[data-feature-option]').forEach((row) => {
+      const input = row.querySelector('input');
+      const parent = parents[input.value];
+      // Parentless feature (parent === null): standalone, always selectable.
+      if (!parent) return;
+      const module = [...document.querySelectorAll('[data-module-option] input')].find((item) => item.value === `module:${parent}`);
+      const sync = () => { input.disabled = !module || !module.checked; };
+      if (module) module.addEventListener('change', sync);
+      sync();
+    });
+  })();
+</script>

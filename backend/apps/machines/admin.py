@@ -11,6 +11,15 @@ from apps.machines.models import (
     MachineOperator,
     MachineType,
     MachineUsageEntry,
+    PrintingCutoverRepair,
+    PrintingCutoverState,
+    MachineConsumablePool,
+    MachineConsumableAdjustment,
+    MachineServiceRequest,
+    ServiceBucket,
+    ServiceQueue,
+    ServiceRequestConsumption,
+    ServiceRequestFile,
 )
 from config.admin_access import SuperuserOnlyModelAdmin
 
@@ -38,13 +47,12 @@ class MachineAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     )
     list_filter = ('status', 'is_public', 'is_active', 'makerspace', 'machine_type')
     search_fields = ("name", "location", "makerspace__name")
-    raw_id_fields = ("makerspace", "machine_type", "linked_print_printer", "created_by")
+    raw_id_fields = ("makerspace", "machine_type", "created_by")
     # status/is_active/link are service-owned — never raw-edited in the admin.
     readonly_fields = (
         "status",
         'is_public',
         "is_active",
-        "linked_print_printer",
         "image_key",
         "created_by",
         "created_at",
@@ -120,6 +128,19 @@ class MachineUsageEntryAdmin(_ReadOnlyMachineChildAdmin):
     search_fields = ("machine__name",)
 
 
+@admin.register(PrintingCutoverState)
+class PrintingCutoverStateAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = ("makerspace", "reconciled_at", "kernel_authoritative_at")
+    list_filter = ("makerspace",)
+
+
+@admin.register(PrintingCutoverRepair)
+class PrintingCutoverRepairAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = ("id", "makerspace", "kind", "legacy_model", "legacy_id", "created_at", "resolved_at")
+    list_filter = ("kind", "makerspace")
+    search_fields = ("legacy_model", "legacy_id")
+
+
 @admin.register(MachineDocument)
 class MachineDocumentAdmin(_ReadOnlyMachineChildAdmin):
     list_display = ("id", "machine", "doc_type", "original_filename", "content_type", "created_at")
@@ -141,3 +162,55 @@ class MachineConsumableAdmin(_ReadOnlyMachineChildAdmin):
     )
     list_filter = ("measurement",)
     search_fields = ("machine__name", "product__name", "label")
+
+
+@admin.register(ServiceBucket)
+class ServiceBucketAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = ("id", "machine", "name", "is_active", "created_at")
+    list_filter = ("is_active", "machine")
+    search_fields = ("machine__name", "name")
+
+
+@admin.register(ServiceQueue)
+class ServiceQueueAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = ("id", "name", "makerspace", "machine_type", "is_active", "allocation_policy")
+    list_filter = ("is_active", "allocation_policy", "machine_type")
+    search_fields = ("name", "makerspace__name")
+
+
+@admin.register(MachineConsumablePool)
+class MachineConsumablePoolAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = ("id", "label", "makerspace", "machine", "remaining_grams", "is_active")
+    list_filter = ("is_active", "material")
+    search_fields = ("material", "color", "brand", "machine__name")
+
+
+@admin.register(MachineConsumableAdjustment)
+class MachineConsumableAdjustmentAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = ("id", "consumable_pool", "kind", "quantity_delta", "service_request", "created_at")
+    list_filter = ("kind",)
+    search_fields = ("consumable_pool__material", "service_request__title")
+
+
+@admin.register(MachineServiceRequest)
+class MachineServiceRequestAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = ("id", "title", "bucket", "assigned_machine", "status", "created_at")
+    list_filter = ("status", "assigned_machine", "bucket__machine")
+    search_fields = ("title", "requester_name", "contact_email")
+    raw_id_fields = ("bucket", "requester", "assigned_machine")
+
+
+@admin.register(ServiceRequestFile)
+class ServiceRequestFileAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = ("id", "service_request", "machine", "kind", "original_filename", "size_bytes", "attached_at")
+    list_filter = ("kind", "machine")
+    search_fields = ("original_filename", "service_request__title", "machine__name")
+    raw_id_fields = ("service_request", "machine")
+
+
+@admin.register(ServiceRequestConsumption)
+class ServiceRequestConsumptionAdmin(_ReadOnlyMachineChildAdmin):
+    list_display = ("id", "service_request", "machine_consumable", "measurement", "quantity", "outcome", "created_at")
+    list_filter = ("outcome", "measurement", "machine_consumable__machine")
+    search_fields = ("service_request__title", "machine_consumable__label", "machine_consumable__machine__name")
+    raw_id_fields = ("service_request", "machine_consumable", "product", "created_by")

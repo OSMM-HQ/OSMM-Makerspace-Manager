@@ -12,6 +12,17 @@ GOOGLE_MAPS_HOSTS = {
     "g.co",
 }
 GOOGLE_MAPS_ERROR = "Enter a valid Google Maps link."
+DEFAULT_PRESENCE_PRESETS = [60, 120, 240]
+
+
+def validate_presence_presets(value):
+    if not isinstance(value, list) or not value:
+        raise ValidationError("Provide one or more presence session lengths.")
+    if any(type(minutes) is not int or not 15 <= minutes <= 480 for minutes in value):
+        raise ValidationError("Presence session lengths must be whole minutes from 15 to 480.")
+    if len(set(value)) != len(value):
+        raise ValidationError("Presence session lengths must be unique.")
+    return value
 
 
 def validate_google_maps_url(value):

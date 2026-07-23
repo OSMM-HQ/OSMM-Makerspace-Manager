@@ -5,6 +5,7 @@ from rest_framework.test import APIClient, APIRequestFactory
 from apps.accounts.models import User
 from apps.makerspaces.cors import origin_is_registered, staff_origin_is_registered
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.presence import services as presence
 from apps.makerspaces.origin_scope import NO_STAFF_ORIGIN_SCOPE, staff_origin_scope
 from tests.return_helpers import make_member, make_product, make_space, make_user
 
@@ -97,14 +98,14 @@ def test_public_only_cors_origin_allows_public_api_but_not_staff_scope():
     assert staff_origin_scope(request) is NO_STAFF_ORIGIN_SCOPE
 
 
-@override_settings(PLATFORM_STAFF_ORIGINS=["https://osmm.me"])
+@override_settings(PLATFORM_STAFF_ORIGINS=["https://space-works.tech"])
 def test_platform_staff_origin_is_allowed_without_tenant_scope():
     request = APIRequestFactory().get(
         "/api/v1/admin/makerspaces",
-        HTTP_ORIGIN="https://osmm.me",
+        HTTP_ORIGIN="https://space-works.tech",
     )
 
-    assert staff_origin_is_registered("https://osmm.me") is True
+    assert staff_origin_is_registered("https://space-works.tech") is True
     assert staff_origin_scope(request) is NO_STAFF_ORIGIN_SCOPE
 
 
@@ -113,8 +114,17 @@ def test_disabled_request_module_blocks_public_submit():
     makerspace.enabled_modules = ["public_inventory"]
     makerspace.save(update_fields=["enabled_modules"])
     product = make_product(makerspace)
+    member = make_user("platform-modules-member")
+    MakerspaceMembership.objects.create(
+        makerspace=makerspace,
+        user=member,
+        role=MakerspaceMembership.Role.CUSTOM,
+    )
+    presence.start_session(member, makerspace, 60)
+    client = APIClient()
+    client.force_authenticate(member)
 
-    response = APIClient().post(
+    response = client.post(
         f"/api/v1/public/{makerspace.slug}/requests",
         {
             "requester_name": "Module Test Member",
@@ -130,7 +140,7 @@ def test_disabled_request_module_blocks_public_submit():
     assert "request_workflow" in str(response.data)
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_space_manager_can_update_frontend_domain_for_superadmin_hidden_makerspace():
     # Self-serve custom-domain governance for a hidden makerspace lives in MANAGED mode.
     # On self-host, setting frontend_domain is strictly superadmin-only (no injection of a

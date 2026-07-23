@@ -5,10 +5,8 @@ from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from apps.accounts.models import User
 from apps.audit import services as audit
 from apps.boxes.models import Box, QrCode, QrScanEvent
-from apps.checkin import client as checkin
 from apps.evidence.models import EvidencePhoto
 from apps.hardware_requests.models import (
     HardwareRequest,
@@ -26,7 +24,6 @@ from apps.hardware_requests.self_checkout_helpers import (
     _issue_product,
     _issued_request,
     _locked_qr,
-    _requester,
     _return_request_items,
 )
 from apps.hardware_requests.workflow_errors import (
@@ -35,18 +32,15 @@ from apps.hardware_requests.workflow_errors import (
     RequesterBlocked,
     ReturnValidationError,
 )
-from apps.hardware_requests.workflow_utils import get_or_create_requester
 from apps.hardware_requests.direct_loan_returns import validate_evidence_upload
 from apps.inventory import availability
 from apps.inventory.models import InventoryAsset, InventoryProduct
 from apps.notifications.emit import emit_notification
 
 
-def checkout_tool(makerspace, contact_email, payload, *, requester_name, contact_phone, evidence_id, remark=""):
-    result = checkin.verify(makerspace, contact_email)
+def checkout_tool(makerspace, requester, payload, *, evidence_id, remark=""):
     due_at = timezone.now() + timedelta(days=(makerspace.default_loan_days or 7))
     with transaction.atomic():
-        requester = _requester(result.external_id)
         evidence = _public_evidence(makerspace, requester, evidence_id, EvidencePhoto.EvidenceType.ISSUE)
         _lock_unused_evidence(evidence, issue=True)
         validate_evidence_upload(evidence, label="Issue")
@@ -58,11 +52,11 @@ def checkout_tool(makerspace, contact_email, payload, *, requester_name, contact
         hardware_request = _issued_request(
             makerspace,
             requester,
-            result.username,
+            requester.username,
             product_quantities,
-            requester_name=requester_name,
-            contact_email=contact_email,
-            contact_phone=contact_phone,
+            requester_name=requester.display_name,
+            contact_email=requester.email,
+            contact_phone=requester.phone,
             return_due_at=due_at,
         )
         hardware_request.issue_evidence = evidence
@@ -100,7 +94,7 @@ def checkout_tool(makerspace, contact_email, payload, *, requester_name, contact
 
 def return_tool(
     makerspace,
-    identifier,
+    requester,
     payload,
     *,
     evidence_id,
@@ -108,12 +102,10 @@ def return_tool(
     report_problem=False,
     problem_note="",
 ):
-    result = checkin.verify(makerspace, identifier)
     remark = str(remark or "").strip()
     if not remark:
         raise RequestValidationError("Return remark is required.")
     with transaction.atomic():
-        requester = _requester(result.external_id)
         evidence = _public_evidence(makerspace, requester, evidence_id, EvidencePhoto.EvidenceType.RETURN)
         _lock_unused_evidence(evidence, issue=False)
         validate_evidence_upload(evidence, label="Return")
@@ -179,7 +171,7 @@ def return_tool(
                 level="warning",
                 event="problem_report.filed",
                 title="Tool problem reported",
-                body=f"A problem was reported on a returned tool: {loan.target_label}.",
+                body=f"Problem report #{report.pk} filed for loan #{loan.pk}.",
             )
         return loan
 
@@ -240,8 +232,6 @@ __all__ = [
     "QrCode",
     "QrScanEvent",
     "RequestValidationError",
-    "RequesterBlocked",
-    "User",
     "_checkout_box",
     "_checkout_target",
     "_create_issued_request",
@@ -250,13 +240,10 @@ __all__ = [
     "_issue_product",
     "_issued_request",
     "_locked_qr",
-    "_requester",
     "_return_request_items",
     "audit",
     "availability",
-    "checkin",
     "checkout_tool",
-    "get_or_create_requester",
     "qr_has_active_loan",
     "return_tool",
     "timezone",

@@ -23,7 +23,9 @@ export type TenantBootstrap = {
     map_url?: string;
     logo_url?: string | null;
     cover_image_url?: string | null;
+    geofence_enabled: boolean;
     public_stats_enabled?: boolean;
+    membership_policy: "request" | "open" | "invite_only";
   };
   frontend: {
     type: string;
@@ -31,6 +33,7 @@ export type TenantBootstrap = {
     allowed_origins: string[];
   };
   modules: string[];
+  features: string[];
   workflows: string[];
   theme: Record<string, string>;
   branding: Record<string, string>;
@@ -44,11 +47,60 @@ export type TenantBootstrap = {
 
 export type StaffAuthUser = {
   username: string;
+  email_verified: boolean;
   role: string;
   is_superuser: boolean;
   must_change_password: boolean;
-  makerspaces: { id: number; slug: string; role: string }[];
+  makerspaces: {
+    id: number;
+    slug: string;
+    role: string;
+    role_id: number | null;
+    role_name: string;
+    role_slug: string;
+    actions: string[];
+    can_configure_machine_types: boolean;
+    can_refer: boolean;
+    can_verify: boolean;
+    verified_at: string | null;
+    referrals_enabled: boolean;
+  }[];
 };
+
+export type ApiErrorBody = Record<string, unknown> & {
+  detail?: unknown;
+  code?: unknown;
+};
+
+export class StructuredApiError extends Error {
+  readonly status: number;
+  readonly detail?: string;
+  readonly code?: string;
+  readonly body: ApiErrorBody;
+
+  constructor(status: number, body: ApiErrorBody) {
+    const flattenMessages = (value: unknown): string[] => {
+      if (typeof value === "string") return value.trim() ? [value.trim()] : [];
+      if (Array.isArray(value)) return value.flatMap(flattenMessages);
+      if (value && typeof value === "object") return Object.values(value).flatMap(flattenMessages);
+      return [];
+    };
+    const detail = typeof body.detail === "string" ? body.detail.trim() : "";
+    super(detail || Object.values(body).flatMap(flattenMessages).join(" ") || `Request failed (${status})`);
+    this.name = "StructuredApiError";
+    this.status = status;
+    this.detail = detail || undefined;
+    this.code = typeof body.code === "string" ? body.code : undefined;
+    this.body = body;
+  }
+}
+
+function apiError(status: number, value: unknown) {
+  const body = value && typeof value === "object" && !Array.isArray(value)
+    ? value as ApiErrorBody
+    : {};
+  return new StructuredApiError(status, body);
+}
 
 function messageForStatus(status: number): string {
   if (status === 401) {
@@ -139,19 +191,13 @@ export async function publicV1Request<T>(
     headers: {
       "Content-Type": "application/json",
       ...(await publicHeaders(publishableKey)),
+      ...authHeaders(),
       ...(options.headers ?? {}),
     },
   });
 
   if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    const error = new Error(
-      body.detail ??
-        Object.values(body).flat().join(" ") ??
-        `Request failed (${response.status})`,
-    ) as Error & { status?: number };
-    error.status = response.status;
-    throw error;
+    throw apiError(response.status, await response.json().catch(() => ({})));
   }
 
   return (await response.json()) as T;
@@ -273,31 +319,7 @@ export async function staffRequest<T>(
   }
 
   if (!response.ok) {
-    const body: unknown = await response.json().catch(() => ({}));
-    const flattenMessages = (value: unknown): string[] => {
-      if (typeof value === "string") {
-        const message = value.trim();
-        return message ? [message] : [];
-      }
-      if (Array.isArray(value)) {
-        return value.flatMap(flattenMessages);
-      }
-      if (value && typeof value === "object") {
-        return Object.values(value).flatMap(flattenMessages);
-      }
-      return [];
-    };
-    const detail =
-      body && typeof body === "object" && !Array.isArray(body)
-        ? (body as { detail?: unknown }).detail
-        : undefined;
-    const message =
-      (typeof detail === "string" ? detail.trim() : "") ||
-      (body && typeof body === "object" && !Array.isArray(body)
-        ? Object.values(body).flatMap(flattenMessages).join(" ")
-        : "") ||
-      `Request failed (${response.status})`;
-    throw new Error(message);
+    throw apiError(response.status, await response.json().catch(() => ({})));
   }
   // 204 No Content (e.g. DRF destroy) has an empty body - parsing it as JSON
   // would throw and surface a successful mutation as a failure.

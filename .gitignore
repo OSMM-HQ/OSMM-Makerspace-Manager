@@ -27,6 +27,8 @@ frontend/vite.config.d.ts
 # Internal planning + design docs — kept local, not published to the repo.
 # Only curated user/ops docs are committed (e.g. docs/setup-for-makerspaces.md,
 # docs/self-hosting.md).
+# Internal feature report (per-feature rationale + managed/self-host limitations).
+report/
 docs/prd-*.md
 docs/PLAN-prd-*.md
 docs/superpowers/

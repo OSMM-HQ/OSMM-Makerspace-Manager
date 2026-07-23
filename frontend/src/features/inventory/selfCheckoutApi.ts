@@ -18,7 +18,6 @@ export type PublicEvidenceUploadResponse = {
 export function requestPublicEvidenceUpload(
   slug: string,
   body: {
-    identifier: string;
     evidence_type: "issue" | "return";
     content_type: string;
     size_bytes?: number;
@@ -59,9 +58,6 @@ export function checkoutTool(
   slug: string,
   body: {
     payload: string;
-    requester_name: string;
-    contact_email: string;
-    contact_phone: string;
     evidence_id: number;
     remark?: string;
   },
@@ -79,7 +75,6 @@ export function checkoutTool(
 export function returnTool(
   slug: string,
   body: {
-    identifier: string;
     payload: string;
     evidence_id: number;
     remark: string;

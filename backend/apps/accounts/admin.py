@@ -47,7 +47,7 @@ class UserAdmin(SuperuserOnlyModelAdmin, DjangoUserAdmin, ModelAdmin):
     change_password_form = AdminPasswordChangeForm
     fieldsets = DjangoUserAdmin.fieldsets + (
         (
-            "OSMM Access",
+            "Space Works Access",
             {
                 "fields": (
                     "phone",
@@ -175,6 +175,8 @@ class UserAdmin(SuperuserOnlyModelAdmin, DjangoUserAdmin, ModelAdmin):
 
 
 admin.site.unregister(Group)
+
+from apps.accounts import admin_social  # noqa: E402,F401
 
 
 @admin.register(Group)

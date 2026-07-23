@@ -14,8 +14,8 @@ authorized staff physically issue items.
 
 ## Stack
 
-- **Backend:** Django 5 + Django REST Framework (`backend/`)
-- **Frontend:** React 18 + Vite 5 + TypeScript (`frontend/`), TanStack Query v5
+- **Backend:** Django 6 + Django REST Framework (`backend/`). Requires Python 3.12+.
+- **Frontend:** React 19 + Vite 8 + TypeScript (`frontend/`), TanStack Query v5. Requires Node 20.19+ / 22.12+.
 - **DB:** PostgreSQL 16 (Docker `docker-compose.yml`)
 - **Object storage:** MinIO (self-hosted, S3-compatible) — `AWS_*` names are just the S3 protocol
 - **API docs:** drf-spectacular / OpenAPI; **Admin theme:** django-unfold (mounted at `/control/`)

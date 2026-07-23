@@ -3,7 +3,7 @@ from botocore.exceptions import ClientError
 from apps.evidence import storage as evidence_storage
 from apps.evidence.responses import storage_unavailable_response
 from apps.inventory import public_image_storage
-from apps.printing import storage as printing_storage
+from apps.machines import service_storage
 
 
 def test_object_size_uses_one_head_call(settings, monkeypatch):
@@ -12,18 +12,18 @@ def test_object_size_uses_one_head_call(settings, monkeypatch):
     clients = {
         "evidence": _head_client(123),
         "public": _head_client(456),
-        "printing": _head_client(789),
+        "machine_service": _head_client(789),
     }
     monkeypatch.setattr(evidence_storage, "_client", lambda: clients["evidence"])
     monkeypatch.setattr(public_image_storage, "_client", lambda: clients["public"])
-    monkeypatch.setattr(printing_storage, "_client", lambda: clients["printing"])
+    monkeypatch.setattr(service_storage, "_client", lambda: clients["machine_service"])
 
     assert evidence_storage.object_size("a") == 123
     assert public_image_storage.object_size("b") == 456
-    assert printing_storage.print_object_size("c") == 789
+    assert service_storage.object_size("c") == 789
     assert clients["evidence"].calls == 1
     assert clients["public"].calls == 1
-    assert clients["printing"].calls == 1
+    assert clients["machine_service"].calls == 1
 
 
 def test_object_size_missing_object_returns_none(settings, monkeypatch):

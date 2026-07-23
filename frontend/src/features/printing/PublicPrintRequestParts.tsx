@@ -15,7 +15,7 @@ export type TextInputProps = {
 const steps = [
   { key: "pending", label: "Requested" },
   { key: "accepted", label: "Accepted" },
-  { key: "printing", label: "Printing" },
+  { key: "in_progress", label: "Printing" },
   { key: "completed", label: "Ready to collect" },
   { key: "collected", label: "Collected" },
 ];
@@ -132,7 +132,7 @@ export function FilePicker({
 
 function printTimeLeftLabel(status: PrintStatus, now: number): string | null {
   if (
-    status.status !== "printing" ||
+    status.status !== "in_progress" ||
     !status.started_at ||
     status.estimated_minutes == null
   ) {
@@ -168,7 +168,7 @@ export function StatusStepper({ status }: { status: PrintStatus }) {
   // Live tick so the printing countdown updates without a refetch.
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
-    if (status.status !== "printing") return;
+    if (status.status !== "in_progress") return;
     const id = window.setInterval(() => setNow(Date.now()), 30_000);
     return () => window.clearInterval(id);
   }, [status.status]);

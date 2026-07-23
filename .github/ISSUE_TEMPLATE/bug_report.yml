@@ -1,12 +1,12 @@
 name: Bug report
-description: Report a reproducible problem with OSMM
+description: Report a reproducible problem with Space Works
 title: "[Bug]: "
 labels: ["bug"]
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping improve OSMM. Do not include secrets or sensitive data. Report security vulnerabilities privately using our security policy.
+        Thanks for helping improve Space Works. Do not include secrets or sensitive data. Report security vulnerabilities privately using our security policy.
   - type: textarea
     id: what-happened
     attributes:
@@ -41,7 +41,7 @@ body:
       options:
         - Central multi-tenant
         - Single-tenant custom domain
-        - SaaS *.osmm.me
+        - SaaS *.space-works.tech
         - Local dev
     validations:
       required: true
@@ -49,7 +49,7 @@ body:
     id: version
     attributes:
       label: Version or commit
-      description: Provide the OSMM release, tag, or commit SHA.
+      description: Provide the Space Works release, tag, or commit SHA.
       placeholder: v1.2.3 or abc1234
     validations:
       required: true

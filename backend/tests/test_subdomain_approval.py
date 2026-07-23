@@ -49,7 +49,7 @@ def run_action(action_name, subdomain_request, superadmin):
     )
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_approve_provisions_platform_subdomain_and_records_decision():
     makerspace, _manager, subdomain_request = make_pending_request(
         "approval-alpha-space",
@@ -61,7 +61,7 @@ def test_approve_provisions_platform_subdomain_and_records_decision():
 
     makerspace.refresh_from_db()
     subdomain_request.refresh_from_db()
-    assert makerspace.frontend_domain == "alpha.osmm.me"
+    assert makerspace.frontend_domain == "alpha.space-works.tech"
     assert makerspace.frontend_domain_status == Makerspace.DomainStatus.VERIFIED
     assert subdomain_request.status == SubdomainRequest.Status.APPROVED
     assert subdomain_request.decided_by == superadmin
@@ -80,14 +80,14 @@ def test_approve_provisions_platform_subdomain_and_records_decision():
     ).exists()
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_approve_rolls_back_when_label_was_taken_after_request():
     makerspace, _manager, subdomain_request = make_pending_request(
         "approval-beta-requester",
         "beta",
     )
     owner = make_space("approval-beta-owner")
-    owner.frontend_domain = "beta.osmm.me"
+    owner.frontend_domain = "beta.space-works.tech"
     owner.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
     owner.save(
         update_fields=["frontend_domain", "frontend_domain_status", "updated_at"]
@@ -108,7 +108,7 @@ def test_approve_rolls_back_when_label_was_taken_after_request():
     ).exists()
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 @pytest.mark.parametrize(
     "status",
     [SubdomainRequest.Status.APPROVED, SubdomainRequest.Status.REJECTED],
@@ -135,13 +135,13 @@ def test_approve_skips_already_decided_request(status):
     assert not AuditLog.objects.filter(makerspace=makerspace).exists()
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_approve_skips_makerspace_that_already_has_platform_subdomain():
     makerspace, _manager, subdomain_request = make_pending_request(
         "approval-already-provisioned",
         "replacement",
     )
-    makerspace.frontend_domain = "x.osmm.me"
+    makerspace.frontend_domain = "x.space-works.tech"
     makerspace.frontend_domain_status = Makerspace.DomainStatus.VERIFIED
     makerspace.save(
         update_fields=["frontend_domain", "frontend_domain_status", "updated_at"]
@@ -152,13 +152,13 @@ def test_approve_skips_makerspace_that_already_has_platform_subdomain():
 
     makerspace.refresh_from_db()
     subdomain_request.refresh_from_db()
-    assert makerspace.frontend_domain == "x.osmm.me"
+    assert makerspace.frontend_domain == "x.space-works.tech"
     assert subdomain_request.status == SubdomainRequest.Status.PENDING
     assert subdomain_request.decided_by is None
     assert subdomain_request.decided_at is None
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_reject_records_decision_without_provisioning_domain():
     makerspace, _manager, subdomain_request = make_pending_request(
         "approval-reject-space",
@@ -182,7 +182,7 @@ def test_reject_records_decision_without_provisioning_domain():
     ).exists()
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 @pytest.mark.parametrize(
     ("action_name", "expected_status"),
     [
@@ -210,4 +210,4 @@ def test_resolution_succeeds_when_requester_has_no_email(
     assert subdomain_request.decided_at is not None
     if expected_status == SubdomainRequest.Status.APPROVED:
         makerspace.refresh_from_db()
-        assert makerspace.frontend_domain == f"no-email-{expected_status}.osmm.me"
+        assert makerspace.frontend_domain == f"no-email-{expected_status}.space-works.tech"

@@ -1,0 +1,2 @@
+# Imported only when PII_KEY_BROKER=aws_kms; local/self-hosted deployments do not install it.
+boto3

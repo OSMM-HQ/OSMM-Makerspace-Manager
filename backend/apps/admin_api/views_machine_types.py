@@ -49,11 +49,7 @@ class MachineTypeListCreateView(APIView):
     )
     def post(self, request, makerspace_id, *args, **kwargs):
         require_module(makerspace_id, 'machines')
-        if not rbac.can(
-            request.user,
-            rbac.Action.MANAGE_MACHINES,
-            makerspace_id,
-        ):
+        if not rbac.is_space_manager_identity(request.user, makerspace_id):
             raise PermissionDenied()
         serializer = MachineTypeCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -84,7 +80,7 @@ class MachineTypeDetailView(APIView):
 
     @extend_schema(
         tags=['Admin machines'],
-        summary='Rename a custom machine type',
+        summary='Update a custom machine type',
         request=MachineTypeUpdateSerializer,
         responses={
             200: MachineTypeSerializer,
@@ -95,11 +91,7 @@ class MachineTypeDetailView(APIView):
     )
     def patch(self, request, makerspace_id, pk, *args, **kwargs):
         require_module(makerspace_id, 'machines')
-        if not rbac.can(
-            request.user,
-            rbac.Action.MANAGE_MACHINES,
-            makerspace_id,
-        ):
+        if not rbac.is_space_manager_identity(request.user, makerspace_id):
             raise PermissionDenied()
         machine_type = get_object_or_404(
             MachineType.objects.filter(
@@ -108,7 +100,7 @@ class MachineTypeDetailView(APIView):
             pk=pk,
         )
         if machine_type.is_builtin or machine_type.makerspace_id is None:
-            raise ValidationError('Built-in machine types cannot be renamed.')
+            raise ValidationError('Built-in machine types cannot be changed.')
 
         serializer = MachineTypeUpdateSerializer(
             machine_type,

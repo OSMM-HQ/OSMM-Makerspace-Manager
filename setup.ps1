@@ -1,5 +1,5 @@
 <#
-  OSMM - Open Source Makerspace Manager first-run setup for self-hosting (Windows).
+  Space Works - Open Source Makerspace Manager first-run setup for self-hosting (Windows).
   Right-click -> "Run with PowerShell", or run:  powershell -ExecutionPolicy Bypass -File setup.ps1
 #>
 $ErrorActionPreference = "Stop"
@@ -36,7 +36,7 @@ if (Test-Path ".env") {
 }
 else {
   $firstRun = $true
-  Say "Welcome! Let's set up OSMM. Press Enter to accept the [default]."
+  Say "Welcome! Let's set up Space Works. Press Enter to accept the [default]."
   $webaddr = Read-Host "Web address (host name or IP, no http://) [localhost]"; if (-not $webaddr) { $webaddr = "localhost" }
   # Normalize: strip any scheme, path, and port so ALLOWED_HOSTS/CORS are valid.
   $webhost = ($webaddr -replace '^[a-zA-Z][a-zA-Z0-9+.-]*://', '' -replace '/.*$', '' -replace ':.*$', '')
@@ -47,6 +47,13 @@ else {
   $adminPass = [System.Net.NetworkCredential]::new("", (Read-Host "Admin password (leave blank to auto-generate)" -AsSecureString)).Password
   $genPass = $false
   if (-not $adminPass) { $adminPass = (New-Key 16); $genPass = $true }
+  $stripeSecretKey = Read-Host "Stripe secret key (optional; leave blank to skip)"
+  $stripeWebhookSecret = [System.Net.NetworkCredential]::new("", (Read-Host "Stripe webhook secret (optional; leave blank to skip)" -AsSecureString)).Password
+  $stripeDefaultCurrency = Read-Host "Stripe default currency [usd]"; if (-not $stripeDefaultCurrency) { $stripeDefaultCurrency = "usd" }
+  if (($stripeSecretKey -and -not $stripeWebhookSecret) -or (-not $stripeSecretKey -and $stripeWebhookSecret)) {
+    Warn "Stripe needs both secrets; leaving payments unconfigured."
+    $stripeSecretKey = ""; $stripeWebhookSecret = ""
+  }
 
   Say "Writing .env (secrets generated automatically)..."
   $envText = @"
@@ -80,6 +87,16 @@ if ($firstRun) {
   Say "Creating your admin account and makerspace..."
   docker @compose exec -T backend python manage.py setup_instance --username $adminUser --email $adminEmail --password $adminPass --makerspace-name $msname
   if ($LASTEXITCODE -ne 0) { Die "Could not create the admin account. See the output above." }
+
+  if ($stripeSecretKey) {
+    $env:SETUP_STRIPE_SECRET_KEY = $stripeSecretKey
+    $env:SETUP_STRIPE_WEBHOOK_SECRET = $stripeWebhookSecret
+    $env:SETUP_STRIPE_DEFAULT_CURRENCY = $stripeDefaultCurrency
+    $env:SETUP_MAKERSPACE_NAME = $msname
+    docker @compose exec -T -e SETUP_STRIPE_SECRET_KEY -e SETUP_STRIPE_WEBHOOK_SECRET -e SETUP_STRIPE_DEFAULT_CURRENCY -e SETUP_MAKERSPACE_NAME backend python manage.py shell -c 'import os; from django.utils.text import slugify; from apps.makerspaces.models import Makerspace; from apps.payments.models import MakerspacePaymentSettings; makerspace = Makerspace.objects.get(slug=slugify(os.environ["SETUP_MAKERSPACE_NAME"])); settings = MakerspacePaymentSettings.for_makerspace(makerspace); settings.set_stripe_secret_key(os.environ["SETUP_STRIPE_SECRET_KEY"]); settings.set_stripe_webhook_secret(os.environ["SETUP_STRIPE_WEBHOOK_SECRET"]); settings.default_currency = os.environ["SETUP_STRIPE_DEFAULT_CURRENCY"]; settings.save()'
+    Remove-Item Env:SETUP_STRIPE_SECRET_KEY, Env:SETUP_STRIPE_WEBHOOK_SECRET, Env:SETUP_STRIPE_DEFAULT_CURRENCY, Env:SETUP_MAKERSPACE_NAME
+    if ($LASTEXITCODE -ne 0) { Die "Could not save Stripe settings. See the output above." }
+  }
 
   $port = (Select-String -Path ".env" -Pattern '^HTTP_PORT=(.*)$').Matches.Groups[1].Value; if (-not $port) { $port = "80" }
   $suffix = ""; if ($port -ne "80") { $suffix = ":$port" }

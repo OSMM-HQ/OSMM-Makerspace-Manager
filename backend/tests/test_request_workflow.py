@@ -15,7 +15,6 @@ from rest_framework.throttling import ScopedRateThrottle
 from apps.accounts.models import User
 from apps.audit.models import AuditLog
 from apps.boxes.models import Box
-from apps.checkin.client import CheckinDenied, CheckinResult, CheckinUnavailable
 from apps.hardware_requests.models import (
     HardwareRequest,
     HardwareRequestItem,
@@ -23,6 +22,7 @@ from apps.hardware_requests.models import (
 from apps.integrations.models import EmailTemplate
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.presence import services as presence
 
 pytestmark = pytest.mark.django_db
 
@@ -108,6 +108,24 @@ def authenticated_client(user):
     return client
 
 
+def make_present_member(username, makerspace, **overrides):
+    """Create an authenticated member eligible for the M4 request path."""
+    user = make_user(
+        username,
+        access_status=User.AccessStatus.ACTIVE,
+        display_name=f"{username} display",
+        phone="+15550101010",
+        **overrides,
+    )
+    MakerspaceMembership.objects.create(
+        user=user,
+        makerspace=makerspace,
+        role=MakerspaceMembership.Role.CUSTOM,
+    )
+    presence.start_session(user, makerspace, 60)
+    return user
+
+
 def public_submit_url(makerspace):
     return f"/api/v1/public/{makerspace.slug}/requests"
 
@@ -189,15 +207,17 @@ def test_restricted_requester_cannot_submit():
         external_checkin_user_id="ext-r@example.com",
     )
 
-    response = APIClient().post(
+    response = authenticated_client(
+        make_present_member("restricted-member", makerspace)
+    ).post(
         public_submit_url(makerspace),
         legacy_submit_payload("ext-r", product),
         format="json",
     )
 
-    assert response.status_code == 403
-    assert response.data["code"] == "requester_blocked"
-    assert HardwareRequest.objects.count() == 0
+    # External Check-In identities no longer participate in request authorization.
+    assert response.status_code == 201
+    assert HardwareRequest.objects.count() == 1
 
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
@@ -210,15 +230,17 @@ def test_suspended_requester_cannot_submit():
         external_checkin_user_id="ext-s@example.com",
     )
 
-    response = APIClient().post(
+    response = authenticated_client(
+        make_present_member("suspended-member", makerspace)
+    ).post(
         public_submit_url(makerspace),
         legacy_submit_payload("ext-s", product),
         format="json",
     )
 
-    assert response.status_code == 403
-    assert response.data["code"] == "requester_blocked"
-    assert HardwareRequest.objects.count() == 0
+    # A legacy shadow-account status cannot block a distinct active member.
+    assert response.status_code == 201
+    assert HardwareRequest.objects.count() == 1
 
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
@@ -228,6 +250,7 @@ def test_successful_submission_creates_pending_request_items_audit_and_notifies(
 ):
     makerspace = make_space("successful-submit")
     product = make_product(makerspace, name="Logic Analyzer")
+    requester = make_present_member("successful-member", makerspace)
     notify = Mock()
     monkeypatch.setattr(
         "apps.hardware_requests.notifications.notify_request_submitted",
@@ -235,7 +258,7 @@ def test_successful_submission_creates_pending_request_items_audit_and_notifies(
     )
 
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
-        response = APIClient().post(
+        response = authenticated_client(requester).post(
             public_submit_url(makerspace),
             legacy_submit_payload("ext-ok", product, quantity=2),
             format="json",
@@ -244,13 +267,13 @@ def test_successful_submission_creates_pending_request_items_audit_and_notifies(
     assert response.status_code == 201
     assert set(response.data) == {"public_token", "status"}
     assert response.data["status"] == HardwareRequest.Status.PENDING_APPROVAL
-    assert len(callbacks) == 1
+    assert len(callbacks) == 0
     hardware_request = HardwareRequest.objects.get()
     assert str(hardware_request.public_token) == response.data["public_token"]
     assert hardware_request.status == HardwareRequest.Status.PENDING_APPROVAL
-    assert hardware_request.requester_name == "Ada Borrower"
-    assert hardware_request.requester_contact_email == "ext-ok@example.com"
-    assert hardware_request.requester_contact_phone == "+15550101010"
+    assert hardware_request.requester_name == requester.display_name
+    assert hardware_request.requester_contact_email == requester.email
+    assert hardware_request.requester_contact_phone == requester.phone
     item = hardware_request.items.get()
     assert item.product == product
     assert item.requested_quantity == 2
@@ -265,18 +288,20 @@ def test_successful_submission_creates_pending_request_items_audit_and_notifies(
 def test_submission_requires_name_email_and_phone(missing_field):
     makerspace = make_space(f"missing-{missing_field.replace('_', '-')}")
     product = make_product(makerspace)
+    requester = make_present_member(f"missing-{missing_field}", makerspace)
     payload = legacy_submit_payload("ext-missing-contact", product)
     payload.pop(missing_field)
 
-    response = APIClient().post(
+    response = authenticated_client(requester).post(
         public_submit_url(makerspace),
         payload,
         format="json",
     )
 
-    assert response.status_code == 400
-    assert missing_field in response.data
-    assert HardwareRequest.objects.count() == 0
+    assert response.status_code == 201
+    saved = HardwareRequest.objects.get()
+    assert saved.requester_contact_email == requester.email
+    assert saved.requester_contact_phone == requester.phone
 
 
 @override_settings(
@@ -289,9 +314,10 @@ def test_submission_sends_confirmation_email_to_contact(
 ):
     makerspace = make_space("email-confirm")
     product = make_product(makerspace)
+    requester = make_present_member("email-confirm-member", makerspace)
 
     with django_capture_on_commit_callbacks(execute=True):
-        response = APIClient().post(
+        response = authenticated_client(requester).post(
             public_submit_url(makerspace),
             legacy_submit_payload("ext-email", product),
             format="json",
@@ -299,55 +325,15 @@ def test_submission_sends_confirmation_email_to_contact(
 
     assert response.status_code == 201
     assert len(mailoutbox) == 1
-    assert mailoutbox[0].to == ["ext-email@example.com"]
+    assert mailoutbox[0].to == [requester.email]
     assert "Use your email or phone" in mailoutbox[0].body
-
-
-@override_settings(API_CLIENT_AUTH_REQUIRED=False)
-def test_checkin_unavailable_returns_503_and_creates_no_request(monkeypatch):
-    makerspace = make_space("checkin-unavailable")
-    product = make_product(makerspace)
-    monkeypatch.setattr(
-        "apps.checkin.client.verify",
-        Mock(side_effect=CheckinUnavailable("service down")),
-    )
-    before_count = HardwareRequest.objects.count()
-
-    response = APIClient().post(
-        public_submit_url(makerspace),
-        legacy_submit_payload("ext-down", product),
-        format="json",
-    )
-
-    assert response.status_code == 503
-    assert response.data["code"] == "checkin_unavailable"
-    assert HardwareRequest.objects.count() == before_count
-
-
-@override_settings(API_CLIENT_AUTH_REQUIRED=False)
-def test_checkin_denied_returns_403_and_creates_no_request(monkeypatch):
-    makerspace = make_space("checkin-denied")
-    product = make_product(makerspace)
-    monkeypatch.setattr(
-        "apps.checkin.client.verify",
-        Mock(side_effect=CheckinDenied("not checked in")),
-    )
-
-    response = APIClient().post(
-        public_submit_url(makerspace),
-        legacy_submit_payload("ext-denied", product),
-        format="json",
-    )
-
-    assert response.status_code == 403
-    assert response.data["code"] == "checkin_denied"
-    assert HardwareRequest.objects.count() == 0
 
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_duplicate_product_lines_in_one_submission_return_400():
     makerspace = make_space("duplicate-lines")
     product = make_product(makerspace)
+    requester = make_present_member("duplicate-lines-member", makerspace)
     payload = {
         "requester_name": "Ada Borrower",
         "contact_email": "ext-duplicate@example.com",
@@ -359,7 +345,7 @@ def test_duplicate_product_lines_in_one_submission_return_400():
         ],
     }
 
-    response = APIClient().post(
+    response = authenticated_client(requester).post(
         public_submit_url(makerspace),
         payload,
         format="json",
@@ -386,8 +372,9 @@ def test_unrequestable_product_returns_400_and_creates_no_request(
     makerspace = make_space(f"unrequestable-{name}")
     product_space = make_space(f"unrequestable-{name}-other") if other_space else makerspace
     product = make_product(product_space, **product_overrides)
+    requester = make_present_member(f"unrequestable-{name}-member", makerspace)
 
-    response = APIClient().post(
+    response = authenticated_client(requester).post(
         public_submit_url(makerspace),
         legacy_submit_payload(f"ext-{name}", product),
         format="json",
@@ -428,7 +415,6 @@ def test_public_status_by_token_returns_strict_allowlist_and_unknown_token_404()
     assert response.status_code == 200
     assert set(response.data) == {
         "status",
-        "rejection_reason",
         "created_at",
         "items",
     }
@@ -458,7 +444,7 @@ def test_public_status_by_token_returns_strict_allowlist_and_unknown_token_404()
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
-def test_public_request_lookup_is_scoped_to_verified_identity_and_space():
+def test_legacy_public_request_lookup_is_retired():
     makerspace = make_space("lookup-space")
     other_space = make_space("lookup-other-space")
     product = make_product(makerspace, name="Bench Meter")
@@ -490,20 +476,11 @@ def test_public_request_lookup_is_scoped_to_verified_identity_and_space():
         format="json",
     )
 
-    assert response.status_code == 200
-    assert len(response.data) == 1
-    assert response.data[0]["public_token"] == str(expected.public_token)
-    assert response.data[0]["status"] == HardwareRequest.Status.PENDING_APPROVAL
-    assert response.data[0]["items"] == [
-        {"product_name": "Bench Meter", "requested_quantity": 2}
-    ]
-    all_keys = json_keys(response.data)
-    for forbidden_key in {"requester", "requester_username", "email", "phone"}:
-        assert forbidden_key not in all_keys
+    assert response.status_code == 404
 
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
-def test_public_request_lookup_rejects_unrelated_contact_identifier():
+def test_legacy_public_contact_lookup_is_retired():
     # Knowing a requester's contact email must NOT surface their requests: lookup
     # is keyed on the verified Check-In identity, not free-text contact fields.
     makerspace = make_space("lookup-contact-priv")
@@ -523,12 +500,11 @@ def test_public_request_lookup_rejects_unrelated_contact_identifier():
         format="json",
     )
 
-    assert response.status_code == 200
-    assert response.data == []
+    assert response.status_code == 404
 
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
-def test_same_checked_in_user_has_separate_request_history_per_makerspace():
+def test_legacy_public_history_lookup_is_retired():
     first_space = make_space("same-user-first")
     second_space = make_space("same-user-second")
     first_product = make_product(first_space, name="First Space Meter")
@@ -549,31 +525,14 @@ def test_same_checked_in_user_has_separate_request_history_per_makerspace():
         format="json",
     )
 
-    assert first_submit.status_code == 201
-    assert second_submit.status_code == 201
-    assert HardwareRequest.objects.filter(requester_contact_email=contact).count() == 2
-
-    first_lookup = APIClient().post(
-        public_lookup_url(first_space),
-        {"identifier": contact},
-        format="json",
-    )
-    second_lookup = APIClient().post(
-        public_lookup_url(second_space),
-        {"identifier": contact},
-        format="json",
-    )
-
-    assert [item["items"][0]["product_name"] for item in first_lookup.data] == [
-        "First Space Meter"
-    ]
-    assert [item["items"][0]["product_name"] for item in second_lookup.data] == [
-        "Second Space Meter"
-    ]
+    assert first_submit.status_code == 401
+    assert second_submit.status_code == 401
+    assert APIClient().post(public_lookup_url(first_space), {"identifier": contact}, format="json").status_code == 404
+    assert APIClient().post(public_lookup_url(second_space), {"identifier": contact}, format="json").status_code == 404
 
 
 @override_settings(API_CLIENT_AUTH_REQUIRED=False)
-def test_public_request_lookup_returns_empty_for_verified_user_without_requests():
+def test_legacy_empty_public_lookup_is_retired():
     makerspace = make_space("lookup-empty")
 
     response = APIClient().post(
@@ -582,8 +541,7 @@ def test_public_request_lookup_returns_empty_for_verified_user_without_requests(
         format="json",
     )
 
-    assert response.status_code == 200
-    assert response.data == []
+    assert response.status_code == 404
 
 
 def test_admin_accept_reserves_inventory_and_writes_audit():
@@ -711,7 +669,7 @@ def test_accept_email_uses_admin_configured_template(
     assert "accepted" in staff_email.subject
 
 
-def test_inventory_manager_can_set_return_policy_and_request_due_time():
+def test_return_policy_requires_space_manager_and_inventory_can_set_due_time():
     makerspace = make_space("return-policy")
     product = make_product(makerspace)
     hardware_request = make_hardware_request(
@@ -728,6 +686,16 @@ def test_inventory_manager_can_set_return_policy_and_request_due_time():
     client = authenticated_client(inventory_manager)
 
     response = client.patch(
+        return_policy_url(makerspace),
+        {"default_loan_days": 10},
+        format="json",
+    )
+    assert response.status_code == 404
+    makerspace.refresh_from_db()
+    assert makerspace.default_loan_days != 10
+
+    space_manager = make_member("return-policy-manager", makerspace)
+    response = authenticated_client(space_manager).patch(
         return_policy_url(makerspace),
         {"default_loan_days": 10},
         format="json",
@@ -996,14 +964,7 @@ def test_request_submit_throttle_returns_429_on_second_rapid_submit(settings, mo
     )
     makerspace = make_space("submit-throttle")
     product = make_product(makerspace)
-    verify = Mock(
-        side_effect=[
-            CheckinResult(username="first", external_id="throttle-first"),
-            CheckinResult(username="second", external_id="throttle-second"),
-        ]
-    )
-    monkeypatch.setattr("apps.checkin.client.verify", verify)
-    client = APIClient()
+    client = authenticated_client(make_present_member("submit-throttle-member", makerspace))
 
     first = client.post(
         public_submit_url(makerspace),

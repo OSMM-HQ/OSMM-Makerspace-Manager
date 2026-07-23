@@ -1,27 +1,28 @@
 from urllib.parse import urlsplit
 
 from django.conf import settings
+from rest_framework.exceptions import PermissionDenied
 
-from apps.makerspaces.models import Makerspace
+from apps.accounts import rbac
+from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.makerspaces.origin_scope_routes import (
+    MAKERSPACE_KWARG_ROUTES as _MAKERSPACE_KWARG_ROUTES,
+    MODEL_LOOKUPS as _MODEL_LOOKUPS,
+    request_route_targets,
+)
 from apps.makerspaces.platform import makerspace_staff_origins
 
 
 NO_STAFF_ORIGIN_SCOPE = object()
 AMBIGUOUS_STAFF_ORIGIN_SCOPE = object()
-_MAKERSPACE_KWARG_ROUTES = {
-    "admin-machine-types": "makerspace_id",
-    "admin-machine-type-detail": "makerspace_id",
-    "admin-makerspace-provision-subdomain": "makerspace_id",
-    "admin-makerspace-subdomain-request": "makerspace_id",
-}
 
 
 def _origin_candidate(request):
-    raw = request.headers.get("Origin") or request.headers.get("Referer", "")
+    raw = request.headers.get('Origin') or request.headers.get('Referer', '')
     if not raw:
-        return ""
+        return ''
     parts = urlsplit(raw)
-    return f"{parts.scheme}://{parts.netloc}" if parts.scheme and parts.netloc else ""
+    return f'{parts.scheme}://{parts.netloc}' if parts.scheme and parts.netloc else ''
 
 
 def staff_origin_scope(request):
@@ -30,7 +31,6 @@ def staff_origin_scope(request):
         return NO_STAFF_ORIGIN_SCOPE
     if origin in set(settings.PLATFORM_STAFF_ORIGINS):
         return NO_STAFF_ORIGIN_SCOPE
-
     matches = {
         makerspace.id
         for makerspace in Makerspace.objects.filter(
@@ -48,9 +48,91 @@ def staff_origin_scope(request):
 
 def origin_scoped_makerspace_id(request):
     scope = staff_origin_scope(request)
-    if scope in (NO_STAFF_ORIGIN_SCOPE, AMBIGUOUS_STAFF_ORIGIN_SCOPE):
+    if scope not in (NO_STAFF_ORIGIN_SCOPE, AMBIGUOUS_STAFF_ORIGIN_SCOPE):
+        return scope
+    return getattr(request, 'selected_makerspace_id', None)
+
+
+def validate_native_makerspace_scope(request, user, grant):
+    raw = request.headers.get('X-Makerspace-Id')
+    if raw is None:
         return None
-    return scope
+    if not _active_attested_grant(user, grant):
+        raise PermissionDenied(
+            'Native makerspace selection requires an active device grant.'
+        )
+    try:
+        makerspace_id = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise PermissionDenied('Invalid native makerspace selection.') from exc
+    if makerspace_id <= 0 or str(makerspace_id) != str(raw).strip():
+        raise PermissionDenied('Invalid native makerspace selection.')
+
+    origin = _origin_candidate(request)
+    origin_scope = staff_origin_scope(request)
+    if origin:
+        if origin_scope in (
+            NO_STAFF_ORIGIN_SCOPE,
+            AMBIGUOUS_STAFF_ORIGIN_SCOPE,
+        ):
+            raise PermissionDenied(
+                'Browser origin cannot use native makerspace selection.'
+            )
+        if origin_scope != makerspace_id:
+            raise PermissionDenied(
+                'Makerspace selection conflicts with browser origin.'
+            )
+
+    memberships = MakerspaceMembership.objects.filter(
+        user=user,
+        makerspace_id=makerspace_id,
+        status='active',
+        makerspace__archived_at__isnull=True,
+    ).select_related('makerspace', 'assigned_role')
+    memberships = rbac.hide_from_superadmin(
+        user, memberships, field='makerspace_id'
+    )
+    membership = memberships.first()
+    if membership is None:
+        raise PermissionDenied('Makerspace selection is not available.')
+
+    url_name, targets, invalid, native_route_allowed = request_route_targets(
+        request
+    )
+    if invalid or not native_route_allowed:
+        raise PermissionDenied('Makerspace target could not be resolved.')
+    if targets and targets != {makerspace_id}:
+        raise PermissionDenied(
+            'Makerspace target does not match the selected makerspace.'
+        )
+    request.selected_makerspace_id = makerspace_id
+    request.selected_makerspace_membership = membership
+    request.selected_makerspace_route = url_name
+    return makerspace_id
+
+
+def _active_attested_grant(user, grant):
+    return bool(
+        grant
+        and grant.user_id == getattr(user, 'pk', None)
+        and grant.status == grant.Status.ACTIVE
+        and grant.revoked_at is None
+        and grant.attested_at is not None
+    )
+
+
+def require_native_selected_makerspace(request, makerspace_id=None):
+    selected = getattr(request, 'selected_makerspace_id', None)
+    membership = getattr(request, 'selected_makerspace_membership', None)
+    if (
+        selected is None
+        or membership is None
+        or (makerspace_id is not None and selected != makerspace_id)
+    ):
+        raise PermissionDenied(
+            'A matching native makerspace selection is required.'
+        )
+    return membership
 
 
 def staff_origin_scope_allows(request, view=None):
@@ -59,7 +141,6 @@ def staff_origin_scope_allows(request, view=None):
         return True
     if scope is AMBIGUOUS_STAFF_ORIGIN_SCOPE:
         return False
-
     target = _target_makerspace_id(request, view)
     if target is None:
         return _global_endpoint_allowed(request)
@@ -77,177 +158,27 @@ def object_in_staff_origin_scope(request, obj):
 
 
 def _global_endpoint_allowed(request):
-    match = getattr(request, "resolver_match", None)
-    return getattr(match, "url_name", "") == "admin-makerspaces"
+    match = getattr(request, 'resolver_match', None)
+    return getattr(match, 'url_name', '') == 'admin-makerspaces'
 
 
 def _target_makerspace_id(request, view=None):
-    kwargs = getattr(view, "kwargs", {}) if view is not None else {}
-    match = getattr(request, 'resolver_match', None)
-    url_name = getattr(match, 'url_name', '')
-    registered_kwarg = _MAKERSPACE_KWARG_ROUTES.get(url_name)
-    if registered_kwarg in kwargs:
-        return int(kwargs[registered_kwarg])
-    if "makerspace_id" in kwargs:
-        return int(kwargs["makerspace_id"])
-    if url_name == "admin-makerspace" and "pk" in kwargs:
-        return int(kwargs["pk"])
-    query_value = getattr(request, "query_params", {}).get("makerspace")
-    if query_value not in (None, ""):
-        try:
-            return int(query_value)
-        except (TypeError, ValueError):
-            return None
-    pk = kwargs.get("pk")
-    if pk is None:
+    _url_name, targets, invalid, _native_route_allowed = request_route_targets(
+        request, view
+    )
+    if invalid or len(targets) != 1:
         return None
-    return _lookup_makerspace_id(url_name, pk)
-
-
-def _lookup_makerspace_id(url_name, pk):
-    lookup = _MODEL_LOOKUPS.get(url_name)
-    if lookup is None:
-        return None
-    model_path, field = lookup
-    model = _model_for_path(model_path)
-    try:
-        return model.objects.values_list(field, flat=True).get(pk=pk)
-    except model.DoesNotExist:
-        return None
+    return next(iter(targets))
 
 
 def _object_makerspace_id(obj):
-    makerspace_id = getattr(obj, "makerspace_id", None)
+    makerspace_id = getattr(obj, 'makerspace_id', None)
     if makerspace_id is not None:
         return makerspace_id
-    bucket = getattr(obj, "bucket", None)
+    bucket = getattr(obj, 'bucket', None)
     if bucket is not None:
-        return getattr(bucket, "makerspace_id", None)
-    print_request = getattr(obj, "print_request", None)
+        return getattr(bucket, 'makerspace_id', None)
+    print_request = getattr(obj, 'print_request', None)
     if print_request is not None:
-        return getattr(print_request, "makerspace_id", None)
+        return getattr(print_request, 'makerspace_id', None)
     return None
-
-
-def _model_for_path(model_path):
-    app_label, model_name = model_path.split(".")
-    if app_label == "makerspaces":
-        from apps.makerspaces import models
-    elif app_label == "inventory":
-        from apps.inventory import models
-    elif app_label == "boxes":
-        from apps.boxes import models
-    elif app_label == "evidence":
-        from apps.evidence import models
-    elif app_label == "operations":
-        from apps.operations import models
-    elif app_label == "hardware_requests":
-        from apps.hardware_requests import models
-    elif app_label == "printing":
-        from apps.printing import models
-    elif app_label == "procurement":
-        from apps.procurement import models
-    elif app_label == "warranty":
-        from apps.warranty import models
-    elif app_label == "machines":
-        from apps.machines import models
-    else:
-        raise LookupError(model_path)
-    return getattr(models, model_name)
-
-
-_REQUEST_ACTIONS = {
-    "request-accept",
-    "request-reject",
-    "request-assign-box",
-    "request-issue",
-    "request-return-due",
-    "request-return",
-    "guest-admin-request-return",
-    "request-timeline",
-}
-_PRINT_ACTIONS = {
-    "managed-request-detail",
-    "managed-request-accept",
-    "managed-request-reject",
-    "managed-request-start",
-    "managed-request-complete",
-    "managed-request-collect",
-    "managed-request-fail",
-    "managed-request-reprint",
-}
-_MODEL_LOOKUPS = {
-    'admin-machine-operator-candidates': ('machines.Machine', 'makerspace_id'),
-    'admin-machine-publicity': ('machines.Machine', 'makerspace_id'),
-    "makerspace-verify-domain": ("makerspaces.Makerspace", "id"),
-    "admin-inventory-detail": ("inventory.InventoryProduct", "makerspace_id"),
-    "admin-inventory-image": ("inventory.InventoryProduct", "makerspace_id"),
-    "admin-printer-image": ("printing.PrintPrinter", "makerspace_id"),
-    "admin-inventory-asset-detail": ("inventory.InventoryAsset", "makerspace_id"),
-    "admin-asset-warranty": ("inventory.InventoryAsset", "makerspace_id"),
-    "admin-printer-warranty": ("printing.PrintPrinter", "makerspace_id"),
-    "admin-machine-warranty": ("machines.Machine", "makerspace_id"),
-    "admin-warranty-document-presign": ("warranty.Warranty", "makerspace_id"),
-    "admin-warranty-documents": ("warranty.Warranty", "makerspace_id"),
-    "admin-warranty-document-url": ("warranty.WarrantyDocument", "warranty__makerspace_id"),
-    "admin-warranty-document-detail": ("warranty.WarrantyDocument", "warranty__makerspace_id"),
-    "admin-inventory-adjust-quantity": ("inventory.InventoryProduct", "makerspace_id"),
-    "admin-inventory-lending-history": ("inventory.InventoryProduct", "makerspace_id"),
-    "admin-inventory-chain-of-custody": ("inventory.InventoryProduct", "makerspace_id"),
-    "admin-needs-fix-action": ("inventory.InventoryProduct", "makerspace_id"),
-    "admin-category-detail": ("inventory.Category", "makerspace_id"),
-    "container-detail": ("boxes.Box", "makerspace_id"),
-    "container-move": ("boxes.Box", "makerspace_id"),
-    "container-contents": ("boxes.Box", "makerspace_id"),
-    "container-history": ("boxes.Box", "makerspace_id"),
-    "qr-print": ("boxes.QrCode", "makerspace_id"),
-    "qr-revoke": ("boxes.QrCode", "makerspace_id"),
-    "qr-rebind-target": ("boxes.QrCode", "makerspace_id"),
-    "evidence-detail": ("evidence.EvidencePhoto", "makerspace_id"),
-    "stock-transfer-detail": ("operations.StockTransfer", "makerspace_id"),
-    "stocktake-detail": ("operations.StocktakeSession", "makerspace_id"),
-    "stocktake-count-lines": ("operations.StocktakeSession", "makerspace_id"),
-    "stocktake-resolve-scan": ("operations.StocktakeSession", "makerspace_id"),
-    "stocktake-complete": ("operations.StocktakeSession", "makerspace_id"),
-    "stocktake-approve": ("operations.StocktakeSession", "makerspace_id"),
-    "stocktake-apply-adjustments": ("operations.StocktakeSession", "makerspace_id"),
-    "qr-print-batch-detail": ("operations.QrPrintBatch", "makerspace_id"),
-    "qr-print-batch-items": ("operations.QrPrintBatch", "makerspace_id"),
-    "qr-print-batch-download": ("operations.QrPrintBatch", "makerspace_id"),
-    "direct-loan-return": ("hardware_requests.PublicToolLoan", "makerspace_id"),
-    "problem-report-triage": ("hardware_requests.PublicProblemReport", "makerspace_id"),
-    "managed-printer-detail": ("printing.PrintPrinter", "makerspace_id"),
-    "managed-spool-detail": ("printing.FilamentSpool", "makerspace_id"),
-    "managed-spool-adjustment": ("printing.FilamentSpool", "makerspace_id"),
-    "managed-file-url": ("printing.PrintRequestFile", "makerspace_id"),
-    "to-buy-detail": ("procurement.ToBuyItem", "makerspace_id"),
-    "to-buy-move-to-inventory": ("procurement.ToBuyItem", "makerspace_id"),
-    "to-buy-move-to-printing": ("procurement.ToBuyItem", "makerspace_id"),
-    "to-buy-receipt-presign": ("procurement.ToBuyItem", "makerspace_id"),
-    "to-buy-receipt-list": ("procurement.ToBuyItem", "makerspace_id"),
-    "to-buy-receipt-url": ("procurement.ToBuyReceipt", "to_buy_item__makerspace_id"),
-    "to-buy-receipt-detail": ("procurement.ToBuyReceipt", "to_buy_item__makerspace_id"),
-    "admin-machine-detail": ("machines.Machine", "makerspace_id"),
-    "admin-machine-image": ("machines.Machine", "makerspace_id"),
-    "admin-machine-set-status": ("machines.Machine", "makerspace_id"),
-    "admin-machine-retire": ("machines.Machine", "makerspace_id"),
-    "admin-machine-unretire": ("machines.Machine", "makerspace_id"),
-    "admin-machine-usage": ("machines.Machine", "makerspace_id"),
-    "admin-machine-consumables": ("machines.Machine", "makerspace_id"),
-    "admin-machine-consumable-detail": ("machines.Machine", "makerspace_id"),
-    "admin-machine-consumption-log": ("machines.Machine", "makerspace_id"),
-    "admin-machine-consumable-candidates": ("machines.Machine", "makerspace_id"),
-    "admin-machine-operators": ("machines.Machine", "makerspace_id"),
-    "admin-machine-operator-detail": ("machines.Machine", "makerspace_id"),
-    "admin-machine-document-presign": ("machines.Machine", "makerspace_id"),
-    "admin-machine-documents": ("machines.Machine", "makerspace_id"),
-    "admin-machine-error-logs": ("machines.Machine", "makerspace_id"),
-    "admin-machine-document-url": ("machines.MachineDocument", "machine__makerspace_id"),
-    "admin-machine-document-detail": ("machines.MachineDocument", "machine__makerspace_id"),
-    **{name: ("hardware_requests.HardwareRequest", "makerspace_id") for name in _REQUEST_ACTIONS},
-    **{name: ("printing.PrintRequest", "makerspace_id") for name in _PRINT_ACTIONS},
-}
-
-
-
-

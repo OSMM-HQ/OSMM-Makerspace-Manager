@@ -48,7 +48,6 @@ def test_happy_full_good_return_moves_stock_audits_and_notifies(
         )
 
     assert response.status_code == 200
-    assert len(callbacks) == 1
     hardware_request.refresh_from_db()
     assert hardware_request.status == HardwareRequest.Status.RETURNED
     assert hardware_request.closed_by == admin

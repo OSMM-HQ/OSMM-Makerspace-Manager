@@ -24,17 +24,17 @@ services:
 
   backend:
     environment:
-      PLATFORM_DOMAIN_SUFFIX: ${PLATFORM_DOMAIN_SUFFIX:-.osmm.me}
+      PLATFORM_DOMAIN_SUFFIX: ${PLATFORM_DOMAIN_SUFFIX:-.space-works.tech}
       BEHIND_TRUSTED_PROXY: "true"
-      PLATFORM_ORIGIN_HOST: ${PLATFORM_ORIGIN_HOST:-origin.osmm.me}
-      INFRA_HOSTS: ${INFRA_HOSTS:-localhost,127.0.0.1,backend,backend:8000,origin.osmm.me,files.osmm.me,osmm.me}
-      PLATFORM_STAFF_ORIGINS: ${PLATFORM_STAFF_ORIGINS:-https://osmm.me}
+      PLATFORM_ORIGIN_HOST: ${PLATFORM_ORIGIN_HOST:-origin.space-works.tech}
+      INFRA_HOSTS: ${INFRA_HOSTS:-localhost,127.0.0.1,backend,backend:8000,origin.space-works.tech,files.space-works.tech,space-works.tech}
+      PLATFORM_STAFF_ORIGINS: ${PLATFORM_STAFF_ORIGINS:-https://space-works.tech}
       DOMAIN_CHANGE_COOLDOWN_SECONDS: ${DOMAIN_CHANGE_COOLDOWN_SECONDS:-86400}
       ENABLE_HTTPS: "true"
       TRUST_X_FORWARDED_PROTO: "true"
-      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-https://*.osmm.me,https://osmm.me}
-      AWS_S3_PUBLIC_ENDPOINT_URL: https://files.osmm.me
-      PUBLIC_IMAGE_BASE_URL: https://files.osmm.me/public-images
+      CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-https://*.space-works.tech,https://space-works.tech}
+      AWS_S3_PUBLIC_ENDPOINT_URL: https://files.space-works.tech
+      PUBLIC_IMAGE_BASE_URL: https://files.space-works.tech/public-images
 
   # migrate/worker/beat reference the base &backend-env anchor, which does NOT pick up
   # the backend override above. They must still know this is a MANAGED instance:
@@ -44,15 +44,15 @@ services:
   # auto-verify unproven custom domains. Keep in sync with backend's PLATFORM_DOMAIN_SUFFIX.
   migrate:
     environment:
-      PLATFORM_DOMAIN_SUFFIX: ${PLATFORM_DOMAIN_SUFFIX:-.osmm.me}
+      PLATFORM_DOMAIN_SUFFIX: ${PLATFORM_DOMAIN_SUFFIX:-.space-works.tech}
 
   worker:
     environment:
-      PLATFORM_DOMAIN_SUFFIX: ${PLATFORM_DOMAIN_SUFFIX:-.osmm.me}
+      PLATFORM_DOMAIN_SUFFIX: ${PLATFORM_DOMAIN_SUFFIX:-.space-works.tech}
 
   beat:
     environment:
-      PLATFORM_DOMAIN_SUFFIX: ${PLATFORM_DOMAIN_SUFFIX:-.osmm.me}
+      PLATFORM_DOMAIN_SUFFIX: ${PLATFORM_DOMAIN_SUFFIX:-.space-works.tech}
 
   frontend:
     ports: !reset []

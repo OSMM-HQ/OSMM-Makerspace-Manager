@@ -188,7 +188,7 @@ def issue_request(actor, request, evidence_id, remark="", asset_qr_payloads=None
             target=locked,
             meta={"box_id": locked.assigned_box_id, "evidence_id": evidence.pk},
         )
-        transaction.on_commit(lambda request_id=locked.pk: _notify_issued(request_id))
+        notifications.notify_request_issued(locked)
         return locked
 
 def set_return_due(actor, request, return_due_at):
@@ -232,14 +232,3 @@ def _raise_issue_conflict(exc):
     if constraint and "issue_evidence" in constraint:
         raise RequestValidationError("Evidence already used.") from exc
     raise InvalidTransition("Could not issue request due to a conflict.") from exc
-
-
-def _notify_issued(request_id):
-    notifications.notify_request_issued(
-        HardwareRequest.objects.select_related(
-            "makerspace",
-            "requester",
-            "issued_by",
-            "assigned_box",
-        ).get(pk=request_id)
-    )

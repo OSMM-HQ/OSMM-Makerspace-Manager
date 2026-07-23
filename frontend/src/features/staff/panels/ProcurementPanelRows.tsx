@@ -21,9 +21,9 @@ export type ToBuyItem = {
   received_at: string | null;
   moved_to_inventory_at: string | null;
   resulting_product: number | null;
-  resulting_spool: number | null;
-  resulting_printer: number | null;
-  source_spool: number | null;
+  resulting_pool: number | null;
+  resulting_machine: number | null;
+  source_pool: number | null;
   created_by_username: string | null;
   receipts: ToBuyReceipt[];
 };
@@ -53,7 +53,7 @@ export function ProcurementRow({ item, makerspaceSlug, updatePending, deletePend
   return (
     <tr>
       <td className="px-3 py-2 text-xs uppercase text-muted">{item.kind}</td>
-      <td className="px-3 py-2"><span className="block max-w-56 break-words">{item.name}</span>{item.source_spool ? <span className="mt-1 block"><Badge tone="warn">Auto - low stock</Badge></span> : null}</td>
+      <td className="px-3 py-2"><span className="block max-w-56 break-words">{item.name}</span>{item.source_pool ? <span className="mt-1 block"><Badge tone="warn">Auto - low stock</Badge></span> : null}</td>
       <td className="px-3 py-2">{item.quantity}</td>
       <td className="px-3 py-2"><ItemLink link={item.link} /></td>
       <td className="px-3 py-2">{item.estimated_unit_cost ?? "-"}</td>
@@ -85,8 +85,8 @@ function MoveState({ item, makerspaceSlug }: { item: ToBuyItem; makerspaceSlug: 
   if (item.resulting_product) {
     return <a className="text-accent-ink underline" href={`/m/${makerspaceSlug}/admin/inventory`}>Inventory #{item.resulting_product}</a>;
   }
-  if (item.resulting_spool) return <>Spool #{item.resulting_spool}</>;
-  if (item.resulting_printer) return <>Printer #{item.resulting_printer}</>;
+  if (item.resulting_pool) return <>Pool #{item.resulting_pool}</>;
+  if (item.resulting_machine) return <>Machine #{item.resulting_machine}</>;
   return <>Moved</>;
 }
 

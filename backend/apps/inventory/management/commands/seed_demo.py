@@ -1,5 +1,6 @@
-from django.conf import settings
+﻿from django.conf import settings
 from django.core.management.base import BaseCommand
+from decimal import Decimal
 
 from apps.accounts.models import User
 from apps.apiclients.models import ApiClient
@@ -13,6 +14,8 @@ from apps.inventory.models import (
     TrackingMode,
 )
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.machines.models import Machine, MachineConsumablePool, MachineServiceRequest, MachineType
+from apps.machines.service_workflow import submit as submit_service_request
 
 
 DEMO_SPACES = [
@@ -71,6 +74,7 @@ class Command(BaseCommand):
         spaces_created = 0
         products_written = 0
         assets_written = 0
+        machine_services_written = 0
         for spec in DEMO_SPACES:
             makerspace, created = Makerspace.objects.update_or_create(
                 slug=spec["slug"],
@@ -98,6 +102,7 @@ class Command(BaseCommand):
             box = self._box(makerspace, "Starter Inventory", spec["location"])
             products_written += self._products(makerspace, box)
             assets_written += self._assets(makerspace, box)
+            machine_services_written += self._machine_service(makerspace, manager)
 
         self._sync_legacy_hmac_client()
         self.stdout.write(
@@ -105,7 +110,8 @@ class Command(BaseCommand):
                 "Seeded demo data: "
                 f"spaces_created={spaces_created}, "
                 f"products_written={products_written}, "
-                f"assets_written={assets_written}. "
+                f"assets_written={assets_written}, "
+                f"machine_services_written={machine_services_written}. "
                 "Accounts: superadmin, alpha_manager, beta_manager, gamma_manager."
             )
         )
@@ -209,6 +215,55 @@ class Command(BaseCommand):
             )
         return 3
 
+    def _machine_service(self, makerspace, requester):
+        printer_type = MachineType.objects.get(makerspace__isnull=True, slug="3d_printer")
+        machine, _ = Machine.objects.update_or_create(
+            makerspace=makerspace,
+            name="Demo 3D Printer",
+            defaults={
+                "machine_type": printer_type,
+                "location": "Fabrication Bench",
+                "notes": "Seeded kernel machine-service printer.",
+                "is_public": True,
+                "type_payload": {"model": "Prusa MK4"},
+                "created_by": requester,
+            },
+        )
+        MachineConsumablePool.objects.get_or_create(
+            makerspace=makerspace,
+            machine=machine,
+            material="PLA",
+            color="Black",
+            brand="Demo",
+            lot_code="DEMO-PLA",
+            defaults={
+                "initial_grams": Decimal("1000.00"),
+                "remaining_grams": Decimal("1000.00"),
+                "low_threshold_grams": Decimal("200.00"),
+                "created_by": requester,
+            },
+        )
+        if MachineServiceRequest.objects.filter(
+            makerspace=makerspace, title="Demo 3D print request"
+        ).exists():
+            return 0
+        submit_service_request(
+            machine,
+            requester,
+            actor=requester,
+            requester_name=requester.username,
+            contact_email=requester.email,
+            contact_phone="",
+            title="Demo 3D print request",
+            description="Seeded machine-service sample.",
+            capability_payload={
+                "requested_material": "PLA",
+                "requested_color": "Black",
+                "quantity": 1,
+                "estimated_grams": "25.00",
+            },
+        )
+        return 1
     def _sync_legacy_hmac_client(self):
         if not settings.HMAC_CLIENT_ID or not settings.HMAC_SECRET:
             return

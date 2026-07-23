@@ -1,4 +1,5 @@
 import { staffRequest } from "../../lib/api";
+import type { MachineTypePricing, MachineTypePricingList, MachineTypePricingSet } from "../../generated/api";
 import { uploadPublicImage } from "./ImageUploader";
 
 export type MachineStatus = "idle" | "running" | "reserved" | "maintenance" | "offline";
@@ -13,6 +14,13 @@ export type MachineType = {
   is_builtin: boolean;
   managing_action: string;
   makerspace: number | null;
+  capability_config?: MachineTypeCapabilityConfig;
+};
+
+export type MeteringUnit = "weight" | "volume" | "length" | "count" | "minutes";
+export type MachineTypeCapabilityConfig = {
+  metering_unit: MeteringUnit;
+  requires_booking: boolean;
 };
 
 export type Machine = {
@@ -29,7 +37,7 @@ export type Machine = {
   warranty_status: MachineWarrantyStatus;
   is_public: boolean;
   is_active: boolean;
-  linked_print_printer: number | null;
+  type_payload?: { model?: string };
   usage_hours: string;
   can_operate: boolean;
   can_edit: boolean;
@@ -102,6 +110,7 @@ export const machineKeys = {
   all: ["machines"] as const,
   list: (makerspaceId: number) => ["machines", makerspaceId] as const,
   types: (makerspaceId: number) => ["machine-types", makerspaceId] as const,
+  pricing: (makerspaceId: number) => ["machine-type-pricing", makerspaceId] as const,
   detail: (machineId: number) => ["machine", machineId] as const,
   usage: (machineId: number) => ["machine-usage", machineId] as const,
   operators: (machineId: number) => ["machine-operators", machineId] as const,
@@ -127,8 +136,9 @@ export type MachinePayload = {
   firmware_version: string;
   camera_feed_url: string;
   machine_type_id: number;
+  type_payload?: { model?: string };
 };
-export type MachinePatch = Partial<MachinePayload>;
+export type MachinePatch = Partial<MachinePayload> & { status?: MachineStatus };
 
 export function getMachines(makerspaceId: number) {
   return staffRequest<MachineListResponse<Machine>>(`/admin/makerspace/${makerspaceId}/machines`);
@@ -144,7 +154,10 @@ export function getMachineTypes(makerspaceId: number) {
   return staffRequest<MachineCollection<MachineType>>(`/admin/makerspace/${makerspaceId}/machine-types`);
 }
 
-export function createMachineType(makerspaceId: number, payload: Pick<MachineType, "slug" | "name" | "icon">) {
+export function createMachineType(
+  makerspaceId: number,
+  payload: Pick<MachineType, "slug" | "name" | "icon"> & { capability_config: MachineTypeCapabilityConfig },
+) {
   return staffRequest<MachineType>(`/admin/makerspace/${makerspaceId}/machine-types`, {
     method: "POST", body: JSON.stringify(payload),
   });
@@ -153,13 +166,27 @@ export function createMachineType(makerspaceId: number, payload: Pick<MachineTyp
 export function updateMachineType(
   makerspaceId: number,
   typeId: number,
-  payload: Pick<MachineType, 'name' | 'icon'>,
+  payload: Pick<MachineType, 'name' | 'icon'> & { capability_config: MachineTypeCapabilityConfig },
 ) {
   return staffRequest<MachineType>(`/admin/makerspace/${makerspaceId}/machine-types/${typeId}`, {
     method: 'PATCH', body: JSON.stringify(payload),
   });
 }
 
+export function getMachineTypePricing(makerspaceId: number) {
+  return staffRequest<MachineTypePricingList>(`/admin/makerspace/${makerspaceId}/machine-type-pricing`);
+}
+
+export function setMachineTypePricing(
+  makerspaceId: number,
+  machineTypeId: number,
+  payload: MachineTypePricingSet,
+) {
+  return staffRequest<MachineTypePricing>(
+    `/admin/makerspace/${makerspaceId}/machine-type-pricing/${machineTypeId}`,
+    { method: "PUT", body: JSON.stringify(payload) },
+  );
+}
 export function getMachine(machineId: number) {
   return staffRequest<Machine>(`/admin/machines/${machineId}`);
 }

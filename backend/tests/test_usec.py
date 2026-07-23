@@ -7,7 +7,8 @@ from rest_framework.test import APIClient
 from apps.accounts.models import User
 from apps.hardware_requests.models import HardwareRequest
 from apps.inventory.models import InventoryProduct
-from apps.makerspaces.models import Makerspace
+from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.presence import services as presence
 
 pytestmark = pytest.mark.django_db
 
@@ -45,11 +46,30 @@ def submit_payload(product, **overrides):
     return payload
 
 
-@override_settings(API_CLIENT_AUTH_REQUIRED=False, CHECKIN_MODE="stub")
+def present_member(makerspace):
+    user = User.objects.create_user(
+        username="usec-member",
+        email="usec-member@example.com",
+        phone="+15550101010",
+        display_name="USEC Member",
+        access_status=User.AccessStatus.ACTIVE,
+    )
+    MakerspaceMembership.objects.create(
+        makerspace=makerspace,
+        user=user,
+        role=MakerspaceMembership.Role.CUSTOM,
+    )
+    presence.start_session(user, makerspace, 60)
+    client = APIClient()
+    client.force_authenticate(user)
+    return client
+
+
+@override_settings(API_CLIENT_AUTH_REQUIRED=False)
 def test_public_submit_honeypot_returns_success_without_creating_request():
     makerspace = make_space("usec-honeypot")
     product = make_product(makerspace)
-    client = APIClient()
+    client = present_member(makerspace)
 
     spam = client.post(
         submit_url(makerspace),

@@ -23,17 +23,17 @@
 }
 
 # Expose the S3-compatible API through its dedicated storage hostname.
-# files.osmm.me is a *.osmm.me subdomain, so it is served by the same static
+# files.space-works.tech is a *.space-works.tech subdomain, so it is served by the same static
 # Cloudflare Origin CA cert (each site block manages its own TLS — without this
 # Caddy would try public ACME for this host, which fails behind Cloudflare).
-files.osmm.me {
-    tls /etc/caddy/certs/osmm.crt /etc/caddy/certs/osmm.key
+files.space-works.tech {
+    tls /etc/caddy/certs/spaceworks.crt /etc/caddy/certs/spaceworks.key
     reverse_proxy minio:9000
 }
 
 # Platform apex and makerspace subdomains use the Cloudflare Origin CA cert.
-*.osmm.me, osmm.me {
-    tls /etc/caddy/certs/osmm.crt /etc/caddy/certs/osmm.key
+*.space-works.tech, space-works.tech {
+    tls /etc/caddy/certs/spaceworks.crt /etc/caddy/certs/spaceworks.key
     import backend_paths
 }
 

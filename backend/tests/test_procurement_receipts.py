@@ -9,7 +9,7 @@ from apps.accounts.models import User
 from apps.audit.models import AuditLog
 from apps.makerspaces.models import MakerspaceMembership
 from apps.procurement.models import ToBuyItem, ToBuyReceipt
-from tests.test_printing import authenticated_client, make_member, make_print_manager, make_space
+from tests.return_helpers import authenticated_client, make_member, make_print_manager, make_space
 from tests.test_procurement import make_inventory_manager, make_space_manager
 
 pytestmark = pytest.mark.django_db

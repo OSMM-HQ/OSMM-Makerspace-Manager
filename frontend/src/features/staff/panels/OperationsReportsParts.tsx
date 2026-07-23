@@ -2,7 +2,7 @@ import type React from "react";
 
 import { Skeleton, SkeletonRows } from "../../../components/ui";
 
-export type ReportCell = string | number | null;
+export type ReportCell = string | number | boolean | null;
 export type TypedReportRow = Record<string, ReportCell | undefined>;
 export type ReportRows = { rows: ReportCell[][]; typed_rows?: TypedReportRow[] };
 
@@ -112,7 +112,7 @@ export function BarChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: 
               {row.label}
             </span>
             <div className="h-3 overflow-hidden rounded border border-line bg-bg">
-              <div className="h-full rounded bg-accent" style={{ width }} aria-hidden="true" />
+              <div className="h-full rounded" style={{ width, backgroundColor: REPORT_CHART_COLORS[index % REPORT_CHART_COLORS.length] }} aria-hidden="true" />
             </div>
             <span className="min-w-14 text-right text-xs text-muted">
               {formatNumber(row.value)} {valueLabel ?? ""}
@@ -126,7 +126,7 @@ export function BarChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: 
 
 // Fixed categorical palette aligned to the pastel reskin. Kept dependency-free
 // per repo convention - no chart library.
-const PIE_COLORS = [
+export const REPORT_CHART_COLORS = [
   "#0284c7",
   "#a16207",
   "#15803d",
@@ -150,7 +150,7 @@ export function PieChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: 
     const fraction = row.value / total;
     const dash = fraction * circumference;
     const segment = {
-      color: PIE_COLORS[index % PIE_COLORS.length],
+      color: REPORT_CHART_COLORS[index % REPORT_CHART_COLORS.length],
       dash,
       gap: circumference - dash,
       offset: -consumed,
@@ -201,7 +201,7 @@ export function PieChart({ rows, valueLabel }: { rows: ChartRow[]; valueLabel?: 
 }
 
 // Aggregate ("All makerspaces") leaderboards must read PER MAKERSPACE, not as one
-// blended cross-OSMM ranking. Given rows whose first/identified column is the
+// blended cross-Space Works ranking. Given rows whose first/identified column is the
 // makerspace, this groups them and renders a separate ranked table per makerspace
 // (heading = makerspace name), dropping the now-redundant makerspace column.
 export function PerMakerspaceTables({
@@ -280,6 +280,7 @@ export function ReportTable({ data }: { data?: ReportRows }) {
 function formatCell(value: ReportCell | undefined) {
   if (value === null || value === undefined || value === "") return "-";
   if (typeof value === "number") return formatNumber(value);
+  if (typeof value === "boolean") return value ? "Yes" : "No";
   if (/^\d{4}-\d{2}-\d{2}T/.test(value)) return new Date(value).toLocaleString();
   return value;
 }

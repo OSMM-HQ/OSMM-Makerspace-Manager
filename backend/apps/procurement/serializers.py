@@ -3,6 +3,10 @@ from rest_framework import serializers
 from apps.procurement.models import ToBuyItem, ToBuyReceipt
 
 
+class ErrorSerializer(serializers.Serializer):
+    detail = serializers.CharField(required=False)
+
+
 class ToBuyReceiptSerializer(serializers.ModelSerializer):
     uploaded_by_username = serializers.CharField(
         source="uploaded_by.username",
@@ -59,9 +63,9 @@ class ToBuyItemSerializer(serializers.ModelSerializer):
             "received_at",
             "moved_to_inventory_at",
             "resulting_product",
-            "resulting_spool",
-            "resulting_printer",
-            "source_spool",
+            "resulting_pool",
+            "resulting_machine",
+            "source_pool",
             "receipts",
             "created_by",
             "created_by_username",
@@ -78,9 +82,9 @@ class ToBuyItemSerializer(serializers.ModelSerializer):
             "received_at",
             "moved_to_inventory_at",
             "resulting_product",
-            "resulting_spool",
-            "resulting_printer",
-            "source_spool",
+            "resulting_pool",
+            "resulting_machine",
+            "source_pool",
             "receipts",
             "created_by",
             "created_by_username",

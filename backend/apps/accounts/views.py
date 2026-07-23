@@ -30,17 +30,35 @@ from apps.openapi import LOGIN_EXAMPLE
 
 logger = logging.getLogger(__name__)
 
+AuthMembershipSerializer = inline_serializer(
+    name="AuthMembership",
+    fields={
+        "id": serializers.IntegerField(),
+        "slug": serializers.CharField(),
+        "role": serializers.CharField(),
+        "role_id": serializers.IntegerField(allow_null=True),
+        "role_name": serializers.CharField(),
+        "role_slug": serializers.CharField(),
+        "actions": serializers.ListField(child=serializers.CharField()),
+        "can_refer": serializers.BooleanField(),
+        "can_verify": serializers.BooleanField(),
+        "verified_at": serializers.DateTimeField(allow_null=True),
+        "referrals_enabled": serializers.BooleanField(),
+    },
+)
 UserPayloadSerializer = inline_serializer(
     name="AuthUserPayload",
     fields={
         "id": serializers.IntegerField(),
         "username": serializers.CharField(),
         "email": serializers.EmailField(),
+        "display_name": serializers.CharField(),
+        "phone": serializers.CharField(),
+        "email_verified": serializers.BooleanField(),
         "role": serializers.CharField(),
         "is_superuser": serializers.BooleanField(),
         "must_change_password": serializers.BooleanField(),
-        # documented loosely: list of {id, slug, role} membership objects.
-        "makerspaces": serializers.ListField(child=serializers.DictField()),
+        "makerspaces": serializers.ListField(child=AuthMembershipSerializer),
     },
 )
 LoginRequestSerializer = inline_serializer(
@@ -92,8 +110,10 @@ class LoginView(TokenObtainPairView):
         request=LoginRequestSerializer,
         responses={
             200: LoginResponseSerializer,
+            400: OpenApiResponse(description="Invalid request."),
             401: OpenApiResponse(description="Invalid credentials or inactive account."),
             403: OpenApiResponse(description="Account access is restricted."),
+            429: OpenApiResponse(description="Request throttled."),
         },
         examples=[LOGIN_EXAMPLE],
     )
@@ -134,6 +154,38 @@ def _refresh_user_is_active(token_str):
     )
 
 
+def _refresh_surface(token_str):
+    try:
+        return RefreshToken(token_str).get("surface")
+    except TokenError:
+        return None
+
+
+def _assert_staff_refresh_scope(request, token_str):
+    try:
+        token = RefreshToken(token_str)
+    except TokenError:
+        return
+    if token.get("surface") != "staff":
+        return
+    from rest_framework.exceptions import PermissionDenied
+
+    from apps.makerspaces.origin_scope import (
+        AMBIGUOUS_STAFF_ORIGIN_SCOPE,
+        NO_STAFF_ORIGIN_SCOPE,
+        staff_origin_scope,
+    )
+
+    actual = staff_origin_scope(request)
+    expected = str(token.get("staff_scope") or "")
+    if actual is AMBIGUOUS_STAFF_ORIGIN_SCOPE:
+        raise PermissionDenied("Staff origin is ambiguous.")
+    if expected == "platform" and actual is NO_STAFF_ORIGIN_SCOPE:
+        return
+    if str(actual) != expected:
+        raise PermissionDenied("Staff session origin does not match.")
+
+
 class RefreshView(TokenRefreshView):
     @extend_schema(
         tags=["Auth"],
@@ -147,14 +199,18 @@ class RefreshView(TokenRefreshView):
         },
     )
     def post(self, request, *args, **kwargs):
+        cookie = request.COOKIES.get(settings.AUTH_REFRESH_COOKIE)
         try:
-            assert_csrf(request)  # header presence + Origin allowlist (CSRF defense)
+            assert_csrf(
+                request, surface=_refresh_surface(cookie) if cookie else None
+            )  # header presence + surface-specific exact origin
+            if cookie:
+                _assert_staff_refresh_scope(request, cookie)
         except APIException:
             audit_events.record_auth_event(
                 None, "auth.refresh_rejected", meta={"reason": "csrf"}
             )
             raise
-        cookie = request.COOKIES.get(settings.AUTH_REFRESH_COOKIE)
         if not cookie:
             audit_events.record_auth_event(
                 None, "auth.refresh_rejected", meta={"reason": "missing_cookie"}
@@ -215,8 +271,12 @@ class LogoutView(APIView):
         },
     )
     def post(self, request, *args, **kwargs):
-        assert_csrf(request)  # review fix #8: logout must not be CSRF-able
         cookie = request.COOKIES.get(settings.AUTH_REFRESH_COOKIE)
+        assert_csrf(
+            request, surface=_refresh_surface(cookie) if cookie else None
+        )  # logout must not be CSRF-able
+        if cookie:
+            _assert_staff_refresh_scope(request, cookie)
         actor = audit_events.user_from_refresh_token(cookie)
         if cookie:
             try:
@@ -243,7 +303,10 @@ class MeView(APIView):
         request=None,
         responses={
             200: UserPayloadSerializer,
+            400: OpenApiResponse(description="Invalid request."),
             401: OpenApiResponse(description="Authentication credentials were not provided."),
+            403: OpenApiResponse(description="Permission denied."),
+            429: OpenApiResponse(description="Request throttled."),
         },
     )
     def get(self, request, *args, **kwargs):

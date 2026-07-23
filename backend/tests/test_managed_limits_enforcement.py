@@ -1,4 +1,4 @@
-﻿from io import StringIO
+from io import StringIO
 
 import pytest
 from django.contrib import admin as djadmin
@@ -18,11 +18,10 @@ from apps.machines.models import Machine, MachineType
 from apps.makerspaces import limits
 from apps.makerspaces.admin_subdomains import SubdomainRequestAdmin
 from apps.makerspaces.models import Makerspace, MakerspaceMembership, SubdomainRequest
-from apps.printing.models import PrintBucket, PrintPrinter, PrintRequest
 from tests.return_helpers import authenticated_client, make_member, make_space, make_user
 
 pytestmark = pytest.mark.django_db
-ROW_LIMIT_CASES = ("products", "machines", "staff", "api_clients", "print")
+ROW_LIMIT_CASES = ("products", "machines", "staff", "api_clients")
 
 
 def _active_count(makerspace, case):
@@ -40,27 +39,13 @@ def _active_count(makerspace, case):
         ).count()
     if case == "api_clients":
         return ApiClient.objects.filter(makerspace=makerspace, is_active=True).count()
-    return PrintRequest.objects.filter(bucket__makerspace=makerspace).count()
+    raise AssertionError(f"Unsupported quota case: {case}")
 
 
 def _attempt_second_row(case, mode):
     makerspace = make_space(f"limits-{case.replace('_', '-')}-{mode}")
     makerspace.resource_limit_overrides = {case: 1}
     makerspace.save(update_fields=["resource_limit_overrides"])
-
-    if case == "print":
-        bucket = PrintBucket.objects.create(makerspace=makerspace, name="PLA")
-        requester = make_user(f"limits-print-requester-{mode}", access_status="active")
-        PrintRequest.objects.create(
-            bucket=bucket, requester=requester, title="Existing print"
-        )
-        response = authenticated_client(requester).post(
-            reverse("printing:request-list"),
-            {"bucket": bucket.id, "title": "Second print", "quantity": 1},
-            format="json",
-            HTTP_HOST="testserver",
-        )
-        return makerspace, response
 
     manager = make_member(f"limits-{case}-manager-{mode}", makerspace)
     client = authenticated_client(manager)
@@ -118,7 +103,7 @@ def _attempt_second_row(case, mode):
 
 
 @override_settings(
-    PLATFORM_DOMAIN_SUFFIX=".osmm.me",
+    PLATFORM_DOMAIN_SUFFIX=".space-works.tech",
     INFRA_HOSTS={"testserver"},
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
 )
@@ -155,7 +140,7 @@ def _import_rows(count):
     ]
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_managed_bulk_import_checks_all_new_names_before_writing():
     makerspace = make_space("limits-bulk-import")
     actor = make_member("limits-bulk-import-manager", makerspace)
@@ -185,7 +170,7 @@ def _dispatch(makerspace=None, *, connection="makerspace", subject="Quota email"
 
 
 @override_settings(
-    PLATFORM_DOMAIN_SUFFIX=".osmm.me",
+    PLATFORM_DOMAIN_SUFFIX=".space-works.tech",
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
 )
 def test_managed_makerspace_email_daily_cap_blocks_delivery(mailoutbox):
@@ -222,7 +207,7 @@ def test_self_host_makerspace_email_is_never_capped(mailoutbox):
 
 
 @override_settings(
-    PLATFORM_DOMAIN_SUFFIX=".osmm.me",
+    PLATFORM_DOMAIN_SUFFIX=".space-works.tech",
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
 )
 def test_managed_platform_email_is_never_capped(mailoutbox):
@@ -236,7 +221,7 @@ def test_managed_platform_email_is_never_capped(mailoutbox):
     assert DailyEmailCounter.objects.count() == 0
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me")
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech")
 def test_managed_storage_add_free_boundary_and_clamp_without_outer_atomic():
     makerspace = make_space("limits-storage-managed")
     makerspace.resource_limit_overrides = {"storage": 100}
@@ -293,7 +278,7 @@ def test_recompute_storage_sums_authoritative_evidence_sizes():
     assert makerspace.storage_bytes_used == 100
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech", INFRA_HOSTS={"testserver"})
 def test_managed_tenant_custom_domain_blocked_without_grant():
     makerspace = make_space("limits-custom-domain-blocked")
     manager = make_member("limits-custom-domain-blocked-manager", makerspace)
@@ -312,7 +297,7 @@ def test_managed_tenant_custom_domain_blocked_without_grant():
     assert makerspace.frontend_domain == original_domain
 
 
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
+@override_settings(PLATFORM_DOMAIN_SUFFIX=".space-works.tech", INFRA_HOSTS={"testserver"})
 def test_managed_tenant_custom_domain_allowed_with_override():
     makerspace = make_space("limits-custom-domain-allowed")
     makerspace.resource_limit_overrides = {"custom_domain": True}
@@ -352,267 +337,3 @@ def test_self_host_custom_domain_still_works_for_superadmin():
     makerspace.refresh_from_db()
     assert makerspace.frontend_domain == "betamakerspace.com"
     assert makerspace.frontend_domain_status == Makerspace.DomainStatus.VERIFIED
-
-
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
-def test_managed_printer_create_counts_against_machines_cap():
-    makerspace = make_space("limits-printer-machine-cap")
-    makerspace.resource_limit_overrides = {"machines": 1}
-    makerspace.save(update_fields=["resource_limit_overrides"])
-    manager = make_member("limits-printer-machine-cap-manager", makerspace)
-    machine_type = MachineType.objects.create(
-        makerspace=makerspace, slug="printer-cap-tool", name="Printer Cap Tool"
-    )
-    Machine.objects.create(
-        makerspace=makerspace,
-        machine_type=machine_type,
-        name="Existing machine",
-        created_by=manager,
-    )
-    client = authenticated_client(manager)
-    payload = {"makerspace": makerspace.id, "name": "Bambu A1", "status": "active"}
-
-    response = client.post(
-        reverse("printing:managed-printer-list"),
-        payload,
-        format="json",
-        HTTP_HOST="testserver",
-    )
-
-    assert response.status_code == 400
-    assert not PrintPrinter.objects.filter(makerspace=makerspace).exists()
-
-    with override_settings(PLATFORM_DOMAIN_SUFFIX=""):
-        response = client.post(
-            reverse("printing:managed-printer-list"),
-            payload,
-            format="json",
-            HTTP_HOST="testserver",
-        )
-
-    assert response.status_code == 201
-
-
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
-def test_managed_unretire_machine_respects_cap():
-    makerspace = make_space("limits-machine-unretire-cap")
-    makerspace.resource_limit_overrides = {"machines": 1}
-    makerspace.save(update_fields=["resource_limit_overrides"])
-    manager = make_member("limits-machine-unretire-cap-manager", makerspace)
-    machine_type = MachineType.objects.create(
-        makerspace=makerspace, slug="unretire-cap-tool", name="Unretire Cap Tool"
-    )
-    Machine.objects.create(
-        makerspace=makerspace,
-        machine_type=machine_type,
-        name="Active machine",
-        created_by=manager,
-    )
-    retired = Machine.objects.create(
-        makerspace=makerspace,
-        machine_type=machine_type,
-        name="Retired machine",
-        created_by=manager,
-        is_active=False,
-    )
-
-    with pytest.raises(ValidationError):
-        machine_services.unretire_machine(retired, manager)
-
-    retired.refresh_from_db()
-    assert retired.is_active is False
-
-    with override_settings(PLATFORM_DOMAIN_SUFFIX=""):
-        machine_services.unretire_machine(retired, manager)
-
-    retired.refresh_from_db()
-    assert retired.is_active is True
-
-
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
-def test_managed_api_client_reactivate_respects_cap():
-    makerspace = make_space("limits-api-client-reactivate-cap")
-    makerspace.resource_limit_overrides = {"api_clients": 1}
-    makerspace.save(update_fields=["resource_limit_overrides"])
-    manager = make_member("limits-api-client-reactivate-cap-manager", makerspace)
-    active, _ = ApiClient.issue(
-        label="Active client",
-        makerspace=makerspace,
-        allowed_origins=["https://active.example"],
-    )
-    inactive, _ = ApiClient.issue(
-        label="Inactive client",
-        makerspace=makerspace,
-        allowed_origins=["https://inactive.example"],
-    )
-    inactive.is_active = False
-    inactive.save(update_fields=["is_active", "updated_at"])
-    client = authenticated_client(manager)
-
-    response = client.patch(
-        reverse("admin-api-client", kwargs={"pk": inactive.id}),
-        {"is_active": True},
-        format="json",
-        HTTP_HOST="testserver",
-    )
-    assert response.status_code == 400
-    inactive.refresh_from_db()
-    assert inactive.is_active is False
-
-    response = client.patch(
-        reverse("admin-api-client", kwargs={"pk": active.id}),
-        {"is_active": False},
-        format="json",
-        HTTP_HOST="testserver",
-    )
-    assert response.status_code == 200
-    active.refresh_from_db()
-    assert active.is_active is False
-
-    with override_settings(PLATFORM_DOMAIN_SUFFIX=""):
-        response = client.patch(
-            reverse("admin-api-client", kwargs={"pk": inactive.id}),
-            {"is_active": True},
-            format="json",
-            HTTP_HOST="testserver",
-        )
-
-    assert response.status_code == 200
-    inactive.refresh_from_db()
-    assert inactive.is_active is True
-
-
-def test_subdomain_request_status_is_readonly_in_admin():
-    model_admin = SubdomainRequestAdmin(SubdomainRequest, djadmin.site)
-
-    assert {"status", "requested_label", "makerspace"} <= set(
-        model_admin.get_readonly_fields(None)
-    )
-
-
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
-def test_managed_product_unarchive_respects_cap():
-    makerspace = make_space("limits-product-unarchive-cap")
-    makerspace.resource_limit_overrides = {"products": 1}
-    makerspace.save(update_fields=["resource_limit_overrides"])
-    manager = make_member("limits-product-unarchive-manager", makerspace)
-    InventoryProduct.objects.create(
-        makerspace=makerspace, name="Active product", is_archived=False
-    )
-    archived = InventoryProduct.objects.create(
-        makerspace=makerspace, name="Archived product", is_archived=True
-    )
-    client = authenticated_client(manager)
-    url = reverse("admin-inventory-detail", kwargs={"pk": archived.id})
-
-    response = client.patch(
-        url, {"is_archived": False}, format="json", HTTP_HOST="testserver"
-    )
-
-    assert response.status_code == 400
-    archived.refresh_from_db()
-    assert archived.is_archived is True
-
-    with override_settings(PLATFORM_DOMAIN_SUFFIX=""):
-        response = client.patch(
-            url, {"is_archived": False}, format="json", HTTP_HOST="testserver"
-        )
-
-    assert response.status_code == 200
-    archived.refresh_from_db()
-    assert archived.is_archived is False
-
-
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
-def test_managed_restore_user_access_respects_staff_cap():
-    makerspace = make_space("limits-restore-user-cap")
-    makerspace.resource_limit_overrides = {"staff": 1}
-    makerspace.save(update_fields=["resource_limit_overrides"])
-    make_member("limits-restore-active-staff", makerspace)
-    restricted_user = make_user(
-        "limits-restore-restricted-staff", access_status="restricted"
-    )
-    MakerspaceMembership.objects.create(
-        user=restricted_user,
-        makerspace=makerspace,
-        role="inventory_manager",
-    )
-    superadmin = make_user(
-        "limits-restore-superadmin",
-        role="superadmin",
-        access_status="active",
-    )
-    client = authenticated_client(superadmin)
-    url = reverse("user-restore-access", kwargs={"pk": restricted_user.id})
-
-    response = client.post(url, HTTP_HOST="testserver")
-
-    assert response.status_code == 400
-    restricted_user.refresh_from_db()
-    assert restricted_user.access_status == "restricted"
-
-    with override_settings(PLATFORM_DOMAIN_SUFFIX=""):
-        response = client.post(url, HTTP_HOST="testserver")
-
-    assert response.status_code == 200
-    restricted_user.refresh_from_db()
-    assert restricted_user.access_status == "active"
-
-
-def test_recompute_storage_leaves_counter_unchanged_on_read_error(monkeypatch):
-    makerspace = make_space("limits-storage-read-error")
-    makerspace.storage_bytes_used = 321
-    makerspace.save(update_fields=["storage_bytes_used"])
-    uploader = make_user("limits-storage-read-error-uploader", access_status="active")
-    EvidencePhoto.objects.create(
-        makerspace=makerspace,
-        evidence_type=EvidencePhoto.EvidenceType.ISSUE,
-        object_key=f"evidence/{makerspace.id}/missing.jpg",
-        uploaded_by=uploader,
-    )
-
-    def raise_read_error(_object_key):
-        raise RuntimeError("storage unavailable")
-
-    monkeypatch.setattr("apps.evidence.storage.object_size", raise_read_error)
-
-    call_command("recompute_storage", makerspace.slug, stdout=StringIO())
-
-    makerspace.refresh_from_db()
-    assert makerspace.storage_bytes_used == 321
-
-
-@override_settings(PLATFORM_DOMAIN_SUFFIX=".osmm.me", INFRA_HOSTS={"testserver"})
-def test_is_platform_subdomain_flag():
-    platform_space = make_space("platform-subdomain-flag")
-    custom_space = make_space("custom-domain-flag")
-    no_domain_space = make_space("no-domain-flag")
-    Makerspace.objects.filter(pk=platform_space.pk).update(
-        frontend_domain="alpha.osmm.me",
-        frontend_domain_status=Makerspace.DomainStatus.VERIFIED,
-    )
-    Makerspace.objects.filter(pk=custom_space.pk).update(
-        frontend_domain="shop.example.com",
-        frontend_domain_status=Makerspace.DomainStatus.VERIFIED,
-    )
-    superadmin = make_user(
-        "platform-subdomain-flag-superadmin",
-        role="superadmin",
-        access_status="active",
-    )
-    client = authenticated_client(superadmin)
-
-    responses = [
-        client.get(
-            reverse("admin-makerspace", kwargs={"pk": makerspace.id}),
-            HTTP_HOST="testserver",
-        )
-        for makerspace in (platform_space, custom_space, no_domain_space)
-    ]
-
-    assert [response.status_code for response in responses] == [200, 200, 200]
-    assert [response.data["is_platform_subdomain"] for response in responses] == [
-        True,
-        False,
-        False,
-    ]

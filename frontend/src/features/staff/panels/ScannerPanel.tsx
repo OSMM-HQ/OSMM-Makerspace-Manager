@@ -186,10 +186,10 @@ export function ScannerPanel({ makerspace, isSuperadmin, makerspaces }: {
   const moveError = moveAsset.error instanceof Error ? moveAsset.error.message : undefined;
   const productError = products.error instanceof Error ? products.error.message : undefined;
   const destinationProductError = destinationProducts.error instanceof Error ? destinationProducts.error.message : undefined;
-  const rebindRole = currentUser.data?.makerspaces.find(
+  const rebindActions = currentUser.data?.makerspaces.find(
     (item) => item.id === resolvedQrMakerspaceId,
-  )?.role;
-  const hasRebindPermissions = isSuperadmin || ["space_manager", "inventory_manager"].includes(rebindRole ?? "");
+  )?.actions ?? [];
+  const hasRebindPermissions = isSuperadmin || (rebindActions.includes("manage_qr") && rebindActions.includes("edit_inventory"));
   // Rebind UI only targets PRODUCT QRs (the cross-makerspace quantity-product
   // transfer scenario). The form always submits target_type "product", so offering
   // it for an asset QR would silently convert that QR's type - disallow it here.

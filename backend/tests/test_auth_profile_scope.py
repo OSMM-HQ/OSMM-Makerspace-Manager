@@ -2,6 +2,7 @@ import pytest
 from django.utils import timezone
 from rest_framework.test import APIClient, APIRequestFactory, force_authenticate
 
+from apps.accounts import rbac
 from apps.accounts.models import User
 from apps.accounts.serializers import user_payload
 from apps.accounts.views import MeView
@@ -55,8 +56,17 @@ def test_user_payload_scopes_memberships_to_branded_staff_origin_and_excludes_ar
             "id": space_a.id,
             "slug": space_a.slug,
             "role": MakerspaceMembership.Role.SPACE_MANAGER,
-        }
-    ]
+            "role_id": None,
+                "role_name": "Space Manager",
+                "role_slug": MakerspaceMembership.Role.SPACE_MANAGER,
+                "actions": sorted(rbac.effective_actions(user, space_a.id)),
+                "can_configure_machine_types": True,
+                "can_refer": True,
+                "can_verify": False,
+                "verified_at": None,
+                "referrals_enabled": False,
+            }
+        ]
 
 
 def test_user_payload_without_origin_keeps_all_non_archived_memberships():

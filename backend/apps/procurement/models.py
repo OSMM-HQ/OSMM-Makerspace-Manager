@@ -67,22 +67,22 @@ class ToBuyItem(models.Model):
         on_delete=models.SET_NULL,
         related_name="+",
     )
-    resulting_spool = models.ForeignKey(
-        "printing.FilamentSpool",
+    resulting_pool = models.ForeignKey(
+        "machines.MachineConsumablePool",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
         related_name="+",
     )
-    resulting_printer = models.ForeignKey(
-        "printing.PrintPrinter",
+    resulting_machine = models.ForeignKey(
+        "machines.Machine",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,
         related_name="+",
     )
-    source_spool = models.ForeignKey(
-        "printing.FilamentSpool",
+    source_pool = models.ForeignKey(
+        "machines.MachineConsumablePool",
         null=True,
         blank=True,
         on_delete=models.SET_NULL,

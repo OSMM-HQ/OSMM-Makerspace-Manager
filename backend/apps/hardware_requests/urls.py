@@ -11,19 +11,9 @@ urlpatterns = [
         name="cron-return-reminders",
     ),
     path(
-        "public/<slug:makerspace_slug>/checkin/verify",
-        views.CheckinVerifyView.as_view(),
-        name="checkin-verify",
-    ),
-    path(
         "public/<slug:makerspace_slug>/requests",
         views.RequestSubmitView.as_view(),
         name="request-submit",
-    ),
-    path(
-        "public/<slug:makerspace_slug>/requests/status",
-        views.RequestLookupView.as_view(),
-        name="request-lookup",
     ),
     path(
         "public/<slug:makerspace_slug>/tools/evidence-url",
@@ -71,9 +61,9 @@ urlpatterns = [
         name="direct-loans",
     ),
     path(
-        "admin/makerspace/<int:makerspace_id>/checkin/verify",
-        views.StaffCheckinVerifyView.as_view(),
-        name="staff-checkin-verify",
+        "admin/makerspace/<int:makerspace_id>/direct-loan-members",
+        views.DirectLoanMemberListView.as_view(),
+        name="direct-loan-members",
     ),
     path(
         "admin/direct-loans/<int:pk>/return",

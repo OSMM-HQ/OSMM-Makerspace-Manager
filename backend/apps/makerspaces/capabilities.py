@@ -1,0 +1,94 @@
+"""Canonical makerspace module and feature capability definitions."""
+
+from dataclasses import dataclass
+
+from django.core.exceptions import ValidationError
+
+
+@dataclass(frozen=True)
+class FeatureDefinition:
+    key: str
+    # None => standalone feature with no parent-module prerequisite (effective purely
+    # when enabled). Used for capabilities that are not a child of any single module,
+    # e.g. self-checkout / direct handouts, which a private makerspace runs without a
+    # public catalogue. A string parent must be listed in FEATURE_MODULES.
+    parent_module: str | None
+    label: str
+    default_enabled: bool = False
+    requires_modules: tuple[str, ...] = ()
+    requires_features: tuple[str, ...] = ()
+    frontend_exposed: bool = True
+
+
+FEATURE_DEFINITIONS = (
+    FeatureDefinition(
+        "payments.machines", "machines", "Machine payments",
+        requires_modules=("machine_service",),
+    ),
+    FeatureDefinition("payments.bookings", "bookings", "Booking payments"),
+    FeatureDefinition("payments.events", "events", "Event payments"),
+    FeatureDefinition("payments.membership", "membership", "Membership payments"),
+    FeatureDefinition(
+        "inventory.self_checkout", None, "Self checkout",
+        default_enabled=True,
+    ),
+)
+FEATURES = {definition.key: definition for definition in FEATURE_DEFINITIONS}
+FEATURE_MODULES = {"public_inventory", "machines", "machine_service", "bookings", "events", "membership"}
+
+
+def default_enabled_features():
+    """Return the enabled-by-default features for a new makerspace."""
+    return [definition.key for definition in FEATURE_DEFINITIONS if definition.default_enabled]
+
+
+def validate_capabilities(enabled_modules, enabled_features):
+    """Return canonical lists while preserving unknown legacy module keys."""
+    modules = _canonical_modules(enabled_modules)
+    features = _canonical_features(enabled_features)
+    module_set = set(modules)
+    errors = {}
+    if "printing" in module_set and "machine_service" not in module_set:
+        errors["enabled_modules"] = "Printing requires machine service to be enabled."
+    for key in features:
+        definition = FEATURES[key]
+        required_modules = [
+            module
+            for module in (definition.parent_module, *definition.requires_modules)
+            if module is not None
+        ]
+        missing_modules = [
+            module
+            for module in required_modules
+            if module not in module_set or module not in FEATURE_MODULES
+        ]
+        missing_features = [
+            feature for feature in definition.requires_features if feature not in features
+        ]
+        if missing_modules or missing_features:
+            errors.setdefault("enabled_features", []).append(
+                f"{key} requires {', '.join(missing_modules + missing_features)} to be enabled."
+            )
+    if errors:
+        raise ValidationError(errors)
+    return modules, features
+
+
+def _canonical_modules(value):
+    if not isinstance(value, (list, tuple)) or not all(
+        isinstance(key, str) and key for key in value
+    ):
+        raise ValidationError({"enabled_modules": "Enter a list of non-empty module keys."})
+    return sorted(set(value))
+
+def _canonical_features(value):
+    if not isinstance(value, (list, tuple)) or not all(
+        isinstance(key, str) and key for key in value
+    ):
+        raise ValidationError({"enabled_features": "Enter a list of non-empty feature keys."})
+    unknown = sorted(set(value) - FEATURES.keys())
+    if unknown:
+        raise ValidationError({"enabled_features": f"Unknown feature keys: {', '.join(unknown)}."})
+    if len(set(value)) != len(value):
+        raise ValidationError({"enabled_features": "Feature keys must not contain duplicates."})
+    return [definition.key for definition in FEATURE_DEFINITIONS if definition.key in value]

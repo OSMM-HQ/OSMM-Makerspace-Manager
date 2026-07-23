@@ -1,9 +1,7 @@
 from django.db import transaction
 from django.utils import timezone
 
-from apps.accounts.models import User
 from apps.audit import services as audit
-from apps.checkin import client as checkin
 from apps.hardware_requests import notifications
 from apps.hardware_requests.models import HardwareRequest, HardwareRequestItem
 from apps.hardware_requests.workflow_errors import (
@@ -11,10 +9,7 @@ from apps.hardware_requests.workflow_errors import (
     RequestValidationError,
     RequesterBlocked,
 )
-from apps.hardware_requests.workflow_utils import (
-    get_or_create_requester,
-    locked_request,
-)
+from apps.hardware_requests.workflow_utils import locked_request
 from apps.inventory import availability
 from apps.notifications.emit import emit_notification
 
@@ -24,24 +19,19 @@ def submit_request(
     items,
     requested_for="",
     *,
-    requester_name,
-    contact_email="",
-    contact_phone="",
+    requester,
 ):
-    result = checkin.verify(makerspace, contact_email)
-
     with transaction.atomic():
-        requester = get_or_create_requester(result.external_id)
-        if requester.access_status != User.AccessStatus.ACTIVE:
-            raise RequesterBlocked("Requester is not active.")
+        from apps.encryption.write_fence import assert_mapped_write_allowed
 
+        assert_mapped_write_allowed(makerspace.id)
         request = HardwareRequest.objects.create(
             makerspace=makerspace,
             requester=requester,
-            requester_username=result.username,
-            requester_name=requester_name.strip(),
-            requester_contact_email=contact_email.strip(),
-            requester_contact_phone=contact_phone.strip(),
+            requester_username=requester.username,
+            requester_name=requester.display_name,
+            requester_contact_email=requester.email,
+            requester_contact_phone=requester.phone,
             status=HardwareRequest.Status.PENDING_APPROVAL,
             requested_for=requested_for,
         )
@@ -61,13 +51,13 @@ def submit_request(
             makerspace=makerspace,
             target=request,
         )
-        transaction.on_commit(lambda: notifications.notify_request_submitted(request))
+        notifications.notify_request_submitted(request)
         emit_notification(
             makerspace,
             level="info",
             event="request.submitted",
             title="New hardware request",
-            body=f"{requester_name.strip() or result.username} submitted a hardware request.",
+            body=f"Hardware request #{request.pk} submitted.",
         )
         return request
 
@@ -126,15 +116,7 @@ def accept_request(actor, request, accepted=None):
             target=locked,
             meta={"accepted": {item.pk: item.accepted_quantity for item in items}},
         )
-        transaction.on_commit(
-            lambda request_id=locked.pk: notifications.notify_request_accepted(
-                HardwareRequest.objects.select_related(
-                    "makerspace",
-                    "requester",
-                    "accepted_by",
-                ).get(pk=request_id)
-            )
-        )
+        notifications.notify_request_accepted(locked)
         return locked
 
 
@@ -160,12 +142,5 @@ def reject_request(actor, request, reason):
             target=locked,
             meta={"reason": reason},
         )
-        transaction.on_commit(
-            lambda request_id=locked.pk: notifications.notify_request_rejected(
-                HardwareRequest.objects.select_related(
-                    "makerspace",
-                    "requester",
-                ).get(pk=request_id)
-            )
-        )
+        notifications.notify_request_rejected(locked)
         return locked

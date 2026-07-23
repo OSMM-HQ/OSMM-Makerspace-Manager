@@ -20,11 +20,9 @@ const PAGE_SIZE = 50;
 export function WarrantyPanel({
   makerspace,
   canEditInventory,
-  canSeePrinting,
 }: {
   makerspace: Makerspace;
   canEditInventory: boolean;
-  canSeePrinting: boolean;
 }) {
   const [status, setStatus] = useState<StatusFilter>("all");
   const [missingDocs, setMissingDocs] = useState(false);
@@ -33,7 +31,7 @@ export function WarrantyPanel({
   const [expanded, setExpanded] = useState<string | null>(null);
   const canManageRow = (row: WarrantyReportRow) => {
     if (row.host_kind === "asset") return canEditInventory;
-    if (row.host_kind === "printer") return canSeePrinting;
+    if (row.host_kind === "printer") return false;
     return true;
   };
   const queryParams = new URLSearchParams({ page: String(page), page_size: String(PAGE_SIZE) });

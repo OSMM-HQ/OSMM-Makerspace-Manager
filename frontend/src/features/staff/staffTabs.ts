@@ -1,9 +1,12 @@
+import { featureEnabled } from "../../lib/features";
 import type { Makerspace } from "./panels/shared";
 import { readStorage, removeStorage, writeStorage } from "../../lib/safeStorage";
 
 const TAB_MODULES: Record<string, string[]> = {
-  direct: ["self_checkout"],
+  direct: ["public_inventory"],
   printing: ["printing"],
+  events: ["events"],
+  bookings: ["bookings"],
   tobuy: ["procurement"],
   transfers: ["stock_transfers"],
   stocktake: ["stocktake"],
@@ -11,8 +14,8 @@ const TAB_MODULES: Record<string, string[]> = {
   bulk: ["bulk_import"],
   qr: ["qr_management"],
   scanner: ["scanner"],
-  reports: ["reports", "printing"],
-  warranty: ["staff_admin", "printing"],
+  reports: ["reports"],
+  warranty: ["staff_admin"],
 };
 
 const TAB_PATHS: Record<string, string> = {
@@ -30,14 +33,17 @@ const PATH_TABS = Object.fromEntries(
   Object.entries(TAB_PATHS).map(([tab, path]) => [path, tab]),
 );
 
-export const STAFF_SELECTED_MAKERSPACE_KEY = "osmm.staff.selectedMakerspace";
-export const STAFF_ACTIVE_TAB_KEY = "osmm.staff.activeTab";
+export const STAFF_SELECTED_MAKERSPACE_KEY = "spaceworks.staff.selectedMakerspace";
+export const STAFF_ACTIVE_TAB_KEY = "spaceworks.staff.activeTab";
 
 export function filterTabsByEnabledModules(tabs: readonly string[], makerspace?: Makerspace) {
   const modules = makerspace?.enabled_modules;
   if (!modules) return tabs;
   const enabled = new Set(modules);
   return tabs.filter((tabName) => {
+    if (tabName === "direct") {
+      return featureEnabled(makerspace.enabled_features ?? [], "inventory.self_checkout");
+    }
     const required = TAB_MODULES[tabName];
     return !required || required.some((moduleName) => enabled.has(moduleName));
   });
@@ -106,6 +112,7 @@ export function tabToPath(tab: string) {
 }
 
 function pathToTab(path: string | null) {
+  if (path === "printing") return "machines";
   if (!path) {
     return "";
   }

@@ -3,7 +3,6 @@ from rest_framework import serializers
 
 
 class PublicToolScanSerializer(serializers.Serializer):
-    identifier = serializers.CharField(max_length=254)
     payload = serializers.CharField(max_length=64)
     evidence_id = serializers.IntegerField()
     remark = serializers.CharField()
@@ -22,19 +21,13 @@ class PublicToolScanSerializer(serializers.Serializer):
         return attrs
 
 
-# Checkout collects full identity; email IS the Check-In identifier (no separate
-# `identifier` field). Return keeps using PublicToolScanSerializer above.
 class PublicToolCheckoutSerializer(serializers.Serializer):
     payload = serializers.CharField(max_length=64)
-    requester_name = serializers.CharField(max_length=120)
-    contact_email = serializers.EmailField()
-    contact_phone = serializers.CharField(max_length=32)
     evidence_id = serializers.IntegerField()
     remark = serializers.CharField(required=False, allow_blank=True)
 
 
 class PublicToolEvidenceUrlRequestSerializer(serializers.Serializer):
-    identifier = serializers.CharField(max_length=254)
     evidence_type = serializers.ChoiceField(choices=["issue", "return"])
     content_type = serializers.CharField()
     size_bytes = serializers.IntegerField(required=False, allow_null=True, min_value=0)

@@ -17,9 +17,10 @@ from apps.hardware_requests.models import (
 )
 from apps.integrations.models import EmailLog
 from apps.inventory.models import InventoryProduct
-from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.makerspaces.models import Makerspace
+from apps.makerspaces.platform import module_enabled
 from apps.operations.models import StocktakeSession
-from apps.printing.models import PrintRequest
+from apps.payments.models import Payment
 from apps.warranty.models import Warranty
 
 
@@ -35,6 +36,8 @@ class DashboardSerializer(serializers.Serializer):
     failed_emails = serializers.IntegerField(required=False, default=0)
     stocktakes_awaiting_approval = serializers.IntegerField(required=False, default=0)
     warranty_expiring = serializers.IntegerField(required=False, default=0)
+    maintenance_overdue = serializers.IntegerField(required=False, default=0)
+    pending_payments = serializers.IntegerField(required=False, default=0)
 
 
 @extend_schema(
@@ -68,10 +71,17 @@ class DashboardView(APIView):
             or rbac.can(request.user, rbac.Action.MANAGE_MAKERSPACE, makerspace.id)
         ):
             raise PermissionDenied()
-        return Response(build_dashboard(makerspace))
+        return Response(
+            build_dashboard(
+                makerspace,
+                include_pending_payments=rbac.can(
+                    request.user, rbac.Action.MANAGE_MAKERSPACE, makerspace.id
+                ),
+            )
+        )
 
 
-def build_dashboard(makerspace):
+def build_dashboard(makerspace, *, include_pending_payments=True):
     now = timezone.now()
     today = timezone.localdate()
     counts = {key: 0 for key in DashboardSerializer().fields}
@@ -122,24 +132,11 @@ def build_dashboard(makerspace):
     except Exception:
         pass
     try:
-        counts["pending_prints"] = PrintRequest.objects.filter(
-            bucket__makerspace_id=makerspace.id,
-            status=PrintRequest.Status.PENDING,
-        ).count()
-    except Exception:
-        pass
-    try:
-        counts["active_prints"] = PrintRequest.objects.filter(
-            bucket__makerspace_id=makerspace.id,
-            status=PrintRequest.Status.PRINTING,
-        ).count()
-    except Exception:
-        pass
-    try:
-        counts["prints_awaiting_collection"] = PrintRequest.objects.filter(
-            bucket__makerspace_id=makerspace.id,
-            status=PrintRequest.Status.COMPLETED,
-        ).count()
+        from apps.machines.models import MachineServiceRequest
+        prints = MachineServiceRequest.objects.filter(makerspace=makerspace, queue__machine_type__slug="3d_printer")
+        counts["pending_prints"] = prints.filter(status=MachineServiceRequest.Status.PENDING).count()
+        counts["active_prints"] = prints.filter(status=MachineServiceRequest.Status.IN_PROGRESS).count()
+        counts["prints_awaiting_collection"] = prints.filter(status=MachineServiceRequest.Status.COMPLETED).count()
     except Exception:
         pass
     try:
@@ -165,14 +162,30 @@ def build_dashboard(makerspace):
         ).count()
     except Exception:
         pass
+    if module_enabled(makerspace, "maintenance"):
+        try:
+            from apps.maintenance.models import MaintenanceSchedule
+
+            counts["maintenance_overdue"] = MaintenanceSchedule.objects.filter(
+                machine__makerspace=makerspace,
+                is_active=True,
+                next_due__lt=today,
+            ).count()
+        except Exception:
+            pass
+
+    if include_pending_payments:
+        try:
+            counts["pending_payments"] = Payment.objects.filter(
+                makerspace=makerspace, status=Payment.Status.PENDING
+            ).count()
+        except Exception:
+            pass
+    else:
+        counts.pop("pending_payments", None)
 
     return counts
 
 
 def _is_guest_only(user, makerspace_id):
-    if user.is_superuser or user.role == user.Role.SUPERADMIN:
-        return False
-    return (
-        rbac.membership_role(user, makerspace_id)
-        == MakerspaceMembership.Role.GUEST_ADMIN
-    )
+    return rbac.is_handout_only(user, makerspace_id)

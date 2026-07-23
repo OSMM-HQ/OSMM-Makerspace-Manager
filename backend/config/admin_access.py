@@ -10,8 +10,12 @@ from django.urls import reverse
 # Models whose makerspace is reached via a nested relation (no direct `makerspace` FK).
 # Keyed by "app_label.model_name" (lowercase) -> ORM lookup ending in _id.
 NESTED_MAKERSPACE_LOOKUPS = {
+    "makerspaces.membershiprequest": "makerspace_id",
+    "makerspaces.makerspacewaiver": "makerspace_id",
+    "maintenance.maintenanceschedule": "machine__makerspace_id",
+    "maintenance.maintenancelog": "machine__makerspace_id",
+    "maintenance.maintenancelogdocument": "log__machine__makerspace_id",
     "hardware_requests.hardwarerequestitemasset": "asset__makerspace_id",
-    "printing.printrequest": "bucket__makerspace_id",
     "warranty.warrantydocument": "warranty__makerspace_id",
     "procurement.tobuyreceipt": "to_buy_item__makerspace_id",
     "machines.machineoperator": "machine__makerspace_id",
@@ -19,16 +23,27 @@ NESTED_MAKERSPACE_LOOKUPS = {
     "machines.machinedocument": "machine__makerspace_id",
     "machines.machineerrorlog": "machine__makerspace_id",
     "machines.machineconsumable": "machine__makerspace_id",
+    "machines.servicebucket": "machine__makerspace_id",
+    "machines.servicerequestconsumption": "service_request__makerspace_id",
+    "bookings.booking": "space__makerspace_id",
+    "presence.presencesession": "makerspace_id",
+    "payments.makerspacepaymentsettings": "makerspace_id",
 }
 
 # Registered admin models that are intentionally NOT makerspace-scoped (account/global).
 GLOBAL_ADMIN_MODELS = {
     "accounts.user",
+    "accounts.platformsocialauthsettings",
+    "accounts.socialidentity",
     "auth.group",
     "axes.accessattempt",
     "axes.accessfailurelog",
     "axes.accesslog",
     "integrations.platformemailsettings",
+    "integrations.platformpushsettings",
+    "payments.platformstripeconnectsettings",
+    "encryption.piiglobalwritefence",
+    "roadmap.roadmapitem",
     "token_blacklist.blacklistedtoken",
     "token_blacklist.outstandingtoken",
 }
@@ -154,7 +169,7 @@ class SuperuserOnlyModelAdmin:
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         # A plain (non-autocomplete) FK ModelChoiceField builds its options from the
-        # target model's default manager, NOT the target admin's get_queryset — so a
+        # target model's default manager, NOT the target admin's get_queryset â€” so a
         # makerspace FK widget (e.g. ApiClient/ToBuyItem add/change forms) would still
         # list and let a superadmin target a hard-hidden makerspace. Scope every
         # makerspace FK widget to visible makerspaces to close that hard-hide bypass.
@@ -223,4 +238,3 @@ class SuperuserOnlyModelAdmin:
 
     def has_module_permission(self, request):
         return self._has_superuser_access(request)
-

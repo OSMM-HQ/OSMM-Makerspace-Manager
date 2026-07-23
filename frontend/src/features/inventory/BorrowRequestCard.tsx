@@ -45,7 +45,7 @@ export function BorrowRequestCard({
       {items.length === 0 ? (
         <p className="mt-4 text-sm leading-6 text-muted">
           Add public items from the inventory list, then submit the request with
-          your verified Check-In email.
+          your signed-in member account.
         </p>
       ) : (
         <div className="mt-4 space-y-2">

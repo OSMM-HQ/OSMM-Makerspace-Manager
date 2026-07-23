@@ -3,16 +3,20 @@ import { Link, Navigate, Route, Routes } from "react-router-dom";
 
 import { MakerspaceBrand } from "./components/MakerspaceBrand";
 import { MakerspaceMapLink } from "./components/MakerspaceMapLink";
-import { OsmmBadge, OsmmHomeLink, OsmmLogo } from "./components/OsmmLogo";
+import { SpaceWorksBadge, SpaceWorksHomeLink, SpaceWorksLogo } from "./components/SpaceWorksLogo";
 import { SiteFooter } from "./components/SiteFooter";
 import { ThemeToggle } from "./components/ThemeToggle";
 import { Card } from "./components/ui/Card";
 import { Spinner } from "./components/ui/Spinner";
 import { AboutPage } from "./features/AboutPage";
+import { PublicBookingsPage } from "./features/bookings/PublicBookingsPage";
 import { PublicInventoryPage } from "./features/inventory/PublicInventoryPage";
+import { PublicEventsPage } from "./features/inventory/PublicEventsPage";
 import { PublicSelfCheckoutPage } from "./features/inventory/PublicSelfCheckoutPage";
 import { usePublicMakerspaces } from "./features/inventory/usePublicInventory";
 import { PublicPrintRequestPage } from "./features/printing/PublicPrintRequestPage";
+import { MemberArea } from "./features/members/MemberArea";
+import { RoadmapPage } from "./features/roadmap/RoadmapPage";
 import { KioskPage, ScannerPage, SuperadminPage } from "./features/staff/PlatformApps";
 import { ResetPasswordPage } from "./features/staff/ResetPasswordPage";
 import { StaffApp } from "./features/staff/StaffApp";
@@ -72,14 +76,17 @@ function LandingPage() {
     <main className="desk-shell flex min-h-screen flex-col">
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-          <OsmmHomeLink className="flex min-w-0 items-center gap-3 text-ink">
-            <OsmmLogo className="shrink-0" size={36} />
+          <SpaceWorksHomeLink className="flex min-w-0 items-center gap-3 text-ink">
+            <SpaceWorksLogo className="shrink-0" size={36} />
             <div className="min-w-0">
-              <p className="text-sm font-semibold">OSMM</p>
+              <p className="text-sm font-semibold">Space Works</p>
               <p className="text-xs text-muted">Shared equipment portal</p>
             </div>
-          </OsmmHomeLink>
+          </SpaceWorksHomeLink>
           <div className="flex flex-wrap items-center gap-2">
+            <Link className="desk-button" to="/roadmap">
+              Roadmap
+            </Link>
             <ThemeToggle />
             <Link className="desk-button" to="/admin">
               Staff login
@@ -276,7 +283,7 @@ export default function App() {
     return (
       <main className="desk-shell grid place-items-center px-5">
         <div className="desk-panel w-full max-w-md p-6 text-sm font-semibold text-muted">
-          <OsmmBadge className="mb-5" />
+          <SpaceWorksBadge className="mb-5" />
           Loading site...
         </div>
       </main>
@@ -287,7 +294,7 @@ export default function App() {
     return (
       <main className="desk-shell grid place-items-center px-5">
         <div className="desk-panel w-full max-w-md p-6">
-          <OsmmBadge className="mb-5" />
+          <SpaceWorksBadge className="mb-5" />
           <h1 className="text-xl font-bold text-ink">Site unavailable</h1>
           <p className="mt-2 text-sm text-muted">
             The configured tenant could not be resolved.
@@ -302,9 +309,13 @@ export default function App() {
       <Routes>
         <Route path="/" element={<PublicInventoryPage />} />
         <Route path="/checkout" element={<PublicSelfCheckoutPage />} />
+        <Route path="/events" element={<PublicEventsPage />} />
+        <Route path="/bookings" element={<PublicBookingsPage />} />
         <Route path="/print" element={<PublicPrintRequestPage />} />
+        <Route path="/member" element={<MemberArea />} />
         <Route path="/stats" element={<PublicStatsPage />} />
         <Route path="/about" element={<AboutPage />} />
+        <Route path="/roadmap" element={<RoadmapPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/admin/*" element={<StaffApp />} />
         <Route path="/guest-admin/*" element={<StaffApp guestOnly />} />
@@ -318,10 +329,14 @@ export default function App() {
     <Routes>
       <Route path="/" element={<LandingPage />} />
       <Route path="/about" element={<AboutPage />} />
+      <Route path="/roadmap" element={<RoadmapPage />} />
       <Route path="/m/:slug" element={<PublicInventoryPage />} />
       <Route path="/m/:slug/checkout" element={<PublicSelfCheckoutPage />} />
+      <Route path="/m/:slug/events" element={<PublicEventsPage />} />
+      <Route path="/m/:slug/bookings" element={<PublicBookingsPage />} />
       <Route path="/m/:slug/admin/*" element={<StaffApp />} />
       <Route path="/m/:slug/print" element={<PublicPrintRequestPage />} />
+      <Route path="/m/:slug/member" element={<MemberArea />} />
       <Route path="/m/:slug/stats" element={<PublicStatsPage />} />
       <Route path="/kiosk/:slug" element={<KioskPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />

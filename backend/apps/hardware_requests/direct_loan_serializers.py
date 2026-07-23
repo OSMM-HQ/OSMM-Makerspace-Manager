@@ -12,9 +12,7 @@ class DirectLoanItemSerializer(serializers.Serializer):
 
 
 class DirectLoanIssueSerializer(serializers.Serializer):
-    requester_name = serializers.CharField(max_length=120)
-    contact_email = serializers.EmailField()
-    contact_phone = serializers.CharField(max_length=32)
+    borrower_id = serializers.IntegerField()
     evidence_id = serializers.IntegerField()
     remark = serializers.CharField(required=False, allow_blank=True)
     container_id = serializers.IntegerField(required=False, allow_null=True)
@@ -42,7 +40,6 @@ class DirectLoanReturnSerializer(serializers.Serializer):
     evidence_id = serializers.IntegerField()
     notes = serializers.CharField()
     qr_payload = serializers.CharField(max_length=64, required=False, allow_blank=True)
-    returned_by_identifier = serializers.CharField(required=False, allow_blank=True)
     # Optional + may be empty: a container-only direct loan carries no request
     # items, so a return resolves nothing. Loans WITH outstanding units still
     # require full resolution, enforced in return_direct_loan.
@@ -154,9 +151,7 @@ class DirectLoanSerializer(PublicToolLoanSerializer):
         return {"username": user.username, "role": user.role}
 
 
-class StaffCheckinVerifyRequestSerializer(serializers.Serializer):
-    identifier = serializers.CharField()
-
-
-class StaffCheckinVerifyResponseSerializer(serializers.Serializer):
-    username = serializers.CharField(read_only=True)
+class DirectLoanMemberSerializer(serializers.Serializer):
+    user_id = serializers.IntegerField(source="user.id", read_only=True)
+    display_name = serializers.CharField(source="user.display_name", read_only=True)
+    username = serializers.CharField(source="user.username", read_only=True)

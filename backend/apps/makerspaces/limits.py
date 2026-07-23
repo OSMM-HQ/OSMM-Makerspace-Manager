@@ -1,12 +1,18 @@
 """Managed-platform fair-use limits; deliberately dormant on self-hosts."""
 
+import logging
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from django.conf import settings
+from django.db import transaction
+from django.db.models import Q
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.makerspaces.domain_verification import is_self_host
+
+logger = logging.getLogger(__name__)
 
 NUMERIC_LIMIT_KEYS = frozenset(
     {
@@ -14,11 +20,20 @@ NUMERIC_LIMIT_KEYS = frozenset(
         "assets",
         "machines",
         "events",
+        "bookings",
         "staff",
+        "members",
         "storage",
         "print",
         "email",
+        "telegram",
+        "slack",
+        "mattermost",
+        "native_push",
         "api_clients",
+        "custom_roles",
+        "machine_service_open",
+        "machine_service_submit",
     }
 )
 BOOLEAN_LIMIT_KEYS = frozenset({"custom_domain"})
@@ -29,11 +44,20 @@ RESOURCE_LABELS = {
     "assets": "assets",
     "machines": "machines",
     "events": "events",
+    "bookings": "active bookings",
     "staff": "staff members",
+    "members": "members",
     "storage": "storage",
     "print": "monthly print requests",
     "email": "daily emails",
+    "telegram": "daily Telegram notifications",
+    "slack": "daily Slack notifications",
+    "mattermost": "daily Mattermost notifications",
+    "native_push": "daily native push notifications",
     "api_clients": "API clients",
+    "custom_roles": "custom roles",
+    "machine_service_open": "open machine service requests",
+    "machine_service_submit": "daily machine service requests",
     "custom_domain": "custom domains",
 }
 
@@ -49,6 +73,56 @@ def resource_limit(makerspace, key) -> int | None:
             return None
         return int(value)
     return settings.MANAGED_RESOURCE_LIMITS.get(key)
+
+
+def reserve_notification_quota(makerspace, channel) -> bool:
+    if is_self_host():
+        return True
+    limit = resource_limit(makerspace, channel)
+    if limit is None:
+        return True
+    try:
+        from apps.integrations.models import DailyNotificationCounter
+
+        with transaction.atomic():
+            counter, _ = DailyNotificationCounter.objects.get_or_create(
+                makerspace=makerspace, channel=channel, day=timezone.now().date()
+            )
+            counter = DailyNotificationCounter.objects.select_for_update().get(pk=counter.pk)
+            if counter.count >= limit:
+                return False
+            counter.count += 1
+            counter.save(update_fields=["count"])
+            return True
+    except Exception:
+        details = {"makerspace_id": makerspace.pk, "channel": channel}
+        logger.exception("notification_limit_check_failed", extra=details)
+        return True
+
+
+def reserve_platform_otp_quota() -> bool:
+    """Reserve one globally capped platform OTP email in managed mode."""
+    if is_self_host():
+        return True
+    limit = settings.MANAGED_RESOURCE_LIMITS.get("otp_email")
+    if limit is None:
+        return True
+    try:
+        from apps.accounts.models import DailyOtpEmailCounter
+
+        with transaction.atomic():
+            counter, _ = DailyOtpEmailCounter.objects.get_or_create(
+                day=timezone.now().date()
+            )
+            counter = DailyOtpEmailCounter.objects.select_for_update().get(pk=counter.pk)
+            if counter.count >= limit:
+                return False
+            counter.count += 1
+            counter.save(update_fields=["count"])
+            return True
+    except Exception:
+        logger.exception("platform_otp_limit_check_failed")
+        return True
 
 
 def custom_domain_allowed(makerspace) -> bool:
@@ -79,6 +153,17 @@ def _machines(makerspace) -> int:
     return Machine.objects.filter(makerspace=makerspace, is_active=True).count()
 
 
+def _events(makerspace) -> int:
+    from apps.events.models import Event
+
+    now = datetime.now(UTC)
+    return Event.objects.filter(
+        makerspace=makerspace,
+        status=Event.Status.PUBLISHED,
+        ends_at__gte=now,
+    ).count()
+
+
 def _staff(makerspace) -> int:
     from apps.accounts.models import User
     from apps.makerspaces.models import MakerspaceMembership
@@ -90,25 +175,77 @@ def _staff(makerspace) -> int:
     ).count()
 
 
+def _members(makerspace) -> int:
+    from apps.accounts.models import User
+    from apps.makerspaces.models import MakerspaceMembership
+
+    return MakerspaceMembership.objects.filter(
+        makerspace=makerspace, status="active", user__is_active=True,
+        user__access_status=User.AccessStatus.ACTIVE,
+    ).count()
+
+
+def _bookings(makerspace) -> int:
+    from apps.bookings.models import Booking
+
+    return Booking.objects.filter(
+        space__makerspace=makerspace,
+        status__in=(Booking.Status.PENDING, Booking.Status.CONFIRMED),
+        ends_at__gt=timezone.now(),
+    ).count()
+
+
 def _api_clients(makerspace) -> int:
     from apps.apiclients.models import ApiClient
 
     return ApiClient.objects.filter(makerspace=makerspace, is_active=True).count()
 
 
-def _print_requests(makerspace) -> int:
-    from apps.printing.models import PrintRequest
+def _custom_roles(makerspace) -> int:
+    from apps.makerspaces.models import MakerspaceRole
 
+    return MakerspaceRole.objects.filter(makerspace=makerspace, is_default=False).count()
+
+
+def _print_requests(makerspace) -> int:
     now = datetime.now(UTC)
     month_start = datetime(now.year, now.month, 1, tzinfo=UTC)
     if now.month == 12:
         next_month = datetime(now.year + 1, 1, 1, tzinfo=UTC)
     else:
         next_month = datetime(now.year, now.month + 1, 1, tzinfo=UTC)
-    return PrintRequest.objects.filter(
-        bucket__makerspace=makerspace,
+    from apps.machines.models import MachineServiceRequest
+
+    return MachineServiceRequest.objects.filter(
+        makerspace=makerspace,
+        queue__machine_type__slug="3d_printer",
         created_at__gte=month_start,
         created_at__lt=next_month,
+    ).count()
+
+
+def _machine_service_open(makerspace) -> int:
+    from apps.machines.models import MachineServiceRequest
+
+    return MachineServiceRequest.objects.filter(
+        makerspace=makerspace,
+        status__in=(
+            MachineServiceRequest.Status.PENDING,
+            MachineServiceRequest.Status.ACCEPTED,
+            MachineServiceRequest.Status.IN_PROGRESS,
+        ),
+    ).count()
+
+
+def _machine_service_submit(makerspace) -> int:
+    from apps.machines.models import MachineServiceRequest
+
+    now = datetime.now(UTC)
+    day_start = datetime(now.year, now.month, now.day, tzinfo=UTC)
+    return MachineServiceRequest.objects.filter(
+        makerspace=makerspace,
+        created_at__gte=day_start,
+        created_at__lt=day_start + timedelta(days=1),
     ).count()
 
 
@@ -139,7 +276,7 @@ def add_storage(makerspace, size_bytes) -> None:
         if locked.storage_bytes_used + size_bytes > limit:
             raise serializers.ValidationError(
                 {
-                    "limit": "You've reached the free storage limit for this space — ask the operator to raise it or self-host."
+                    "limit": "You've reached the free storage limit for this space Ã¢â‚¬â€ ask the operator to raise it or self-host."
                 },
                 code="limit_reached",
             )
@@ -177,9 +314,15 @@ _COUNTERS: dict[str, Callable[[object], int]] = {
     "products": _products,
     "assets": _assets,
     "machines": _machines,
+    "events": _events,
+    "bookings": _bookings,
     "staff": _staff,
+    "members": _members,
     "api_clients": _api_clients,
+    "custom_roles": _custom_roles,
     "print": _print_requests,
+    "machine_service_open": _machine_service_open,
+    "machine_service_submit": _machine_service_submit,
     "storage": _storage,
     "email": _emails,
 }
@@ -206,7 +349,7 @@ def check_quota(makerspace, key, *, adding=1) -> None:
     if current + adding > limit:
         resource = RESOURCE_LABELS.get(key, key.replace("_", " "))
         message = (
-            f"You've reached the free {resource} limit for this space — "
+            f"You've reached the free {resource} limit for this space Ã¢â‚¬â€ "
             "ask the operator to raise it or self-host."
         )
         raise serializers.ValidationError(

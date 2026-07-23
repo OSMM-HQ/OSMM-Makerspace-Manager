@@ -12,7 +12,6 @@ from apps.boxes.models import QrCode
 from apps.evidence.models import EvidencePhoto
 from apps.inventory.models import InventoryAsset
 from apps.operations.models import QrPrintBatch
-from apps.printing.models import PrintBucket, PrintRequest
 from tests.return_helpers import make_product, make_space, make_user
 
 pytestmark = pytest.mark.django_db
@@ -183,23 +182,6 @@ def test_evidence_photo_change_page_renders_with_object_key():
 
     response = admin_client(user).get(
         reverse("admin:evidence_evidencephoto_change", args=[evidence.pk])
-    )
-
-    assert response.status_code == 200
-
-
-def test_print_request_change_page_renders_with_zero_files():
-    user = make_superadmin("admin-monitoring-print-request")
-    makerspace = make_space("admin-monitoring-print-request")
-    bucket = PrintBucket.objects.create(makerspace=makerspace, name="General")
-    print_request = PrintRequest.objects.create(
-        bucket=bucket,
-        requester=user,
-        title="Zero file print",
-    )
-
-    response = admin_client(user).get(
-        reverse("admin:printing_printrequest_change", args=[print_request.pk])
     )
 
     assert response.status_code == 200

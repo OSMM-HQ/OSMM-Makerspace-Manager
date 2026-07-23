@@ -56,7 +56,7 @@ def _public_row(row, holder_map, unit_map):
         "source": row["ledger_source"],
         "item_name": row["ledger_item_name"],
         "container": row["ledger_container"],
-        "holder": holder_map.get(row["ledger_request_id"], row["holder_sort"] or "Member"),
+        "holder": holder_map.get(row["ledger_request_id"], "Member"),
         "quantity": row["quantity"],
         "units": unit_map.get(_row_key(row), []),
         "target_label": row["ledger_target_label"],

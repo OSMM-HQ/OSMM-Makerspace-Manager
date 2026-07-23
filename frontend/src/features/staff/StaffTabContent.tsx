@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
 
 import { Skeleton } from "../../components/ui";
+import type { StaffAuthUser } from "../../lib/api";
 import { Panel, type Makerspace } from "./panels/shared";
 
 const DashboardPanel = lazy(() => import("./panels/DashboardPanel").then((m) => ({ default: m.DashboardPanel })));
@@ -8,8 +9,10 @@ const NotificationInbox = lazy(() => import("./panels/NotificationInbox").then((
 const DirectLoans = lazy(() => import("./DirectLoans").then((m) => ({ default: m.DirectLoans })));
 const Inventory = lazy(() => import("./panels/Inventory").then((m) => ({ default: m.Inventory })));
 const Ledger = lazy(() => import("./panels/Ledger").then((m) => ({ default: m.Ledger })));
-const PrintingPanel = lazy(() => import("./panels/PrintingPanel").then((m) => ({ default: m.PrintingPanel })));
 const MachinesPanel = lazy(() => import("./panels/MachinesPanel").then((m) => ({ default: m.MachinesPanel })));
+const EventsPanel = lazy(() => import("./EventsPanel").then((m) => ({ default: m.EventsPanel })));
+const BookingsPanel = lazy(() => import("./BookingsPanel").then((m) => ({ default: m.BookingsPanel })));
+const MembersPanel = lazy(() => import("./MembersPanel").then((m) => ({ default: m.MembersPanel })));
 const QrTools = lazy(() => import("./panels/QrTools").then((m) => ({ default: m.QrTools })));
 const RequestsPanel = lazy(() => import("./panels/RequestsPanel").then((m) => ({ default: m.RequestsPanel })));
 const Users = lazy(() => import("./panels/Users").then((m) => ({ default: m.Users })));
@@ -29,7 +32,10 @@ const Categories = lazy(() => import("./panels/Categories").then((m) => ({ defau
 const NeedsFixShelf = lazy(() => import("./panels/NeedsFixShelf").then((m) => ({ default: m.NeedsFixShelf })));
 const ApiClientsPanel = lazy(() => import("./ApiClientsPanel").then((m) => ({ default: m.ApiClientsPanel })));
 const PlatformEmailPanel = lazy(() => import("./PlatformEmailPanel").then((m) => ({ default: m.PlatformEmailPanel })));
+const PlatformStripeConnectPanel = lazy(() => import("./PlatformStripeConnectPanel").then((m) => ({ default: m.PlatformStripeConnectPanel })));
+const PlatformSocialAuthPanel = lazy(() => import("./PlatformSocialAuthPanel").then((m) => ({ default: m.PlatformSocialAuthPanel })));
 const MakerspaceSettingsPanel = lazy(() => import("./MakerspaceSettingsPanel").then((m) => ({ default: m.MakerspaceSettingsPanel })));
+const PaymentsPanel = lazy(() => import("./PaymentsPanel").then((m) => ({ default: m.PaymentsPanel })));
 
 export function StaffTabContent({
   activeMakerspace,
@@ -37,6 +43,8 @@ export function StaffTabContent({
   guestOnly,
   makerspaces,
   isSuperadmin,
+  currentUser,
+  onAuthRefresh,
   printingOnly,
   canChooseToBuyKind,
   canEditInventory,
@@ -45,6 +53,9 @@ export function StaffTabContent({
   canManageQr,
   canManageMakerspace,
   canManageMachines,
+  canConfigureMachineTypes,
+  canManageEvents,
+  canManageBookings,
   canSeeHardware,
   canSeePrinting,
   canViewAudit,
@@ -54,6 +65,8 @@ export function StaffTabContent({
   guestOnly: boolean;
   makerspaces: Makerspace[];
   isSuperadmin: boolean;
+  currentUser: StaffAuthUser;
+  onAuthRefresh: () => void;
   printingOnly: boolean;
   canChooseToBuyKind: boolean;
   canEditInventory: boolean;
@@ -62,6 +75,9 @@ export function StaffTabContent({
   canManageQr: boolean;
   canManageMakerspace: boolean;
   canManageMachines: boolean;
+  canConfigureMachineTypes: boolean;
+  canManageEvents: boolean;
+  canManageBookings: boolean;
   canSeeHardware: boolean;
   canSeePrinting: boolean;
   canViewAudit: boolean;
@@ -73,7 +89,7 @@ export function StaffTabContent({
   return (
     <Suspense fallback={<div className="p-4"><Skeleton className="h-40 w-full" /></div>}>
       {activeTab === "dashboard" ? (
-        <DashboardPanel key={makerspaceKey} makerspace={activeMakerspace} />
+        <DashboardPanel key={makerspaceKey} makerspace={activeMakerspace} canManageMakerspace={canManageMakerspace} />
       ) : null}
       {activeTab === "notifications" ? (
         <NotificationInbox key={makerspaceKey} makerspace={activeMakerspace} />
@@ -84,7 +100,6 @@ export function StaffTabContent({
           makerspace={activeMakerspace}
           guestOnly={guestOnly}
           canSeeHardware={canSeeHardware}
-          canSeePrinting={canSeePrinting}
           canViewAudit={canViewAudit}
         />
       ) : null}
@@ -97,9 +112,19 @@ export function StaffTabContent({
         />
       ) : null}
       {activeTab === "needsfix" && canEditInventory ? <NeedsFixShelf key={makerspaceKey} makerspace={activeMakerspace} /> : null}
-      {activeTab === "categories" && canEditInventory ? <Categories key={makerspaceKey} makerspace={activeMakerspace} /> : null}
-      {activeTab === "printing" ? <PrintingPanel key={makerspaceKey} makerspace={activeMakerspace} /> : null}
-      {activeTab === "machines" ? <MachinesPanel key={makerspaceKey} makerspaceId={activeMakerspace.id} canManage={canManageMachines} /> : null}
+      {activeTab === "categories" && canEditInventory ? <Categories key={makerspaceKey} makerspace={activeMakerspace} /> : null}      {activeTab === "machines" ? (
+        <MachinesPanel
+          key={makerspaceKey}
+          makerspaceId={activeMakerspace.id}
+          canManage={canManageMachines}
+          canConfigureMachineTypes={canConfigureMachineTypes}
+          maintenanceEnabled={activeMakerspace.enabled_modules?.includes("maintenance") ?? false}
+        />
+      ) : null}
+      {activeTab === "events" && canManageEvents ? <EventsPanel key={makerspaceKey} makerspaceId={activeMakerspace.id} /> : null}
+      {activeTab === "bookings" && canManageBookings ? <BookingsPanel key={makerspaceKey} makerspaceId={activeMakerspace.id} /> : null}
+      {activeTab === "members" && canManageMakerspace ? <MembersPanel key={makerspaceKey} makerspaceId={activeMakerspace.id} /> : null}
+      {activeTab === "payments" && canManageMakerspace ? <PaymentsPanel key={makerspaceKey} makerspaceId={activeMakerspace.id} /> : null}
       {activeTab === "tobuy" ? (
         <ProcurementPanel
           key={makerspaceKey}
@@ -130,7 +155,6 @@ export function StaffTabContent({
           key={makerspaceKey}
           makerspace={activeMakerspace}
           canEditInventory={canEditInventory}
-          canSeePrinting={canSeePrinting}
         />
       ) : null}
       {activeTab === "accountability" && canViewAudit ? (
@@ -144,7 +168,8 @@ export function StaffTabContent({
           isSuperadmin={isSuperadmin}
           printingOnly={printingOnly}
           canViewAudit={canViewAudit}
-          canSeePrinting={canSeePrinting}
+          canManageMachines={canManageMachines}
+          canManageMakerspace={canManageMakerspace}
         />
       ) : null}
       {activeTab === "direct" && canIssueDirectLoan ? <DirectLoans key={makerspaceKey} makerspace={activeMakerspace} /> : null}
@@ -179,16 +204,17 @@ export function StaffTabContent({
       {activeTab === "email-logs" && canManageMakerspace ? (
         <EmailLogPanel key={makerspaceKey} makerspace={activeMakerspace} />
       ) : null}
-      {activeTab === "platform" ? <PlatformEmailPanel /> : null}
+      {activeTab === "platform" ? (
+        <>
+          <PlatformEmailPanel />
+          <PlatformSocialAuthPanel />
+          {activeMakerspace.platform_hosting ? <PlatformStripeConnectPanel /> : null}
+        </>
+      ) : null}
       {activeTab === "users" && canManageMakerspace ? (
-        <Users makerspaces={makerspaces} isSuperadmin={isSuperadmin} />
+        <Users makerspaces={makerspaces} isSuperadmin={isSuperadmin} currentUser={currentUser} onAuthRefresh={onAuthRefresh} />
       ) : null}
       {activeTab === "audit" && canViewAudit ? <AuditLog /> : null}
     </Suspense>
   );
 }
-
-
-
-
-

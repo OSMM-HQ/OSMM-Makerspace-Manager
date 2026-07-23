@@ -13,10 +13,10 @@ from apps.admin_api.permissions import IsActiveStaff
 from apps.audit import services as audit
 from apps.makerspaces.guards import require_module
 from apps.makerspaces.models import Makerspace
-from apps.printing.serializers import ErrorSerializer
+from apps.procurement.serializers import ErrorSerializer, ToBuyItemSerializer
 from apps.procurement import access
 from apps.procurement.models import ToBuyItem
-from apps.procurement.serializers import ToBuyItemSerializer
+
 
 MODULE_KEY = "procurement"
 DEFAULT_LIST_LIMIT = 200

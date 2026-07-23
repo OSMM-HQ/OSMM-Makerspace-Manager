@@ -4,25 +4,22 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import generics, status
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from apps.accounts import rbac
 from apps.accounts.models import User
-from apps.checkin import client as checkin
 from apps.hardware_requests import direct_loan_workflow
 from apps.hardware_requests.direct_loan_serializers import (
     DirectLoanIssueSerializer,
+    DirectLoanMemberSerializer,
     DirectLoanReturnSerializer,
     DirectLoanSerializer,
-    StaffCheckinVerifyRequestSerializer,
-    StaffCheckinVerifyResponseSerializer,
 )
 from apps.hardware_requests.models import HardwareRequestItem, PublicToolLoan
 from apps.hardware_requests.permissions import CanIssueDirectLoan, CanReturnDirectLoan
 from apps.hardware_requests.view_helpers import ACTION_ERROR_RESPONSES
-from apps.makerspaces.guards import require_module
-from apps.makerspaces.models import Makerspace
+from apps.makerspaces.guards import require_feature
+from apps.makerspaces.models import Makerspace, MakerspaceMembership
 from apps.makerspaces.origin_scope import origin_scoped_makerspace_id
 from apps.makerspaces.platform import module_enabled
 
@@ -33,7 +30,7 @@ class DirectLoanListCreateView(generics.ListAPIView):
 
     def get_queryset(self):
         makerspace_id = self.kwargs["makerspace_id"]
-        require_module(makerspace_id, "self_checkout")
+        require_feature(makerspace_id, "inventory.self_checkout")
         _require(self.request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace_id)
         queryset = PublicToolLoan.objects.select_related(
             "container", "request", "request__issued_by", "requester"
@@ -64,7 +61,7 @@ class DirectLoanListCreateView(generics.ListAPIView):
     )
     def post(self, request, makerspace_id, *args, **kwargs):
         makerspace = _makerspace_for_action(request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace_id)
-        require_module(makerspace, "self_checkout")
+        require_feature(makerspace, "inventory.self_checkout")
         _require(request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace.id)
         serializer = DirectLoanIssueSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -74,9 +71,7 @@ class DirectLoanListCreateView(generics.ListAPIView):
         loan = direct_loan_workflow.issue_direct_loan(
             makerspace,
             request.user,
-            requester_name=serializer.validated_data["requester_name"],
-            contact_email=serializer.validated_data["contact_email"],
-            contact_phone=serializer.validated_data["contact_phone"],
+            borrower=_borrower_for_makerspace(makerspace, serializer.validated_data["borrower_id"]),
             evidence_id=serializer.validated_data["evidence_id"],
             remark=serializer.validated_data.get("remark", ""),
             qr_payloads=serializer.validated_data.get("qr_payloads") or [],
@@ -112,7 +107,7 @@ class DirectLoanReturnView(APIView):
         if allowed is not rbac.ALL:
             queryset = queryset.filter(makerspace_id__in=allowed)
         loan = get_object_or_404(queryset, pk=pk)
-        require_module(loan.makerspace, "self_checkout")
+        require_feature(loan.makerspace, "inventory.self_checkout")
         _require(request.user, rbac.Action.RETURN_REQUEST, loan.makerspace_id)
         serializer = DirectLoanReturnSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -127,33 +122,45 @@ class DirectLoanReturnView(APIView):
         return Response(DirectLoanSerializer(returned).data)
 
 
-class StaffCheckinVerifyView(APIView):
+class DirectLoanMemberListView(generics.ListAPIView):
     permission_classes = [CanIssueDirectLoan]
-    throttle_classes = [ScopedRateThrottle]
-    throttle_scope = "staff_checkin_verify"
+    serializer_class = DirectLoanMemberSerializer
 
     @extend_schema(
         tags=["Admin requests"],
-        summary="Staff verify Check-In identity",
-        request=StaffCheckinVerifyRequestSerializer,
-        responses={
-            200: StaffCheckinVerifyResponseSerializer,
-            **ACTION_ERROR_RESPONSES,
-        },
+        summary="List eligible direct-loan members",
+        responses={200: DirectLoanMemberSerializer(many=True), **ACTION_ERROR_RESPONSES},
     )
-    def post(self, request, makerspace_id, *args, **kwargs):
-        makerspace = _makerspace_for_action(request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace_id)
-        require_module(makerspace, "self_checkout")
-        _require(request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace.id)
-        serializer = StaffCheckinVerifyRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        result = checkin.verify(makerspace, serializer.validated_data["identifier"])
-        return Response({"username": result.username})
+    def get_queryset(self):
+        makerspace_id = self.kwargs["makerspace_id"]
+        makerspace = _makerspace_for_action(self.request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace_id)
+        require_feature(makerspace, "inventory.self_checkout")
+        _require(self.request.user, rbac.Action.ISSUE_DIRECT_LOAN, makerspace.id)
+        return MakerspaceMembership.objects.select_related("user").filter(
+            makerspace=makerspace,
+            status="active",
+            user__is_active=True,
+            user__access_status=User.AccessStatus.ACTIVE,
+        ).order_by("user__display_name", "user__username")
+
+
+def _borrower_for_makerspace(makerspace, borrower_id):
+    membership = MakerspaceMembership.objects.select_related("user").filter(
+        makerspace=makerspace,
+        user_id=borrower_id,
+        status="active",
+        user__is_active=True,
+        user__access_status=User.AccessStatus.ACTIVE,
+    ).first()
+    if membership is None:
+        raise PermissionDenied()
+    return membership.user
 
 
 def _makerspace_for_action(user, action, makerspace_id):
     scoped = rbac.scope_by_action(user, action, Makerspace.objects.all(), field="id")
     return get_object_or_404(scoped, pk=makerspace_id)
+
 
 def _require(user, action, makerspace_id):
     # rbac.can() only checks membership/action, not account standing. Mirror the

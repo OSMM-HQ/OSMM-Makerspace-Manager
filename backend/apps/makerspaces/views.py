@@ -9,6 +9,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.makerspaces.models import Makerspace
 from apps.makerspaces.platform import bootstrap_payload, resolve_frontend
 
 TenantBootstrapSerializer = inline_serializer(
@@ -23,11 +24,15 @@ TenantBootstrapSerializer = inline_serializer(
                 "public_code": serializers.CharField(),
                 "location": serializers.CharField(allow_blank=True),
                 "map_url": serializers.URLField(allow_blank=True),
+                "geofence_enabled": serializers.BooleanField(required=False),
                 "logo_url": serializers.CharField(allow_blank=True, allow_null=True),
                 "cover_image_url": serializers.CharField(
                     allow_blank=True, allow_null=True
                 ),
                 "public_stats_enabled": serializers.BooleanField(),
+                "membership_policy": serializers.ChoiceField(
+                    choices=Makerspace.MembershipPolicy.choices
+                ),
             },
         ),
         "frontend": inline_serializer(
@@ -41,6 +46,7 @@ TenantBootstrapSerializer = inline_serializer(
             },
         ),
         "modules": serializers.ListField(child=serializers.CharField()),
+        "features": serializers.ListField(child=serializers.CharField()),
         "workflows": serializers.ListField(child=serializers.CharField()),
         "theme": serializers.JSONField(),
         "branding": serializers.JSONField(),

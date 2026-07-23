@@ -115,6 +115,7 @@ class MachineListCreateView(APIView):
                 notes=data.get('notes', ''),
                 firmware_version=data.get('firmware_version', ''),
                 camera_feed_url=data.get('camera_feed_url', ''),
+                type_payload=data.get('type_payload', {}),
             )
         audit.record(
             request.user,

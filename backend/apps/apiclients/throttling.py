@@ -31,3 +31,15 @@ class ClientTierRateThrottle(ScopedRateThrottle):
         if tier not in self.valid_tiers:
             return "standard"
         return tier
+
+
+class MemberPrincipalRateThrottle(ClientTierRateThrottle):
+    """Use the authenticated member as the abuse principal, retaining API-client/IP fallbacks."""
+
+    def get_cache_key(self, request, view):
+        if getattr(request, "api_client", None) is not None:
+            return super().get_cache_key(request, view)
+        user = getattr(request, "user", None)
+        if getattr(user, "is_authenticated", False) and user.pk:
+            return self.cache_format % {"scope": self.scope, "ident": f"member:{user.pk}"}
+        return super().get_cache_key(request, view)

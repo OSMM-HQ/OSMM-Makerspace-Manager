@@ -12,9 +12,10 @@ import {
   staffRequest,
   type StaffAuthUser,
 } from "../../lib/api";
-import { OsmmBadge } from "../../components/OsmmLogo";
+import { SpaceWorksBadge } from "../../components/SpaceWorksLogo";
 import { ChangePasswordGate } from "./ChangePasswordGate";
 import { LoginPanel } from "./LoginPanel";
+import type { SocialLoginResult } from "../auth/socialSdk";
 import { MakerspacePicker } from "./MakerspacePicker";
 import { StaffAccessDenied } from "./StaffAccessDenied";
 import { StaffWorkspace } from "./StaffWorkspace";
@@ -37,7 +38,7 @@ function StaffLoading({ message, restoring = false }: { message: string; restori
   return (
     <main className="desk-shell grid place-items-center px-5">
       <div className={panelClass}>
-        <OsmmBadge className={restoring ? undefined : "mb-5"} />
+        <SpaceWorksBadge className={restoring ? undefined : "mb-5"} />
         <span>{message}</span>
       </div>
     </main>
@@ -85,6 +86,12 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
     const staffSaved = nextUser.makerspaces.some((item) => item.id === saved) ? saved : null;
     setSelected(superadmin ? saved : staffSaved ?? nextUser.makerspaces[0]?.id ?? null);
   }, [setSelected, tenant.makerspaceId, tenant.mode]);
+
+  // Refetch /auth/me and re-hydrate after a role edit/assignment may have changed the
+  // current actor's own effective actions, so tabs/capabilities recompute immediately.
+  const refreshAuthUser = useCallback(() => {
+    fetchMe().then(hydrateUser).catch(() => {});
+  }, [hydrateUser]);
 
   const expireSession = useCallback(() => {
     setUser(null);
@@ -136,6 +143,10 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
       hydrateUser(data.user);
     },
   });
+  const socialLoginSucceeded = useCallback((result: SocialLoginResult) => {
+    setAccessToken(result.access);
+    hydrateUser(result.user as unknown as StaffAuthUser);
+  }, [hydrateUser]);
 
   const makerspaces = useStaffGet<Makerspace[]>(
     ["staff", "makerspaces"],
@@ -191,6 +202,7 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
         guestOnly={guestOnly}
         isPending={login.isPending}
         onSubmit={login.mutate}
+        onSocialSuccess={socialLoginSucceeded}
       />
     );
   }
@@ -286,17 +298,20 @@ export function StaffApp({ guestOnly = false }: { guestOnly?: boolean }) {
       }
       return next;
     });
-  const activeRole = user.makerspaces.find((item) => item.id === selected)?.role;
+  const activeMembership = user.makerspaces.find((item) => item.id === selected);
+  const activeActions = activeMembership?.actions ?? [];
   const makerspaceList = makerspaces.data ?? [];
 
   return (
     <StaffWorkspace
       activeMakerspace={activeMakerspace}
-      activeRole={activeRole}
+      actions={activeActions}
+      canConfigureMachineTypes={activeMembership?.can_configure_machine_types ?? isSuperadmin}
       collapsedGroups={collapsedGroups}
       guestOnly={guestOnly}
       isSuperadmin={isSuperadmin}
       makerspaces={makerspaceList}
+      onAuthRefresh={refreshAuthUser}
       selected={selected}
       setSelected={chooseMakerspace}
       setTab={setTab}

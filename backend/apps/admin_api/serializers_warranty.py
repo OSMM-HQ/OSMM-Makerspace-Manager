@@ -25,9 +25,6 @@ class WarrantySerializer(serializers.ModelSerializer):
     asset_id = serializers.SerializerMethodField()
     asset_tag = serializers.SerializerMethodField()
     serial_number = serializers.SerializerMethodField()
-    printer_id = serializers.SerializerMethodField()
-    printer_name = serializers.SerializerMethodField()
-    printer_model = serializers.SerializerMethodField()
     machine_id = serializers.SerializerMethodField()
     machine_name = serializers.SerializerMethodField()
     status = serializers.SerializerMethodField()
@@ -43,9 +40,6 @@ class WarrantySerializer(serializers.ModelSerializer):
             "asset_id",
             "asset_tag",
             "serial_number",
-            "printer_id",
-            "printer_name",
-            "printer_model",
             "machine_id",
             "machine_name",
             "purchased_on",
@@ -62,17 +56,17 @@ class WarrantySerializer(serializers.ModelSerializer):
             return "machine"
         if obj.asset_id:
             return "asset"
-        return "printer"
+        return "machine"
 
     def get_host_id(self, obj) -> int:
-        return obj.machine_id or obj.asset_id or obj.printer_id
+        return obj.machine_id or obj.asset_id
 
     def get_host_label(self, obj) -> str:
         if obj.machine_id:
             return obj.machine.name
         if obj.asset_id:
             return obj.asset.asset_tag
-        return obj.printer.name
+        return obj.machine.name
 
     def get_asset_id(self, obj) -> int | None:
         return obj.asset_id
@@ -82,15 +76,6 @@ class WarrantySerializer(serializers.ModelSerializer):
 
     def get_serial_number(self, obj) -> str | None:
         return obj.asset.serial_number if obj.asset_id else None
-
-    def get_printer_id(self, obj) -> int | None:
-        return obj.printer_id
-
-    def get_printer_name(self, obj) -> str | None:
-        return obj.printer.name if obj.printer_id else None
-
-    def get_printer_model(self, obj) -> str | None:
-        return obj.printer.model if obj.printer_id else None
 
     def get_machine_id(self, obj) -> int | None:
         return obj.machine_id

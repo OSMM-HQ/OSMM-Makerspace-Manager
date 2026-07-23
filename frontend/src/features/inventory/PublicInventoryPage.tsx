@@ -4,7 +4,7 @@ import { Link, useParams } from "react-router-dom";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
 import { MakerspaceMapLink } from "../../components/MakerspaceMapLink";
-import { OsmmBadge } from "../../components/OsmmLogo";
+import { SpaceWorksBadge } from "../../components/SpaceWorksLogo";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Card } from "../../components/ui/Card";
 import { useTenant, useTenantPath } from "../../lib/tenant";
@@ -152,10 +152,13 @@ export function PublicInventoryPage() {
               />
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <OsmmBadge />
+              <SpaceWorksBadge />
               <div className="rounded-lg border border-line bg-surface px-3 py-2 text-sm text-muted">
                 {inventoryQuery.data?.count ?? "-"} listed items
               </div>
+              <Link className="desk-button" to="/roadmap">
+                Roadmap
+              </Link>
               {bootstrap?.makerspace.public_stats_enabled ? (
                 <Link className="desk-button" to={tenantPath("stats")}>
                   Stats
@@ -164,6 +167,16 @@ export function PublicInventoryPage() {
               {modules.has("printing") ? (
                 <Link className="desk-button" to={tenantPath("print")}>
                   Request a 3D print
+                </Link>
+              ) : null}
+              {modules.has("events") ? (
+                <Link className="desk-button" to={tenantPath("events")}>
+                  Events
+                </Link>
+              ) : null}
+              {modules.has("bookings") ? (
+                <Link className="desk-button" to={tenantPath("bookings")}>
+                  Book a space
                 </Link>
               ) : null}
               <ThemeToggle />

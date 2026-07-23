@@ -1,7 +1,9 @@
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema
 from rest_framework import generics
-from rest_framework.filters import SearchFilter
+from rest_framework.filters import BaseFilterBackend
+from django.db.models import Q
+from django.conf import settings
 
 from apps.accounts import rbac
 from apps.hardware_requests.models import HardwareRequest
@@ -16,18 +18,48 @@ from apps.makerspaces.guards import require_module
 
 # Staff search the queues by who borrowed / what for. Scoped to the queue's own
 # makerspace filter already, so this only narrows within the tenant.
-REQUEST_SEARCH_FIELDS = [
-    "requester_name",
-    "requester_contact_email",
-    "requester_contact_phone",
-    "requested_for",
-]
+REQUEST_SEARCH_FIELDS = ["requested_for"]
+
+
+class ScopedPiiSearchFilter(BaseFilterBackend):
+    def get_schema_operation_parameters(self, view):
+        # Keep the `search` query parameter documented in OpenAPI even though this
+        # is a custom backend (blind-index/plaintext resolution happens internally).
+        return [{
+            "name": "search",
+            "required": False,
+            "in": "query",
+            "description": "A search term (requested-for, requester name/email).",
+            "schema": {"type": "string"},
+        }]
+
+    def filter_queryset(self, request, queryset, view):
+        term = request.query_params.get("search", "").strip()
+        if not term:
+            return queryset
+        if not settings.PII_ENCRYPTION_ENABLED:
+            return queryset.filter(Q(requested_for__icontains=term) | Q(requester_name__icontains=term) | Q(requester_contact_email__icontains=term))
+        from rest_framework.exceptions import ValidationError
+
+        from apps.encryption.search import indexed_candidates, legacy_plaintext_candidates, verified_ids
+        makerspace_id = view.kwargs["makerspace_id"]
+        ids = set()
+        for field_name, exact in (("requester_name", False), ("requester_contact_email", True)):
+            try:
+                candidates = indexed_candidates(makerspace_id=makerspace_id, model_label="hardware_requests.HardwareRequest", field_name=field_name, term=term, exact=exact)
+            except ValidationError:  # e.g. name term shorter than a trigram
+                candidates = []
+            ids.update(verified_ids(queryset.filter(pk__in=candidates), field_name=field_name, term=term, exact=exact))
+            # During the dual-read rollout, pre-backfill rows have no index yet.
+            if settings.PII_ENCRYPTION_DUAL_READ:
+                ids.update(legacy_plaintext_candidates(queryset, field_name=field_name, term=term, exact=exact))
+        return queryset.filter(Q(requested_for__icontains=term) | Q(pk__in=ids))
 
 
 class PendingRequestsView(generics.ListAPIView):
     permission_classes = [CanReviewRequest]
     serializer_class = AdminRequestSerializer
-    filter_backends = [SearchFilter]
+    filter_backends = [ScopedPiiSearchFilter]
     search_fields = REQUEST_SEARCH_FIELDS
 
     def get_queryset(self):
@@ -55,7 +87,7 @@ class PendingRequestsView(generics.ListAPIView):
 class AcceptedRequestsView(generics.ListAPIView):
     permission_classes = [CanViewHandoverQueue]
     serializer_class = AdminRequestSerializer
-    filter_backends = [SearchFilter]
+    filter_backends = [ScopedPiiSearchFilter]
     search_fields = REQUEST_SEARCH_FIELDS
 
     def get_queryset(self):
@@ -83,7 +115,7 @@ class AcceptedRequestsView(generics.ListAPIView):
 class ActiveLoansView(generics.ListAPIView):
     permission_classes = [CanViewHandoverQueue]
     serializer_class = AdminRequestSerializer
-    filter_backends = [SearchFilter]
+    filter_backends = [ScopedPiiSearchFilter]
     search_fields = REQUEST_SEARCH_FIELDS
 
     def get_queryset(self):
@@ -118,7 +150,7 @@ class RequestHistoryView(generics.ListAPIView):
     # ISSUE_REQUEST (the handover-queue viewers) to match the accepted/active loan views.
     permission_classes = [CanViewHandoverQueue]
     serializer_class = AdminRequestSerializer
-    filter_backends = [SearchFilter]
+    filter_backends = [ScopedPiiSearchFilter]
     search_fields = REQUEST_SEARCH_FIELDS
 
     def get_queryset(self):

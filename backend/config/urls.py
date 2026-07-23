@@ -8,6 +8,11 @@ from drf_spectacular.views import (
 )
 
 from apps.admin_api.views_hosting import TlsCheckView
+from apps.payments.views import StripeWebhookView
+from apps.payments.views_connect import (
+    StripeConnectCallbackView,
+    StripeConnectWebhookView,
+)
 
 
 def docs_root(_request):
@@ -16,7 +21,7 @@ def docs_root(_request):
 <html lang="en">
   <head>
     <meta charset="utf-8">
-    <title>OSMM API</title>
+    <title>Space Works API</title>
     <script>
       window.location.replace(window.location.hash ? "/redoc/" : "/docs/");
     </script>
@@ -33,7 +38,23 @@ def docs_root(_request):
 
 
 urlpatterns = [
+    path(
+        "api/v1/webhooks/stripe/connect",
+        StripeConnectWebhookView.as_view(),
+        name="stripe-connect-webhook",
+    ),
+    path(
+        "api/v1/payments/connect/callback",
+        StripeConnectCallbackView.as_view(),
+        name="stripe-connect-callback",
+    ),
+    path("api/v1/webhooks/stripe/<str:public_code>", StripeWebhookView.as_view(), name="stripe-webhook"),
     path('api/v1/', include('apps.machines.urls')),
+    path('api/v1/public/', include('apps.events.urls_public')),
+    path('api/v1/public/', include('apps.bookings.urls_public')),
+    path('api/v1/public/', include('apps.presence.urls')),
+    path("api/v1/", include("apps.roadmap.urls")),
+    path("api/v1/", include("apps.payments.urls")),
     path(
         "api/v1/internal/tls-check",
         TlsCheckView.as_view(),
@@ -46,7 +67,7 @@ urlpatterns = [
     path("control/", admin.site.urls),
     path("api/", include("apps.inventory.urls")),          # existing, unchanged
     # Versioned alias of the public routes. Namespaced so it does NOT collide with the
-    # unnamespaced names above — reverse("public-inventory") stays /api/public/...,
+    # unnamespaced names above â€” reverse("public-inventory") stays /api/public/...,
     # while /api/v1/public/... is reachable directly (and via "v1:public-inventory").
     path("api/v1/", include(("apps.inventory.urls", "inventory"), namespace="v1")),
     path("api/v1/", include("apps.makerspaces.urls")),
@@ -57,7 +78,6 @@ urlpatterns = [
     path("api/v1/admin/", include("apps.evidence.urls")),
     path("api/v1/", include("apps.operations.urls")),
     path("api/v1/integrations/", include("apps.integrations.urls")),
-    path("api/v1/printing/", include("apps.printing.urls")),
     path("api/v1/procurement/", include("apps.procurement.urls")),
     path("api/v1/notifications/", include("apps.notifications.urls")),
     path("schema/", SpectacularAPIView.as_view(), name="schema"),

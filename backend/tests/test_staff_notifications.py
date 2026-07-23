@@ -13,8 +13,7 @@ from apps.hardware_requests import notifications as hardware_notifications
 from apps.hardware_requests.models import HardwareRequest
 from apps.integrations.staff_notifications import staff_emails_for_stream
 from apps.makerspaces.models import MakerspaceMembership
-from apps.printing import workflow as print_workflow
-from apps.printing.models import FilamentSpool, PrintPrinter, PrintRequest
+from apps.presence import services as presence
 from tests.return_helpers import (
     authenticated_client as hardware_authenticated_client,
     make_issued_request,
@@ -30,15 +29,6 @@ from tests.test_issue import (
     make_box,
     make_issue_evidence,
 )
-from tests.test_printing import (
-    action_url as print_action_url,
-    authenticated_client as print_authenticated_client,
-    make_bucket,
-    make_print_manager,
-    make_request as make_print_request,
-    request_list_url as print_request_list_url,
-)
-
 pytestmark = pytest.mark.django_db
 
 
@@ -68,6 +58,19 @@ def make_staff_user(username, makerspace, membership_role, **kw):
         **kw,
     )
     return add_membership(user, makerspace, membership_role)
+
+
+def make_present_member(username, makerspace, **kwargs):
+    user = make_user(
+        username,
+        access_status=User.AccessStatus.ACTIVE,
+        display_name=f"{username} display",
+        phone="+15550101010",
+        **kwargs,
+    )
+    add_membership(user, makerspace, MakerspaceMembership.Role.CUSTOM)
+    presence.start_session(user, makerspace, 60)
+    return user
 
 
 def public_hardware_submit_url(makerspace):
@@ -167,19 +170,16 @@ def test_staff_emails_for_stream_excludes_ineligible_members(username, user_kwar
     assert staff_emails_for_stream(makerspace, "hardware") == [valid.email]
 
 
-def test_staff_emails_for_stream_dedupes_case_variant_emails():
+def test_staff_emails_for_stream_returns_single_normalized_email():
+    # Two distinct accounts can no longer share a case-variant email (M1 added a global
+    # case-insensitive unique email constraint), so the resolver only needs to return each
+    # staff member's address once, normalized.
     makerspace = make_space("staff-resolver-dedupe")
     make_staff_user(
         "resolver-dedupe-upper",
         makerspace,
         MakerspaceMembership.Role.SPACE_MANAGER,
         email="Foo@Example.com",
-    )
-    make_staff_user(
-        "resolver-dedupe-lower",
-        makerspace,
-        MakerspaceMembership.Role.INVENTORY_MANAGER,
-        email="foo@example.com",
     )
 
     recipients = staff_emails_for_stream(makerspace, "hardware")
@@ -218,9 +218,14 @@ def test_hardware_submitted_emails_requester_and_staff(
         MakerspaceMembership.Role.INVENTORY_MANAGER,
         email="hardware-submitted-staff@example.com",
     )
+    requester = make_present_member(
+        "staff-hardware-submitted-requester",
+        makerspace,
+        email="hardware-submitted-requester@example.com",
+    )
 
     with django_capture_on_commit_callbacks(execute=True):
-        response = APIClient().post(
+        response = hardware_authenticated_client(requester).post(
             public_hardware_submit_url(makerspace),
             {
                 "requester_name": "Hardware Requester",
@@ -448,176 +453,6 @@ def test_notify_return_due_false_when_nobody_reachable():
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-def test_public_print_submit_emails_printing_staff_once(
-    django_capture_on_commit_callbacks,
-):
-    reset_outbox()
-    makerspace = make_space("staff-print-public-submit")
-    bucket = make_bucket(makerspace)
-    staff = make_print_manager("staff-print-public-submit-manager", makerspace)
-    staff.email = "print-public-submit-staff@example.com"
-    staff.save(update_fields=["email"])
-
-    with django_capture_on_commit_callbacks(execute=True):
-        response = APIClient().post(
-            public_print_submit_url(makerspace),
-            {
-                "requester_name": "Print Requester",
-                "bucket_id": bucket.id,
-                "title": "Public bracket",
-                "contact_email": "print-public-requester@example.com",
-                "contact_phone": "+15550101010",
-            },
-            format="json",
-        )
-
-    assert response.status_code == 201
-    assert_address_sent("print-public-requester@example.com")
-    assert_address_count(staff.email, 1)
-
-
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-def test_authenticated_print_submit_emails_printing_staff_once(
-    django_capture_on_commit_callbacks,
-):
-    reset_outbox()
-    makerspace = make_space("staff-print-auth-submit")
-    bucket = make_bucket(makerspace)
-    requester = make_user(
-        "staff-print-auth-requester",
-        access_status=User.AccessStatus.ACTIVE,
-    )
-    staff = make_print_manager("staff-print-auth-submit-manager", makerspace)
-    staff.email = "print-auth-submit-staff@example.com"
-    staff.save(update_fields=["email"])
-
-    with django_capture_on_commit_callbacks(execute=True):
-        response = print_authenticated_client(requester).post(
-            print_request_list_url(),
-            {
-                "bucket": bucket.id,
-                "title": "Authenticated bracket",
-                "quantity": 1,
-            },
-            format="json",
-        )
-
-    assert response.status_code == 201
-    assert_address_count(staff.email, 1)
-
-
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-@pytest.mark.parametrize(
-    ("event", "initial_status", "call"),
-    [
-        (
-            "accepted",
-            PrintRequest.Status.PENDING,
-            lambda req, actor: print_workflow.accept(req, actor),
-        ),
-        (
-            "started",
-            PrintRequest.Status.ACCEPTED,
-            lambda req, actor: print_workflow.start(req, actor),
-        ),
-        (
-            "completed",
-            PrintRequest.Status.PRINTING,
-            lambda req, actor: print_workflow.complete(req, actor),
-        ),
-        (
-            "rejected",
-            PrintRequest.Status.PENDING,
-            lambda req, actor: print_workflow.reject(req, actor, "Too fragile."),
-        ),
-        (
-            "failed",
-            PrintRequest.Status.PRINTING,
-            lambda req, actor: print_workflow.fail(req, actor, "Nozzle jammed."),
-        ),
-        (
-            "collected",
-            PrintRequest.Status.COMPLETED,
-            lambda req, actor: print_workflow.mark_collected(req, actor),
-        ),
-    ],
-)
-def test_printing_transition_events_email_printing_staff_once(
-    event,
-    initial_status,
-    call,
-    django_capture_on_commit_callbacks,
-):
-    reset_outbox()
-    makerspace = make_space(f"staff-print-{event}")
-    bucket = make_bucket(makerspace)
-    requester = make_user(
-        f"staff-print-{event}-requester",
-        access_status=User.AccessStatus.ACTIVE,
-        email=f"staff-print-{event}-requester@example.com",
-    )
-    staff = make_print_manager(f"staff-print-{event}-manager", makerspace)
-    staff.email = f"staff-print-{event}-staff@example.com"
-    staff.save(update_fields=["email"])
-    print_request = make_print_request(
-        bucket,
-        requester,
-        title=f"{event} bracket",
-        status=initial_status,
-    )
-    if event == "started":
-        printer = PrintPrinter.objects.create(makerspace=makerspace, name="Prusa MK4")
-        spool = FilamentSpool.objects.create(
-            makerspace=makerspace,
-            printer=printer,
-            material="PLA",
-            initial_weight_grams=1000,
-            remaining_weight_grams=900,
-        )
-        call = lambda req, actor: print_workflow.start(
-            req,
-            actor,
-            printer_id=printer.id,
-            filament_spool_id=spool.id,
-            estimated_minutes=90,
-            estimated_filament_grams="120.00",
-        )
-
-    with django_capture_on_commit_callbacks(execute=True):
-        call(print_request, staff)
-
-    assert_address_count(staff.email, 1)
-    assert any(event in message.subject for message in mail.outbox if staff.email in message.to)
-
-
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-def test_printing_reprint_emits_staff_reprinted_email(
-    django_capture_on_commit_callbacks,
-):
-    reset_outbox()
-    makerspace = make_space("staff-print-reprint")
-    bucket = make_bucket(makerspace)
-    requester = make_user("staff-print-reprint-requester", access_status=User.AccessStatus.ACTIVE)
-    staff = make_print_manager("staff-print-reprint-manager", makerspace)
-    staff.email = "staff-print-reprint-staff@example.com"
-    staff.save(update_fields=["email"])
-    failed = make_print_request(
-        bucket,
-        requester,
-        title="Failed bracket",
-        status=PrintRequest.Status.FAILED,
-    )
-
-    with django_capture_on_commit_callbacks(execute=True):
-        clone = print_workflow.reprint(failed, staff)
-
-    assert clone.status == PrintRequest.Status.ACCEPTED
-    assert_address_count(staff.email, 1)
-    assert "reprint request" in mail.outbox[0].subject
-    assert "reprinted" in mail.outbox[0].body
-
-
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
 def test_hardware_staff_send_failure_does_not_block_transition_or_requester_email(
     monkeypatch,
     django_capture_on_commit_callbacks,
@@ -640,13 +475,14 @@ def test_hardware_staff_send_failure_does_not_block_transition_or_requester_emai
     product.reserved_quantity -= 1
     product.save(update_fields=["available_quantity", "reserved_quantity", "updated_at"])
 
-    def fail_staff_send(*args, **kwargs):
-        raise RuntimeError("staff SMTP failed")
+    from apps.integrations.dispatch import dispatch_email as real_dispatch_email
 
-    monkeypatch.setattr(
-        "apps.hardware_requests.staff_notifications.send_makerspace_email",
-        fail_staff_send,
-    )
+    def fail_staff_send(**kwargs):
+        if kwargs["audience"] == "staff":
+            raise RuntimeError("staff SMTP failed")
+        return real_dispatch_email(**kwargs)
+
+    monkeypatch.setattr("apps.integrations.notify.dispatch_email", fail_staff_send)
 
     with django_capture_on_commit_callbacks(execute=True):
         response = hardware_authenticated_client(admin).post(
@@ -658,39 +494,6 @@ def test_hardware_staff_send_failure_does_not_block_transition_or_requester_emai
     hardware_request.refresh_from_db()
     assert hardware_request.status == HardwareRequest.Status.ACCEPTED
     assert recipient_addresses() == ["hardware-fail-safe-requester@example.com"]
-
-
-@override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
-def test_printing_staff_resolver_failure_does_not_block_transition_or_requester_email(
-    monkeypatch,
-    django_capture_on_commit_callbacks,
-):
-    reset_outbox()
-    makerspace = make_space("staff-print-fail-safe")
-    bucket = make_bucket(makerspace)
-    requester = make_user(
-        "staff-print-fail-safe-requester",
-        access_status=User.AccessStatus.ACTIVE,
-        email="print-fail-safe-requester@example.com",
-    )
-    manager = make_print_manager("staff-print-fail-safe-manager", makerspace)
-    print_request = make_print_request(bucket, requester)
-
-    def fail_resolver(*args, **kwargs):
-        raise RuntimeError("resolver failed")
-
-    monkeypatch.setattr("apps.printing.emails.staff_emails_for_stream", fail_resolver)
-
-    with django_capture_on_commit_callbacks(execute=True):
-        response = print_authenticated_client(manager).post(
-            print_action_url(print_request, "accept"),
-            format="json",
-        )
-
-    assert response.status_code == 200
-    print_request.refresh_from_db()
-    assert print_request.status == PrintRequest.Status.ACCEPTED
-    assert recipient_addresses() == ["print-fail-safe-requester@example.com"]
 
 
 @override_settings(EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend")
@@ -709,13 +512,14 @@ def test_notify_return_due_keeps_boolean_when_staff_send_fails(monkeypatch):
     hardware_request.requester_contact_email = "return-due-fail-safe-requester@example.com"
     hardware_request.save(update_fields=["requester_contact_email", "updated_at"])
 
-    def fail_staff_send(*args, **kwargs):
-        raise RuntimeError("staff SMTP failed")
+    from apps.integrations.dispatch import dispatch_email as real_dispatch_email
 
-    monkeypatch.setattr(
-        "apps.hardware_requests.staff_notifications.send_makerspace_email",
-        fail_staff_send,
-    )
+    def fail_staff_send(**kwargs):
+        if kwargs["audience"] == "staff":
+            raise RuntimeError("staff SMTP failed")
+        return real_dispatch_email(**kwargs)
+
+    monkeypatch.setattr("apps.integrations.notify.dispatch_email", fail_staff_send)
 
     assert hardware_notifications.notify_return_due(hardware_request) is True
     assert recipient_addresses() == ["return-due-fail-safe-requester@example.com"]
@@ -793,3 +597,58 @@ def test_notification_recipients_endpoint_lists_and_toggles():
     membership = MakerspaceMembership.objects.get(id=other_membership_id)
     assert membership.receives_notifications is False
     assert other.email not in staff_emails_for_stream(makerspace, "printing")
+
+
+def test_notification_recipients_endpoint_includes_machine_managers():
+    # Machine Managers receive maintenance emails by default, so a Space Manager must be
+    # able to see + toggle their receives_notifications flag like every other eligible role.
+    makerspace = make_space("notif-machine")
+    manager = make_staff_user("notif-sm", makerspace, MakerspaceMembership.Role.SPACE_MANAGER)
+    make_staff_user("notif-mm", makerspace, MakerspaceMembership.Role.MACHINE_MANAGER)
+    client = hardware_authenticated_client(manager)
+    url = f"/api/v1/admin/makerspace/{makerspace.id}/notification-recipients"
+
+    listed = client.get(url)
+    assert listed.status_code == 200
+    assert "notif-mm" in {row["username"] for row in listed.data}
+
+
+def test_notification_recipients_endpoint_includes_and_toggles_custom_action_roles():
+    # L2b: recipient eligibility is action-based, so a custom role granting manage_printing
+    # both receives printing emails AND must be listed + toggleable by the Space Manager.
+    from apps.accounts import rbac
+    from apps.makerspaces.models import MakerspaceRole
+
+    makerspace = make_space("notif-custom")
+    manager = make_staff_user("notif-csm", makerspace, MakerspaceMembership.Role.SPACE_MANAGER)
+    role = MakerspaceRole.objects.create(
+        makerspace=makerspace,
+        name="Print Only",
+        slug="print-only",
+        granted_actions=[rbac.Action.MANAGE_PRINTING],
+        is_default=False,
+        legacy_role=None,
+    )
+    custom_user = make_user("notif-custom-user")
+    MakerspaceMembership.objects.create(
+        user=custom_user,
+        makerspace=makerspace,
+        role=MakerspaceMembership.Role.CUSTOM,
+        assigned_role=role,
+    )
+    client = hardware_authenticated_client(manager)
+    url = f"/api/v1/admin/makerspace/{makerspace.id}/notification-recipients"
+
+    listed = client.get(url)
+    assert listed.status_code == 200
+    by_user = {row["username"]: row for row in listed.data}
+    assert "notif-custom-user" in by_user
+    assert custom_user.email in staff_emails_for_stream(makerspace, "printing")
+
+    patched = client.patch(
+        url,
+        {"recipients": [{"id": by_user["notif-custom-user"]["id"], "receives_notifications": False}]},
+        format="json",
+    )
+    assert patched.status_code == 200
+    assert custom_user.email not in staff_emails_for_stream(makerspace, "printing")

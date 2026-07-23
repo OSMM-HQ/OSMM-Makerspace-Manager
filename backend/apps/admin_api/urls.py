@@ -9,6 +9,32 @@ from apps.admin_api.views_email_templates import (
 )
 from apps.admin_api.views_email_logs import EmailLogListView, EmailLogRetryView
 from apps.admin_api.views_integration_health import IntegrationHealthView
+from apps.admin_api.views_events import (
+    EventCancelView,
+    EventCompleteView,
+    EventDetailView,
+    EventListCreateView,
+    EventPublishView,
+    EventRegistrationListView,
+    EventRegistrationMarkAttendedView,
+)
+from apps.admin_api.views_bookable_spaces import (
+    BookableSpaceDeactivateView,
+    BookableSpaceDetailView,
+    BookableSpaceImageDeleteView,
+    BookableSpaceImageFinalizeView,
+    BookableSpaceImagePresignView,
+    BookableSpaceListCreateView,
+)
+from apps.admin_api.views_bookings import (
+    BookingApproveView,
+    BookingCancelView,
+    BookingCompleteView,
+    BookingNoShowView,
+    BookingRejectView,
+    SpaceBookingListView,
+)
+from apps.admin_api.views_booking_rules import BookableSpaceBookingRulesView
 from apps.admin_api.views_hosting import MakerspaceProvisionSubdomainView
 from apps.admin_api.views_machine_documents import (
     MachineDocumentDeleteView,
@@ -33,7 +59,44 @@ from apps.admin_api.views_machine_types import (
     MachineTypeDetailView,
     MachineTypeListCreateView,
 )
+from apps.admin_api.views_machine_type_pricing import (
+    MachineTypePricingDetailView,
+    MachineTypePricingListView,
+)
 from apps.admin_api.views_machines import MachineDetailView, MachineListCreateView
+from apps.admin_api.views_machine_service import (
+    MachineServiceAcceptView,
+    MachineServiceCollectView,
+    MachineServiceCompleteView,
+    MachineServiceFailView,
+    MachineServiceRejectView,
+    MachineServiceRequestDetailView,
+    MachineServiceRequestListCreateView,
+    MachineServiceReprintView,
+    MachineServiceStartView,
+)
+from apps.admin_api.views_payments import PaymentMarkOfflineView, PaymentWaiveView
+from apps.admin_api.views_payment_settings import (
+    MakerspacePaymentSettingsView,
+    StripeConnectOnboardingView,
+)
+from apps.admin_api.views_platform_payments import PlatformStripeConnectSettingsView
+from apps.admin_api.views_machine_service_printer import (
+    MachineServicePrinterPoolAdjustmentView,
+    MachineServicePrinterPoolDetailView,
+    MachineServicePrinterPoolListCreateView,
+    MachineServiceTypedManualUsageView,
+)
+from apps.admin_api.views_machine_service_files import (
+    MachineServiceFileDeleteView,
+    MachineServiceFileFinalizeView,
+    MachineServiceFilePresignView,
+    MachineServiceFileUrlView,
+)
+from apps.machines.service_reports_views import (
+    MakerspaceMachineServiceReportView,
+    SuperadminMachineServiceReportView,
+)
 from apps.admin_api.views_machines_actions import (
     MachineErrorLogView,
     MachineRetireView,
@@ -41,15 +104,25 @@ from apps.admin_api.views_machines_actions import (
     MachineUnretireView,
     MachineUsageView,
 )
+from apps.admin_api.views_maintenance import (
+    MaintenanceLogDocumentDetailView,
+    MaintenanceLogDocumentFinalizeView,
+    MaintenanceLogDocumentPresignView,
+    MaintenanceLogDocumentUrlView,
+    MaintenanceLogListCreateView,
+    MaintenanceScheduleDeactivateView,
+    MaintenanceScheduleDetailView,
+    MaintenanceScheduleListCreateView,
+)
 from apps.admin_api.views_notification_recipients import NotificationRecipientsView
 from apps.admin_api.views_notification_rules import NotificationRulesView
 from apps.admin_api.views_platform import PlatformEmailSettingsView
+from apps.admin_api.views_platform_social import PlatformSocialAuthSettingsView
 from apps.admin_api.views_subdomain_requests import SubdomainRequestListCreateView
 from apps.admin_api.views_warranty import (
     AssetWarrantyView,
     MachineWarrantyView,
     MakerspaceWarrantyReportView,
-    PrinterWarrantyView,
 )
 from apps.admin_api.views_warranty_documents import (
     WarrantyDocumentCreateView,
@@ -58,9 +131,309 @@ from apps.admin_api.views_warranty_documents import (
     WarrantyDocumentUrlView,
 )
 from apps.makerspaces.models import MakerspaceMembership
-from apps.printing.views_printer_image import PrinterImageView
+from apps.admin_api.views_memberships import (
+    MembershipListCreateView,
+    MembershipRoleAssignView,
+)
+from apps.admin_api.views_member_memberships import (
+    AdminInvitationView, AdminMembershipRequestListView, AdminMembershipRevokeM2View,
+    AdminMembershipRoleM2View, AdminMembershipRosterView, AdminRequestApproveView,
+    AdminRequestRevokeView, AdminWaiverView,
+)
+from apps.admin_api.views_member_capabilities import (
+    AdminMembershipCapabilitiesView,
+    AdminMembershipUnverifyView,
+    AdminMembershipVerifyView,
+)
+from apps.admin_api.views_roles import CapabilityCatalogView, RoleDetailView, RoleListCreateView
+from apps.presence.views import PresenceRosterView
 
 urlpatterns = [
+    path(
+        "platform/payment-settings",
+        PlatformStripeConnectSettingsView.as_view(),
+        name="admin-platform-payment-settings",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/payment-settings",
+        MakerspacePaymentSettingsView.as_view(),
+        name="admin-makerspace-payment-settings",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/payment-settings/connect/onboard",
+        StripeConnectOnboardingView.as_view(),
+        name="admin-makerspace-payment-connect-onboard",
+    ),
+    path(
+        "makerspace/<int:makerspace_id>/presence-sessions/current",
+        PresenceRosterView.as_view(),
+        name="admin-presence-sessions-current",
+    ),
+    path("memberships", AdminMembershipRosterView.as_view(), name="admin-memberships-roster"),
+    path("membership-requests", AdminMembershipRequestListView.as_view(), name="admin-membership-requests"),
+    path("makerspace/<int:makerspace_id>/membership-invitations", AdminInvitationView.as_view(), name="admin-membership-invitations"),
+    path("membership-requests/<int:pk>/approve", AdminRequestApproveView.as_view(), name="admin-membership-request-approve"),
+    path("membership-requests/<int:pk>/revoke", AdminRequestRevokeView.as_view(), name="admin-membership-request-revoke"),
+    path("memberships/<int:pk>/revoke", AdminMembershipRevokeM2View.as_view(), name="admin-membership-revoke-m2"),
+    path("memberships/<int:pk>/role", AdminMembershipRoleM2View.as_view(), name="admin-membership-role-m2"),
+    path("memberships/<int:pk>/capabilities", AdminMembershipCapabilitiesView.as_view(), name="admin-membership-capabilities"),
+    path("memberships/<int:pk>/verify", AdminMembershipVerifyView.as_view(), name="admin-membership-verify"),
+    path("memberships/<int:pk>/unverify", AdminMembershipUnverifyView.as_view(), name="admin-membership-unverify"),
+    path("makerspaces/<int:makerspace_id>/waiver", AdminWaiverView.as_view(), name="admin-makerspace-waiver"),
+    path("makerspace/<int:makerspace_id>/machine-service-report", MakerspaceMachineServiceReportView.as_view(), name="admin-makerspace-machine-service-report"),
+    path("machine-service-report", SuperadminMachineServiceReportView.as_view(), name="admin-machine-service-report"),
+    path(
+        "makerspaces/<int:makerspace_id>/machine-service/requests",
+        MachineServiceRequestListCreateView.as_view(),
+        name="admin-machine-service-request-list-create",
+    ),
+    path(
+        "machine-service/requests/<int:pk>",
+        MachineServiceRequestDetailView.as_view(),
+        name="admin-machine-service-request-detail",
+    ),
+    path(
+        "machine-service/requests/<int:pk>/accept",
+        MachineServiceAcceptView.as_view(),
+        name="admin-machine-service-request-accept",
+    ),
+    path(
+        "machine-service/requests/<int:pk>/reject",
+        MachineServiceRejectView.as_view(),
+        name="admin-machine-service-request-reject",
+    ),
+    path(
+        "machine-service/requests/<int:pk>/start",
+        MachineServiceStartView.as_view(),
+        name="admin-machine-service-request-start",
+    ),
+    path(
+        "machine-service/requests/<int:pk>/complete",
+        MachineServiceCompleteView.as_view(),
+        name="admin-machine-service-request-complete",
+    ),
+    path(
+        "machine-service/requests/<int:pk>/fail",
+        MachineServiceFailView.as_view(),
+        name="admin-machine-service-request-fail",
+    ),
+    path(
+        "machine-service/requests/<int:pk>/collect",
+        MachineServiceCollectView.as_view(),
+        name="admin-machine-service-request-collect",
+    ),
+    path("machine-service/payments/<int:pk>/mark-offline", PaymentMarkOfflineView.as_view(), name="admin-machine-service-payment-mark-offline"),
+    path("machine-service/payments/<int:pk>/waive", PaymentWaiveView.as_view(), name="admin-machine-service-payment-waive"),
+    path(
+        "machine-service/requests/<int:pk>/reprint",
+        MachineServiceReprintView.as_view(),
+        name="admin-machine-service-request-reprint",
+    ),
+    path(
+        "makerspaces/<int:makerspace_id>/machine-service/consumable-pools",
+        MachineServicePrinterPoolListCreateView.as_view(),
+        name="admin-machine-service-printer-pools",
+    ),
+    path(
+        "machine-service/consumable-pools/<int:pk>",
+        MachineServicePrinterPoolDetailView.as_view(),
+        name="admin-machine-service-printer-pool-detail",
+    ),
+    path(
+        "machine-service/consumable-pools/<int:pk>/adjustments",
+        MachineServicePrinterPoolAdjustmentView.as_view(),
+        name="admin-machine-service-printer-pool-adjustments",
+    ),
+    path(
+        "makerspaces/<int:makerspace_id>/machine-service/typed-manual-usage",
+        MachineServiceTypedManualUsageView.as_view(),
+        name="admin-machine-service-printer-typed-manual-usage",
+    ),
+    path(
+        "machine-service/requests/<int:pk>/files/presign",
+        MachineServiceFilePresignView.as_view(),
+        name="admin-machine-service-file-presign",
+    ),
+    path(
+        "machine-service/requests/<int:pk>/files/finalize",
+        MachineServiceFileFinalizeView.as_view(),
+        name="admin-machine-service-file-finalize",
+    ),
+    path(
+        "machine-service/files/<int:pk>/url",
+        MachineServiceFileUrlView.as_view(),
+        name="admin-machine-service-file-url",
+    ),
+    path(
+        "machine-service/files/<int:pk>",
+        MachineServiceFileDeleteView.as_view(),
+        name="admin-machine-service-file-detail",
+    ),
+    path(
+        "makerspaces/<int:makerspace_id>/memberships",
+        MembershipListCreateView.as_view(),
+        name="admin-membership-list-create",
+    ),
+    path(
+        "makerspaces/<int:makerspace_id>/memberships/<int:membership_id>/role",
+        MembershipRoleAssignView.as_view(),
+        name="admin-membership-role-assign",
+    ),
+    path(
+        "makerspaces/<int:makerspace_id>/roles/capabilities",
+        CapabilityCatalogView.as_view(),
+        name="admin-role-capabilities",
+    ),
+    path(
+        "makerspaces/<int:makerspace_id>/roles",
+        RoleListCreateView.as_view(),
+        name="admin-role-list-create",
+    ),
+    path(
+        "makerspaces/<int:makerspace_id>/roles/<int:role_id>",
+        RoleDetailView.as_view(),
+        name="admin-role-detail",
+    ),
+    path(
+        "makerspaces/<int:makerspace_id>/machines/<int:machine_id>/maintenance/schedules/",
+        MaintenanceScheduleListCreateView.as_view(),
+        name="admin-maintenance-schedule-list-create",
+    ),
+    path(
+        "maintenance/schedules/<int:pk>/",
+        MaintenanceScheduleDetailView.as_view(),
+        name="admin-maintenance-schedule-detail",
+    ),
+    path(
+        "maintenance/schedules/<int:pk>/deactivate/",
+        MaintenanceScheduleDeactivateView.as_view(),
+        name="admin-maintenance-schedule-deactivate",
+    ),
+    path(
+        "makerspaces/<int:makerspace_id>/machines/<int:machine_id>/maintenance/logs/",
+        MaintenanceLogListCreateView.as_view(),
+        name="admin-maintenance-log-list-create",
+    ),
+    path(
+        "maintenance/logs/<int:pk>/documents/presign/",
+        MaintenanceLogDocumentPresignView.as_view(),
+        name="admin-maintenance-log-document-presign",
+    ),
+    path(
+        "maintenance/logs/<int:pk>/documents/",
+        MaintenanceLogDocumentFinalizeView.as_view(),
+        name="admin-maintenance-log-document-finalize",
+    ),
+    path(
+        "maintenance/log-documents/<int:pk>/url/",
+        MaintenanceLogDocumentUrlView.as_view(),
+        name="admin-maintenance-log-document-url",
+    ),
+    path(
+        "maintenance/log-documents/<int:pk>/",
+        MaintenanceLogDocumentDetailView.as_view(),
+        name="admin-maintenance-log-document-detail",
+    ),
+    path(
+        'makerspaces/<int:makerspace_id>/spaces/',
+        BookableSpaceListCreateView.as_view(),
+        name='admin-bookable-space-list-create',
+    ),
+    path(
+        'spaces/<int:pk>/',
+        BookableSpaceDetailView.as_view(),
+        name='admin-bookable-space-detail',
+    ),
+    path(
+        'spaces/<int:pk>/deactivate/',
+        BookableSpaceDeactivateView.as_view(),
+        name='admin-bookable-space-deactivate',
+    ),
+    path(
+        'spaces/<int:pk>/image/presign/',
+        BookableSpaceImagePresignView.as_view(),
+        name='admin-bookable-space-image-presign',
+    ),
+    path(
+        'spaces/<int:pk>/image/finalize/',
+        BookableSpaceImageFinalizeView.as_view(),
+        name='admin-bookable-space-image-finalize',
+    ),
+    path(
+        'spaces/<int:pk>/image/',
+        BookableSpaceImageDeleteView.as_view(),
+        name='admin-bookable-space-image-delete',
+    ),
+    path(
+        'spaces/<int:pk>/bookings/',
+        SpaceBookingListView.as_view(),
+        name='admin-space-booking-list',
+    ),
+    path(
+        'spaces/<int:pk>/booking-rules/',
+        BookableSpaceBookingRulesView.as_view(),
+        name='admin-bookable-space-booking-rules',
+    ),
+    path(
+        'bookings/<int:pk>/approve/',
+        BookingApproveView.as_view(),
+        name='admin-booking-approve',
+    ),
+    path(
+        'bookings/<int:pk>/reject/',
+        BookingRejectView.as_view(),
+        name='admin-booking-reject',
+    ),
+    path(
+        'bookings/<int:pk>/cancel/',
+        BookingCancelView.as_view(),
+        name='admin-booking-cancel',
+    ),
+    path(
+        'bookings/<int:pk>/complete/',
+        BookingCompleteView.as_view(),
+        name='admin-booking-complete',
+    ),
+    path(
+        'bookings/<int:pk>/no-show/',
+        BookingNoShowView.as_view(),
+        name='admin-booking-no-show',
+    ),
+    path(
+        'makerspaces/<int:makerspace_id>/events/',
+        EventListCreateView.as_view(),
+        name='admin-event-list-create',
+    ),
+    path(
+        'events/<int:pk>/',
+        EventDetailView.as_view(),
+        name='admin-event-detail',
+    ),
+    path(
+        'events/<int:pk>/publish/',
+        EventPublishView.as_view(),
+        name='admin-event-publish',
+    ),
+    path(
+        'events/<int:pk>/cancel/',
+        EventCancelView.as_view(),
+        name='admin-event-cancel',
+    ),
+    path(
+        'events/<int:pk>/complete/',
+        EventCompleteView.as_view(),
+        name='admin-event-complete',
+    ),
+    path(
+        'events/<int:pk>/registrations/',
+        EventRegistrationListView.as_view(),
+        name='admin-event-registration-list',
+    ),
+    path(
+        'event-registrations/<int:pk>/mark-attended/',
+        EventRegistrationMarkAttendedView.as_view(),
+        name='admin-event-registration-mark-attended',
+    ),
     path(
         'makerspace/<int:makerspace_id>/machines',
         MachineListCreateView.as_view(),
@@ -75,6 +448,16 @@ urlpatterns = [
         'makerspace/<int:makerspace_id>/machine-types/<int:pk>',
         MachineTypeDetailView.as_view(),
         name='admin-machine-type-detail',
+    ),
+    path(
+        'makerspace/<int:makerspace_id>/machine-type-pricing',
+        MachineTypePricingListView.as_view(),
+        name='admin-machine-type-pricing',
+    ),
+    path(
+        'makerspace/<int:makerspace_id>/machine-type-pricing/<int:machine_type_id>',
+        MachineTypePricingDetailView.as_view(),
+        name='admin-machine-type-pricing-detail',
     ),
     path(
         'machines/<int:pk>',
@@ -181,6 +564,11 @@ urlpatterns = [
         PlatformEmailSettingsView.as_view(),
         name="admin-platform-email-settings",
     ),
+    path(
+        "platform/social-auth-settings",
+        PlatformSocialAuthSettingsView.as_view(),
+        name="admin-platform-social-auth-settings",
+    ),
     path("makerspaces", views.MakerspaceListCreateView.as_view(), name="admin-makerspaces"),
     path("makerspaces/<int:pk>", views.MakerspaceDetailView.as_view(), name="admin-makerspace"),
     path(
@@ -234,16 +622,6 @@ urlpatterns = [
         "inventory/<int:pk>/image",
         views.InventoryProductImageView.as_view(),
         name="admin-inventory-image",
-    ),
-    path(
-        "printing/printers/<int:pk>/image",
-        PrinterImageView.as_view(),
-        name="admin-printer-image",
-    ),
-    path(
-        "printing/printers/<int:pk>/warranty",
-        PrinterWarrantyView.as_view(),
-        name="admin-printer-warranty",
     ),
     path(
         "warranty/<int:pk>/documents/presign",
@@ -413,6 +791,17 @@ urlpatterns = [
         views.StaffListCreateView.as_view(),
         {"role": MakerspaceMembership.Role.PRINT_MANAGER},
         name="admin-users-print-managers",
+    ),
+    path(
+        "users/machine-managers",
+        views.StaffListCreateView.as_view(),
+        {"role": MakerspaceMembership.Role.MACHINE_MANAGER},
+        name="admin-users-machine-managers",
+    ),
+    path(
+        "memberships/<int:pk>",
+        views.MembershipRevokeView.as_view(),
+        name="admin-membership-revoke",
     ),
     path("users/<int:pk>/restrict", views.RestrictUserView.as_view(), name="user-restrict"),
     path(

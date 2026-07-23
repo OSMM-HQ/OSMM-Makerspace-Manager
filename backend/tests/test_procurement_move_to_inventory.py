@@ -5,9 +5,9 @@ from apps.boxes.models import Box
 from apps.inventory.models import Category, InventoryProduct
 from apps.makerspaces.models import MakerspaceMembership
 from apps.operations.models import InventoryAdjustment
-from apps.printing.models import FilamentSpool
+from apps.machines.models import Machine, MachineConsumablePool
 from apps.procurement.models import ToBuyItem
-from tests.test_printing import authenticated_client, make_member, make_print_manager, make_space, make_user
+from tests.return_helpers import authenticated_client, make_member, make_print_manager, make_space, make_user
 
 pytestmark = pytest.mark.django_db
 
@@ -298,13 +298,13 @@ def test_move_to_printing_spool_happy_path_and_idempotency():
     assert first.status_code == 200
     assert second.status_code in (400, 409)
     item.refresh_from_db()
-    spool = FilamentSpool.objects.get(pk=first.data["resulting_spool"])
+    spool = MachineConsumablePool.objects.get(pk=first.data["resulting_pool"])
     assert item.moved_to_inventory_at is not None
-    assert item.resulting_spool == spool
+    assert item.resulting_pool == spool
     assert spool.makerspace == space
     assert spool.material == "PLA"
     assert spool.color == "Black"
-    assert FilamentSpool.objects.count() == 1
+    assert MachineConsumablePool.objects.count() == 1
 
 
 def test_space_manager_can_move_printing_printer():
@@ -320,4 +320,5 @@ def test_space_manager_can_move_printing_printer():
 
     assert response.status_code == 200
     item.refresh_from_db()
-    assert item.resulting_printer_id == response.data["resulting_printer"]
+    assert item.resulting_machine_id == response.data["resulting_machine"]
+    assert Machine.objects.filter(pk=item.resulting_machine_id).exists()

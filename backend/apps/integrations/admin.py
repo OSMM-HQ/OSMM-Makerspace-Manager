@@ -6,6 +6,8 @@ from config.admin_access import SuperuserOnlyModelAdmin
 from apps.integrations import admin_email_templates  # noqa: F401
 from apps.integrations import admin_email_logs  # noqa: F401
 from apps.integrations import admin_notification_mutes  # noqa: F401
+from apps.integrations import admin_notifications  # noqa: F401
+from apps.integrations import admin_push  # noqa: F401
 from apps.integrations.models import PlatformEmailSettings
 from apps.integrations.smtp_validation import validate_smtp_settings
 

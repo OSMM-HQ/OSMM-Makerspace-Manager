@@ -11,6 +11,13 @@ from apps.operations.serializers_reports import (
     ReturnsReportSerializer,
     TakenItemsReportSerializer,
     TopBorrowersReportSerializer,
+    BookingUtilizationReportSerializer,
+    EventAttendanceReportSerializer,
+    FabLabHealthReportSerializer,
+    MachineUsageReportSerializer,
+    MaintenanceActivityReportSerializer,
+    MemberActivityReportSerializer,
+    PaymentReconciliationReportSerializer,
 )
 
 ANALYTICS_REPORT_RESPONSE = PolymorphicProxySerializer(
@@ -26,6 +33,13 @@ ANALYTICS_REPORT_RESPONSE = PolymorphicProxySerializer(
         MostLentReportSerializer,
         TopBorrowersReportSerializer,
         RecentlyAddedReportSerializer,
+        MachineUsageReportSerializer,
+        EventAttendanceReportSerializer,
+        BookingUtilizationReportSerializer,
+        MaintenanceActivityReportSerializer,
+        MemberActivityReportSerializer,
+        FabLabHealthReportSerializer,
+        PaymentReconciliationReportSerializer,
     ],
     resource_type_field_name=None,
 )

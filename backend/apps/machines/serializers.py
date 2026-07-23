@@ -13,6 +13,7 @@ from apps.machines.models import (
     MachineType,
     MachineUsageEntry,
 )
+from apps.machines.printer_capabilities import validate_machine_payload
 from apps.warranty.models import Warranty
 from apps.warranty.status import STATUS_UNKNOWN, warranty_status
 
@@ -27,21 +28,39 @@ class MachineTypeSerializer(serializers.ModelSerializer):
             'icon',
             'is_builtin',
             'managing_action',
+            'capability_config',
             'makerspace',
         ]
-        read_only_fields = ['managing_action', 'makerspace']
+        read_only_fields = ['managing_action', 'makerspace', 'capability_config']
 
 
-class MachineTypeCreateSerializer(serializers.ModelSerializer):
+class _CustomMachineTypeConfigSerializer(serializers.ModelSerializer):
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        config = attrs.get("capability_config", getattr(self.instance, "capability_config", None))
+        if config is None:
+            raise serializers.ValidationError({"capability_config": "Custom machine types require structural configuration."})
+        return attrs
+
+    def validate_capability_config(self, value):
+        from apps.machines.metering import validate_type_config
+        try:
+            validate_type_config(value, is_custom=True)
+        except Exception as exc:
+            raise serializers.ValidationError(getattr(exc, "messages", [str(exc)])) from exc
+        return value
+
+
+class MachineTypeCreateSerializer(_CustomMachineTypeConfigSerializer):
     class Meta:
         model = MachineType
-        fields = ['slug', 'name', 'icon']
+        fields = ['slug', 'name', 'icon', 'capability_config']
 
 
-class MachineTypeUpdateSerializer(serializers.ModelSerializer):
+class MachineTypeUpdateSerializer(_CustomMachineTypeConfigSerializer):
     class Meta:
         model = MachineType
-        fields = ['name', 'icon']
+        fields = ['name', 'icon', 'capability_config']
 
     def validate_name(self, value):
         duplicate = (
@@ -165,11 +184,11 @@ class MachineSerializer(serializers.ModelSerializer):
             'status',
             'firmware_version',
             'camera_feed_url',
+            'type_payload',
             'image_url',
             'warranty_status',
             'is_public',
             'is_active',
-            'linked_print_printer',
             'usage_hours',
             'can_operate',
             'can_edit',
@@ -185,15 +204,31 @@ class MachineSerializer(serializers.ModelSerializer):
             'status',
             'is_public',
             'is_active',
-            'linked_print_printer',
             'created_at',
             'updated_at',
         ]
 
-    def get_usage_hours(self, obj):
+    def get_usage_hours(self, obj) -> Decimal:
         if hasattr(obj, 'usage_total'):
             return obj.usage_total
         return services.machine_usage_total(obj)
+
+    def validate(self, attrs):
+        # The type cannot change after creation, so an update must be validated
+        # against the persisted type rather than a discarded request value.
+        machine_type = self.instance.machine_type if self.instance is not None else attrs.get("machine_type")
+        supplied = "type_payload" in self.initial_data
+        if self.instance is None and not supplied:
+            # Preserve the existing machine-create API while giving a newly
+            # created printer an explicit, honest model placeholder.
+            type_payload = {"model": "Unspecified"}
+            attrs["type_payload"] = type_payload
+        else:
+            type_payload = attrs.get("type_payload", getattr(self.instance, "type_payload", {}))
+        if self.instance is not None and not supplied and not type_payload:
+            return attrs
+        validate_machine_payload(machine_type, type_payload)
+        return attrs
 
     def get_image_url(self, obj) -> str | None:
         return public_image_storage.public_url(obj.image_key) or None
@@ -227,22 +262,22 @@ class MachineSerializer(serializers.ModelSerializer):
         self._capability_cache = cache
         return capabilities
 
-    def get_can_operate(self, obj):
+    def get_can_operate(self, obj) -> bool:
         return self._capabilities(obj)['can_operate']
 
-    def get_can_edit(self, obj):
+    def get_can_edit(self, obj) -> bool:
         return self._capabilities(obj)['can_edit']
 
-    def get_can_delegate(self, obj):
+    def get_can_delegate(self, obj) -> bool:
         return self._capabilities(obj)['can_delegate']
 
-    def get_can_retire(self, obj):
+    def get_can_retire(self, obj) -> bool:
         return self._capabilities(obj)['can_retire']
 
-    def get_can_unretire(self, obj):
+    def get_can_unretire(self, obj) -> bool:
         return self._capabilities(obj)['can_unretire']
 
-    def get_can_manage(self, obj):
+    def get_can_manage(self, obj) -> bool:
         return self._capabilities(obj)['can_edit']
 
 

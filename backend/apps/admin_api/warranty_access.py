@@ -7,7 +7,6 @@ from apps.inventory.models import InventoryAsset
 from apps.makerspaces.guards import require_module
 from apps.machines import access as machine_access
 from apps.machines.models import Machine
-from apps.printing.models import PrintPrinter
 from apps.warranty.models import Warranty, WarrantyDocument
 
 
@@ -20,15 +19,6 @@ def resolve_asset_host(user, asset_pk):
         pk=asset_pk,
     )
 
-
-def resolve_printer_host(user, printer_pk):
-    return get_object_or_404(
-        rbac.scope_by_makerspace(
-            user,
-            PrintPrinter.objects.select_related("makerspace"),
-        ),
-        pk=printer_pk,
-    )
 
 
 def resolve_machine_host(user, machine_pk):
@@ -45,7 +35,7 @@ def resolve_warranty(user, warranty_pk):
     return get_object_or_404(
         rbac.scope_by_makerspace(
             user,
-            Warranty.objects.select_related("makerspace", "asset", "printer", "machine"),
+            Warranty.objects.select_related("makerspace", "asset", "machine"),
             "makerspace_id",
         ),
         pk=warranty_pk,
@@ -59,7 +49,6 @@ def resolve_document(user, doc_pk):
             WarrantyDocument.objects.select_related(
                 "warranty",
                 "warranty__asset",
-                "warranty__printer",
                 "warranty__machine",
                 "warranty__machine__machine_type",
             ),

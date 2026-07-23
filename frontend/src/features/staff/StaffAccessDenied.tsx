@@ -1,11 +1,11 @@
-import { OsmmBadge } from "../../components/OsmmLogo";
+import { SpaceWorksBadge } from "../../components/SpaceWorksLogo";
 import { ThemeToggle } from "../../components/ThemeToggle";
 
 export function StaffAccessDenied({ makerspaceName, onSignOut }: { makerspaceName?: string; onSignOut: () => void }) {
   return (
     <main className="desk-shell grid place-items-center px-5">
       <section className="desk-panel w-full max-w-md bg-tone-yellow p-6 text-tone-yellow-ink dark:bg-[#332b00] dark:text-[#fcdf46]">
-        <OsmmBadge className="mb-5" />
+        <SpaceWorksBadge className="mb-5" />
         <p className="text-xs font-semibold tracking-wide">Access denied</p>
         <h1 className="mt-2 text-xl font-bold">You do not have access to this makerspace.</h1>
         <p className="mt-2 text-sm leading-6">

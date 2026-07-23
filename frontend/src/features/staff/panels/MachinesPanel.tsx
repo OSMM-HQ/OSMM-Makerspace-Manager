@@ -7,10 +7,17 @@ import { collectionResults, createMachine, getMachines, getMachineTypes, machine
 import { MachineDrawer } from "./machine/MachineDrawer";
 import { MachineTypesPanel } from "./MachineTypesPanel";
 import { Panel } from "./shared";
+import { PrinterServiceConsole } from "./machine/PrinterServiceConsole";
+import { MachineServiceConsole } from "./machine/MachineServiceConsole";
 
 type StatusFilter = "all" | MachineStatus;
 
-export function MachinesPanel({ makerspaceId, canManage }: { makerspaceId: number; canManage: boolean }) {
+export function MachinesPanel({ makerspaceId, canManage, canConfigureMachineTypes, maintenanceEnabled }: {
+  makerspaceId: number;
+  canManage: boolean;
+  canConfigureMachineTypes: boolean;
+  maintenanceEnabled: boolean;
+}) {
   const queryClient = useQueryClient();
   const [typeFilter, setTypeFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
@@ -60,7 +67,7 @@ export function MachinesPanel({ makerspaceId, canManage }: { makerspaceId: numbe
           </label>
         </div>
       </div>
-      <MachineTypesPanel makerspaceId={makerspaceId} canManageMachines={canManage} />
+      <MachineTypesPanel makerspaceId={makerspaceId} canConfigureMachineTypes={canConfigureMachineTypes} />
       {canManage ? (
         <form className="mb-4 grid gap-3 rounded-xl border border-line bg-bg p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] md:items-end"
           onSubmit={(event) => { event.preventDefault(); create.mutate(); }}>
@@ -109,9 +116,12 @@ export function MachinesPanel({ makerspaceId, canManage }: { makerspaceId: numbe
           ))}
         </div>
       ) : null}
+      <PrinterServiceConsole makerspaceId={makerspaceId} canManage={canManage} />
+      <MachineServiceConsole makerspaceId={makerspaceId} canManage={canManage} />
       {selectedId !== null ? (
         <MachineDrawer key={selectedId} machineId={selectedId} makerspaceId={makerspaceId}
           canManageMachines={canManage}
+          maintenanceEnabled={maintenanceEnabled}
           onClose={() => setSelectedId(null)} />
       ) : null}
     </Panel>

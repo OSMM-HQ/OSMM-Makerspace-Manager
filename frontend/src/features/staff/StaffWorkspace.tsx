@@ -16,11 +16,13 @@ import type { Makerspace } from "./panels/shared";
 
 export function StaffWorkspace({
   activeMakerspace,
-  activeRole,
+  actions,
+  canConfigureMachineTypes,
   collapsedGroups,
   guestOnly,
   isSuperadmin,
   makerspaces,
+  onAuthRefresh,
   selected,
   setSelected,
   setTab,
@@ -30,11 +32,13 @@ export function StaffWorkspace({
   user,
 }: {
   activeMakerspace?: Makerspace;
-  activeRole?: string;
+  actions: readonly string[];
+  canConfigureMachineTypes: boolean;
   collapsedGroups: Set<string>;
   guestOnly: boolean;
   isSuperadmin: boolean;
   makerspaces: Makerspace[];
+  onAuthRefresh: () => void;
   selected: number | null;
   setSelected: (id: number | null) => void;
   setTab: (tab: string) => void;
@@ -50,6 +54,8 @@ export function StaffWorkspace({
     canEditInventory,
     canIssueDirectLoan,
     canManageMakerspace,
+    canManageEvents,
+    canManageBookings,
     canManageMachines,
     canManageQr,
     canSeeHardware,
@@ -59,7 +65,7 @@ export function StaffWorkspace({
     defaultTab,
     handoutOnly,
     printingOnly,
-  } = getStaffAccess(activeRole, isSuperadmin, singleTenantLocked, activeMakerspace?.enabled_modules ?? []);
+  } = getStaffAccess(actions, isSuperadmin, singleTenantLocked, activeMakerspace?.enabled_modules ?? []);
   const visibleMakerspaces =
     singleTenantLocked && activeMakerspace
       ? [activeMakerspace]
@@ -128,6 +134,8 @@ export function StaffWorkspace({
               guestOnly={guestOnly || handoutOnly}
               makerspaces={visibleMakerspaces}
               isSuperadmin={isSuperadmin}
+              currentUser={user}
+              onAuthRefresh={onAuthRefresh}
               printingOnly={printingOnly}
               canChooseToBuyKind={canChooseToBuyKind}
               canEditInventory={canEditInventory}
@@ -135,7 +143,10 @@ export function StaffWorkspace({
               canUseToBuy={canUseToBuy}
               canManageQr={canManageQr}
               canManageMakerspace={canManageMakerspace}
+              canManageEvents={canManageEvents}
+              canManageBookings={canManageBookings}
               canManageMachines={canManageMachines}
+              canConfigureMachineTypes={canConfigureMachineTypes}
               canSeeHardware={canSeeHardware}
               canSeePrinting={canSeePrinting}
               canViewAudit={canViewAudit}

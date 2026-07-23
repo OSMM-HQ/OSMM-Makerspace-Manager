@@ -3,36 +3,30 @@ import type { UseQueryResult } from "@tanstack/react-query";
 
 import { Card } from "../../components/ui/Card";
 import { FilePicker, TextArea, TextInput } from "./PublicPrintRequestParts";
-import type { PublicFilamentSpool } from "./publicApi";
+import type { PublicFilamentPool } from "./publicApi";
 
 export type FormState = {
-  requesterName: string;
   title: string;
   projectBrief: string;
   preferredSettings: string;
-  filamentSpoolId: string;
+  consumablePoolId: string;
   estimatedFilamentGrams: string;
   material: string;
   color: string;
   quantity: number;
   sourceLink: string;
-  contactEmail: string;
-  contactPhone: string;
 };
 
 export const initialForm: FormState = {
-  requesterName: "",
   title: "",
   projectBrief: "",
   preferredSettings: "",
-  filamentSpoolId: "",
+  consumablePoolId: "",
   estimatedFilamentGrams: "",
   material: "",
   color: "",
   quantity: 1,
   sourceLink: "",
-  contactEmail: "",
-  contactPhone: "",
 };
 
 export function optional(value: string) {
@@ -42,15 +36,15 @@ export function optional(value: string) {
 
 // Group active spools by material so same-material filaments are listed together and
 // distinguished by color (the public /spools endpoint already orders by material,color).
-export function groupSpoolsByMaterial(
-  spools: PublicFilamentSpool[],
-): [string, PublicFilamentSpool[]][] {
-  const groups = new Map<string, PublicFilamentSpool[]>();
-  for (const spool of spools) {
-    const key = spool.material || "Other";
+export function groupPoolsByMaterial(
+  pools: PublicFilamentPool[],
+): [string, PublicFilamentPool[]][] {
+  const groups = new Map<string, PublicFilamentPool[]>();
+  for (const pool of pools) {
+    const key = pool.material || "Other";
     const bucket = groups.get(key);
-    if (bucket) bucket.push(spool);
-    else groups.set(key, [spool]);
+    if (bucket) bucket.push(pool);
+    else groups.set(key, [pool]);
   }
   return [...groups.entries()];
 }
@@ -58,12 +52,11 @@ export function groupSpoolsByMaterial(
 type PrintDetailsFormProps = {
   form: FormState;
   updateField: <K extends keyof FormState>(key: K, value: FormState[K]) => void;
-  spoolsQuery: UseQueryResult<PublicFilamentSpool[], Error>;
+  poolsQuery: UseQueryResult<PublicFilamentPool[], Error>;
   modelFiles: File[];
   setModelFiles: Dispatch<SetStateAction<File[]>>;
   screenshotFiles: File[];
   setScreenshotFiles: Dispatch<SetStateAction<File[]>>;
-  verified: boolean;
   submitPending: boolean;
   submitError?: Error | null;
   uploadProgress: string;
@@ -75,12 +68,11 @@ type PrintDetailsFormProps = {
 export function PrintDetailsForm({
   form,
   updateField,
-  spoolsQuery,
+  poolsQuery,
   modelFiles,
   setModelFiles,
   screenshotFiles,
   setScreenshotFiles,
-  verified,
   submitPending,
   submitError,
   uploadProgress,
@@ -104,7 +96,7 @@ export function PrintDetailsForm({
           value={website}
           onChange={(event) => onWebsiteChange(event.target.value)}
         />
-        <fieldset className="space-y-4" disabled={!verified || submitPending}>
+        <fieldset className="space-y-4" disabled={submitPending}>
           <TextInput
             label="Title"
             required
@@ -128,28 +120,28 @@ export function PrintDetailsForm({
               </span>
               <select
                 className="desk-input w-full"
-                value={form.filamentSpoolId}
+                value={form.consumablePoolId}
                 onChange={(event) =>
-                  updateField("filamentSpoolId", event.target.value)
+                  updateField("consumablePoolId", event.target.value)
                 }
               >
                 <option value="">No preference</option>
-                {groupSpoolsByMaterial(spoolsQuery.data ?? []).map(([material, spools]) => (
+                {groupPoolsByMaterial(poolsQuery.data ?? []).map(([material, pools]) => (
                   <optgroup key={material} label={material}>
-                    {spools.map((spool) => (
-                      <option key={spool.id} value={spool.id}>
-                        {spool.color || "Default color"}
+                    {pools.map((pool) => (
+                      <option key={pool.id} value={pool.id}>
+                        {pool.color || "Default color"}
                       </option>
                     ))}
                   </optgroup>
                 ))}
               </select>
-              {spoolsQuery.isLoading ? (
+              {poolsQuery.isLoading ? (
                 <p className="mt-1 text-xs text-muted">Loading filament...</p>
               ) : null}
-              {spoolsQuery.isError ? (
+              {poolsQuery.isError ? (
                 <p className="mt-1 text-xs text-danger">
-                  {spoolsQuery.error.message}
+                  {poolsQuery.error.message}
                 </p>
               ) : null}
             </label>
@@ -189,9 +181,9 @@ export function PrintDetailsForm({
           </div>
           <div className="grid gap-4 md:grid-cols-2">
             <FilePicker
-              accept=".stl,.3mf,.step,.stp,.obj"
+              accept=".stl,.3mf,.step,.stp,.obj,.amf,.ply,.gcode,.gco,.iges,.igs,.dxf"
               files={modelFiles}
-              label="STL/model files"
+              label="Model, CAD, or toolpath files"
               setFiles={setModelFiles}
             />
             <FilePicker
@@ -203,11 +195,6 @@ export function PrintDetailsForm({
           </div>
         </fieldset>
 
-        {!verified ? (
-          <p className="rounded-lg border border-tone-yellow bg-tone-yellow px-3 py-2 text-sm font-medium text-tone-yellow-ink dark:bg-[#332b00] dark:text-[#fcdf46]">
-            Verify your Check-In before submitting a print request.
-          </p>
-        ) : null}
         {uploadProgress ? <p className="text-sm text-muted">{uploadProgress}</p> : null}
         {submitError ? (
           <p className="rounded-lg border border-danger/40 bg-danger/10 px-3 py-2 text-sm text-danger">
@@ -217,10 +204,6 @@ export function PrintDetailsForm({
         <button
           className="desk-button-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
           disabled={
-            !verified ||
-            !form.requesterName.trim() ||
-            !form.contactEmail.trim() ||
-            !form.contactPhone.trim() ||
             !form.title.trim() ||
             submitPending
           }

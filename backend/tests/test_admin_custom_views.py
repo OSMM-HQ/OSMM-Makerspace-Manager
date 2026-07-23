@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client
@@ -9,7 +7,6 @@ from apps.accounts.models import User
 from apps.audit.models import AuditLog
 from apps.inventory.models import InventoryProduct, PublicAvailabilityMode, TrackingMode
 from apps.operations.models import StockTransfer, StocktakeLine, StocktakeSession
-from apps.printing.models import FilamentSpool, ManualPrintLog, PrintPrinter
 from tests.return_helpers import make_box, make_product, make_space, make_user
 
 pytestmark = pytest.mark.django_db
@@ -29,57 +26,6 @@ def admin_client(user=None):
     client = Client()
     client.force_login(user or make_superadmin())
     return client
-
-
-def test_manual_print_log_admin_add_routes_through_service_and_rejects_overdraw():
-    user = make_superadmin("admin-manual-log-super")
-    space = make_space("admin-manual-log")
-    printer = PrintPrinter.objects.create(makerspace=space, name="Prusa")
-    spool = FilamentSpool.objects.create(
-        makerspace=space,
-        printer=printer,
-        material="PLA",
-        initial_weight_grams=100,
-        remaining_weight_grams=50,
-    )
-    client = admin_client(user)
-    url = reverse("admin:printing_manualprintlog_add")
-
-    response = client.post(
-        url,
-        {
-            "makerspace": space.id,
-            "printer": printer.id,
-            "filament_spool": spool.id,
-            "grams_used": "20.00",
-            "duration_minutes": "15",
-            "title": "Walk-up",
-            "note": "Desk print",
-        },
-    )
-
-    assert response.status_code == 302
-    log = ManualPrintLog.objects.get()
-    assert log.logged_by == user
-    spool.refresh_from_db()
-    assert spool.remaining_weight_grams == Decimal("30.00")
-    assert AuditLog.objects.filter(action="print.manual_logged", target_id=str(log.id)).exists()
-
-    response = client.post(
-        url,
-        {
-            "makerspace": space.id,
-            "printer": printer.id,
-            "filament_spool": spool.id,
-            "grams_used": "40.00",
-            "title": "Too much",
-        },
-    )
-
-    assert response.status_code == 200
-    assert ManualPrintLog.objects.count() == 1
-    spool.refresh_from_db()
-    assert spool.remaining_weight_grams == Decimal("30.00")
 
 
 def test_stock_transfer_admin_add_intra_cross_and_hidden_guard():
@@ -335,7 +281,7 @@ def test_admin_product_image_upload_validates_and_deletes_old_after_save(monkeyp
     assert events == events[:2]
 
 
-def test_admin_image_clear_and_printer_upload(monkeypatch):
+def test_admin_image_clear(monkeypatch):
     deleted = []
     stored = []
     monkeypatch.setattr(
@@ -348,36 +294,17 @@ def test_admin_image_clear_and_printer_upload(monkeypatch):
     )
     space = make_space("admin-image-clear")
     product = make_product(space, image_key=f"items/{space.id}/old.png")
-    printer = PrintPrinter.objects.create(makerspace=space, name="Printer")
     client = admin_client(make_superadmin("admin-image-clear-super"))
 
     clear = client.post(
         reverse("admin:inventory_inventoryproduct_change", args=[product.pk]),
         _product_admin_payload(product, clear_image="on", _save="Save"),
     )
-    printer_upload = client.post(
-        reverse("admin:printing_printprinter_change", args=[printer.pk]),
-        {
-            "makerspace": space.id,
-            "name": printer.name,
-            "model": printer.model,
-            "status": printer.status,
-            "notes": printer.notes,
-            "image_upload": SimpleUploadedFile("printer.webp", b"abc", content_type="image/webp"),
-            "is_active": "on",
-            "_save": "Save",
-        },
-    )
-
     assert clear.status_code == 302
-    assert printer_upload.status_code == 302
     product.refresh_from_db()
-    printer.refresh_from_db()
     assert product.image_key == ""
     assert deleted == [f"items/{space.id}/old.png"]
-    assert printer.image_key == stored[0][0]
     assert AuditLog.objects.filter(action="inventory.image_cleared").exists()
-    assert AuditLog.objects.filter(action="printing.printer_image_attached").exists()
 
 
 def test_admin_makerspace_logo_and_cover_upload(monkeypatch):

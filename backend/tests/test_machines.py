@@ -1,4 +1,4 @@
-from concurrent.futures import ThreadPoolExecutor
+﻿from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 from threading import Barrier
 from types import SimpleNamespace
@@ -26,7 +26,6 @@ from apps.machines.models import (
 from apps.makerspaces import lifecycle as makerspace_lifecycle
 from apps.makerspaces.models import MakerspaceMembership
 from apps.operations.models import InventoryAdjustment
-from apps.printing.models import PrintPrinter
 from apps.warranty.models import Warranty
 from tests.return_helpers import authenticated_client, make_member, make_space, make_user
 
@@ -560,13 +559,14 @@ def test_machine_types_custom_create_scope_permissions_and_global_uniqueness():
             "slug": "plasma_cutter",
             "name": "Plasma Cutter",
             "icon": "spark",
+            "capability_config": {"metering_unit": "minutes", "requires_booking": False},
             "managing_action": "manage_printing",
         },
         format="json",
     )
     denied = authenticated_client(operator).post(
         url,
-        {"slug": "kiln", "name": "Kiln"},
+        {"slug": "kiln", "name": "Kiln", "capability_config": {"metering_unit": "count", "requires_booking": False}},
         format="json",
     )
     listed = manager_client.get(url)
@@ -922,37 +922,12 @@ def test_machine_error_logs_create_list_and_validate_severity():
     assert response_rows(listed)[0]["message"] == "Emergency stop triggered"
     assert invalid.status_code == 400
 
-def test_print_printer_auto_links_machine_and_retirement_keeps_printer(
-    django_capture_on_commit_callbacks,
-):
-    makerspace = enable_machines(make_space("machines-printer-link"))
-    print_manager = make_member(
-        "machines-printer-link-manager",
-        makerspace,
-        membership_role=MakerspaceMembership.Role.PRINT_MANAGER,
-    )
-
-    with django_capture_on_commit_callbacks(execute=True):
-        printer = PrintPrinter.objects.create(
-            makerspace=makerspace,
-            name="Linked Printer",
-            model="Ender 3",
-        )
-
-    machine = Machine.objects.get(linked_print_printer=printer)
-    assert machine.machine_type == global_machine_type()
-    assert machine.makerspace == makerspace
-    assert access.can_see_machines(print_manager, makerspace.id) is True
-
-    retired = authenticated_client(print_manager).post(
-        reverse("admin-machine-retire", kwargs={"pk": machine.id}),
-        {},
-        format="json",
-    )
-
-    assert retired.status_code == 200
-    assert PrintPrinter.objects.filter(pk=printer.pk).exists()
-
+def test_machine_has_no_legacy_printer_bridge():
+    assert not hasattr(Machine, "linked_print_printer")
+    with pytest.raises(ModuleNotFoundError):
+        __import__("apps.machines.signals")
+    with pytest.raises(ModuleNotFoundError):
+        __import__("apps.machines.linking")
 
 def test_machines_module_gate_returns_400_when_disabled():
     makerspace = enable_machines(make_space("machines-module-gate"))
@@ -1152,7 +1127,7 @@ def test_duplicate_custom_type_slug_returns_400_not_500():
     manager = make_member("machines-dup-slug-mgr", makerspace)
     client = authenticated_client(manager)
     url = reverse("admin-machine-types", kwargs={"makerspace_id": makerspace.id})
-    payload = {"slug": "resin-tank", "name": "Resin Tank", "icon": ""}
+    payload = {"slug": "resin-tank", "name": "Resin Tank", "icon": "", "capability_config": {"metering_unit": "volume", "requires_booking": False}}
 
     assert client.post(url, payload, format="json").status_code == 201
     duplicate = client.post(url, payload, format="json")

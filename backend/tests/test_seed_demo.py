@@ -1,9 +1,10 @@
-import pytest
+﻿import pytest
 from django.core.management import call_command
 
 from apps.accounts.models import User
 from apps.inventory.models import InventoryAsset, InventoryProduct
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.machines.models import Machine, MachineConsumablePool, MachineServiceRequest
 
 pytestmark = pytest.mark.django_db
 
@@ -25,3 +26,6 @@ def test_seed_demo_creates_three_spaces_staff_and_inventory():
     ).exists()
     assert InventoryProduct.objects.count() == 15
     assert InventoryAsset.objects.count() == 9
+    assert Machine.objects.filter(machine_type__slug="3d_printer").count() == 3
+    assert MachineConsumablePool.objects.filter(material="PLA", remaining_grams="1000.00").count() == 3
+    assert MachineServiceRequest.objects.filter(title="Demo 3D print request", status="pending").count() == 3

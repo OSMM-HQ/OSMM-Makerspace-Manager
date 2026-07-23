@@ -3,12 +3,20 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "../../components/ui";
 import { staffRequest } from "../../lib/api";
 import { MakerspaceBrandingSettings } from "./MakerspaceBrandingSettings";
+import { MakerspaceBookingRulesSettings } from "./MakerspaceBookingRulesSettings";
+import { MakerspaceBookingSettings } from "./MakerspaceBookingSettings";
 import { MakerspaceCustomDomainSettings } from "./MakerspaceCustomDomainSettings";
 import { MakerspaceEmailSettings } from "./MakerspaceEmailSettings";
 import { MakerspaceFilamentSettings } from "./MakerspaceFilamentSettings";
+import { MakerspaceFeatureSettings } from "./MakerspaceFeatureSettings";
+import { MakerspaceGeofenceSettings } from "./MakerspaceGeofenceSettings";
+import { MakerspaceGeneralSettings } from "./MakerspaceGeneralSettings";
 import { IntegrationHealthPanel } from "./IntegrationHealthPanel";
 import { MakerspaceLocationSettings } from "./MakerspaceLocationSettings";
+import { MakerspaceMembershipSettings } from "./MakerspaceMembershipSettings";
+import { MakerspacePaymentSettings } from "./MakerspacePaymentSettings";
 import { MakerspaceSubdomainSettings } from "./MakerspaceSubdomainSettings";
+import { MakerspaceWebhookSettings } from "./MakerspaceWebhookSettings";
 import { NotificationMuteMatrix } from "./NotificationMuteMatrix";
 import { Panel, type Makerspace, useStaffGet } from "./StaffPanels";
 
@@ -31,6 +39,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
     settings.data?.public_stats_enabled ?? makerspace.public_stats_enabled ?? false;
   const publicPrintStatusLookupPolicy =
     settings.data?.public_print_status_lookup_policy ?? makerspace.public_print_status_lookup_policy ?? "email_unverified";
+  const enabledModules = settings.data?.enabled_modules ?? makerspace.enabled_modules ?? [];
   const reEnableBlocked = isSuperadmin && !superadminAccessEnabled;
 
   const updateAccess = useMutation({
@@ -97,11 +106,24 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
           settings={settings.data}
           loading={settings.isLoading}
         />
+        <MakerspaceGeneralSettings
+          makerspace={makerspace}
+          settings={settings.data}
+          loading={settings.isLoading}
+        />
         <MakerspaceLocationSettings
           makerspace={makerspace}
           settings={settings.data}
           loading={settings.isLoading}
         />
+        <MakerspaceMembershipSettings makerspace={makerspace} settings={settings.data} loading={settings.isLoading} />
+        <MakerspaceFeatureSettings
+          makerspace={makerspace}
+          settings={settings.data}
+          loading={settings.isLoading}
+        />
+        <MakerspacePaymentSettings makerspace={settings.data ?? makerspace} />
+        <MakerspaceGeofenceSettings makerspace={makerspace} settings={settings.data} loading={settings.isLoading} />
         <IntegrationHealthPanel makerspace={makerspace} />
         <div className="min-w-0 rounded-md border border-line bg-bg p-4">
           <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
@@ -218,12 +240,16 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
             >
               <option value="token_only">Token only</option>
               <option value="email_unverified">Email lookup</option>
-              <option value="checkin_verified">Check-In verified</option>
             </select>
           </div>
         </div>
+        <MakerspaceBookingSettings makerspace={makerspace} settings={settings.data} loading={settings.isLoading} />
+        {enabledModules.includes("bookings") ? (
+          <MakerspaceBookingRulesSettings makerspace={makerspace} />
+        ) : null}
         <MakerspaceFilamentSettings makerspace={makerspace} settings={settings.data} loading={settings.isLoading} />
         <MakerspaceEmailSettings makerspace={makerspace} />
+        <MakerspaceWebhookSettings makerspace={makerspace} />
         {settings.data?.platform_hosting === true ? (
           <MakerspaceSubdomainSettings makerspace={makerspace} settings={settings.data} />
         ) : null}
@@ -233,7 +259,7 @@ export function MakerspaceSettingsPanel({ makerspace, isSuperadmin }: Props) {
           loading={settings.isLoading}
         />
         <div className="min-w-0 rounded-md border border-line bg-bg p-4">
-          <h3 className="text-base font-semibold text-ink">Email notifications: mute matrix</h3>
+          <h3 className="text-base font-semibold text-ink">Notification channels</h3>
           <NotificationMuteMatrix makerspaceId={makerspace.id} />
         </div>
       </div>
@@ -245,6 +271,5 @@ function statusLookupLabel(policy: Makerspace["public_print_status_lookup_policy
   return {
     token_only: "Token only",
     email_unverified: "Email lookup",
-    checkin_verified: "Check-In verified",
   }[policy ?? "email_unverified"];
 }

@@ -1,6 +1,6 @@
 import type React from "react";
 
-import { SpoolColorInput, type PrintPrinter } from "./PrintingPanelParts";
+type PrinterOption = { id: number; name: string };
 import type { Product } from "./shared";
 
 export type ContainerOption = { id: number; label: string };
@@ -76,7 +76,7 @@ export function HardwareMoveForm({ form, setForm, products, categories, containe
   );
 }
 
-export function PrintingMoveForm({ form, setForm, printers }: { form: PrintingForm; setForm: (form: PrintingForm) => void; printers: PrintPrinter[] }) {
+export function PrintingMoveForm({ form, setForm, printers }: { form: PrintingForm; setForm: (form: PrintingForm) => void; printers: PrinterOption[] }) {
   return (
     <div className="grid gap-3">
       <Segmented values={["spool", "printer"]} value={form.target} label={(target) => target === "spool" ? "Spool" : "Printer"} onChange={(target) => setForm({ ...form, target })} />
@@ -84,7 +84,7 @@ export function PrintingMoveForm({ form, setForm, printers }: { form: PrintingFo
         <>
           <Field label="Printer"><select className="desk-input" value={form.printerId} onChange={(e) => setForm({ ...form, printerId: e.target.value })}><option value="">Unassigned printer</option>{printers.map((printer) => <option key={printer.id} value={printer.id}>{printer.name}</option>)}</select></Field>
           <div className="grid gap-2 sm:grid-cols-2"><Field label="Material"><input className="desk-input" value={form.material} onChange={(e) => setForm({ ...form, material: e.target.value })} /></Field><Field label="Brand"><input className="desk-input" value={form.brand} onChange={(e) => setForm({ ...form, brand: e.target.value })} /></Field></div>
-          <Field label="Color"><SpoolColorInput value={form.color} onChange={(color) => setForm({ ...form, color })} /></Field>
+          <Field label="Color"><input className="desk-input" value={form.color} onChange={(event) => setForm({ ...form, color: event.target.value })} /></Field>
           <div className="grid gap-2 sm:grid-cols-2">
             <Field label="Initial weight (g)"><input className="desk-input" type="number" min="0" step="0.01" value={form.initialWeight} onChange={(e) => setForm({ ...form, initialWeight: e.target.value, remainingWeight: form.remainingWeight || e.target.value })} /></Field>
             <Field label="Remaining weight (g)"><input className="desk-input" type="number" min="0" step="0.01" value={form.remainingWeight} onChange={(e) => setForm({ ...form, remainingWeight: e.target.value })} /></Field>

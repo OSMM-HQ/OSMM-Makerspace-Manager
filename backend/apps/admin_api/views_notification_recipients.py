@@ -10,13 +10,19 @@ from apps.admin_api.permissions import IsActiveStaff, require_action
 from apps.audit import services as audit
 from apps.makerspaces.models import Makerspace, MakerspaceMembership
 
-# Roles that can receive staff lifecycle notifications (mirrors the resolver's
-# _STREAM_ROLES union: hardware = space + inventory, printing = space + print).
-NOTIFY_ROLES = (
-    MakerspaceMembership.Role.SPACE_MANAGER,
-    MakerspaceMembership.Role.INVENTORY_MANAGER,
-    MakerspaceMembership.Role.PRINT_MANAGER,
-)
+# Actions that make a membership eligible for staff lifecycle notifications
+# (union of the per-feature required actions in staff_notifications._FEATURE_ACTIONS:
+# hardware=accept_request, printing=manage_printing, events=manage_events,
+# bookings=manage_bookings, maintenance=manage_machines). Eligibility is action-based
+# so custom roles are surfaced here exactly when they receive the emails, keeping this
+# management endpoint in lockstep with staff_emails_for_feature.
+NOTIFY_ACTIONS = frozenset({
+    rbac.Action.ACCEPT_REQUEST,
+    rbac.Action.MANAGE_PRINTING,
+    rbac.Action.MANAGE_EVENTS,
+    rbac.Action.MANAGE_BOOKINGS,
+    rbac.Action.MANAGE_MACHINES,
+})
 
 
 class NotificationRecipientSerializer(serializers.Serializer):
@@ -51,16 +57,27 @@ class NotificationRecipientsView(APIView):
         return get_object_or_404(Makerspace, pk=makerspace_id)
 
     def _queryset(self, makerspace):
-        return (
+        # Action-based eligibility: a membership is a notification recipient when its
+        # effective actions include any NOTIFY_ACTIONS. actions_for_membership needs the
+        # assigned_role JSON, so we resolve eligibility in Python then re-filter to keep a
+        # queryset (the PATCH path calls .filter(id__in=...) on this).
+        base = (
             MakerspaceMembership.objects.filter(
                 makerspace=makerspace,
-                role__in=NOTIFY_ROLES,
                 user__is_active=True,
                 user__access_status=User.AccessStatus.ACTIVE,
             )
             .exclude(user__is_superuser=True)
             .exclude(user__role=User.Role.SUPERADMIN)
-            .select_related("user")
+            .select_related("user", "assigned_role")
+        )
+        eligible_ids = [
+            membership.id
+            for membership in base
+            if rbac.actions_for_membership(membership) & NOTIFY_ACTIONS
+        ]
+        return (
+            base.filter(id__in=eligible_ids)
             .order_by("role", "user__username", "id")
         )
 

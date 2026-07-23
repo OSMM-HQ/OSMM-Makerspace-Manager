@@ -3,8 +3,13 @@ from rest_framework.response import Response
 from rest_framework.views import exception_handler
 from drf_spectacular.utils import extend_schema_serializer
 
-from apps.checkin.client import CheckinDenied, CheckinUnavailable
+from apps.bookings.exceptions import BookingConflict, BookingInvalidTransition
 from apps.evidence.storage import StorageUnavailable
+from apps.events.exceptions import (
+    CapacityConflict,
+    DuplicateRegistration,
+    EventInvalidTransition,
+)
 from apps.hardware_requests.workflow import (
     BoxUnavailable,
     BoxValidationError,
@@ -15,6 +20,25 @@ from apps.hardware_requests.workflow import (
     ReturnValidationError,
 )
 from apps.inventory.availability import InsufficientStock
+from apps.machines.service_errors import (
+    ServiceConsumptionInvalid,
+    ServiceInsufficientStock,
+    ServiceInvalidTransition,
+    ServiceMachineUnavailable,
+)
+from apps.maintenance.exceptions import (
+    InactiveMaintenanceSchedule,
+    MaintenanceStatusConflict,
+    RetiredMachineMaintenance,
+)
+from apps.makerspaces.role_services import RoleConflict
+from apps.encryption.crypto import PiiUnavailable
+from apps.encryption.write_fence import PiiWriteFenced
+from apps.presence.guard import (
+    MemberPresenceRequired,
+    PresenceRequired,
+    WaiverAcceptanceRequired,
+)
 
 
 @extend_schema_serializer(component_name="HardwareRequestError")
@@ -24,30 +48,105 @@ class ErrorSerializer(serializers.Serializer):
 
 
 _EXCEPTION_MAP = {
+    MemberPresenceRequired: (
+        status.HTTP_403_FORBIDDEN,
+        "membership_required",
+        "An active membership is required.",
+    ),
+    WaiverAcceptanceRequired: (
+        status.HTTP_403_FORBIDDEN,
+        "waiver_acceptance_required",
+        "Accept the current makerspace waiver first.",
+    ),
+    PresenceRequired: (
+        status.HTTP_403_FORBIDDEN,
+        "presence_required",
+        "An active presence session is required.",
+    ),
+    PiiWriteFenced: (
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "pii_write_fenced",
+        "Protected writes are temporarily unavailable.",
+    ),
+    PiiUnavailable: (
+        status.HTTP_503_SERVICE_UNAVAILABLE,
+        "pii_unavailable",
+        "Protected data is temporarily unavailable.",
+    ),
+    RetiredMachineMaintenance: (
+        status.HTTP_409_CONFLICT,
+        "machine_retired",
+        "Machine is retired.",
+    ),
+    InactiveMaintenanceSchedule: (
+        status.HTTP_409_CONFLICT,
+        "maintenance_schedule_inactive",
+        "Maintenance schedule is inactive.",
+    ),
+    MaintenanceStatusConflict: (
+        status.HTTP_409_CONFLICT,
+        "maintenance_status_conflict",
+        "Only a machine in maintenance can be set to idle.",
+    ),
     RequesterBlocked: (
         status.HTTP_403_FORBIDDEN,
         "requester_blocked",
         "Requester is blocked.",
-    ),
-    CheckinDenied: (
-        status.HTTP_403_FORBIDDEN,
-        "checkin_denied",
-        "Check-in was denied.",
-    ),
-    CheckinUnavailable: (
-        status.HTTP_503_SERVICE_UNAVAILABLE,
-        "checkin_unavailable",
-        "Check-in service is unavailable.",
     ),
     InvalidTransition: (
         status.HTTP_409_CONFLICT,
         "invalid_transition",
         "Invalid request transition.",
     ),
+    EventInvalidTransition: (
+        status.HTTP_409_CONFLICT,
+        "invalid_transition",
+        "Invalid event transition.",
+    ),
+    BookingInvalidTransition: (
+        status.HTTP_409_CONFLICT,
+        "invalid_transition",
+        "Invalid booking transition.",
+    ),
+    BookingConflict: (
+        status.HTTP_409_CONFLICT,
+        "booking_conflict",
+        "This space is already booked for that time.",
+    ),
+    CapacityConflict: (
+        status.HTTP_409_CONFLICT,
+        "capacity_conflict",
+        "Event capacity conflicts with confirmed registrations.",
+    ),
+    DuplicateRegistration: (
+        status.HTTP_400_BAD_REQUEST,
+        "duplicate_registration",
+        "A registration already exists for this email.",
+    ),
     InsufficientStock: (
         status.HTTP_409_CONFLICT,
         "insufficient_stock",
         "Insufficient stock.",
+    ),
+    ServiceInvalidTransition: (
+        status.HTTP_409_CONFLICT,
+        "service_invalid_transition",
+        "Invalid machine service request transition.",
+    ),
+    ServiceMachineUnavailable: (
+        status.HTTP_409_CONFLICT,
+        "service_machine_unavailable",
+        "Machine is unavailable for service.",
+    ),
+    ServiceInsufficientStock: (
+        status.HTTP_400_BAD_REQUEST,
+        "service_insufficient_stock",
+        "Insufficient stock for machine service consumption.",
+    ),
+    ServiceConsumptionInvalid: (
+        status.HTTP_400_BAD_REQUEST,
+        "service_consumption_invalid",
+        "Invalid machine service consumption.",
     ),
     RequestValidationError: (
         status.HTTP_400_BAD_REQUEST,
@@ -78,6 +177,11 @@ _EXCEPTION_MAP = {
         status.HTTP_503_SERVICE_UNAVAILABLE,
         "evidence_storage_unavailable",
         "Evidence storage is unavailable.",
+    ),
+    RoleConflict: (
+        status.HTTP_409_CONFLICT,
+        "role_conflict",
+        "This role cannot be deleted.",
     ),
 }
 

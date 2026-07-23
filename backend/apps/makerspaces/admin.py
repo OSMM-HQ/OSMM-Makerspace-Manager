@@ -4,9 +4,10 @@ from django.core.exceptions import ValidationError
 from django.template.response import TemplateResponse
 from unfold.admin import ModelAdmin, TabularInline
 
-from apps.makerspaces.admin_images import MakerspaceAdminForm, MakerspaceImageAdminMixin
+from apps.makerspaces.admin_capabilities import MakerspaceAdminForm, MakerspaceCapabilityAdminMixin
+from apps.makerspaces.admin_images import MakerspaceImageAdminMixin
 from apps.makerspaces.admin_subdomains import SubdomainRequestAdmin
-from apps.makerspaces.models import Makerspace, MakerspaceMembership
+from apps.makerspaces.models import Makerspace, MakerspaceMembership, MakerspaceWaiver, MembershipRequest
 from config.admin_access import SuperuserOnlyModelAdmin
 
 
@@ -42,7 +43,7 @@ class MakerspaceMembershipInline(TabularInline):
 
 
 @admin.register(Makerspace)
-class MakerspaceAdmin(MakerspaceImageAdminMixin, SuperuserOnlyModelAdmin, ModelAdmin):
+class MakerspaceAdmin(MakerspaceImageAdminMixin, MakerspaceCapabilityAdminMixin, SuperuserOnlyModelAdmin, ModelAdmin):
     form = MakerspaceAdminForm
     actions = ["archive_makerspaces", "unarchive_makerspaces", "purge_makerspaces"]
     list_display = (
@@ -76,6 +77,10 @@ class MakerspaceAdmin(MakerspaceImageAdminMixin, SuperuserOnlyModelAdmin, ModelA
                     "default_loan_days",
                 )
             },
+        ),
+        (
+            "Capabilities",
+            {"fields": ("capabilities",)},
         ),
         (
             "Public images",
@@ -236,4 +241,28 @@ class MakerspaceMembershipAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
     list_filter = ("makerspace", "role")
     search_fields = ("user__username", "user__email")
     autocomplete_fields = ("user", "makerspace")
-    readonly_fields = ("created_at",)
+    readonly_fields = ("can_refer", "can_verify", "verified_at", "verified_by", "created_at")
+
+
+@admin.register(MakerspaceWaiver)
+class MakerspaceWaiverAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+    list_display = ("makerspace", "version", "is_active", "created_at", "superseded_at")
+    readonly_fields = ("makerspace", "body", "version", "is_active", "created_by", "created_at", "superseded_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return request.method in ("GET", "HEAD") and super().has_change_permission(request, obj)
+
+
+@admin.register(MembershipRequest)
+class MembershipRequestAdmin(SuperuserOnlyModelAdmin, ModelAdmin):
+    list_display = ("makerspace", "kind", "state", "user", "invite_email", "created_at")
+    readonly_fields = tuple(field.name for field in MembershipRequest._meta.fields)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return request.method in ("GET", "HEAD") and super().has_change_permission(request, obj)

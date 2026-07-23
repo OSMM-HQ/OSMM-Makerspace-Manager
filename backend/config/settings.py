@@ -24,8 +24,8 @@ def normalize_platform_domain_suffix(raw):
 
     Blank/whitespace/None => "" (self-host). Otherwise lowercase + strip and
     prepend a leading "." if missing, so an operator may set PLATFORM_DOMAIN_SUFFIX
-    as either "osmm.me" or ".osmm.me" and the stored value is always ".osmm.me".
-    The leading dot is what makes endswith(suffix) reject look-alikes (evilosmm.me)
+    as either "space-works.tech" or ".space-works.tech" and the stored value is always ".space-works.tech".
+    The leading dot is what makes endswith(suffix) reject look-alikes (evilspace-works.tech)
     and what provisioning.provision_subdomain requires.
     """
     value = str(raw or "").strip().lower()
@@ -45,26 +45,37 @@ INFRA_HOSTS = set(
 )
 PLATFORM_STAFF_ORIGINS = env.list("PLATFORM_STAFF_ORIGINS", default=[])
 BEHIND_TRUSTED_PROXY = env.bool("BEHIND_TRUSTED_PROXY", default=False)
-PLATFORM_ORIGIN_HOST = env("PLATFORM_ORIGIN_HOST", default="")  # e.g. origin.osmm.me; blank => resolution gate dormant
+PLATFORM_ORIGIN_HOST = env("PLATFORM_ORIGIN_HOST", default="")  # e.g. origin.space-works.tech; blank => resolution gate dormant
 DOMAIN_CHANGE_COOLDOWN_SECONDS = env.int("DOMAIN_CHANGE_COOLDOWN_SECONDS", default=0)  # 0 => no cooldown
 if BEHIND_TRUSTED_PROXY:
     ALLOWED_HOSTS = ["*"]
 PUBLIC_APP_BASE_URL = env("PUBLIC_APP_BASE_URL", default="").rstrip("/")
+STRIPE_CONNECT_REDIRECT_URI = env("STRIPE_CONNECT_REDIRECT_URI", default="")
 MANAGED_POSTGRES = env.bool("MANAGED_POSTGRES", default=False)
 MANAGED_RESOURCE_LIMITS = {
     "products": 500,
     "assets": 2000,
     "machines": 5,
+    "machine_service_open": 100,
+    "machine_service_submit": 100,
     "events": 10,
+    "bookings": 500,
     "staff": 10,
+    "members": 25,
     "storage": 1073741824,
     "print": 200,
     "email": 100,
+    "telegram": 100,
+    "slack": 100,
+    "mattermost": 100,
+    "native_push": 500,
     "api_clients": 1,
+    "custom_roles": 20,
+    "otp_email": 200,
 }
 STORAGE_PRESIGN_METHOD = env("STORAGE_PRESIGN_METHOD", default="post")
 CRON_SECRET = env("CRON_SECRET", default="")
-ADMIN_SITE_NAME = env("ADMIN_SITE_NAME", default="OSMM")
+ADMIN_SITE_NAME = env("ADMIN_SITE_NAME", default="Space Works")
 
 INSTALLED_APPS = [
     "unfold",
@@ -84,11 +95,13 @@ INSTALLED_APPS = [
     "storages",
     "apps.accounts",
     "apps.makerspaces",
+    "apps.payments",
+    "apps.presence",
+    "apps.encryption",
     "apps.apiclients",
     "apps.boxes",
     "apps.inventory",
     "apps.hardware_requests",
-    "apps.checkin",
     "apps.printing",
     "apps.audit",
     "apps.evidence",
@@ -99,11 +112,16 @@ INSTALLED_APPS = [
     "apps.procurement",
     "apps.notifications",
     "apps.machines",
+    "apps.events",
+    "apps.bookings",
+    "apps.maintenance",
+    "apps.roadmap",
 ]
 
 MIDDLEWARE = [
     "apps.makerspaces.middleware.TenantHostValidationMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "apps.accounts.social_csp.SocialCspMiddleware",
     "csp.middleware.CSPMiddleware",
     "config.admin_access.AdminCspEvalMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
@@ -168,6 +186,9 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
+# PostgreSQL supports 63-character identifiers. The approved Maintenance schema
+# intentionally uses a 32-character descriptive index name.
+SILENCED_SYSTEM_CHECKS = ["models.E034"]
 
 AUTHENTICATION_BACKENDS = [
     "axes.backends.AxesStandaloneBackend",
@@ -217,9 +238,26 @@ WARRANTY_DOC_ALLOWED_MIME = env.list(
     default=["application/pdf", "image/jpeg", "image/png", "image/webp"],
 )
 MACHINE_DOC_MAX_BYTES = env.int("MACHINE_DOC_MAX_BYTES", default=10485760)
+MACHINE_DOC_ALLOWED_EXT = env.list(
+    "MACHINE_DOC_ALLOWED_EXT",
+    default=[
+        "pdf", "jpg", "jpeg", "png", "webp", "stl", "3mf", "step", "stp",
+        "obj", "amf", "ply", "gcode", "gco", "iges", "igs", "dxf",
+    ],
+)
 MACHINE_DOC_ALLOWED_MIME = env.list(
     "MACHINE_DOC_ALLOWED_MIME",
-    default=["application/pdf", "image/jpeg", "image/png", "image/webp"],
+    default=[
+        "application/pdf", "image/jpeg", "image/png", "image/webp",
+        "application/octet-stream", "model/stl", "application/sla",
+        "application/vnd.ms-pki.stl", "model/3mf",
+        "application/vnd.ms-package.3dmanufacturing-3dmodel+xml",
+        "application/vnd.ms-3mfdocument", "application/step", "model/step",
+        "model/obj", "application/xml", "text/xml", "application/x-amf",
+        "model/amf", "application/x-ply", "model/ply", "text/x.gcode",
+        "application/x-gcode", "application/iges", "model/iges",
+        "image/vnd.dxf", "application/dxf", "application/x-dxf", "text/plain",
+    ],
 )
 PROCUREMENT_RECEIPT_MAX_BYTES = env.int("PROCUREMENT_RECEIPT_MAX_BYTES", default=10485760)
 PROCUREMENT_RECEIPT_ALLOWED_MIME = env.list(
@@ -237,18 +275,26 @@ PUBLIC_IMAGE_ALLOWED_MIME = {
 }
 PRINT_UPLOAD_MAX_BYTES = env.int("PRINT_UPLOAD_MAX_BYTES", default=104857600)  # 100 MB
 PRINT_URL_TTL_SECONDS = env.int("PRINT_URL_TTL_SECONDS", default=300)
-PRINT_ALLOWED_MODEL_EXT = ["stl", "3mf", "step", "stp", "obj"]
-PRINT_ALLOWED_MODEL_MIME = [
-    "application/octet-stream",
-    "model/stl",
-    "application/sla",
-    "application/vnd.ms-pki.stl",
-    "model/3mf",
-    "application/vnd.ms-package.3dmanufacturing-3dmodel+xml",
-    "application/step",
-    "model/step",
-    "text/plain",
-]
+PRINT_ALLOWED_MODEL_EXT = env.list(
+    "PRINT_ALLOWED_MODEL_EXT",
+    default=[
+        "stl", "3mf", "step", "stp", "obj", "amf", "ply", "gcode", "gco",
+        "iges", "igs", "dxf",
+    ],
+)
+PRINT_ALLOWED_MODEL_MIME = env.list(
+    "PRINT_ALLOWED_MODEL_MIME",
+    default=[
+        "application/octet-stream", "model/stl", "application/sla",
+        "application/vnd.ms-pki.stl", "model/3mf",
+        "application/vnd.ms-package.3dmanufacturing-3dmodel+xml",
+        "application/vnd.ms-3mfdocument", "application/step", "model/step",
+        "model/obj", "application/xml", "text/xml", "application/x-amf",
+        "model/amf", "application/x-ply", "model/ply", "text/x.gcode",
+        "application/x-gcode", "application/iges", "model/iges",
+        "image/vnd.dxf", "application/dxf", "application/x-dxf", "text/plain",
+    ],
+)
 PRINT_ALLOWED_SCREENSHOT_EXT = ["png", "jpg", "jpeg", "webp", "pdf"]
 PRINT_ALLOWED_SCREENSHOT_MIME = [
     "image/png",
@@ -256,11 +302,6 @@ PRINT_ALLOWED_SCREENSHOT_MIME = [
     "image/webp",
     "application/pdf",
 ]
-
-CHECKIN_MODE = env("CHECKIN_MODE", default="stub")
-CHECKIN_API_URL = env("CHECKIN_API_URL", default="")
-CHECKIN_API_KEY = env("CHECKIN_API_KEY", default="")
-CHECKIN_TIMEOUT = env.float("CHECKIN_TIMEOUT", default=5.0)
 
 TELEGRAM_BOT_TOKEN = env("TELEGRAM_BOT_TOKEN", default="")
 TELEGRAM_API_URL = env("TELEGRAM_API_URL", default="https://api.telegram.org")
@@ -325,7 +366,7 @@ HMAC_SECRET = env("HMAC_SECRET", default="")
 HMAC_MAX_CLOCK_SKEW_SECONDS = env.int("HMAC_MAX_CLOCK_SKEW_SECONDS", default=300)
 HMAC_PROTECTED_PATH_PREFIXES = env.list(
     "HMAC_PROTECTED_PATH_PREFIXES",
-    default=["/api/public/", "/api/v1/public/", "/api/v1/printing/public/"],
+    default=["/api/public/", "/api/v1/public/"],
 )
 # Fernet key for encrypting ApiClient secrets at rest. Generate with:
 #   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
@@ -333,6 +374,19 @@ HMAC_PROTECTED_PATH_PREFIXES = env.list(
 # _fernet() raises ImproperlyConfigured only when a key is actually needed. Tests/CI get a
 # real key from .env / docker-compose (added below).
 API_CLIENT_ENC_KEY = env("API_CLIENT_ENC_KEY", default="")
+# Scoped requester/contact PII encryption is intentionally dormant by default.  These
+# values are read lazily by the encryption broker so a disabled installation needs no
+# key material or optional KMS dependency.
+PII_ENCRYPTION_ENABLED = env.bool("PII_ENCRYPTION_ENABLED", default=False)
+PII_ENCRYPTION_DUAL_READ = env.bool("PII_ENCRYPTION_DUAL_READ", default=True)
+PII_KEY_BROKER = env("PII_KEY_BROKER", default="local")
+PII_MASTER_KEY = env("PII_MASTER_KEY", default="")
+PII_MASTER_KEY_PREVIOUS = env("PII_MASTER_KEY_PREVIOUS", default="")
+PII_SEARCH_HASH_KEY = env("PII_SEARCH_HASH_KEY", default="")
+PII_DEK_CACHE_TTL_SECONDS = env.int("PII_DEK_CACHE_TTL_SECONDS", default=300)
+PII_AWS_KMS_KEY_ID = env("PII_AWS_KMS_KEY_ID", default="")
+PII_AWS_KMS_REGION = env("PII_AWS_KMS_REGION", default="")
+PII_AWS_KMS_ENDPOINT_URL = env("PII_AWS_KMS_ENDPOINT_URL", default="")
 # When True, requests to HMAC_PROTECTED_PATH_PREFIXES must carry a valid signed client.
 API_CLIENT_AUTH_REQUIRED = env.bool("API_CLIENT_AUTH_REQUIRED", default=False)
 
@@ -341,19 +395,21 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 24,
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "apps.accounts.authentication.SpaceWorksJWTAuthentication",
     ),
     # DENY BY DEFAULT (review fix #4): every view requires auth unless it explicitly
     # opts into AllowAny. Public views are marked AllowAny in Step 3b.
     "DEFAULT_PERMISSION_CLASSES": ("rest_framework.permissions.IsAuthenticated",),
     "EXCEPTION_HANDLER": "apps.hardware_requests.exceptions.workflow_exception_handler",
     "DEFAULT_THROTTLE_RATES": {
-        "checkin_verify": env("THROTTLE_CHECKIN_VERIFY", default="30/min"),
-        "staff_checkin_verify": env(
-            "THROTTLE_STAFF_CHECKIN_VERIFY",
-            default="30/min",
-        ),
         "login": env("THROTTLE_LOGIN", default="10/min"),
+        "device_attestation_challenge": env("THROTTLE_DEVICE_ATTESTATION_CHALLENGE", default="5/min"),
+        "device_login": env("THROTTLE_DEVICE_LOGIN", default="5/min"),
+        "device_login_user": env("THROTTLE_DEVICE_LOGIN_USER", default="10/hour"),
+        "device_refresh": env("THROTTLE_DEVICE_REFRESH", default="30/min"),
+        "push_device_registration": env("THROTTLE_PUSH_DEVICE_REGISTRATION", default="10/min"),
+        "social_nonce": env("THROTTLE_SOCIAL_NONCE", default="10/min"),
+        "social_login": env("THROTTLE_SOCIAL_LOGIN", default="10/min"),
         "password_reset_request": env(
             "THROTTLE_PASSWORD_RESET_REQUEST",
             default="5/min",
@@ -366,6 +422,16 @@ REST_FRAMEWORK = {
             "THROTTLE_PASSWORD_RESET_CONFIRM",
             default="10/min",
         ),
+        "member_sign_up": env("THROTTLE_MEMBER_SIGN_UP", default="5/min"),
+        "email_verification_resend": env(
+            "THROTTLE_EMAIL_VERIFICATION_RESEND", default="5/min"
+        ),
+        "email_verification_confirm": env(
+            "THROTTLE_EMAIL_VERIFICATION_CONFIRM", default="10/min"
+        ),
+        "member_verification_email": env(
+            "THROTTLE_MEMBER_VERIFICATION_EMAIL", default="5/hour"
+        ),
         "telegram_webhook": env("THROTTLE_TELEGRAM_WEBHOOK", default="60/min"),
         "public_request_submit": env(
             "THROTTLE_PUBLIC_REQUEST_SUBMIT",
@@ -377,10 +443,13 @@ REST_FRAMEWORK = {
         "request_submit": env("THROTTLE_REQUEST_SUBMIT", default="10/min"),
         "request_status": env("THROTTLE_REQUEST_STATUS", default="60/min"),
         "public_read": env("THROTTLE_PUBLIC_READ", default="120/min"),
+        "event_register": env("THROTTLE_EVENT_REGISTER", default="10/hour"),
         "public_stats": env("THROTTLE_PUBLIC_STATS", default="30/min"),
         "client_public": env("THROTTLE_CLIENT_PUBLIC", default="30/min"),
         "client_standard": env("THROTTLE_CLIENT_STANDARD", default="120/min"),
         "client_trusted": env("THROTTLE_CLIENT_TRUSTED", default="600/min"),
+        'booking_submit': env('THROTTLE_BOOKING_SUBMIT', default='10/hour'),
+        "membership_request": env("THROTTLE_MEMBERSHIP_REQUEST", default="10/hour"),
     },
     # Proxy-aware client IP for throttling. Default None = DRF's legacy behavior
     # (REMOTE_ADDR, or the raw X-Forwarded-For string if present). Behind a CDN/reverse
@@ -471,13 +540,31 @@ AUTH_COOKIE_PATH = "/api/v1/auth/"
 AUTH_COOKIE_SAMESITE = env("AUTH_COOKIE_SAMESITE", default="None")
 AUTH_COOKIE_SECURE = env.bool("AUTH_COOKIE_SECURE", default=True)
 
+# Native device routes are dormant until an exact app allowlist and both the selected
+# provider verifier URL and bearer credential are configured. Verifiers must perform
+# real Apple App Attest / Google Play Integrity validation and return bound claims.
+DEVICE_ATTESTATION_APPS = env.json("DEVICE_ATTESTATION_APPS", default={})
+DEVICE_APPLE_ATTESTATION_VERIFY_URL = env("DEVICE_APPLE_ATTESTATION_VERIFY_URL", default="")
+DEVICE_APPLE_ATTESTATION_VERIFY_TOKEN = env("DEVICE_APPLE_ATTESTATION_VERIFY_TOKEN", default="")
+DEVICE_ANDROID_ATTESTATION_VERIFY_URL = env("DEVICE_ANDROID_ATTESTATION_VERIFY_URL", default="")
+DEVICE_ANDROID_ATTESTATION_VERIFY_TOKEN = env("DEVICE_ANDROID_ATTESTATION_VERIFY_TOKEN", default="")
+DEVICE_ATTESTATION_CHALLENGE_TTL_SECONDS = env.int("DEVICE_ATTESTATION_CHALLENGE_TTL_SECONDS", default=180)
+DEVICE_ATTESTATION_PROVIDER_TIMEOUT_SECONDS = env.int("DEVICE_ATTESTATION_PROVIDER_TIMEOUT_SECONDS", default=10)
+PUSH_TOKEN_HMAC_KEY = env("PUSH_TOKEN_HMAC_KEY", default="")
+SOCIAL_AUTH_NONCE_TTL_SECONDS = env.int("SOCIAL_AUTH_NONCE_TTL_SECONDS", default=300)
+SOCIAL_AUTH_CLOCK_SKEW_SECONDS = env.int("SOCIAL_AUTH_CLOCK_SKEW_SECONDS", default=60)
+SOCIAL_AUTH_JWKS_TIMEOUT_SECONDS = env.int("SOCIAL_AUTH_JWKS_TIMEOUT_SECONDS", default=5)
+SOCIAL_AUTH_JWKS_CACHE_SECONDS = env.int("SOCIAL_AUTH_JWKS_CACHE_SECONDS", default=3600)
+SOCIAL_AUTH_JWKS_MAX_BYTES = env.int("SOCIAL_AUTH_JWKS_MAX_BYTES", default=1048576)
+SOCIAL_GOOGLE_JWKS_URL = env("SOCIAL_GOOGLE_JWKS_URL", default="https://www.googleapis.com/oauth2/v3/certs")
+SOCIAL_APPLE_JWKS_URL = env("SOCIAL_APPLE_JWKS_URL", default="https://appleid.apple.com/auth/keys")
+
 SPECTACULAR_SETTINGS = {
-    "TITLE": "OSMM API",
+    "TITLE": "Space Works API",
     "DESCRIPTION": (
         "Multi-tenant makerspace hardware loan system.\n\n"
         "Public flow: browse inventory, search with `q`, page with `page`, "
-        "verify Check-In, submit a borrow request, then track it by public token "
-        "or verified Check-In identifier.\n\n"
+        "sign in as a member, submit a borrow request, then track it by public token.\n\n"
         "Admin flow: authenticate with JWT, manage makerspaces, inventory, "
         "staff, QR labels, bulk imports, request review, issue, and return.\n\n"
         "Authentication: staff/admin endpoints use `Authorization: Bearer <access>`. "
@@ -486,15 +573,6 @@ SPECTACULAR_SETTINGS = {
     ),
     "VERSION": "0.1.0",
     "ENUM_NAME_OVERRIDES": {
-        "PrintRequestStatusEnum": [
-            ("pending", "Pending"),
-            ("accepted", "Accepted"),
-            ("printing", "Printing"),
-            ("completed", "Completed"),
-            ("collected", "Collected"),
-            ("rejected", "Rejected"),
-            ("failed", "Failed"),
-        ],
         "QrPrintBatchStatusEnum": [
             ("draft", "Draft"),
             ("printed", "Printed"),
@@ -527,6 +605,7 @@ SPECTACULAR_SETTINGS = {
         {"name": "QR assets", "description": "QR-coded boxes, tools, scans, print, revoke."},
         {"name": "Telegram", "description": "Telegram webhook and alert integration."},
         {"name": "Printing", "description": "3D printing request and management APIs."},
+        {"name": "Payments", "description": "Stripe payment configuration and verified webhooks."},
         {"name": "Containers", "description": "Container hierarchy, movement, contents, and scan history."},
         {"name": "Stock transfers", "description": "Administrative stock movement between containers and makerspaces."},
         {"name": "Stocktake", "description": "Stocktake sessions, line counts, approvals, and adjustments."},
@@ -538,4 +617,3 @@ SPECTACULAR_SETTINGS = {
         {"name": "Notifications", "description": "Persistent staff inbox notifications."},
     ],
 }
-

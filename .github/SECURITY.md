@@ -3,7 +3,7 @@
 ## Reporting a vulnerability
 
 Please report suspected security vulnerabilities privately by emailing
-[ryyan@lascade.com](mailto:ryyan@lascade.com). Do not open a public GitHub issue
+[shaanshoukath4522@gmail.com](mailto:shaanshoukath4522@gmail.com). Do not open a public GitHub issue
 for a vulnerability.
 
 Include the affected version or commit, steps to reproduce the issue, and its

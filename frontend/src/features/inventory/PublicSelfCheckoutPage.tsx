@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { MakerspaceBrand } from "../../components/MakerspaceBrand";
-import { OsmmBadge } from "../../components/OsmmLogo";
+import { SpaceWorksBadge } from "../../components/SpaceWorksLogo";
 import { Card } from "../../components/ui/Card";
 import QrScanner from "../../components/ui/QrScanner";
+import { featureEnabled } from "../../lib/features";
 import { useTenant, useTenantPath } from "../../lib/tenant";
 import { formatSlug } from "./PublicInventoryParts";
 import { PublicEvidenceUpload } from "./PublicEvidenceUpload";
@@ -56,9 +57,6 @@ export function PublicSelfCheckoutPage() {
   const makerspaceSlug = tenant.mode === "single" ? tenant.slug : slug ?? "";
   const tenantPath = useTenantPath(makerspaceSlug);
   const [mode, setMode] = useState<Mode>("checkout");
-  const [requesterName, setRequesterName] = useState("");
-  const [contactEmail, setContactEmail] = useState("");
-  const [contactPhone, setContactPhone] = useState("");
   const [issueEvidenceId, setIssueEvidenceId] = useState<number | null>(null);
   const [returnEvidenceId, setReturnEvidenceId] = useState<number | null>(null);
   const [returnRemark, setReturnRemark] = useState("");
@@ -67,29 +65,22 @@ export function PublicSelfCheckoutPage() {
 
   const bootstrapQuery = useTenantBootstrap(makerspaceSlug, tenant.mode === "central");
   const bootstrap = tenant.mode === "single" ? tenant.bootstrap : bootstrapQuery.data;
-  const modules = useMemo(
-    () => (tenant.mode === "single" ? tenant.modules : new Set(bootstrap?.modules ?? [])),
-    [bootstrap?.modules, tenant],
-  );
+  const features = tenant.mode === "single" ? tenant.bootstrap?.features ?? [] : bootstrap?.features ?? [];
   const displayName =
     bootstrap?.branding.display_name ||
     bootstrap?.makerspace.name ||
     formatSlug(makerspaceSlug) ||
     "Makerspace";
-  const enabled = modules.has("self_checkout");
+  const enabled = featureEnabled(features, "inventory.self_checkout");
 
   const loanMutation = useMutation({
     mutationFn: ({ payload }: MutationInput) =>
       mode === "checkout"
         ? checkoutTool(makerspaceSlug, {
             payload,
-            requester_name: requesterName.trim(),
-            contact_email: contactEmail.trim(),
-            contact_phone: contactPhone.trim(),
             evidence_id: issueEvidenceId as number,
           })
         : returnTool(makerspaceSlug, {
-            identifier: contactEmail.trim(),
             payload,
             evidence_id: returnEvidenceId as number,
             remark: returnRemark.trim(),
@@ -107,12 +98,8 @@ export function PublicSelfCheckoutPage() {
   });
   const canScan =
     mode === "checkout"
-      ? requesterName.trim().length > 0 &&
-        contactEmail.trim().length > 0 &&
-        contactPhone.trim().length > 0 &&
-        issueEvidenceId !== null
-      : contactEmail.trim().length > 0 &&
-        returnEvidenceId !== null &&
+      ? issueEvidenceId !== null
+      : returnEvidenceId !== null &&
         returnRemark.trim().length > 0;
 
   function scanTool(payload: string) {
@@ -142,7 +129,7 @@ export function PublicSelfCheckoutPage() {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <OsmmBadge />
+              <SpaceWorksBadge />
               <Link className="desk-button" to={tenantPath()}>
                 Back to inventory
               </Link>
@@ -205,59 +192,13 @@ export function PublicSelfCheckoutPage() {
               </button>
             </div>
 
-            {mode === "checkout" ? (
-              <label className="mt-4 block">
-                <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
-                  Name
-                </span>
-                <input
-                  className="desk-input w-full"
-                  placeholder="Your full name"
-                  required
-                  value={requesterName}
-                  onChange={(event) => setRequesterName(event.target.value)}
-                />
-              </label>
-            ) : null}
-
-            <label className="mt-4 block">
-              <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
-                Email
-              </span>
-              <input
-                className="desk-input w-full"
-                placeholder="you@example.com"
-                required
-                type="email"
-                value={contactEmail}
-                onChange={(event) => setContactEmail(event.target.value)}
-              />
-            </label>
-
-            {mode === "checkout" ? (
-              <label className="mt-4 block">
-                <span className="mb-1 block text-xs font-semibold tracking-wide text-muted">
-                  Phone
-                </span>
-                <input
-                  className="desk-input w-full"
-                  placeholder="+91 98765 43210"
-                  required
-                  type="tel"
-                  value={contactPhone}
-                  onChange={(event) => setContactPhone(event.target.value)}
-                />
-              </label>
-            ) : null}
-
             <div className="mt-4">
               {mode === "checkout" ? (
                 <PublicEvidenceUpload
                   key={`issue-${uploadKey}`}
                   slug={makerspaceSlug}
-                  identifier={contactEmail}
                   evidenceType="issue"
-                  disabled={!contactEmail.trim() || loanMutation.isPending}
+                  disabled={loanMutation.isPending}
                   onUploaded={setIssueEvidenceId}
                 />
               ) : (
@@ -265,9 +206,8 @@ export function PublicSelfCheckoutPage() {
                   <PublicEvidenceUpload
                     key={`return-${uploadKey}`}
                     slug={makerspaceSlug}
-                    identifier={contactEmail}
                     evidenceType="return"
-                    disabled={!contactEmail.trim() || loanMutation.isPending}
+                    disabled={loanMutation.isPending}
                     onUploaded={setReturnEvidenceId}
                   />
                   <label className="mt-3 block">

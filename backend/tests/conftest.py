@@ -37,6 +37,25 @@ def _reset_axes_state(request):
         pass
 
 @pytest.fixture(autouse=True)
+def ensure_global_pii_write_fence(request):
+    """Keep the singleton global PII write-fence present for DB tests.
+
+    The H4 migration seeds ``PiiGlobalWriteFence`` (pk=1), but a transactional
+    test's flush truncates it, which would make later transactional mapped
+    writes and fence tests fail closed on a spuriously missing global fence.
+    Re-seed it (open) before each DB test to preserve the production invariant.
+    """
+    if not request.node.get_closest_marker("django_db"):
+        return
+    if connection.needs_rollback:
+        return
+    request.getfixturevalue("db")
+    from apps.encryption.models import PiiGlobalWriteFence
+
+    PiiGlobalWriteFence.objects.get_or_create(pk=1)
+
+
+@pytest.fixture(autouse=True)
 def evidence_objects_exist_by_default(monkeypatch):
     from apps.evidence import storage
 

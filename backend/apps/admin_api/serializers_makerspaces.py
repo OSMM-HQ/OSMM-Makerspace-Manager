@@ -1,23 +1,27 @@
 import re
 
 from django.conf import settings
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
+from rest_framework.exceptions import PermissionDenied
 
 from apps.accounts.models import User
 from apps.inventory import public_image_storage
 from apps.integrations.email import platform_email_configured
 from apps.integrations.smtp_validation import validate_smtp_settings
+from apps.integrations.webhook_validation import validate_webhook_url
 from apps.makerspaces import domain_verification, limits
 from apps.makerspaces.hosting import canonical_host
+from apps.makerspaces.capabilities import validate_capabilities
 from apps.makerspaces.models import (
     Makerspace,
     default_branding_config,
     normalize_frontend_domain,
 )
-from apps.makerspaces.validators import validate_google_maps_url
+from apps.makerspaces.validators import validate_google_maps_url, validate_presence_presets
 from apps.admin_api.serializers_makerspace_aux import (
     MakerspaceDisabledRowSerializer,
     MakerspaceSwitcherSerializer,
@@ -51,6 +55,14 @@ class MakerspaceSerializer(serializers.ModelSerializer):
     )
     telegram_bot_token_set = serializers.SerializerMethodField()
     smtp_password_set = serializers.SerializerMethodField()
+    slack_webhook_url = serializers.CharField(
+        write_only=True, required=False, allow_blank=True, max_length=2048
+    )
+    mattermost_webhook_url = serializers.CharField(
+        write_only=True, required=False, allow_blank=True, max_length=2048
+    )
+    slack_webhook_url_set = serializers.SerializerMethodField()
+    mattermost_webhook_url_set = serializers.SerializerMethodField()
     logo_url = serializers.SerializerMethodField()
     cover_image_url = serializers.SerializerMethodField()
     domain_verification_record = serializers.SerializerMethodField()
@@ -77,12 +89,20 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "slug",
             "location",
             "map_url",
+            "geofence_latitude",
+            "geofence_longitude",
+            "geofence_radius_m",
+            "geofence_enabled",
             "public_inventory_enabled",
             "public_stats_enabled",
             "public_print_status_lookup_policy",
+            "membership_policy",
+            "membership_dues_amount",
+            "referrals_enabled",
             "filament_low_stock_threshold_grams",
             "superadmin_access_enabled",
             "staff_notifications_enabled",
+            "booking_requester_notifications_enabled",
             "logo_key",
             "logo_url",
             "cover_image_key",
@@ -99,6 +119,7 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "cors_allowed_origins",
             "enabled_modules",
             "resource_limit_overrides",
+            "enabled_features",
             "theme_config",
             "branding_config",
             "public_display_name",
@@ -113,7 +134,12 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "smtp_use_tls",
             "smtp_use_ssl",
             "smtp_from_email",
+            "slack_webhook_url",
+            "slack_webhook_url_set",
+            "mattermost_webhook_url",
+            "mattermost_webhook_url_set",
             "default_loan_days",
+            "presence_preset_minutes",
             "created_at",
             "updated_at",
         ]
@@ -132,10 +158,13 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             "is_platform_subdomain",
             "telegram_bot_token_set",
             "smtp_password_set",
+            "slack_webhook_url_set",
+            "mattermost_webhook_url_set",
             # branding_config is returned (so the settings form can seed the
             # current display-name override) but only written via the validated
             # public_display_name field, never as an unchecked whole-blob PATCH.
             "branding_config",
+            "enabled_modules",
             "created_at",
             "updated_at",
         ]
@@ -145,6 +174,18 @@ class MakerspaceSerializer(serializers.ModelSerializer):
 
     def get_smtp_password_set(self, obj) -> bool:
         return bool(obj.smtp_password)
+
+    def get_slack_webhook_url_set(self, obj) -> bool:
+        return bool(obj.slack_webhook_url)
+
+    def get_mattermost_webhook_url_set(self, obj) -> bool:
+        return bool(obj.mattermost_webhook_url)
+
+    def validate_slack_webhook_url(self, value):
+        return validate_webhook_url(value)
+
+    def validate_mattermost_webhook_url(self, value):
+        return validate_webhook_url(value)
 
     @extend_schema_field({"type": "string", "format": "uri", "nullable": True})
     def get_logo_url(self, obj):
@@ -197,7 +238,34 @@ class MakerspaceSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Filament low-stock threshold cannot be negative.")
         return value
 
+    def validate_presence_preset_minutes(self, value):
+        try:
+            return validate_presence_presets(value)
+        except Exception as exc:
+            raise serializers.ValidationError(exc.messages) from exc
+
+    def to_internal_value(self, data):
+        request = self.context.get("request")
+        if request is not None and "enabled_modules" in data:
+            raise PermissionDenied("Capabilities can only be changed in /control/.")
+        return super().to_internal_value(data)
+
     def validate(self, attrs):
+        effective_geofence_enabled = attrs.get("geofence_enabled", self.instance.geofence_enabled if self.instance else False)
+        effective_latitude = attrs.get("geofence_latitude", self.instance.geofence_latitude if self.instance else None)
+        effective_longitude = attrs.get("geofence_longitude", self.instance.geofence_longitude if self.instance else None)
+        if effective_geofence_enabled and (effective_latitude is None or effective_longitude is None):
+            raise serializers.ValidationError({"geofence_enabled": "Set both latitude and longitude before enabling the geofence."})
+
+        try:
+            _, enabled_features = validate_capabilities(
+                attrs.get("enabled_modules", self.instance.enabled_modules if self.instance else []),
+                attrs.get("enabled_features", self.instance.enabled_features if self.instance else []),
+            )
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError(exc.message_dict) from exc
+        if "enabled_features" in attrs:
+            attrs["enabled_features"] = enabled_features
         if "resource_limit_overrides" in attrs:
             actor = self.context["request"].user
             is_superadmin = actor.is_superuser or actor.role == User.Role.SUPERADMIN
@@ -258,8 +326,8 @@ class MakerspaceSerializer(serializers.ModelSerializer):
                             )
                         }
                     )
-            # Reject a tenant claiming a platform host — BOTH the apex (osmm.me) and any
-            # subdomain (*.osmm.me). Only when the value is actually changing, so a no-op
+            # Reject a tenant claiming a platform host — BOTH the apex (space-works.tech) and any
+            # subdomain (*.space-works.tech). Only when the value is actually changing, so a no-op
             # PATCH that resends an already-provisioned platform domain (e.g. toggling
             # hidden_from_central_directory) still succeeds.
             platform_apex = platform_suffix.lstrip(".")
@@ -344,6 +412,8 @@ class MakerspaceSerializer(serializers.ModelSerializer):
         missing = object()
         telegram_bot_token = validated_data.pop("telegram_bot_token", missing)
         smtp_password = validated_data.pop("smtp_password", missing)
+        slack_webhook_url = validated_data.pop("slack_webhook_url", missing)
+        mattermost_webhook_url = validated_data.pop("mattermost_webhook_url", missing)
         public_display_name = validated_data.pop("public_display_name", missing)
         new_flag = validated_data.pop("superadmin_access_enabled", None)
         with transaction.atomic():
@@ -407,5 +477,9 @@ class MakerspaceSerializer(serializers.ModelSerializer):
                 locked.set_telegram_bot_token(telegram_bot_token)
             if smtp_password is not missing:
                 locked.set_smtp_password(smtp_password)
+            if slack_webhook_url is not missing:
+                locked.set_slack_webhook_url(slack_webhook_url)
+            if mattermost_webhook_url is not missing:
+                locked.set_mattermost_webhook_url(mattermost_webhook_url)
             locked.save()
             return locked

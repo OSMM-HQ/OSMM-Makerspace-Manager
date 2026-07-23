@@ -77,7 +77,7 @@ def return_items(actor, request, evidence_id, remark, box_code, resolutions):
         write_accountability(actor, locked, evidence, validated_resolutions)
         request_action = finalize_return_status(locked, actor)
         _audit_return(actor, locked, box, evidence, scan, request_action)
-        transaction.on_commit(lambda request_id=locked.pk: _notify_returned(request_id))
+        notifications.notify_request_returned(locked)
         return locked
 
 
@@ -118,7 +118,6 @@ def _record_scan(actor, locked, box):
         context=BoxScan.Context.RETURN,
     )
 
-
 def _create_event(actor, locked, box, evidence, remark):
     try:
         return ReturnEvent.objects.create(
@@ -154,15 +153,4 @@ def _audit_return(actor, locked, box, evidence, scan, request_action):
         makerspace=locked.makerspace,
         target=scan,
         meta={"box_id": box.pk, "request_id": locked.pk},
-    )
-
-
-def _notify_returned(request_id):
-    notifications.notify_request_returned(
-        HardwareRequest.objects.select_related(
-            "makerspace",
-            "requester",
-            "closed_by",
-            "assigned_box",
-        ).get(pk=request_id)
     )

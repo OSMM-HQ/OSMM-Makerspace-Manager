@@ -3,7 +3,7 @@ import os
 from django.urls import reverse_lazy
 from django.utils.translation import gettext_lazy as _
 
-SITE_NAME = os.environ.get("ADMIN_SITE_NAME", "OSMM")
+SITE_NAME = os.environ.get("ADMIN_SITE_NAME", "Space Works")
 
 
 def _is_active_superuser(request):
@@ -27,6 +27,16 @@ def _item(title, icon, route):
         "link": reverse_lazy(route),
         "permission": _is_active_superuser,
     }
+
+
+def _managed_active_superuser(request):
+    return bool(os.environ.get("PLATFORM_DOMAIN_SUFFIX", "").strip()) and _is_active_superuser(request)
+
+
+def _managed_item(title, icon, route):
+    item = _item(title, icon, route)
+    item["permission"] = _managed_active_superuser
+    return item
 
 
 UNFOLD = {
@@ -109,17 +119,10 @@ UNFOLD = {
                     _item("Machine consumables", "deployed_code", "admin:machines_machineconsumable_changelist"),
                     _item("Machine documents", "description", "admin:machines_machinedocument_changelist"),
                     _item("Machine error logs", "error", "admin:machines_machineerrorlog_changelist"),
-                ],
-            },
-            {
-                "title": _("3D printing"),
-                "separator": True,
-                "items": [
-                    _item("Print buckets", "folder", "admin:printing_printbucket_changelist"),
-                    _item("Print requests", "deployed_code", "admin:printing_printrequest_changelist"),
-                    _item("Printers", "precision_manufacturing", "admin:printing_printprinter_changelist"),
-                    _item("Filament spools", "fiber_smart_record", "admin:printing_filamentspool_changelist"),
-                    _item("Manual print logs", "receipt_long", "admin:printing_manualprintlog_changelist"),
+                    _item("Service buckets", "folder", "admin:machines_servicebucket_changelist"),
+                    _item("Service requests", "build", "admin:machines_machineservicerequest_changelist"),
+                    _item("Service request files", "attach_file", "admin:machines_servicerequestfile_changelist"),
+                    _item("Service consumption", "receipt_long", "admin:machines_servicerequestconsumption_changelist"),
                 ],
             },
             {
@@ -139,9 +142,22 @@ UNFOLD = {
                     _item("API key requests", "approval", "admin:apiclients_apikeyrequest_changelist"),
                     _item("Subdomain requests", "dns", "admin:makerspaces_subdomainrequest_changelist"),
                     _item("Platform email", "mail", "admin:integrations_platformemailsettings_changelist"),
+                    _item("Payments", "payments", "admin:payments_makerspacepaymentsettings_changelist"),
+                    _managed_item("Stripe Connect", "account_balance", "admin:payments_platformstripeconnectsettings_changelist"),
                     _item("Email templates", "mail", "admin:integrations_emailtemplate_changelist"),
                     _item("Email logs", "mark_email_read", "admin:integrations_emaillog_changelist"),
                     _item("Email mutes", "notifications_off", "admin:integrations_emailnotificationmute_changelist"),
+                ],
+            },
+            {
+                "title": _("Public site"),
+                "separator": True,
+                "items": [
+                    _item(
+                        "Roadmap / Changelog",
+                        "route",
+                        "admin:roadmap_roadmapitem_changelist",
+                    ),
                 ],
             },
             {

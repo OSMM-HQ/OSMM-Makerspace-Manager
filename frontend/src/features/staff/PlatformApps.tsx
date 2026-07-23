@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 
-import { OsmmBadge } from "../../components/OsmmLogo";
+import { SpaceWorksBadge } from "../../components/SpaceWorksLogo";
 import { ThemeToggle } from "../../components/ThemeToggle";
 import { Card } from "../../components/ui/Card";
 import { staffRequest } from "../../lib/api";
@@ -21,7 +21,7 @@ export function KioskPage() {
       <header className="border-b border-line bg-panel">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-3">
           <div>
-            <OsmmBadge className="mb-3" />
+            <SpaceWorksBadge className="mb-3" />
             <p className="text-xs font-semibold tracking-wide text-accent-ink">
               Kiosk
             </p>
@@ -54,7 +54,7 @@ export function ScannerPage() {
       <section className="mx-auto w-full max-w-3xl space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <OsmmBadge className="mb-3" />
+            <SpaceWorksBadge className="mb-3" />
             <p className="text-xs font-semibold tracking-wide text-accent-ink">
               Scanner
             </p>

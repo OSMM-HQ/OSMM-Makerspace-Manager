@@ -29,7 +29,7 @@ from apps.boxes.rebind import rebind_qr_target
 from apps.boxes.services import revoke_qr_code
 from apps.inventory.models import InventoryAsset, InventoryProduct, TrackingMode
 from apps.makerspaces.guards import require_module
-from apps.makerspaces.platform import module_enabled
+from apps.makerspaces.platform import feature_enabled, module_enabled
 from apps.openapi import (
     QR_BOX_EXAMPLE,
     QR_RESOLVE_REQUEST_EXAMPLE,
@@ -279,7 +279,7 @@ def _allowed_scanner_actions(user, qr):
     ):
         actions.append("record_scan")
     if qr.target_type in {QrCode.TargetType.PRODUCT, QrCode.TargetType.ASSET, QrCode.TargetType.BOX}:
-        if module_enabled(qr.makerspace, "self_checkout"):
+        if feature_enabled(qr.makerspace, "inventory.self_checkout"):
             from apps.hardware_requests.self_checkout_workflow import qr_has_active_loan
 
             if qr_has_active_loan(qr.makerspace, qr):
@@ -287,7 +287,7 @@ def _allowed_scanner_actions(user, qr):
             elif _qr_checkout_eligible(qr, require_public=True):
                 actions.append("checkout")
         if (
-            module_enabled(qr.makerspace, "self_checkout")
+            feature_enabled(qr.makerspace, "inventory.self_checkout")
             and rbac.can(user, rbac.Action.ISSUE_DIRECT_LOAN, qr.makerspace_id)
             and _qr_checkout_eligible(qr, require_public=False)
         ):

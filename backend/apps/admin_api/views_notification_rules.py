@@ -1,50 +1,28 @@
 from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema
-from rest_framework import serializers, status
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts import rbac
 from apps.admin_api.permissions import IsActiveStaff
+from apps.admin_api.serializers_notification_rules import (
+    NotificationRulesPatchSerializer,
+    NotificationRulesResponseSerializer,
+)
 from apps.audit import services as audit
-from apps.integrations import notification_rules
-from apps.integrations.models import EmailNotificationMute
+from apps.integrations import notification_catalog, notification_rules
+from apps.integrations.models import (
+    EmailNotificationMute,
+    NotificationChannel,
+    NotificationFeature,
+    NotificationPreference,
+)
 from apps.makerspaces.models import Makerspace
 
 
-class NotificationRuleCatalogItemSerializer(serializers.Serializer):
-    stream = serializers.CharField()
-    audience = serializers.CharField()
-    targets = serializers.ListField(child=serializers.CharField())
-    events = serializers.ListField(child=serializers.CharField())
-
-
-class NotificationRuleMuteSerializer(serializers.Serializer):
-    target = serializers.CharField()
-    stream = serializers.CharField()
-    event = serializers.CharField()
-    audience = serializers.CharField()
-
-
-class NotificationRulesResponseSerializer(serializers.Serializer):
-    catalog = NotificationRuleCatalogItemSerializer(many=True)
-    mutes = NotificationRuleMuteSerializer(many=True)
-
-
-class NotificationRuleChangeSerializer(serializers.Serializer):
-    target = serializers.CharField()
-    stream = serializers.CharField()
-    event = serializers.CharField()
-    audience = serializers.CharField()
-    muted = serializers.BooleanField()
-
-
-class NotificationRulesPatchSerializer(serializers.Serializer):
-    changes = NotificationRuleChangeSerializer(many=True)
-
-
-@extend_schema(tags=["Makerspaces"], summary="List or update makerspace email notification rules")
+@extend_schema(tags=["Makerspaces"], summary="List or update makerspace notification rules")
 class NotificationRulesView(APIView):
     permission_classes = [IsActiveStaff]
     http_method_names = ["get", "patch", "head", "options"]
@@ -84,7 +62,51 @@ class NotificationRulesView(APIView):
             .order_by("stream", "audience", "target", "event")
             .values("target", "stream", "event", "audience")
         )
-        return {"catalog": self._catalog(), "mutes": mutes}
+        # Load every override row ONCE (feature, channel -> enabled) and resolve each of
+        # the 20 cells in memory. Calling is_notification_enabled per cell would issue 20
+        # serial NotificationPreference queries on every GET/PATCH response.
+        override_rows = {
+            (feature, channel): enabled
+            for feature, channel, enabled in NotificationPreference.objects.filter(
+                makerspace=makerspace
+            ).values_list("feature", "channel", "enabled")
+        }
+        channels = [
+            {"key": channel.value, "label": channel.label}
+            for channel in NotificationChannel
+        ]
+        features = [
+            {
+                "key": feature.value,
+                "label": feature.label,
+                "events": list(notification_catalog.FEATURE_EVENTS[feature]),
+            }
+            for feature in NotificationFeature
+        ]
+        preferences = [
+            {
+                "feature": feature.value,
+                "channel": channel.value,
+                "enabled": override_rows.get(
+                    (feature.value, channel.value),
+                    notification_catalog.default_state(feature, channel),
+                ),
+                "source": (
+                    "override"
+                    if (feature.value, channel.value) in override_rows
+                    else "default"
+                ),
+            }
+            for feature in NotificationFeature
+            for channel in NotificationChannel
+        ]
+        return {
+            "catalog": self._catalog(),
+            "mutes": mutes,
+            "channels": channels,
+            "features": features,
+            "preferences": preferences,
+        }
 
     def _validation_error(self, change):
         target = change["target"]
@@ -109,7 +131,7 @@ class NotificationRulesView(APIView):
         request=NotificationRulesPatchSerializer,
         responses={
             200: NotificationRulesResponseSerializer,
-            400: OpenApiResponse(description="Invalid notification rule change."),
+            400: OpenApiResponse(description="Invalid notification rule or preference change."),
             404: OpenApiResponse(description="Makerspace not found."),
         },
     )
@@ -117,24 +139,30 @@ class NotificationRulesView(APIView):
         makerspace = self._makerspace(request, makerspace_id)
         payload = NotificationRulesPatchSerializer(data=request.data)
         payload.is_valid(raise_exception=True)
-        changes = payload.validated_data["changes"]
+        changes = payload.validated_data.get("changes", [])
+        preference_changes = payload.validated_data.get("preferences", [])
+
+        desired_mutes = {}
+        for change in changes:
+            error = self._validation_error(change)
+            if error:
+                return Response({"detail": error}, status=status.HTTP_400_BAD_REQUEST)
+            key = (
+                change["target"],
+                change["stream"],
+                change["event"],
+                change["audience"],
+            )
+            desired_mutes[key] = change["muted"]
+
+        desired_preferences = {}
+        for preference in preference_changes:
+            key = (preference["feature"], preference["channel"])
+            desired_preferences[key] = preference["enabled"]
 
         applied = []
         with transaction.atomic():
-            desired_states = {}
-            for change in changes:
-                error = self._validation_error(change)
-                if error:
-                    return Response({"detail": error}, status=status.HTTP_400_BAD_REQUEST)
-                key = (
-                    change["target"],
-                    change["stream"],
-                    change["event"],
-                    change["audience"],
-                )
-                desired_states[key] = change["muted"]
-
-            for (target, stream, event, audience), muted in desired_states.items():
+            for (target, stream, event, audience), muted in desired_mutes.items():
                 if muted:
                     _, created = EmailNotificationMute.objects.get_or_create(
                         makerspace=makerspace,
@@ -164,6 +192,18 @@ class NotificationRulesView(APIView):
                         }
                     )
 
+            applied_preferences = []
+            for (feature, channel), enabled in desired_preferences.items():
+                NotificationPreference.objects.update_or_create(
+                    makerspace=makerspace,
+                    feature=feature,
+                    channel=channel,
+                    defaults={"enabled": enabled, "updated_by": request.user},
+                )
+                applied_preferences.append(
+                    {"feature": feature, "channel": channel, "enabled": enabled}
+                )
+
             if applied:
                 audit.record(
                     request.user,
@@ -171,6 +211,14 @@ class NotificationRulesView(APIView):
                     makerspace=makerspace,
                     target=makerspace,
                     meta={"changes": applied},
+                )
+            if applied_preferences:
+                audit.record(
+                    request.user,
+                    "notification.preferences_updated",
+                    makerspace=makerspace,
+                    target=makerspace,
+                    meta={"preferences": applied_preferences},
                 )
 
         return Response(self._response_data(makerspace), status=status.HTTP_200_OK)

@@ -6,9 +6,15 @@ import { staffRequest } from "../../../lib/api";
 export type Makerspace = {
   id: number;
   name: string;
+  default_loan_days?: number;
+  public_inventory_enabled?: boolean;
   public_code: string;
   slug: string;
   location?: string;
+  geofence_latitude?: string | number | null;
+  geofence_longitude?: string | number | null;
+  geofence_radius_m?: number;
+  geofence_enabled?: boolean;
   map_url?: string;
   telegram_group_chat_id: string;
   frontend_domain: string | null;
@@ -21,12 +27,17 @@ export type Makerspace = {
   hidden_from_central_directory: boolean;
   superadmin_access_enabled?: boolean;
   staff_notifications_enabled?: boolean;
+  booking_requester_notifications_enabled?: boolean;
   public_stats_enabled?: boolean;
-  public_print_status_lookup_policy?: "token_only" | "email_unverified" | "checkin_verified";
+  public_print_status_lookup_policy?: "token_only" | "email_unverified";
+  membership_policy?: "request" | "open" | "invite_only";
+  membership_dues_amount?: string;
+  referrals_enabled?: boolean;
   filament_low_stock_threshold_grams?: string | number;
   logo_url?: string | null;
   cover_image_url?: string | null;
   enabled_modules?: string[];
+  enabled_features?: string[];
   resource_limit_overrides?: Record<string, unknown>;
   branding_config?: {
     display_name?: string;

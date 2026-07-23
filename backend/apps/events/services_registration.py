@@ -1,0 +1,97 @@
+"""Registration mutation boundary, kept separate from event lifecycle services."""
+
+from django.conf import settings
+from django.db import transaction
+from django.utils import timezone
+
+from apps.encryption.write_fence import assert_mapped_write_allowed
+from apps.events.capacity import fresh_registration_status
+from apps.events.exceptions import DuplicateRegistration, EventInvalidTransition
+from apps.events.models import EventRegistration
+from apps.forms_schema.validation import validate_answers
+
+
+@transaction.atomic
+def register(
+    event, *, member=None, name=None, email=None, phone=None,
+    custom_answers=None, actor=None,
+):
+    from apps.events.services import _audit, _locked_event, _refresh, _validate
+
+    assert_mapped_write_allowed(event.makerspace_id)
+    if member is not None:
+        name = member.display_name or member.get_full_name() or member.username
+        email = member.email
+        phone = member.phone
+    name = (name or "").strip()
+    normalized_email = (email or "").strip().lower()
+    phone = (phone or "").strip()
+    generation = event_hash = None
+    if settings.PII_ENCRYPTION_ENABLED:
+        from apps.encryption.blind_index import active_generation, event_email_hash
+
+        generation = active_generation()
+        event_hash = event_email_hash(
+            normalized_email, generation=generation.generation,
+            makerspace_id=event.makerspace_id, event_id=event.pk,
+        )
+    locked = _locked_event(event.pk)
+    if not locked.is_public or locked.status != locked.Status.PUBLISHED or locked.ends_at < timezone.now():
+        raise EventInvalidTransition("This event is not open for registration.")
+    custom_answers = validate_answers(locked.custom_form, custom_answers)
+    status = fresh_registration_status(locked)
+    existing = _existing_registration(
+        locked, member, normalized_email, generation, event_hash
+    )
+    if existing and existing.status == EventRegistration.Status.CANCELLED:
+        existing.member = member or existing.member
+        existing.name, existing.email, existing.phone = name, normalized_email, phone
+        existing.custom_answers, existing.status, existing.created_at = custom_answers, status, timezone.now()
+        _validate(existing)
+        existing.save(update_fields=["member", "name", "email", "phone", "custom_answers", "status", "created_at"])
+        return _record_registration(locked, actor, existing, status)
+    if existing:
+        raise DuplicateRegistration("A registration already exists for this email.", fresh_status=status)
+    registration = EventRegistration(
+        event=locked, member=member, name=name, email=normalized_email,
+        phone=phone, custom_answers=custom_answers, status=status,
+    )
+    _validate(registration)
+    registration.save()
+    return _record_registration(locked, actor, registration, status)
+
+
+def _existing_registration(event, member, normalized_email, generation, event_hash):
+    if member is not None:
+        existing = EventRegistration.objects.select_for_update().filter(
+            event=event, member=member
+        ).first()
+        if existing:
+            return existing
+    if not settings.PII_ENCRYPTION_ENABLED:
+        return EventRegistration.objects.select_for_update().filter(event=event, email=normalized_email).first()
+    candidates = EventRegistration.objects.select_for_update().filter(
+        event=event, email_hash_generation=generation, email_exact_hash=event_hash
+    )
+    existing = next((row for row in candidates if row.email.strip().lower() == normalized_email), None)
+    if settings.PII_ENCRYPTION_DUAL_READ:
+        from apps.encryption.search import legacy_plaintext_candidates
+
+        legacy = legacy_plaintext_candidates(
+            EventRegistration.objects.filter(event=event), field_name="email", term=normalized_email, exact=True
+        )
+        if legacy:
+            return EventRegistration.objects.select_for_update().filter(pk__in=legacy).first() or existing
+    return existing
+
+
+def _record_registration(event, actor, registration, status):
+    from apps.events import services
+
+    services._audit(event, actor, "event.registration_created", registration, {"registration_id": registration.pk, "status": status})
+    services.notify_event_lifecycle(event, "registration_created", registration.pk)
+    if status == EventRegistration.Status.REGISTERED:
+        from apps.events.service_payments import create_for_registered_registration
+
+        create_for_registered_registration(registration, actor)
+    return services._refresh(registration)

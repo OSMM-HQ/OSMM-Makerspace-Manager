@@ -8,7 +8,6 @@ from apps.admin_api.views_inventory import _assert_box_in_makerspace, _assert_ca
 from apps.audit import services as audit
 from apps.inventory import availability
 from apps.inventory.models import InventoryProduct
-from apps.printing.serializers import FilamentSpoolSerializer, PrintPrinterSerializer
 from apps.procurement.models import ToBuyItem
 
 
@@ -96,31 +95,20 @@ def move_to_printing(actor, item, *, target, data):
     with transaction.atomic():
         locked = ToBuyItem.objects.select_for_update().select_related("makerspace").get(pk=item.pk)
         _assert_move_allowed(locked, ToBuyItem.Kind.PRINTING)
-
-        payload = {**data, "makerspace": locked.makerspace_id}
+        from apps.machines.procurement import move_received_printing
+        result = move_received_printing(locked.makerspace, actor, target=target, data=data)
         if target == PrintingTarget.SPOOL:
-            serializer = FilamentSpoolSerializer(data=payload)
-            result_field = "resulting_spool"
+            locked.resulting_pool = result
+            update_fields = ["moved_to_inventory_at", "resulting_pool", "updated_at"]
         elif target == PrintingTarget.PRINTER:
-            serializer = PrintPrinterSerializer(data=payload)
-            result_field = "resulting_printer"
+            locked.resulting_machine = result
+            update_fields = ["moved_to_inventory_at", "resulting_machine", "updated_at"]
         else:
             raise ValidationError({"target": "Use spool or printer."})
-
-        serializer.is_valid(raise_exception=True)
-        result = serializer.save()
         locked.moved_to_inventory_at = timezone.now()
-        setattr(locked, result_field, result)
-        locked.save(update_fields=["moved_to_inventory_at", result_field, "updated_at"])
-        audit.record(
-            actor,
-            "procurement.moved_to_printing",
-            makerspace=locked.makerspace,
-            target=locked,
-            meta={"item_id": locked.id, "target": target, "result_id": result.id},
-        )
+        locked.save(update_fields=update_fields)
+        audit.record(actor, "procurement.moved_to_printing", makerspace=locked.makerspace, target=locked, meta={"item_id": locked.id, "target": target, "result_id": result.id, "kernel": True})
         return result
-
 
 def _assert_move_allowed(item, expected_kind):
     if item.kind != expected_kind:

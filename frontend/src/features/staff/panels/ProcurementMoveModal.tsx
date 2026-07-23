@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Modal } from "../../../components/ui";
 import { staffRequest } from "../../../lib/api";
 import { invalidateInventoryViews, invalidatePrintingViews } from "../queryInvalidation";
-import type { PrintPrinter } from "./PrintingPanelParts";
+import type { Machine } from "../machinesApi";
 import {
   HardwareMoveForm,
   PrintingMoveForm,
@@ -16,6 +16,7 @@ import type { ToBuyItem } from "./ProcurementPanelRows";
 import { categoryResults, type CategoryListResponse, type Makerspace, type Product, useStaffGet } from "./shared";
 
 type ListResponse<T> = { results: T[] };
+type PrinterOption = Pick<Machine, "id" | "name">;
 
 export function ProcurementMoveModal({ item, makerspace, onClose, onMoved }: {
   item: ToBuyItem | null;
@@ -37,7 +38,7 @@ export function ProcurementMoveModal({ item, makerspace, onClose, onMoved }: {
   const products = useStaffGet<ListResponse<Product>>(["inventory-all", makerspace.id], `/admin/makerspace/${makerspace.id}/inventory?page_size=1000`, open && isHardware);
   const categories = useStaffGet<CategoryListResponse>(["categories", makerspace.id], `/admin/makerspace/${makerspace.id}/categories`, open && isHardware);
   const containers = useStaffGet<ListResponse<ContainerOption>>(["containers-all", makerspace.id], `/admin/makerspace/${makerspace.id}/containers?page_size=1000`, open && isHardware);
-  const printers = useStaffGet<ListResponse<PrintPrinter>>(["print-printers", makerspace.id], `/printing/manage/printers/?makerspace=${makerspace.id}`, open && !isHardware);
+  const printers = useStaffGet<ListResponse<PrinterOption>>(["printer-machines", makerspace.id], `/admin/makerspace/${makerspace.id}/machines?machine_type=3d_printer`, open && !isHardware);
 
   const moveHardware = useMutation({
     mutationFn: () => {
