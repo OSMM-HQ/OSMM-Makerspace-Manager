@@ -22,6 +22,10 @@ class Payment(models.Model):
         RAW = "raw", "Makerspace raw credentials"
         CONNECT = "connect", "Stripe Connect"
 
+    class OnlineRail(models.TextChoices):
+        CHECKOUT = 'checkout', 'Stripe Checkout'
+        NATIVE_PAYMENT_INTENT = 'native_payment_intent', 'Native payment intent'
+
     makerspace = models.ForeignKey("makerspaces.Makerspace", on_delete=models.PROTECT, related_name="payments")
     subject_type = models.CharField(max_length=48, choices=SubjectType.choices)
     subject_id = models.PositiveBigIntegerField()
@@ -32,6 +36,12 @@ class Payment(models.Model):
     stripe_provider = models.CharField(max_length=16, choices=StripeProvider.choices, default=StripeProvider.RAW)
     stripe_connected_account_id = models.CharField(max_length=255, null=True, blank=True)
     stripe_application_fee_amount = models.PositiveBigIntegerField(default=0)
+    online_rail = models.CharField(
+        max_length=32,
+        choices=OnlineRail.choices,
+        null=True,
+        blank=True,
+    )
     stripe_checkout_session_id = models.CharField(max_length=255, null=True, blank=True, unique=True)
     stripe_checkout_url = models.URLField(blank=True, default="")
     stripe_checkout_session_expired_at = models.DateTimeField(null=True, blank=True)
@@ -96,7 +106,7 @@ class Payment(models.Model):
     def save(self, *args, **kwargs):
         if self.pk:
             original = type(self).objects.filter(pk=self.pk).values(
-                "status", "amount", "stripe_provider", "stripe_connected_account_id", "stripe_application_fee_amount"
+                "status", "amount", "stripe_provider", "stripe_connected_account_id", "stripe_application_fee_amount", "online_rail"
             ).first()
             if original and original["status"] != self.Status.PENDING and (
                 original["status"] != self.status or original["amount"] != self.amount
@@ -107,6 +117,12 @@ class Payment(models.Model):
                 for field in ("stripe_provider", "stripe_connected_account_id", "stripe_application_fee_amount")
             ):
                 raise ValidationError("Stripe provenance is immutable.")
+            if (
+                original
+                and original['online_rail'] is not None
+                and original['online_rail'] != self.online_rail
+            ):
+                raise ValidationError('The online payment rail is immutable once claimed.')
         self.full_clean()
         return super().save(*args, **kwargs)
 

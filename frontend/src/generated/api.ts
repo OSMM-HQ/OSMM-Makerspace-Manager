@@ -29,6 +29,7 @@ export const openApiTags = [
   "Bulk import",
   "Containers",
   "Dashboard",
+  "Device auth",
   "Email logs",
   "Email templates",
   "Health",
@@ -38,6 +39,7 @@ export const openApiTags = [
   "Makerspaces",
   "Member activity",
   "Memberships",
+  "Native push",
   "Notifications",
   "Payments",
   "Platform",
@@ -297,6 +299,12 @@ export const openApiPaths = [
   "/api/v1/admin/warranty/{id}/documents",
   "/api/v1/admin/warranty/{id}/documents/presign",
   "/api/v1/auth/change-password",
+  "/api/v1/auth/device/attestation-challenge",
+  "/api/v1/auth/device/grants",
+  "/api/v1/auth/device/grants/{grant_id}",
+  "/api/v1/auth/device/login",
+  "/api/v1/auth/device/logout",
+  "/api/v1/auth/device/refresh",
   "/api/v1/auth/email-verification/confirm",
   "/api/v1/auth/email-verification/resend",
   "/api/v1/auth/forgot-password",
@@ -312,6 +320,8 @@ export const openApiPaths = [
   "/api/v1/guest-admin/requests/{id}/return",
   "/api/v1/health/",
   "/api/v1/health/readiness/",
+  "/api/v1/integrations/push/devices",
+  "/api/v1/integrations/push/devices/{device_id}",
   "/api/v1/integrations/telegram/test-alert",
   "/api/v1/integrations/telegram/webhook",
   "/api/v1/internal/cron/return-reminders",
@@ -319,6 +329,7 @@ export const openApiPaths = [
   "/api/v1/member/makerspaces/{makerspace_id}/activity",
   "/api/v1/member/makerspaces/{makerspace_id}/payments",
   "/api/v1/member/makerspaces/{makerspace_id}/payments/{payment_id}/checkout",
+  "/api/v1/member/makerspaces/{makerspace_id}/payments/{payment_id}/mobile-intent",
   "/api/v1/member/makerspaces/{makerspace_id}/referrals",
   "/api/v1/member/makerspaces/{makerspace_id}/waiver",
   "/api/v1/member/makerspaces/{makerspace_id}/waiver/accept",
@@ -830,7 +841,7 @@ export type ChangePasswordResponse = {
   "detail": string;
 };
 
-export type ChannelEnum = "email" | "telegram" | "slack" | "mattermost";
+export type ChannelEnum = "email" | "telegram" | "slack" | "mattermost" | "native_push";
 
 export type CheckoutUrl = {
   "checkout_url": string;
@@ -954,6 +965,61 @@ export type Dashboard = {
   "warranty_expiring"?: number;
   "maintenance_overdue"?: number;
   "pending_payments"?: number;
+};
+
+export type DeviceChallengeResponse = {
+  "challenge": string;
+  "expires_in": number;
+};
+
+export type DeviceGrant = {
+  "id": string;
+  "platform": string;
+  "app_id": string;
+  "environment": string;
+  "status": string;
+  "attested_at": string;
+  "last_used_at": string;
+  "created_at": string;
+};
+
+export type DeviceIdentity = {
+  "platform": PlatformEnum;
+  "app_id": string;
+  "environment": EnvironmentEnum;
+};
+
+export type DeviceLogin = {
+  "platform": PlatformEnum;
+  "app_id": string;
+  "environment": EnvironmentEnum;
+  "username": string;
+  "password": string;
+  "challenge": string;
+  "attestation": unknown;
+};
+
+export type DeviceLogoutResponse = {
+  "detail": string;
+};
+
+export type DeviceRefresh = {
+  "refresh": string;
+};
+
+export type DeviceRefreshResponse = {
+  "access": string;
+  "refresh": string;
+  "device_grant": DeviceGrant;
+};
+
+export type DeviceTokenResponse = {
+  "access": string;
+  "refresh": string;
+  "user": {
+  [key: string]: unknown;
+};
+  "device_grant": DeviceGrant;
 };
 
 export type DirectLoan = {
@@ -1113,6 +1179,8 @@ export type EmailVerificationConfirm = {
 };
 
 export type EndReasonEnum = "superseded" | "membership_revoked" | "user_ended";
+
+export type EnvironmentEnum = "development" | "production";
 
 export type Error = {
   "detail"?: string;
@@ -1496,7 +1564,7 @@ export type IssueRequest = {
   "rejects"?: Array<IssueReject>;
 };
 
-export type Key66aEnum = "email" | "telegram" | "slack" | "mattermost";
+export type Key9b4Enum = "email" | "telegram" | "slack" | "mattermost" | "native_push";
 
 export type KeyD07Enum = "hardware_requests" | "printing" | "events" | "bookings" | "maintenance" | "members";
 
@@ -2214,6 +2282,14 @@ export type MemberVerificationAck = {
 
 export type MethodEnum = "PUT";
 
+export type MobilePaymentIntentResponse = {
+  "payment_id": number;
+  "client_secret": string;
+  "publishable_key": string;
+  "customer_id"?: string | null;
+  "ephemeral_key"?: string | null;
+};
+
 export type Mode087Enum = "preview" | "apply";
 
 export type MostLentReport = {
@@ -2315,7 +2391,7 @@ export type Notification = {
 };
 
 export type NotificationChannel = {
-  "key": Key66aEnum;
+  "key": Key9b4Enum;
   "label": string;
 };
 
@@ -2958,6 +3034,8 @@ export type PlatformEmailSettings = {
   "updated_at": string;
 };
 
+export type PlatformEnum = "apple" | "android";
+
 export type PlatformStripeConnectSettings = {
   "id": number;
   "stripe_publishable_key"?: string;
@@ -3060,6 +3138,8 @@ export type ProductQrHistory = {
   "product": number;
   "scans": Array<QrHistoryItem>;
 };
+
+export type ProviderEnum = "fcm" | "apns";
 
 export type ProvisionSubdomainRequest = {
   "label": string;
@@ -3439,6 +3519,22 @@ export type PublicToolScan = {
   "remark": string;
   "report_problem"?: boolean;
   "problem_note"?: string;
+};
+
+export type PushDevice = {
+  "id": number;
+  "provider": string;
+  "environment": string;
+  "makerspace_id": number;
+  "active": boolean;
+  "created_at": string;
+  "updated_at": string;
+};
+
+export type PushDeviceRegistration = {
+  "token": string;
+  "provider": ProviderEnum;
+  "environment": EnvironmentEnum;
 };
 
 export type QrCode = {

@@ -26,6 +26,10 @@ class _ConnectAccountCannotCharge(Exception):
         self.merchant_id = merchant_id
 
 
+class PaymentRailConflict(Exception):
+    pass
+
+
 def create_payment(*, makerspace, subject_type, subject_id, member, amount, currency, created_by):
     source = resolve_payment_source(makerspace)
     if source is None:
@@ -100,8 +104,12 @@ def _create_checkout_url_atomic(payment_id):
         payment = Payment.objects.select_for_update().select_related("makerspace").get(pk=payment_id)
         if payment.status != Payment.Status.PENDING:
             return ""
+        if payment.online_rail == Payment.OnlineRail.NATIVE_PAYMENT_INTENT:
+            raise PaymentRailConflict('The payment already uses the native payment rail.')
         if payment.stripe_checkout_url:
             return payment.stripe_checkout_url
+        if payment.online_rail is None:
+            payment.online_rail = Payment.OnlineRail.CHECKOUT
         source = source_for_payment(payment)
         if source is None:
             raise stripe_client.PaymentsUnavailable("Payments are not configured.")
@@ -153,6 +161,7 @@ def _create_checkout_url_atomic(payment_id):
                 "stripe_checkout_session_id",
                 "stripe_checkout_url",
                 "stripe_checkout_session_expired_at",
+                "online_rail",
                 "updated_at",
             ]
         )

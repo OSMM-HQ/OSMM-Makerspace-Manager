@@ -68,6 +68,7 @@ MANAGED_RESOURCE_LIMITS = {
     "telegram": 100,
     "slack": 100,
     "mattermost": 100,
+    "native_push": 500,
     "api_clients": 1,
     "custom_roles": 20,
     "otp_email": 200,
@@ -393,7 +394,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 24,
     "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "apps.accounts.authentication.SpaceWorksJWTAuthentication",
     ),
     # DENY BY DEFAULT (review fix #4): every view requires auth unless it explicitly
     # opts into AllowAny. Public views are marked AllowAny in Step 3b.
@@ -401,6 +402,11 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "apps.hardware_requests.exceptions.workflow_exception_handler",
     "DEFAULT_THROTTLE_RATES": {
         "login": env("THROTTLE_LOGIN", default="10/min"),
+        "device_attestation_challenge": env("THROTTLE_DEVICE_ATTESTATION_CHALLENGE", default="5/min"),
+        "device_login": env("THROTTLE_DEVICE_LOGIN", default="5/min"),
+        "device_login_user": env("THROTTLE_DEVICE_LOGIN_USER", default="10/hour"),
+        "device_refresh": env("THROTTLE_DEVICE_REFRESH", default="30/min"),
+        "push_device_registration": env("THROTTLE_PUSH_DEVICE_REGISTRATION", default="10/min"),
         "password_reset_request": env(
             "THROTTLE_PASSWORD_RESET_REQUEST",
             default="5/min",
@@ -530,6 +536,18 @@ AUTH_COOKIE_PATH = "/api/v1/auth/"
 # AUTH_COOKIE_SAMESITE=Lax + AUTH_COOKIE_SECURE=False via .env (see Step 3c note).
 AUTH_COOKIE_SAMESITE = env("AUTH_COOKIE_SAMESITE", default="None")
 AUTH_COOKIE_SECURE = env.bool("AUTH_COOKIE_SECURE", default=True)
+
+# Native device routes are dormant until an exact app allowlist and both the selected
+# provider verifier URL and bearer credential are configured. Verifiers must perform
+# real Apple App Attest / Google Play Integrity validation and return bound claims.
+DEVICE_ATTESTATION_APPS = env.json("DEVICE_ATTESTATION_APPS", default={})
+DEVICE_APPLE_ATTESTATION_VERIFY_URL = env("DEVICE_APPLE_ATTESTATION_VERIFY_URL", default="")
+DEVICE_APPLE_ATTESTATION_VERIFY_TOKEN = env("DEVICE_APPLE_ATTESTATION_VERIFY_TOKEN", default="")
+DEVICE_ANDROID_ATTESTATION_VERIFY_URL = env("DEVICE_ANDROID_ATTESTATION_VERIFY_URL", default="")
+DEVICE_ANDROID_ATTESTATION_VERIFY_TOKEN = env("DEVICE_ANDROID_ATTESTATION_VERIFY_TOKEN", default="")
+DEVICE_ATTESTATION_CHALLENGE_TTL_SECONDS = env.int("DEVICE_ATTESTATION_CHALLENGE_TTL_SECONDS", default=180)
+DEVICE_ATTESTATION_PROVIDER_TIMEOUT_SECONDS = env.int("DEVICE_ATTESTATION_PROVIDER_TIMEOUT_SECONDS", default=10)
+PUSH_TOKEN_HMAC_KEY = env("PUSH_TOKEN_HMAC_KEY", default="")
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Space Works API",

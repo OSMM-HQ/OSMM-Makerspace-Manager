@@ -185,12 +185,14 @@ class NotificationChannel(models.TextChoices):
     TELEGRAM = "telegram", "Telegram"
     SLACK = "slack", "Slack"
     MATTERMOST = "mattermost", "Mattermost"
+    NATIVE_PUSH = "native_push", "Native push"
 
 
 class NonEmailNotificationChannel(models.TextChoices):
     TELEGRAM = "telegram", "Telegram"
     SLACK = "slack", "Slack"
     MATTERMOST = "mattermost", "Mattermost"
+    NATIVE_PUSH = "native_push", "Native push"
 
 
 class NotificationDeliveryStatus(models.TextChoices):
@@ -305,3 +307,23 @@ class DailyNotificationCounter(models.Model):
 
     def __str__(self):
         return f"{self.makerspace_id}:{self.channel}:{self.day}={self.count}"
+
+
+from apps.integrations.models_push import PlatformPushSettings, PushDevice  # noqa: E402
+
+__all__ = [
+    'DailyEmailCounter',
+    'DailyNotificationCounter',
+    'EmailLog',
+    'EmailNotificationMute',
+    'EmailTemplate',
+    'NonEmailNotificationChannel',
+    'NotificationChannel',
+    'NotificationDeliveryLog',
+    'NotificationDeliveryStatus',
+    'NotificationFeature',
+    'NotificationPreference',
+    'PlatformEmailSettings',
+    'PlatformPushSettings',
+    'PushDevice',
+]

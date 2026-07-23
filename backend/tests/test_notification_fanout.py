@@ -174,6 +174,7 @@ def test_raising_build_and_dispatch_never_escape(monkeypatch):
         NotificationChannel.TELEGRAM: 1,
         NotificationChannel.SLACK: 1,
         NotificationChannel.MATTERMOST: 1,
+        NotificationChannel.NATIVE_PUSH: 1,
     }
 
 
@@ -210,5 +211,4 @@ def test_hardware_submitted_adapter_calls_one_fanout_with_original_buttons(monke
             },
         ]]
     }
-
 

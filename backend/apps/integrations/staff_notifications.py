@@ -102,3 +102,36 @@ def staff_emails_for_stream(makerspace, stream, event=None) -> list[str]:
         )
         return []
     return staff_emails_for_feature(makerspace, feature, event=event)
+
+
+def staff_user_ids_for_feature(makerspace, feature, event=None) -> list[int]:
+    """Native-push recipients use the same action/mute matrix as staff email."""
+    try:
+        if not getattr(makerspace, "staff_notifications_enabled", True):
+            return []
+        required_action = _FEATURE_ACTIONS.get(feature)
+        if required_action is None:
+            return []
+        stream = _FEATURE_STREAMS.get(feature)
+        mutable = bool(stream and event and notification_rules.is_event_mutable(stream, "staff", event))
+        memberships = MakerspaceMembership.objects.filter(
+            makerspace=makerspace, status="active", receives_notifications=True,
+            user__is_active=True, user__access_status=User.AccessStatus.ACTIVE,
+        ).exclude(user__is_superuser=True).exclude(
+            user__role=User.Role.SUPERADMIN
+        ).select_related("assigned_role").order_by("id")
+        result = []
+        for membership in memberships:
+            if required_action not in rbac.actions_for_membership(membership):
+                continue
+            if mutable and notification_rules.role_muted(
+                makerspace, stream, event, membership.role
+            ):
+                continue
+            result.append(membership.user_id)
+        return list(dict.fromkeys(result))
+    except Exception:
+        logger.warning("push_recipient_resolution_failed", extra={
+            "makerspace_id": getattr(makerspace, "pk", None), "feature": feature,
+        })
+        return []

@@ -50,6 +50,10 @@ def _channel_configured(makerspace, channel) -> bool:
             return bool(makerspace.get_slack_webhook_url())
         if channel == NonEmailNotificationChannel.MATTERMOST:
             return bool(makerspace.get_mattermost_webhook_url())
+        if channel == NonEmailNotificationChannel.NATIVE_PUSH:
+            from apps.integrations.push import push_configured
+
+            return push_configured()
         return False
     except Exception:
         logger.warning(
@@ -128,7 +132,11 @@ def _deliver_notification(log) -> NotificationDeliveryLog:
         return log
 
     try:
-        if log.channel == NonEmailNotificationChannel.TELEGRAM:
+        if log.channel == NonEmailNotificationChannel.NATIVE_PUSH:
+            from apps.integrations.push import deliver_native_push
+
+            ok = deliver_native_push(log)
+        elif log.channel == NonEmailNotificationChannel.TELEGRAM:
             from apps.integrations.telegram import send_message
 
             ok = send_message(

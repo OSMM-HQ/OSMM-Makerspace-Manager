@@ -20059,6 +20059,348 @@
                 }
             }
         },
+        "/api/v1/auth/device/attestation-challenge": {
+            "post": {
+                "operationId": "api_v1_auth_device_attestation_challenge_create",
+                "tags": [
+                    "Device auth"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeviceIdentity"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeviceIdentity"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeviceIdentity"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeviceChallengeResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/device/grants": {
+            "get": {
+                "operationId": "api_v1_auth_device_grants_list",
+                "tags": [
+                    "Device auth"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/DeviceGrant"
+                                    }
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/device/grants/{grant_id}": {
+            "delete": {
+                "operationId": "api_v1_auth_device_grants_destroy",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "grant_id",
+                        "schema": {
+                            "type": "string",
+                            "format": "uuid"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Device auth"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/device/login": {
+            "post": {
+                "operationId": "api_v1_auth_device_login_create",
+                "tags": [
+                    "Device auth"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeviceLogin"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeviceLogin"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeviceLogin"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeviceTokenResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/device/logout": {
+            "post": {
+                "operationId": "api_v1_auth_device_logout_create",
+                "tags": [
+                    "Device auth"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeviceLogoutResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/auth/device/refresh": {
+            "post": {
+                "operationId": "api_v1_auth_device_refresh_create",
+                "tags": [
+                    "Device auth"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeviceRefresh"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeviceRefresh"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DeviceRefresh"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/DeviceRefreshResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "400": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "429": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/auth/email-verification/confirm": {
             "post": {
                 "operationId": "api_v1_auth_email_verification_confirm_create",
@@ -20736,6 +21078,159 @@
                 }
             }
         },
+        "/api/v1/integrations/push/devices": {
+            "post": {
+                "operationId": "api_v1_integrations_push_devices_create",
+                "tags": [
+                    "Native push"
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PushDeviceRegistration"
+                            }
+                        },
+                        "application/x-www-form-urlencoded": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PushDeviceRegistration"
+                            }
+                        },
+                        "multipart/form-data": {
+                            "schema": {
+                                "$ref": "#/components/schemas/PushDeviceRegistration"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PushDevice"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "201": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/PushDevice"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/integrations/push/devices/{device_id}": {
+            "delete": {
+                "operationId": "api_v1_integrations_push_devices_destroy",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "device_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Native push"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No response body"
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
         "/api/v1/integrations/telegram/test-alert": {
             "post": {
                 "operationId": "api_v1_integrations_telegram_test_alert_create",
@@ -21012,6 +21507,100 @@
                         "description": ""
                     },
                     "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "503": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    }
+                }
+            }
+        },
+        "/api/v1/member/makerspaces/{makerspace_id}/payments/{payment_id}/mobile-intent": {
+            "post": {
+                "operationId": "api_v1_member_makerspaces_payments_mobile_intent_create",
+                "summary": "Create or retrieve a native mobile payment intent",
+                "parameters": [
+                    {
+                        "in": "path",
+                        "name": "makerspace_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    },
+                    {
+                        "in": "path",
+                        "name": "payment_id",
+                        "schema": {
+                            "type": "integer"
+                        },
+                        "required": true
+                    }
+                ],
+                "tags": [
+                    "Payments"
+                ],
+                "security": [
+                    {
+                        "jwtAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MobilePaymentIntentResponse"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "401": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "403": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "404": {
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/HardwareRequestError"
+                                }
+                            }
+                        },
+                        "description": ""
+                    },
+                    "409": {
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -26917,10 +27506,11 @@
                     "email",
                     "telegram",
                     "slack",
-                    "mattermost"
+                    "mattermost",
+                    "native_push"
                 ],
                 "type": "string",
-                "description": "* `email` - Email\n* `telegram` - Telegram\n* `slack` - Slack\n* `mattermost` - Mattermost"
+                "description": "* `email` - Email\n* `telegram` - Telegram\n* `slack` - Slack\n* `mattermost` - Mattermost\n* `native_push` - Native push"
             },
             "CheckoutUrl": {
                 "type": "object",
@@ -27356,6 +27946,192 @@
                         "default": 0
                     }
                 }
+            },
+            "DeviceChallengeResponse": {
+                "type": "object",
+                "properties": {
+                    "challenge": {
+                        "type": "string"
+                    },
+                    "expires_in": {
+                        "type": "integer",
+                        "minimum": 1
+                    }
+                },
+                "required": [
+                    "challenge",
+                    "expires_in"
+                ]
+            },
+            "DeviceGrant": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "platform": {
+                        "type": "string"
+                    },
+                    "app_id": {
+                        "type": "string"
+                    },
+                    "environment": {
+                        "type": "string"
+                    },
+                    "status": {
+                        "type": "string"
+                    },
+                    "attested_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "last_used_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "app_id",
+                    "attested_at",
+                    "created_at",
+                    "environment",
+                    "id",
+                    "last_used_at",
+                    "platform",
+                    "status"
+                ]
+            },
+            "DeviceIdentity": {
+                "type": "object",
+                "properties": {
+                    "platform": {
+                        "$ref": "#/components/schemas/PlatformEnum"
+                    },
+                    "app_id": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "pattern": "^[A-Za-z0-9._-]{3,255}$"
+                    },
+                    "environment": {
+                        "$ref": "#/components/schemas/EnvironmentEnum"
+                    }
+                },
+                "required": [
+                    "app_id",
+                    "environment",
+                    "platform"
+                ]
+            },
+            "DeviceLogin": {
+                "type": "object",
+                "properties": {
+                    "platform": {
+                        "$ref": "#/components/schemas/PlatformEnum"
+                    },
+                    "app_id": {
+                        "type": "string",
+                        "maxLength": 255,
+                        "pattern": "^[A-Za-z0-9._-]{3,255}$"
+                    },
+                    "environment": {
+                        "$ref": "#/components/schemas/EnvironmentEnum"
+                    },
+                    "username": {
+                        "type": "string",
+                        "maxLength": 254
+                    },
+                    "password": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 1024
+                    },
+                    "challenge": {
+                        "type": "string",
+                        "maxLength": 512
+                    },
+                    "attestation": {}
+                },
+                "required": [
+                    "app_id",
+                    "attestation",
+                    "challenge",
+                    "environment",
+                    "password",
+                    "platform",
+                    "username"
+                ]
+            },
+            "DeviceLogoutResponse": {
+                "type": "object",
+                "properties": {
+                    "detail": {
+                        "type": "string"
+                    }
+                },
+                "required": [
+                    "detail"
+                ]
+            },
+            "DeviceRefresh": {
+                "type": "object",
+                "properties": {
+                    "refresh": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 4096
+                    }
+                },
+                "required": [
+                    "refresh"
+                ]
+            },
+            "DeviceRefreshResponse": {
+                "type": "object",
+                "properties": {
+                    "access": {
+                        "type": "string"
+                    },
+                    "refresh": {
+                        "type": "string"
+                    },
+                    "device_grant": {
+                        "$ref": "#/components/schemas/DeviceGrant"
+                    }
+                },
+                "required": [
+                    "access",
+                    "device_grant",
+                    "refresh"
+                ]
+            },
+            "DeviceTokenResponse": {
+                "type": "object",
+                "properties": {
+                    "access": {
+                        "type": "string"
+                    },
+                    "refresh": {
+                        "type": "string"
+                    },
+                    "user": {
+                        "type": "object",
+                        "additionalProperties": {}
+                    },
+                    "device_grant": {
+                        "$ref": "#/components/schemas/DeviceGrant"
+                    }
+                },
+                "required": [
+                    "access",
+                    "device_grant",
+                    "refresh",
+                    "user"
+                ]
             },
             "DirectLoan": {
                 "type": "object",
@@ -28001,6 +28777,14 @@
                 ],
                 "type": "string",
                 "description": "* `superseded` - Superseded\n* `membership_revoked` - Membership revoked\n* `user_ended` - User ended"
+            },
+            "EnvironmentEnum": {
+                "enum": [
+                    "development",
+                    "production"
+                ],
+                "type": "string",
+                "description": "* `development` - Development\n* `production` - Production"
             },
             "Error": {
                 "type": "object",
@@ -29519,15 +30303,16 @@
                     "evidence_id"
                 ]
             },
-            "Key66aEnum": {
+            "Key9b4Enum": {
                 "enum": [
                     "email",
                     "telegram",
                     "slack",
-                    "mattermost"
+                    "mattermost",
+                    "native_push"
                 ],
                 "type": "string",
-                "description": "* `email` - Email\n* `telegram` - Telegram\n* `slack` - Slack\n* `mattermost` - Mattermost"
+                "description": "* `email` - Email\n* `telegram` - Telegram\n* `slack` - Slack\n* `mattermost` - Mattermost\n* `native_push` - Native push"
             },
             "KeyD07Enum": {
                 "enum": [
@@ -32550,6 +33335,33 @@
                 "type": "string",
                 "description": "* `PUT` - PUT"
             },
+            "MobilePaymentIntentResponse": {
+                "type": "object",
+                "properties": {
+                    "payment_id": {
+                        "type": "integer"
+                    },
+                    "client_secret": {
+                        "type": "string"
+                    },
+                    "publishable_key": {
+                        "type": "string"
+                    },
+                    "customer_id": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "ephemeral_key": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "required": [
+                    "client_secret",
+                    "payment_id",
+                    "publishable_key"
+                ]
+            },
             "Mode087Enum": {
                 "enum": [
                     "preview",
@@ -32940,7 +33752,7 @@
                 "type": "object",
                 "properties": {
                     "key": {
-                        "$ref": "#/components/schemas/Key66aEnum"
+                        "$ref": "#/components/schemas/Key9b4Enum"
                     },
                     "label": {
                         "type": "string"
@@ -35424,6 +36236,14 @@
                     "updated_at"
                 ]
             },
+            "PlatformEnum": {
+                "enum": [
+                    "apple",
+                    "android"
+                ],
+                "type": "string",
+                "description": "* `apple` - Apple\n* `android` - Android"
+            },
             "PlatformStripeConnectSettings": {
                 "type": "object",
                 "properties": {
@@ -35848,6 +36668,14 @@
                     "product",
                     "scans"
                 ]
+            },
+            "ProviderEnum": {
+                "enum": [
+                    "fcm",
+                    "apns"
+                ],
+                "type": "string",
+                "description": "* `fcm` - FCM\n* `apns` - APNs"
             },
             "ProvisionSubdomainRequest": {
                 "type": "object",
@@ -37419,6 +38247,65 @@
                     "evidence_id",
                     "payload",
                     "remark"
+                ]
+            },
+            "PushDevice": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "provider": {
+                        "type": "string"
+                    },
+                    "environment": {
+                        "type": "string"
+                    },
+                    "makerspace_id": {
+                        "type": "integer"
+                    },
+                    "active": {
+                        "type": "boolean"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "required": [
+                    "active",
+                    "created_at",
+                    "environment",
+                    "id",
+                    "makerspace_id",
+                    "provider",
+                    "updated_at"
+                ]
+            },
+            "PushDeviceRegistration": {
+                "type": "object",
+                "properties": {
+                    "token": {
+                        "type": "string",
+                        "writeOnly": true,
+                        "maxLength": 4096,
+                        "pattern": "^[A-Za-z0-9_:.-]{20,4096}$"
+                    },
+                    "provider": {
+                        "$ref": "#/components/schemas/ProviderEnum"
+                    },
+                    "environment": {
+                        "$ref": "#/components/schemas/EnvironmentEnum"
+                    }
+                },
+                "required": [
+                    "environment",
+                    "provider",
+                    "token"
                 ]
             },
             "QrCode": {

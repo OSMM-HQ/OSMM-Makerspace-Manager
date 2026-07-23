@@ -109,6 +109,7 @@ def _run_guarded(makerspace, feature, event, build, sync):
             NotificationChannel.TELEGRAM,
             NotificationChannel.SLACK,
             NotificationChannel.MATTERMOST,
+            NotificationChannel.NATIVE_PUSH,
         ):
             if not enabled[channel]:
                 continue

@@ -14,7 +14,9 @@ def user_payload(user, request=None):
     if archived_ids:
         memberships = memberships.exclude(makerspace_id__in=archived_ids)
     memberships = rbac.hide_from_superadmin(user, memberships, field="makerspace_id")
-    if request is not None:
+    if request is not None and getattr(request, 'device_grant', None):
+        memberships = memberships.filter(status='active')
+    elif request is not None:
         scoped_makerspace_id = origin_scoped_makerspace_id(request)
         if scoped_makerspace_id is not None:
             memberships = memberships.filter(makerspace_id=scoped_makerspace_id)
@@ -33,6 +35,17 @@ def user_payload(user, request=None):
         if is_superadmin and not rbac._id_in(m.makerspace_id, hidden_ids):
             return sorted(rbac.ROLE_GRANTABLE_ACTIONS)
         return sorted(rbac.actions_for_membership(m))
+
+    def _can_configure_machine_types(m):
+        if is_superadmin and not rbac._id_in(m.makerspace_id, hidden_ids):
+            return True
+        if m.assigned_role_id is not None:
+            return bool(
+                m.assigned_role
+                and m.assigned_role.makerspace_id == m.makerspace_id
+                and m.assigned_role.legacy_role == "space_manager"
+            )
+        return m.role == "space_manager"
 
     return {
         "id": user.id,
@@ -61,7 +74,7 @@ def user_payload(user, request=None):
                     else m.role
                 ),
                 "actions": _membership_actions(m),
-                "can_configure_machine_types": rbac.is_space_manager_identity(user, m.makerspace_id),
+                "can_configure_machine_types": _can_configure_machine_types(m),
                 "can_refer": m.can_refer,
                 "can_verify": m.can_verify,
                 "verified_at": m.verified_at,

@@ -10,7 +10,7 @@ from apps.makerspaces.member_activity_service import active_membership
 from apps.payments.models import Payment
 from apps.payments.serializers import MemberPaymentSerializer
 from apps.payments.serializers import CheckoutUrlSerializer
-from apps.payments.services import create_checkout_url
+from apps.payments.services import PaymentRailConflict, create_checkout_url
 from apps.payments.subjects import resolve_subject_labels
 
 
@@ -58,6 +58,14 @@ class MemberPaymentCheckoutView(APIView):
             return Response({"checkout_url": payment.stripe_checkout_url})
         try:
             checkout_url = create_checkout_url(payment.pk)
+        except PaymentRailConflict:
+            return Response(
+                {
+                    'detail': 'The payment already uses a different online payment rail.',
+                    'code': 'payment_rail_conflict',
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
         except Exception:
             return Response({"detail": "Payments are temporarily unavailable.", "code": "payments_unavailable"}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         if not checkout_url:

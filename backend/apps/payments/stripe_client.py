@@ -62,6 +62,32 @@ def create_checkout_session(
     )
 
 
+def create_payment_intent(makerspace_or_settings, *, idempotency_key, **params):
+    source = _source(makerspace_or_settings)
+    if source is None:
+        raise PaymentsUnavailable('Stripe is not configured for this makerspace.')
+    options = {'idempotency_key': idempotency_key}
+    if source.provider == 'connect' and source.connected_account_id:
+        options['stripe_account'] = source.connected_account_id
+    return build_client(source).v1.payment_intents.create(
+        params=params,
+        options=options,
+    )
+
+
+def retrieve_payment_intent(makerspace_or_settings, intent_id):
+    source = _source(makerspace_or_settings)
+    if source is None:
+        raise PaymentsUnavailable('Stripe is not configured for this makerspace.')
+    options = {}
+    if source.provider == 'connect' and source.connected_account_id:
+        options['stripe_account'] = source.connected_account_id
+    return build_client(source).v1.payment_intents.retrieve(
+        intent_id,
+        **({'options': options} if options else {}),
+    )
+
+
 def expire_checkout_session(makerspace_or_settings, session_id):
     """Return whether Stripe authoritatively expired the Checkout Session."""
     try:

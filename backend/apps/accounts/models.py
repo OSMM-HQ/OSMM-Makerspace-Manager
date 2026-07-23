@@ -110,3 +110,25 @@ class EmailVerificationChallenge(models.Model):
 class DailyOtpEmailCounter(models.Model):
     day = models.DateField(unique=True)
     count = models.PositiveIntegerField(default=0)
+
+
+from apps.accounts.models_devices import (  # noqa: E402
+    DeviceAttestationChallenge,
+    DeviceEnvironment,
+    DeviceGrant,
+    DevicePlatform,
+    DeviceRefreshFamily,
+    DeviceRefreshToken,
+)
+
+__all__ = [
+    'DailyOtpEmailCounter',
+    'DeviceAttestationChallenge',
+    'DeviceEnvironment',
+    'DeviceGrant',
+    'DevicePlatform',
+    'DeviceRefreshFamily',
+    'DeviceRefreshToken',
+    'EmailVerificationChallenge',
+    'User',
+]

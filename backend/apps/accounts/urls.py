@@ -14,8 +14,22 @@ from apps.accounts.views_registration import (
     EmailVerificationResendView,
     MemberSignUpView,
 )
+from apps.accounts.views_device import (
+    DeviceAttestationChallengeView,
+    DeviceGrantDetailView,
+    DeviceGrantListView,
+    DeviceLoginView,
+    DeviceLogoutView,
+    DeviceRefreshView,
+)
 
 urlpatterns = [
+    path("device/attestation-challenge", DeviceAttestationChallengeView.as_view(), name="device-attestation-challenge"),
+    path("device/login", DeviceLoginView.as_view(), name="device-login"),
+    path("device/refresh", DeviceRefreshView.as_view(), name="device-refresh"),
+    path("device/logout", DeviceLogoutView.as_view(), name="device-logout"),
+    path("device/grants", DeviceGrantListView.as_view(), name="device-grants"),
+    path("device/grants/<uuid:grant_id>", DeviceGrantDetailView.as_view(), name="device-grant-detail"),
     path("login", LoginView.as_view(), name="auth-login"),
     path("refresh", RefreshView.as_view(), name="auth-refresh"),
     path("logout", LogoutView.as_view(), name="auth-logout"),

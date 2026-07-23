@@ -23,3 +23,24 @@ class MemberVerificationEmailThrottle(SimpleRateThrottle):
 
 
 MemberSignUpEmailThrottle = MemberVerificationEmailThrottle
+
+
+class DeviceLoginThrottle(SimpleRateThrottle):
+    scope = "device_login"
+
+    def get_cache_key(self, request, view):
+        return self.get_ident(request) and self.cache_format % {
+            "scope": self.scope, "ident": self.get_ident(request)
+        }
+
+
+class DeviceLoginUserThrottle(SimpleRateThrottle):
+    scope = "device_login_user"
+
+    def get_cache_key(self, request, view):
+        from apps.accounts.audit_events import fingerprint
+
+        username = str(request.data.get("username") or "").strip().lower()
+        return None if not username else self.cache_format % {
+            "scope": self.scope, "ident": fingerprint(username)
+        }
