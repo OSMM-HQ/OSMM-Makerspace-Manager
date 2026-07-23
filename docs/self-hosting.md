@@ -86,11 +86,12 @@ The command is idempotent. It only sends reminders for issued or partially retur
 
 ## Upgrades
 
-Pin a release tag for stable deployments. Published image tags are the plain semantic version
-(e.g. `0.25.0`), the matching minor (`0.25`), and `latest`:
+Pin an immutable release tag for stable deployments. Continuous release tags include the version
+series, Actions run number, and commit SHA (for example `0.5.0-main.42.a1b2c3d4e5f6`).
+The matching minor (`0.5`), `main`, and `latest` are rolling tags:
 
 ```env
-MAKERSPACE_IMAGE_TAG=0.25.0
+MAKERSPACE_IMAGE_TAG=0.5.0-main.42.a1b2c3d4e5f6
 ```
 
 Then run:
@@ -106,14 +107,12 @@ Manual dependency audit: `pip install pip-audit && pip-audit -r backend/requirem
 
 ## Publishing new images (maintainers)
 
-Images are published **only when you cut a release** — Docker-image-only (no GitHub Release, no source
-zip). It's driven straight from `main` by the root **`VERSION`** file (`release.yml`):
+Every push to `main` runs `release.yml`, publishes immutable backend and frontend image tags, and creates
+a matching GitHub Release. When both images succeed for the current branch head, the workflow promotes
+them to the rolling `:X.Y`, `:main`, and `:latest` tags.
 
-1. Edit `VERSION` to the new semantic version, e.g. `1.0.0`.
-2. Commit and push to `main`.
-
-Changing `VERSION` on `main` builds and pushes `:X.Y.Z`, `:X.Y`, and `:latest` for both images. Ordinary
-pushes to `main` publish nothing.
+The root **`VERSION`** file selects the semantic release series. Edit it (for example, to `1.0.0`) only
+when starting a new series; the workflow adds the run number and commit SHA to every release automatically.
 
 The `spaceworks-backend` / `spaceworks-frontend` GHCR packages must be set to **Public** (org → Packages)
 so operators can `docker compose pull` without authenticating.

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/banner.svg" alt="Space Works — Open Source Makerspace Manager" width="100%">
+  <img src="docs/banner.svg" alt="Space Works — Open Source Makerspace Manager" width="860">
 </p>
 
 <h1 align="center">Space Works — Open Source Makerspace Manager</h1>
@@ -64,7 +64,7 @@ It prints your URL and login when it finishes. (Requires [Docker Desktop](https:
 after `cp .env.example .env` (fill in the few values it asks for):
 
 ```bash
-export MAKERSPACE_IMAGE_TAG=latest        # or pin a version, e.g. 0.25.0
+export MAKERSPACE_IMAGE_TAG=latest        # or pin a release, e.g. 0.5.0-main.42.a1b2c3d4e5f6
 docker compose -f docker-compose.prod.yml up -d
 ```
 
@@ -121,7 +121,7 @@ docker compose -f docker-compose.prod.yml exec backend python manage.py setup_in
 ```
 
 With no arguments it seeds **`superadmin` / `super123`** and forces a password change on first login.
-Pin `MAKERSPACE_IMAGE_TAG` to a version (e.g. `0.25.0`) in production — see
+Pin `MAKERSPACE_IMAGE_TAG` to an immutable release (e.g. `0.5.0-main.42.a1b2c3d4e5f6`) in production — see
 **[docs/self-hosting.md](docs/self-hosting.md)** for env vars, TLS, and upgrades.
 
 **No server of your own?** Space Works is multi-tenant — partner with a nearby makerspace to run your space
